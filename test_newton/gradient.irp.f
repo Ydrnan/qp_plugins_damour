@@ -71,17 +71,17 @@ subroutine gradient(n,v_grad)
     
         enddo
         grad(p,q) = grad(p,q) + accu1
-      enddo
-    enddo
+!      enddo
+!    enddo
   !enddo
 
  
   !do istate = 1, N_states 
-  istate = 1
-    do q = 1, n_act_orb
-      qorb = list_act(q)
-      do p = 1, n_act_orb
-       porb = list_act(p)
+!  istate = 1
+!    do q = 1, n_act_orb
+!      qorb = list_act(q)
+!      do p = 1, n_act_orb
+!       porb = list_act(p)
        accu2 = 0d0
        do r = 1, n_act_orb
         rorb = list_act(r)

@@ -33,7 +33,7 @@ subroutine hess(n,H)
         rorb = list_act(r)  
           do s = 1, n_act_orb
           sorb = list_act(s)
-  
+            !!!!!
             if (q==r) then
                 do u = 1, n_act_orb
                 uorb = list_act(u)
@@ -44,35 +44,33 @@ subroutine hess(n,H)
                                         * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
                 enddo
             endif
-!  
-!
+
             if (p==s) then
                 do u = 1, n_act_orb
                 uorb = list_act(u)
                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                                        mo_one_e_integrals(uorb,rorb) &
+                                        mo_one_e_integrals(rorb,uorb) &
                                         * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
                                         + mo_one_e_integrals(uorb,qorb) &
                                         * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
                 enddo
-            endif 
-!
-!             
+            endif
+
+            !!!!!! 
             hessian(p,q,r,s) = hessian(p,q,r,s) &
                                 - mo_one_e_integrals(porb,sorb) &
                                 * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
                                 - mo_one_e_integrals(rorb,qorb) &
                                 * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
-  
-!
-!
+ 
+
             if (q==r) then
                 do t = 1, n_act_orb
                 torb = list_act(t)
                     do u = 1, n_act_orb
                     uorb = list_act(u)
                         do v = 1, n_act_orb
-                        vorb = list_act(v)
+                        vorb =list_act(v)
                             hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
                              get_two_e_integral(porb,torb,uorb,vorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(u,v,s,t,istate) &
                              + get_two_e_integral(uorb,vorb,sorb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,t,u,v,istate))
@@ -80,8 +78,7 @@ subroutine hess(n,H)
                     enddo
                 enddo
             endif
-!
-!  
+  
             if (p==s) then
                 do t = 1, n_act_orb
                 torb = list_act(t)
@@ -96,8 +93,7 @@ subroutine hess(n,H)
                     enddo
                 enddo
             endif
-!
-!  
+  
             do u = 1, n_act_orb
             uorb = list_act(u)
                 do v = 1, n_act_orb
@@ -107,8 +103,7 @@ subroutine hess(n,H)
                                         + get_two_e_integral(uorb,vorb,qorb,sorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,r,u,v,istate)
                 enddo
             enddo
-!
-!  
+  
             do t = 1, n_act_orb
             torb = list_act(t)
                 do u = 1, n_act_orb
@@ -127,8 +122,8 @@ subroutine hess(n,H)
   !enddo
 
   ! Debug
-  print*,'two bd desnity'
-  print*,y_act_2_rdm_spin_trace_mo(:,:,:,:,1)
+  !print*,'two bd desnity'
+  !print*,y_act_2_rdm_spin_trace_mo(:,:,:,:,1)
   ! Le hessien est focément faux vu que les permutations sont faites après 
   !print*,'Hessian'
   !print*,hessian(:,:,:,:)
@@ -153,7 +148,7 @@ subroutine hess(n,H)
             pq=pq+1
             !print*,p,q,r,s
             H(pq,rs) = hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r) ! pqrs-qprs-pqsr+qpsr
-            print*,p,q,r,s,H(pq,rs)
+            !print*,p,q,r,s,H(pq,rs)
         enddo
       enddo
     enddo
@@ -164,23 +159,18 @@ subroutine hess(n,H)
   do s = 1, mo_num
   do q = 1, mo_num
   do p = 1, mo_num
-  toto(p,q,r,s) = hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)
+    toto(p,q,r,s) = hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)
   enddo
   enddo
   enddo
   enddo
-  
-  open(unit=10, file='hess_matrix.dat')
-  do p = 1, mo_num
-  do q = 1, mo_num
-  do r = 1, mo_num
-  do s = 1, mo_num
-  write(10,*) toto(p,q,r,s)
+  print*,'Hessian'
+  do p=1,mo_num
+  do q=1,mo_num
+    print*,toto(p,q,:,:)
   enddo
   enddo
-  enddo
-  enddo
-  close(10)
+
   ! Debug
   !print*,'H_pq,rs'
   !print*,H(:,:)

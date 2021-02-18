@@ -104,8 +104,9 @@ program orb_opt
     print*,'R'
     print*,R(:,:)
    
-    call dm_newton_test(R)
-    
+    !call dm_newton_test(R)
+    !call compute_r_orbrot_h
+    !call compute_r_orbrot_g 
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif
 

@@ -1,4 +1,4 @@
-subroutine gradient(grad)
+subroutine gradient(n,v_grad)
   implicit none
   BEGIN_DOC
 ! TODO : Put the documentation of the program here
@@ -8,23 +8,27 @@ subroutine gradient(grad)
  
   END_DOC
   !double precision, allocatable :: grad(:,:)
-  double precision, allocatable :: v_grad(:)
-  double precision, intent(out) :: grad(mo_num,mo_num)
+  !double precision, allocatable :: v_grad(:)
+  !double precision, intent(out) :: grad(mo_num,mo_num)
 
+  integer, intent(in) :: n
+  double precision, intent(out) :: v_grad(n)
+  double precision, allocatable :: grad(:,:)
 
   double precision :: get_two_e_integral
   double precision :: accu1, accu2
-  integer :: i,n,p,q,r,s,t
+  integer :: i,p,q,r,s,t
   integer :: qorb, porb,rorb,sorb,torb, istate
 
   !print*, mo_num
   
-  n=mo_num*(mo_num-1)/2
+  !n=mo_num*(mo_num-1)/2
 
   !============
   ! Allocation
   !============
-  allocate(v_grad(n))
+  !allocate(v_grad(n))
+  allocate(grad(mo_num,mo_num))
 
   !=============
   ! Calculation
@@ -132,7 +136,7 @@ subroutine gradient(grad)
   do q = 1, mo_num
     do p = 1, q-1
       i=i+1
-      v_grad(i) = grad(p,q) - grad(q,p)
+      v_grad(i) = -(grad(p,q) - grad(q,p))
     enddo
   enddo
   
@@ -141,5 +145,11 @@ subroutine gradient(grad)
   !print*, grad(:,:)
   !print*, 'v_grad'
   !print*, v_grad(:)
+
+  !==============
+  ! Deallocation
+  !==============
+
+  deallocate(grad)
 
 end subroutine

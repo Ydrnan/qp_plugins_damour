@@ -47,9 +47,9 @@ subroutine gradient(n,v_grad)
          do r = 1, n_act_orb
            rorb = list_act(r)
 
-           accu1 = accu1 + mo_one_e_integrals(porb,rorb) &
+           accu1 = accu1 + mo_one_e_integrals(rorb,porb) &
                           * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-                         - mo_one_e_integrals(rorb,qorb) &
+                         - mo_one_e_integrals(qorb,rorb) &
                           * (one_e_dm_mo_alpha(p,r,istate) + one_e_dm_mo_beta(p,r,istate)) 
  
 !  do q=1,mo_num
@@ -91,8 +91,8 @@ subroutine gradient(n,v_grad)
            torb = list_act(t)
            
            accu2 = accu2 &
-                   + get_two_e_integral(porb,torb,rorb,sorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(r,s,q,t,istate) &
-                   - get_two_e_integral(rorb,sorb,qorb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,t,r,s,istate)
+                   + get_two_e_integral(rorb,sorb,porb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(r,s,q,t,istate) &
+                   - get_two_e_integral(qorb,torb,rorb,sorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,t,r,s,istate)
 
 
 !  do q=1,mo_num ! list_act .....

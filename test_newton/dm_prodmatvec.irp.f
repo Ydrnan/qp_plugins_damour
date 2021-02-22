@@ -1,6 +1,8 @@
 subroutine dm_prodvecmat(v,n,A,LDA,B,LDB,top,info)
         implicit none
 
+        include 'constants.h' 
+ 
         !===========
         ! Variables
         !===========

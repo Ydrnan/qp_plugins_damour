@@ -76,14 +76,15 @@ subroutine dm_antisym(a,lda,n,info)
 
         !============
         ! Calculation
-        !============ 
+        !============
+ 
         do j=1,n
                 do i=1,j-1
                         a(i,j) = -a(j,i)
                 enddo
                 a(i,i) = 0.d0
         enddo
-
+        
         !================
         ! Post conditions
         !================
@@ -93,12 +94,13 @@ subroutine dm_antisym(a,lda,n,info)
         !========
 
         d=.true.
-        
+       
         if (d) then
                 print*,'Matrix after antisymmetrization a :'
-                do i=1,n
-                        print*, a(i,:)
-                enddo
+                !do i=1,n
+                !        print*, a(i,:)
+                !enddo
+                print*, a(:,:)
         endif
 
 end subroutine

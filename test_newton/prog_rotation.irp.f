@@ -1,23 +1,30 @@
 program prog_rotation
       implicit none
 
-      integer :: n,info
+      integer :: n,i,info
       double precision, allocatable :: A(:,:),R(:,:),C(:,:),D(:,:),B(:,:)
 
-      n=3
+      n=10
 
       allocate(A(n,n), B(n,n), C(n,n), D(n,n), R(n,n))
 
 
-      call random_number(A)
-      !A=0.1d0
+      !call random_number(A)
+      A=0.1d0
       print*,'A', A(:,:)
       call dm_antisym(A,size(A,1),n,info)      
 !      if (info /= 0) then
 !         call ABORT
 !      endif
 !      !Test 1, rotation
-!      call dm_rotation(A,size(A,1),R,size(R,1),n,info)
+      call dm_rotation(A,size(A,1),R,size(R,1),n,info)
+      call dgemm('T','N',n,n,n,1d0,R,size(R,1),R,size(R,1),0d0,B,size(B,1))
+      C=0d0
+      do i=1,n
+        C(i,i) = 1d0
+      enddo
+      B=B-C
+      print*,B(:,:)
 !      if (info /= 0) then
 !         call ABORT
 !      endif

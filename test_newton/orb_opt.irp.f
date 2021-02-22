@@ -64,7 +64,8 @@ program orb_opt
     normH = norm2(H)
     print*, 'NormH : ', normH
 
-    
+   
+    ! Inversion de H 
     lwork=3*n-1
     allocate(work(lwork,n),e_val(n))
     
@@ -88,7 +89,8 @@ program orb_opt
     call dgemm('N','T',n,n,n,1d0,Hm1,size(Hm1,1),H,size(H,1),0d0,Hm1_tmpr,size(Hm1_tmpr,1))
     !print*,'Hm1', Hm1_tmpr(:,:) 
     call dgemm('N','N',n,n,n,1d0,H,size(H,1),Hm1_tmpr,size(Hm1_tmpr,1),0d0,Hm1,size(Hm1,1))
-    
+    ! Fin de l'inversion de H
+
     !print*,'grad'
     !print*, grad(:,:)
     !print*,'Hm1'

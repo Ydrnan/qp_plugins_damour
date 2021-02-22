@@ -67,8 +67,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! d       : logical, if true display the rotation matrix
 
         ! intrinsic
-        double precision, intrinsic :: dnrm2
-        logical, intrinsic :: disnan
+        double precision :: dnrm2
+        logical :: disnan
         ! dnrm2 : double precision function, compute the norm of a matrix
         ! disnan : check if an element is NaN
 

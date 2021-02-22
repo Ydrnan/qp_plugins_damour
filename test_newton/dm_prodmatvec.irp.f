@@ -45,7 +45,7 @@ subroutine dm_prodvecmat(v,n,A,LDA,B,LDB,top,info)
         ! d   : logical, if true display the rotation matrix
         
         ! intrinsic
-        logical, intrinsic :: disnan
+        logical :: disnan
         ! disnan : check if an element is NaN 
 
         !===============

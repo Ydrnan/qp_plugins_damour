@@ -208,6 +208,11 @@ subroutine hess(n,H)
             !print*,p,q,r,s
             H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
             !print*,p,q,r,s,H(pq,rs)
+            if (ABS(H(pq,rs)<1.d-7)) then 
+              H(pq,rs) = 0d0
+            else 
+              H(pq,rs)=H(pq,rs)
+            endif
         enddo
       enddo
     enddo

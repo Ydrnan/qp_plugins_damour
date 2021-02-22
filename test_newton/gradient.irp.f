@@ -54,14 +54,12 @@ subroutine gradient(n,v_grad)
         enddo
 
        do r = 1, mo_num
-        do s = 1, mo_num
+         do s = 1, mo_num
            do t= 1, mo_num
            
            grad(p,q) = grad(p,q) &
                    + get_two_e_integral(r,s,p,t,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
                    - get_two_e_integral(q,t,r,s,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
-
-
 
            enddo
           enddo
@@ -81,11 +79,17 @@ subroutine gradient(n,v_grad)
  
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'
+  
   i=0
   do q = 1, mo_num
     do p = 1, q-1
       i=i+1
       v_grad(i) = -(grad(p,q) - grad(q,p))
+      if (ABS(v_grad(i)) < 1.d-7) then
+        v_grad(i) = 0d0
+      else 
+        v_grad(i) = v_grad(i)
+      endif
     enddo
   enddo
   

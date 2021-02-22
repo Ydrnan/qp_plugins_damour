@@ -31,7 +31,7 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         ! d   : logical, if true display the matrix
 
         ! intrinsic
-        logical, intrinsic :: disnan
+        logical :: disnan
         ! disnan : check if an element is NaN
 
         !================

@@ -1,22 +1,39 @@
 subroutine dm_newton_test(R)
   implicit none
-  double precision, intent(in) :: R(mo_num,mo_num)
+  
+  !=================================================================
+  ! Compute the new MOs with the previous MOs and a rotation matrix
+  !=================================================================
 
+  !===========
+  ! Variables
+  !===========
+
+  ! intent in
+  double precision, intent(in) :: R(mo_num,mo_num)
+  ! R : double precision mo_num by mo_num double precision matrix, rotation matrix
+
+  ! internal
   double precision, allocatable :: new_mos(:,:)
-  integer :: i
+  ! new_mos : ao_num by mo_num double precision matrix, new coefficients of the MOs 
+  
+  ! Provided 
+  ! mo_num : number of MOs
+  ! ao_num : number of AOs
+  ! mo_coef : ao_num by mo_num double precision matrix, contains the coefficients of the MOs
  
   !============
   ! Allocation
   !============
+
   allocate(new_mos(ao_num,mo_num))
   
   !=============
   ! Calculation
   !=============
  
-  print*,'1' 
   call dgemm('N','T',ao_num,mo_num,mo_num,1d0,mo_coef,size(mo_coef,1),R,size(R,1),0d0,new_mos,size(new_mos,1)) 
-  print*,'2'
+  
   !=========
   ! Storage
   !=========
@@ -24,7 +41,8 @@ subroutine dm_newton_test(R)
   print*,'Save MOs...'
   
   mo_coef = new_mos
-  print*, mo_coef(:,:)
+  
+  ! Save the new MOs
   call save_mos
   
   print*,'Done, MOs saved'

@@ -66,9 +66,9 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! i,j     : integer, first and second indices to turn on the matrix elements
         ! d       : logical, if true display the rotation matrix
 
-        ! external
-        double precision :: dnrm2
-        logical :: disnan
+        ! intrinsic
+        double precision, intrinsic :: dnrm2
+        logical, intrinsic :: disnan
         ! dnrm2 : double precision function, compute the norm of a matrix
         ! disnan : check if an element is NaN
 
@@ -371,6 +371,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
         print*, 'norm = ', norm
+
+        
 
         ! Debug
         !print*, 'RR_t'

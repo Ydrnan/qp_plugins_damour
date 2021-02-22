@@ -1,13 +1,16 @@
 subroutine hess(n,H)
   implicit none
 
+  !==================================================================
+  ! Compute the hessian of energy with respects to orbital rotations 
+  !==================================================================
+
   integer, intent(in) :: n 
-  double precision, allocatable :: hessian(:,:,:,:), toto(:,:,:,:)
+  double precision, allocatable :: hessian(:,:,:,:), h_tmpr(:,:,:,:)
   double precision, intent(out) :: H(n,n)
   integer :: p,q
   integer :: r,s,t,u,v
   integer :: pq,rs
-  integer :: porb,qorb,rorb,sorb,torb,uorb,vorb
   integer :: istate
   double precision :: get_two_e_integral
 
@@ -25,32 +28,19 @@ subroutine hess(n,H)
 
   !do istate = 1, N_states
   istate = 1  
-!    do p = 1, n_act_orb
-!    porb = list_act(p) 
-!      do q = 1, n_act_orb
-!      qorb = list_act(q)
-!        do r = 1, n_act_orb
-!        rorb = list_act(r)  
-!          do s = 1, n_act_orb
-!          sorb = list_act(s)
 
 ! First line, first term 
-    do p = 1, n_act_orb
-    porb = list_act(p)
-      do q = 1, n_act_orb
-      qorb = list_act(q)
-        do r = 1, n_act_orb
-        rorb = list_act(r)
-          do s = 1, n_act_orb
-          sorb = list_act(s) 
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
 
               if (q==r) then
-                do u = 1, n_act_orb
-                uorb = list_act(u)
+                do u = 1, mo_num
 
-                  hessian(p,q,q,s) = hessian(p,q,q,s) + 0.5d0 * (  &
-                    mo_one_e_integrals(uorb,porb) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
-                  + mo_one_e_integrals(sorb,uorb) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
+                  hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
+                    mo_one_e_integrals(u,p) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
+                  + mo_one_e_integrals(s,u) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
 
                 enddo
               endif
@@ -61,21 +51,17 @@ subroutine hess(n,H)
     enddo
 
  ! First line, second term
-     do p = 1, n_act_orb
-     porb = list_act(p)
-       do q = 1, n_act_orb
-       qorb = list_act(q)
-         do r = 1, n_act_orb
-         rorb = list_act(r)
-           do s = 1, n_act_orb
-           sorb = list_act(s)
+     do p = 1, mo_num
+       do q = 1, mo_num
+         do r = 1, mo_num
+           do s = 1, mo_num
  
              if (p==s) then
-               do u = 1, n_act_orb
-                 uorb = list_act(u)
-                     hessian(p,q,r,p) = hessian(p,q,r,p) + 0.5d0 * ( &
-                       mo_one_e_integrals(uorb,rorb) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
-                     + mo_one_e_integrals(qorb,uorb) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
+               do u = 1, mo_num
+
+                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                       mo_one_e_integrals(u,r) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
+                     + mo_one_e_integrals(q,u) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
                enddo
              endif
  
@@ -85,18 +71,14 @@ subroutine hess(n,H)
      enddo
  
  !! First line, third term
-     do p = 1, n_act_orb
-     porb = list_act(p)
-       do q = 1, n_act_orb
-       qorb = list_act(q)
-         do r = 1, n_act_orb
-         rorb = list_act(r)
-           do s = 1, n_act_orb
-           sorb = list_act(s)
+     do p = 1, mo_num
+       do q = 1, mo_num
+         do r = 1, mo_num
+           do s = 1, mo_num
               
              hessian(p,q,r,s) = hessian(p,q,r,s) &
-             - mo_one_e_integrals(sorb,porb) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-             - mo_one_e_integrals(qorb,rorb) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
+             - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
+             - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
  
            enddo
          enddo
@@ -104,26 +86,19 @@ subroutine hess(n,H)
      enddo
  
  !Second line, first term
-     do p = 1, n_act_orb
-     porb = list_act(p)
-       do q = 1, n_act_orb
-       qorb = list_act(q)
-         do r = 1, n_act_orb
-         rorb = list_act(r)
-           do s = 1, n_act_orb
-           sorb = list_act(s)
+     do p = 1, mo_num
+       do q = 1, mo_num
+         do r = 1, mo_num
+           do s = 1, mo_num
              
               if (q==r) then
-                do t = 1, n_act_orb
-                torb = list_act(t)
-                  do u = 1, n_act_orb
-                  uorb = list_act(u)
-                    do v = 1, n_act_orb
-                    vorb =list_act(v)
+                do t = 1, mo_num
+                  do u = 1, mo_num
+                    do v = 1, mo_num
  
                       hessian(p,q,q,s) = hessian(p,q,q,s) + 0.5d0 * (  &
-                        get_two_e_integral(uorb,vorb,porb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(u,v,s,t,istate) &
-                      + get_two_e_integral(sorb,torb,uorb,vorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,t,u,v,istate))
+                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,istate) &
+                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,istate))
  
                     enddo
                   enddo
@@ -136,26 +111,19 @@ subroutine hess(n,H)
      enddo
 
 ! Second line, second term
-     do p = 1, n_act_orb
-     porb = list_act(p)
-       do q = 1, n_act_orb
-       qorb = list_act(q)
-         do r = 1, n_act_orb
-         rorb = list_act(r)
-           do s = 1, n_act_orb
-           sorb = list_act(s)
+     do p = 1, mo_num
+       do q = 1, mo_num
+         do r = 1, mo_num
+           do s = 1, mo_num
  
              if (p==s) then
-               do t = 1, n_act_orb
-               torb = list_act(t)
-                 do u = 1, n_act_orb
-                 uorb = list_act(u)
-                   do v = 1, n_act_orb
-                   vorb = list_act(v)
+               do t = 1, mo_num
+                 do u = 1, mo_num
+                   do v = 1, mo_num
  
-                     hessian(p,q,r,p) = hessian(p,q,r,p) + 0.5d0 * ( &
-                       get_two_e_integral(qorb,torb,uorb,vorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(r,t,u,v,istate) &
-                     + get_two_e_integral(uorb,vorb,rorb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(u,v,q,t,istate))
+                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v,istate) &
+                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,istate))
  
                    enddo
                  enddo
@@ -168,23 +136,17 @@ subroutine hess(n,H)
      enddo
 
 ! Third line, first term
-    do p = 1, n_act_orb
-    porb = list_act(p)
-      do q = 1, n_act_orb
-      qorb = list_act(q)
-        do r = 1, n_act_orb
-        rorb = list_act(r)
-          do s = 1, n_act_orb
-          sorb = list_act(s)
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
 
-            do u = 1, n_act_orb
-            uorb = list_act(u)
-              do v = 1, n_act_orb
-              vorb = list_act(v)
+            do u = 1, mo_num
+              do v = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 + get_two_e_integral(uorb,vorb,porb,rorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(u,v,q,s,istate) &
-                 + get_two_e_integral(qorb,sorb,uorb,vorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,r,u,v,istate)
+                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s,istate) &
+                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v,istate)
 
               enddo
             enddo
@@ -195,25 +157,19 @@ subroutine hess(n,H)
     enddo
 
 ! Third line, second term
-    do p = 1, n_act_orb
-    porb = list_act(p)
-      do q = 1, n_act_orb
-      qorb = list_act(q)
-        do r = 1, n_act_orb
-        rorb = list_act(r)
-          do s = 1, n_act_orb
-          sorb = list_act(s)
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
   
-            do t = 1, n_act_orb
-            torb = list_act(t)
-              do u = 1, n_act_orb
-              uorb = list_act(u)
+            do t = 1, mo_num
+              do u = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 - get_two_e_integral(sorb,torb,porb,uorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(r,t,q,u,istate) &
-                 - get_two_e_integral(torb,sorb,porb,uorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(t,r,q,u,istate) &
-                 - get_two_e_integral(qorb,uorb,rorb,torb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,u,s,t,istate) &
-                 - get_two_e_integral(qorb,uorb,torb,rorb,mo_integrals_map) * y_act_2_rdm_spin_trace_mo(p,u,t,s,istate)
+                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,istate) &
+                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,istate) &
+                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t,istate) &
+                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s,istate)
 
               enddo
             enddo
@@ -224,13 +180,6 @@ subroutine hess(n,H)
     enddo
  
   !enddo
-
-  ! Debug
-  !print*,'two bd density'
-  !print*,y_act_2_rdm_spin_trace_mo(:,:,:,:,1)
-  ! Le hessien est focément faux vu que les permutations sont faites après 
-  !print*,'Hessian'
-  !print*,hessian(:,:,:,:)
 
   !===========
   ! 2D matrix
@@ -258,31 +207,48 @@ subroutine hess(n,H)
     enddo
   enddo
 
-  allocate(toto(mo_num,mo_num,mo_num,mo_num))
+  allocate(h_tmpr(mo_num,mo_num,mo_num,mo_num))
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num
         do p = 1, mo_num
 
-          toto(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
-          !if (ABS(toto(p,q,r,s)) > 10d0**(-15)) then 
-          !toto(p,q,r,s) = toto(p,q,r,s)
+          h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
+          !if (ABS(toto(p,q,r,s)) > 1.d-10) then 
+          !  toto(p,q,r,s) = toto(p,q,r,s)
           !else 
-          !toto(p,q,r,s) = 0d0
+          !  toto(p,q,r,s) = 0d0
           !endif
         enddo
       enddo
     enddo
   enddo
   
-  print*,'Hessian'
-  !open(unit=10,file='Hessien_test.dat')
-  do p=1,mo_num
-    do q=1,mo_num
-      print*, toto(p,q,:,:)
-    enddo
-  enddo
+  !print*,'Hessian'
+  !open(unit=10,file='Hessien_test2_ifort.dat')
+  !do p=1,mo_num
+  !  do q=1,mo_num
+  !     write(10,*) toto(p,q,:,:)
+  !    print*, toto(p,q,:,:)
+  !  enddo
+  !enddo
   !close(10)
+  !open(unit=10,file='one_body_dm_gfortran.dat')
+  !do u=1,mo_num
+  !do s=1,mo_num
+  !write(10,*) (one_e_dm_mo_alpha(u,s,1) + one_e_dm_mo_beta(u,s,1))
+  !enddo
+  !enddo
+  !close(10)
+
+  !open(unit=11,file='two_body_dm_gfortran.dat')
+  !do u=1,mo_num
+  !do s=1,mo_num
+  !write(11,*) two_e_dm_mo(u,s,:,:,1)
+  !enddo
+  !enddo
+  !close(11)
+  
   ! Debug
   !print*,'H_pq,rs'
   !print*,H(:,:)
@@ -292,6 +258,6 @@ subroutine hess(n,H)
   ! Deallocation
   !==============
 
-  deallocate(hessian)
+  deallocate(hessian,h_tmpr)
   
 end subroutine

@@ -8,8 +8,6 @@ program orb_opt
   
   double precision :: angle, norm, normH
   
-  !read(*,*) angle
-  !print*,"angle", angle
   method = 1
   
   n = mo_num*(mo_num-1)/2
@@ -19,7 +17,7 @@ program orb_opt
   !============
  
   allocate(v_grad(n),R(mo_num,mo_num))
-  allocate(H(n,n),Hm1(n,n),gHm1(n),A(mo_num,mo_num))  !,vec(n))
+  allocate(H(n,n),Hm1(n,n),gHm1(n),A(mo_num,mo_num))  
   allocate(Hm1_tmpr(n,n))
 
   !=============
@@ -27,11 +25,11 @@ program orb_opt
   !=============
   
   if (method == 0) then
+    
     call gradient(n,v_grad)
-    !v_grad = 0.1d0 * v_grad
-    norm = norm2(v_grad)
-    print*, 'Norm : ', norm  
-    print*,'v_grad /10'
+    
+    print*, 'Norm : ', norm 
+    print*, 'v_grad' 
     print*, v_grad(:)
 
     allocate(grad(mo_num,mo_num))
@@ -42,20 +40,26 @@ program orb_opt
     call dm_rotation(grad,mo_num,R,mo_num,mo_num,info)
 
     call dm_newton_test(R) 
-    !print*,'Grad : ', grad(1,2)
 
     deallocate(grad,R)
   
   else 
-    v_grad = 0d0 
+    
     call gradient(n,v_grad)
+    
     norm = norm2(v_grad)
     print*, 'Norm : ', norm
+    
     print*, 'grad'
-    print*, v_grad(:)
+    do i=1,mo_num
+        print*, 'v_grad', v_grad(:)
+    enddo
+    
     !call v2compute_r_orbrot_g
     !v_grad = 0.05d0 * v_grad
+    
     call hess(n,H)
+    
     !call v2compute_r_orbrot_h
     normH = norm2(H)
     print*, 'NormH : ', normH
@@ -66,17 +70,17 @@ program orb_opt
     
     call dsyev('V','U',n,H,size(H,1),e_val,work,lwork,info)
     if (info /= 0) then
-            call ABORT
+        call ABORT
     endif
-    
-    do j=1,n
-            do i=1,n
-                    if ((i==j) .and. (ABS(e_val(i))>10d0**(-10))) then
-                           Hm1(i,j)=1d0/e_val(i)
-                    else
-                           Hm1(i,j)=0d0
-                    endif
-            enddo
+   
+    Hm1=0d0 
+    do i=1,n
+        print*,'H_val',e_val(i)
+        if ( (ABS(e_val(i))>1.d-7)) then
+            Hm1(i,i)=1d0/e_val(i)
+        else
+            Hm1(i,i)=0d0
+        endif
     enddo
     
     deallocate(work,e_val)
@@ -92,9 +96,9 @@ program orb_opt
     !print*, 'H'
     !print*, H(:,:)
 
-    !call dv_mat_to_vec(grad,size(grad,1),mo_num,v_grad,n,info)
     !print*,'vgrad',v_grad(:) 
-    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,gHm1,1)
+    
+    call dgemv('N',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,gHm1,1)
     
     call dm_vec_to_mat(gHm1,n,A,mo_num,info)
     
@@ -103,6 +107,7 @@ program orb_opt
     !    A(i,j) = -0.0017d0!angle
     !  enddo
     !enddo
+    
     call dm_antisym(A,mo_num,mo_num,info)
     call dm_rotation(A,mo_num,R,mo_num,mo_num,info)
     
@@ -110,9 +115,7 @@ program orb_opt
     print*,R(:,:)
    
     call dm_newton_test(R)
-    !call test2_compute_r_orbrot_h
-    !call v2compute_r_orbrot_h
-    !call v2compute_r_orbrot_g 
+    
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif
 

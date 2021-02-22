@@ -85,7 +85,7 @@ subroutine gradient(n,v_grad)
     do p = 1, q-1
       i=i+1
       v_grad(i) = -(grad(p,q) - grad(q,p))
-      if (ABS(v_grad(i)) < 1.d-7) then
+      if (ABS(v_grad(i)) < 1.d-12) then
         v_grad(i) = 0d0
       else 
         v_grad(i) = v_grad(i)

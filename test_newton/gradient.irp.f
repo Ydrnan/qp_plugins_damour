@@ -21,6 +21,12 @@ subroutine gradient(n,v_grad)
   integer :: i,p,q,r,s,t
   integer :: istate
 
+  ! Provided : 
+  ! mo_one_e_integrals : mono e- integrals
+  ! get_two_e_integral : two e- integrals
+  ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
+  ! two_e_dm_mo : two body density matrix
+
   !============
   ! Allocation
   !============

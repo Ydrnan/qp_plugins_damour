@@ -5,7 +5,7 @@ subroutine hess(n,H)
   ! Compute the hessian of energy with respects to orbital rotations 
   !==================================================================
 
-  integer, intent(in) :: n 
+  integer, intent(in) :: n ! mo_num*(mo_num-1)/2
   double precision, allocatable :: hessian(:,:,:,:), h_tmpr(:,:,:,:)
   double precision, intent(out) :: H(n,n)
   integer :: p,q
@@ -13,6 +13,12 @@ subroutine hess(n,H)
   integer :: pq,rs
   integer :: istate
   double precision :: get_two_e_integral
+
+  ! Provided : 
+  ! mo_one_e_integrals : mono e- integrals
+  ! get_two_e_integral : two e- integrals
+  ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
+  ! two_e_dm_mo : two body density matrix
 
   !============
   ! Allocation
@@ -96,7 +102,7 @@ subroutine hess(n,H)
                   do u = 1, mo_num
                     do v = 1, mo_num
  
-                      hessian(p,q,q,s) = hessian(p,q,q,s) + 0.5d0 * (  &
+                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
                         get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,istate) &
                       + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,istate))
  

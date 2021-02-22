@@ -37,7 +37,7 @@ subroutine dm_antisym(a,lda,n,info)
         ! d    : logical, display or not the matrix a after the process 
 
         ! external
-        logical, external :: disnan
+        logical :: disnan
         ! disnan : check if an element is NaN
 
         !===============

@@ -10,6 +10,7 @@ program toto
 
 
       call random_number(A)
+      print*,'A', A(:,:)
       call dm_antisym(A,size(A,1),n,info)      
       if (info /= 0) then
          call ABORT

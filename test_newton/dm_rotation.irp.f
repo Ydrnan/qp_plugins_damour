@@ -67,14 +67,15 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! d       : logical, if true display the rotation matrix
 
         ! external
-        double precision, external :: dnrm2
-        logical, external :: disnan
+        double precision :: dnrm2
+        logical :: disnan
         ! dnrm2 : double precision function, compute the norm of a matrix
         ! disnan : check if an element is NaN
 
         !============
         ! Allocation
         !============
+
         allocate(B(n,n))
         allocate(m_diag(n,n),cos_tau(n,n),sin_tau(n,n),tau_m1(n,n))
         allocate(v_cos_tau(n),v_sin_tau(n),v_taum1(n))
@@ -334,8 +335,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         ! Debug
         ! 2 by 2 rotation matrix (test pour comparer)
-        !do i=1,n
-        !        do j=1,n
+        !do i=1,2
+        !        do j=1,2
         !                if (i==j) then
         !                        rot_2(i,j)=cos(A(2,1))
         !                elseif (i>j) then

@@ -8,14 +8,15 @@ subroutine dm_newton_test(R)
   !============
   ! Allocation
   !============
-  allocate(new_mos(mo_num,mo_num))
+  allocate(new_mos(ao_num,mo_num))
   
   !=============
   ! Calculation
   !=============
-  
+ 
+  print*,'1' 
   call dgemm('N','T',ao_num,mo_num,mo_num,1d0,mo_coef,size(mo_coef,1),R,size(R,1),0d0,new_mos,size(new_mos,1)) 
-
+  print*,'2'
   !=========
   ! Storage
   !=========

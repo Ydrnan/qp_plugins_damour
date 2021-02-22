@@ -6,7 +6,7 @@ program orb_opt
   double precision, allocatable :: Hm1(:,:),v_grad(:),gHm1(:),A(:,:),vec(:),Hm1_tmpr(:,:)
   integer :: info,method,n,i,j,lwork
   
-  double precision :: angle, norm
+  double precision :: angle, norm, normH
   
   !read(*,*) angle
   !print*,"angle", angle
@@ -47,14 +47,19 @@ program orb_opt
     deallocate(grad,R)
   
   else 
-    
+    v_grad = 0d0 
     call gradient(n,v_grad)
     norm = norm2(v_grad)
     print*, 'Norm : ', norm
     print*, 'grad'
     print*, v_grad(:)
+    !call v2compute_r_orbrot_g
     !v_grad = 0.05d0 * v_grad
     call hess(n,H)
+    !call v2compute_r_orbrot_h
+    normH = norm2(H)
+    print*, 'NormH : ', normH
+
     
     lwork=3*n-1
     allocate(work(lwork,n),e_val(n))
@@ -106,8 +111,8 @@ program orb_opt
    
     call dm_newton_test(R)
     !call test2_compute_r_orbrot_h
-    !call compute_r_orbrot_h
-    !call compute_r_orbrot_g 
+    !call v2compute_r_orbrot_h
+    !call v2compute_r_orbrot_g 
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif
 

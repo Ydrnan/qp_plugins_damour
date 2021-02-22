@@ -145,7 +145,14 @@ subroutine gradient(n,v_grad)
   !print*, grad(:,:)
   !print*, 'v_grad'
   !print*, v_grad(:)
-
+  
+  print*, 'test grad'
+  do p=1,mo_num
+  do q=1,mo_num
+     print*, (grad(p,q) - grad(q,p))
+  enddo
+  enddo
+ 
   !==============
   ! Deallocation
   !==============

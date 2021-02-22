@@ -251,7 +251,7 @@ subroutine hess(n,H)
         do q = p+1, mo_num  
             pq=pq+1
             !print*,p,q,r,s
-            H(pq,rs) = hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r) ! pqrs-qprs-pqsr+qpsr
+            H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
             !print*,p,q,r,s,H(pq,rs)
         enddo
       enddo
@@ -264,25 +264,25 @@ subroutine hess(n,H)
       do q = 1, mo_num
         do p = 1, mo_num
 
-          toto(p,q,r,s) = 0.5d0*(hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
-          if (ABS(toto(p,q,r,s)) > 10d0**(-15)) then 
-          toto(p,q,r,s) = toto(p,q,r,s)
-          else 
-          toto(p,q,r,s) = 0d0
-          endif
+          toto(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
+          !if (ABS(toto(p,q,r,s)) > 10d0**(-15)) then 
+          !toto(p,q,r,s) = toto(p,q,r,s)
+          !else 
+          !toto(p,q,r,s) = 0d0
+          !endif
         enddo
       enddo
     enddo
   enddo
   
   print*,'Hessian'
-  open(unit=10,file='Hessien_test.dat')
+  !open(unit=10,file='Hessien_test.dat')
   do p=1,mo_num
     do q=1,mo_num
       print*, toto(p,q,:,:)
     enddo
   enddo
-  close(10)
+  !close(10)
   ! Debug
   !print*,'H_pq,rs'
   !print*,H(:,:)

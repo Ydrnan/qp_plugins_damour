@@ -24,7 +24,7 @@ subroutine hess(n,H)
   ! Allocation
   !============
 
-  allocate(hessian(mo_num,mo_num,mo_num,mo_num))
+  allocate(hessian(mo_num,mo_num,mo_num,mo_num),h_tmpr(mo_num,mo_num,mo_num,mo_num))
   
   !=============
   ! Calculation
@@ -205,113 +205,72 @@ subroutine hess(n,H)
       do p = 1, mo_num - 1 
         do q = p+1, mo_num  
             pq=pq+1
+            
             !print*,p,q,r,s
             H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
             !print*,p,q,r,s,pq,rs,H(pq,rs)
-            if (ABS(H(pq,rs))<1.d-12) then 
-              H(pq,rs) = 0d0
-            else 
-              H(pq,rs)=H(pq,rs)
-            endif
+            
+            !if (ABS(H(pq,rs))<1.d-10) then 
+            !  H(pq,rs) = 0d0
+            !else 
+              H(pq,rs)=0.5d0*H(pq,rs)
+            !endif
+
         enddo
       enddo
     enddo
   enddo
-  
-  !print*,'Hessian'
-  !do p=1,n
-  !print*, 0.5d0*H(p,:)
-  !enddo
+   
+!  ! verification des valeurs propres
+!  rs=0
+!  do r = 1, mo_num 
+!    do s = 1, mo_num
+!      rs=rs+1
+!      pq=0
+!      do p = 1, mo_num  
+!        do q = 1, mo_num  
+!            pq=pq+1
+!            !print*,p,q,r,s
+!            H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
+!            !print*,p,q,r,s,pq,rs,H(pq,rs)
+!            if (ABS(H(pq,rs))<1.d-12) then 
+!              H(pq,rs) = 0d0
+!            else 
+!              H(pq,rs)=0.5d0*H(pq,rs)
+!            endif
+!        enddo
+!      enddo
+!    enddo
+!  enddo
 
-
-
-!  H(1,1) = 1.29939d0
-!  H(1,2) = 0d0
-!  H(1,3) = 0.223836d0
-!  H(1,4) = -0.00252674d0
-!  H(1,5) = 0d0
-!  H(1,6) = 0.00200495d0
+!  ! Verification des éléments du hessien
+!  allocate(h_tmpr(mo_num,mo_num,mo_num,mo_num))
+!  do r = 1, mo_num
+!    do s = 1, mo_num
+!      do q = 1, mo_num
+!        do p = 1, mo_num
 !
-!  H(2,1) = 0d0
-!  H(2,2) = 2.3559d0
-!  H(2,3) = 0d0
-!  H(2,4) = 0d0
-!  H(2,5) = 0.00526447d0
-!  H(2,6) = 0d0
+!          h_tmpr(p,q,r,s) =0.5d0* (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
 !
-!  H(3,1) = 0.223836d0
-!  H(3,2) = 0d0
-!  H(3,3) = 3.50259d0
-!  H(3,4) = 0.00454556d0
-!  H(3,5) = 0d0
-!  H(3,6) =  0.00178916d0
+!        enddo
+!      enddo
+!    enddo
+!  enddo
+! 
+!  print*,'verif H'
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!      do r = 1, mo_num
+!        do s = 1, mo_num
 !
-!  H(4,1) = -0.00252674d0
-!  H(4,2) = 0d0
-!  H(4,3) = 0.00454556d0
-!  H(4,4) = 0.0060606d0
-!  H(4,5) = 0d0
-!  H(4,6) = -0.000397189d0
+!          print*, p,q,r,s
+!          write(*,'(F10.5)') h_tmpr(p,q,r,s)
 !
-!  H(5,1) = 0d0
-!  H(5,2) = 0.00526447d0
-!  H(5,3) = 0d0
-!  H(5,4) = 0d0
-!  H(5,5) = 0.0023298d0
-!  H(5,6) = 0d0
-!  
-!  H(6,1) = 0.00200495d0
-!  H(6,2) = 0d0
-!  H(6,3) = 0.00178916d0
-!  H(6,4) = -0.000397189d0
-!  H(6,5) = 0d0
-!  H(6,6) = 0.0005088156d0
+!        enddo
+!      enddo
+!    enddo
+!  enddo
 
-  allocate(h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  do r = 1, mo_num
-    do s = 1, mo_num
-      do q = 1, mo_num
-        do p = 1, mo_num
-
-          h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
-          !if (ABS(toto(p,q,r,s)) > 1.d-10) then 
-          !  toto(p,q,r,s) = toto(p,q,r,s)
-          !else 
-          !  toto(p,q,r,s) = 0d0
-          !endif
-        enddo
-      enddo
-    enddo
-  enddo
-  
- ! print*,'Hessian'
- ! do p=1,n
- ! print*, H(p,:)
- ! enddo
-  !open(unit=10,file='Hessien_test2_ifort.dat')
-  !do p=1,mo_num
-  !  do q=1,mo_num
-  !     write(10,*) toto(p,q,:,:)
-  !    print*, toto(p,q,:,:)
-  !  enddo
-  !enddo
-  !close(10)
-  !open(unit=10,file='one_body_dm_gfortran.dat')
-  !do u=1,mo_num
-  !do s=1,mo_num
-  !write(10,*) (one_e_dm_mo_alpha(u,s,1) + one_e_dm_mo_beta(u,s,1))
-  !enddo
-  !enddo
-  !close(10)
-
-  !open(unit=11,file='two_body_dm_gfortran.dat')
-  !do u=1,mo_num
-  !do s=1,mo_num
-  !write(11,*) two_e_dm_mo(u,s,:,:,1)
-  !enddo
-  !enddo
-  !close(11)
-  
   ! Debug
   !print*,'H_pq,rs'
   !print*,H(:,:)

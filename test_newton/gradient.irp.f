@@ -15,7 +15,7 @@ subroutine gradient(n,v_grad)
 
   integer, intent(in) :: n
   double precision, intent(out) :: v_grad(n)
-  double precision, allocatable :: grad(:,:)
+  double precision, allocatable :: grad(:,:),A(:,:)
 
   double precision :: get_two_e_integral
   integer :: i,p,q,r,s,t
@@ -31,7 +31,7 @@ subroutine gradient(n,v_grad)
   ! Allocation
   !============
   
-  allocate(grad(mo_num,mo_num))
+  allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
 
   !=============
   ! Calculation
@@ -67,16 +67,7 @@ subroutine gradient(n,v_grad)
       enddo
     enddo
   !enddo
- 
-! do q=1,mo_num
-!   do p=1,q
-!    grad(p,q) = -1d0 * (grad(p,q) - grad(q,p))
-!    if (ABS(grad(p,q)) < 1.d-10) then
-!       grad(p,q) = 0d0
-!     endif
-!   enddo
-! enddo
- 
+
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'
   
@@ -85,30 +76,34 @@ subroutine gradient(n,v_grad)
     do p = 1, q-1
       i=i+1
       v_grad(i) = -(grad(p,q) - grad(q,p))
-      if (ABS(v_grad(i)) < 1.d-12) then
-        v_grad(i) = 0d0
-      else 
-        v_grad(i) = v_grad(i)
-      endif
+     ! if (ABS(v_grad(i)) < 1.d-12) then
+     !   v_grad(i) = 0d0
+     ! else 
+     !   v_grad(i) = v_grad(i)
+     ! endif
+     !print*,p,q,v_grad(i)
     enddo
   enddo
-  
+
+  A = 0d0 
+  ! print matrice gradient 
+  do p=1,mo_num
+    do q=1,mo_num
+      A(p,q) = grad(p,q) - grad(q,p)
+    enddo 
+  enddo
+
+  print*,'Gradient'
+  do p=1,mo_num
+    print*,A(p,:)
+  enddo 
+    
   ! Debug
   !print*,'grad'
   !print*, grad(:,:)
   !print*, 'v_grad'
   !print*, v_grad(:)
   
-  !print*, 'test grad'
-  !open(unit=11,file='grad_test2_ifort.dat')
-  !do p=1,mo_num
-  !do q=1,mo_num
-     !write(11,*) (grad(p,q) - grad(q,p))
-  !   print*, (grad(p,q) - grad(q,p))
-  !enddo
-  !enddo
-  !close(11)
- 
   !==============
   ! Deallocation
   !==============

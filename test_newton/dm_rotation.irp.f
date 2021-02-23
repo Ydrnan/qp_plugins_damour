@@ -306,8 +306,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! Rotation matrix R = part_1+part_2
 
         !call cpu_time(t1) 
-        !call dgemm('N','N',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
-        call dm_prodvecmat(v_cos_tau,n,W,size(W,1),part_1a,size(part_1a,1),1,info) 
+        call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
+!        call dm_prodvecmat(v_cos_tau,n,W,size(W,1),part_1a,size(part_1a,1),1,info) 
 
         !call cpu_time(t2)
         !t2=t2-t1
@@ -319,10 +319,10 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_1a,size(part_1a,1),0d0,part_1,size(part_1,1))
 
         call dgemm('T','N',n,n,n,1d0,W,size(W,1),A,size(A,1),0d0,part_2a,size(part_2a,1))
-        !call dgemm('N','N',n,n,n,1d0,sin_tau,size(sin_tau,1),part_2a,size(part_2a,1),0d0,part_2b,size(part_2b,1))
-        call dm_prodvecmat(v_sin_tau,n,part_2a,size(part_2a,1),part_2b,size(part_2b,1),0,info)
-        !call dgemm('N','N',n,n,n,1d0,tau_m1,size(tau_m1,1),part_2b,size(part_2b,1),0d0,part_2c,size(part_2c,1))
-        call dm_prodvecmat(v_taum1,n,part_2b,size(part_2b,1),part_2c,size(part_2c,1),0,info)
+        call dgemm('N','N',n,n,n,1d0,sin_tau,size(sin_tau,1),part_2a,size(part_2a,1),0d0,part_2b,size(part_2b,1))
+!        call dm_prodvecmat(v_sin_tau,n,part_2a,size(part_2a,1),part_2b,size(part_2b,1),0,info)
+        call dgemm('N','N',n,n,n,1d0,tau_m1,size(tau_m1,1),part_2b,size(part_2b,1),0d0,part_2c,size(part_2c,1))
+!        call dm_prodvecmat(v_taum1,n,part_2b,size(part_2b,1),part_2c,size(part_2c,1),0,info)
         call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_2c,size(part_2c,1),0d0,part_2,size(part_2,1))
         !call cpu_time(t2)
         !t2=t2-t1
@@ -401,9 +401,10 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         d=.true.
 
+        print*,'Rotation matrix'
         if (d) then
                 do i=1,n
-                        print*,i,R(i,:)
+                        print*,R(i,:)
                 enddo
         endif
 

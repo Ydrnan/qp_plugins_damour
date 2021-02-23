@@ -403,7 +403,7 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         if (d) then
                 do i=1,n
-                        print*, R(i,:)
+                        print*,i,R(i,:)
                 enddo
         endif
 

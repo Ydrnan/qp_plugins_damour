@@ -96,11 +96,11 @@ subroutine dm_antisym(a,lda,n,info)
         d=.true.
        
         if (d) then
-                print*,'Matrix after antisymmetrization a :'
-                !do i=1,n
-                !        print*, a(i,:)
-                !enddo
-                print*, a(:,:)
+                print*,'Matrix after antisymmetrization :'
+                do i=1,n
+                        print*, a(i,:)
+                enddo
+                !print*, a(:,:)
         endif
 
 end subroutine

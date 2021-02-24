@@ -51,8 +51,8 @@ program orb_opt
     
     call gradient(n,v_grad)
     
-    !norm = norm2(v_grad)
-    !print*, 'Norm : ', norm
+    norm = norm2(v_grad)
+    print*, 'Norm : ', norm
     
     call hess(n,H)
    
@@ -70,13 +70,14 @@ program orb_opt
    
     Hm1=0d0 
     !H_diag=0d0
+    print *, 'Hess:', real(e_val(:))
     do i=1,n
         !print*,'H_val',e_val(i)
         !H_diag(i,i)=e_val(i)
-        if ( (ABS(e_val(i))>1.d-7)) then
-            Hm1(i,i)=1d0/e_val(i)
+        if ( (e_val(i)>0.d0)) then
+              Hm1(i,i)=1d0/max(1.d-4,e_val(i))
         else
-            Hm1(i,i)=0d0
+              Hm1(i,i)=1d0/min(-1.d-4,e_val(i))
         endif
     enddo
     
@@ -114,11 +115,11 @@ program orb_opt
     !  enddo
     !enddo
     
-     A=0d0
-    A(1,3) = -0.0054456d0
-    A(2,4) = 1.87241d0
-    A(3,1) = 0.0054456d0
-    A(4,2) = -1.87241d0
+!     A=0d0
+!    A(1,3) = -0.0054456d0
+!    A(2,4) = 1.87241d0
+!    A(3,1) = 0.0054456d0
+!    A(4,2) = -1.87241d0
 
     print*,'A'
     do i=1,mo_num
@@ -156,7 +157,7 @@ program orb_opt
 !    print*,R(i,:)
 !    enddo   
 
-!    call dm_newton_test(R)
+    call dm_newton_test(R)
     
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif

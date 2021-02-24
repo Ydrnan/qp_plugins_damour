@@ -1,16 +1,16 @@
 subroutine gradient(n,v_grad)
   implicit none
- 
+
   !===================================================================
-  ! Compute the gradient of energy with respects to orbital rotations 
+  ! Compute the gradient of energy with respects to orbital rotations
   !===================================================================
 
    BEGIN_DOC
 ! TODO : Put the documentation of the program here
-  
+
   ! Check if read_wf = true, else :
-  ! qp set determinant read_wf true 
- 
+  ! qp set determinant read_wf true
+
   END_DOC
 
   integer, intent(in) :: n
@@ -21,7 +21,7 @@ subroutine gradient(n,v_grad)
   integer :: i,p,q,r,s,t
   integer :: istate
 
-  ! Provided : 
+  ! Provided :
   ! mo_one_e_integrals : mono e- integrals
   ! get_two_e_integral : two e- integrals
   ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
@@ -30,7 +30,7 @@ subroutine gradient(n,v_grad)
   !============
   ! Allocation
   !============
-  
+
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
 
   !=============
@@ -38,28 +38,27 @@ subroutine gradient(n,v_grad)
   !=============
 
   v_grad = 0d0
-  grad = 0d0
 
   !do istate = 1, N_states
   istate = 1
-    do q = 1, mo_num
-      do p = 1, mo_num
+    do p = 1, mo_num
+      do q = 1, mo_num
+         grad(p,q) = 0d0
          do r = 1, mo_num
-
-           grad(p,q) = grad(p,q) + mo_one_e_integrals(r,p) &
+           grad(p,q) = grad(p,q) + mo_one_e_integrals(p,r) &
                           * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-                         - mo_one_e_integrals(q,r) &
-                          * (one_e_dm_mo_alpha(p,r,istate) + one_e_dm_mo_beta(p,r,istate)) 
- 
+                         - mo_one_e_integrals(r,q) &
+                          * (one_e_dm_mo_alpha(p,r,istate) + one_e_dm_mo_beta(p,r,istate))
+
         enddo
 
        do r = 1, mo_num
          do s = 1, mo_num
            do t= 1, mo_num
-           
+
            grad(p,q) = grad(p,q) &
-                   + get_two_e_integral(r,s,p,t,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
-                   - get_two_e_integral(q,t,r,s,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
+                   + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
+                   - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
            enddo
           enddo
         enddo
@@ -85,19 +84,19 @@ subroutine gradient(n,v_grad)
 !  do s=1,mo_num
 !  if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
 !  print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-!  else 
+!  else
 !  print*,p,q,r,s,0d0
 !  endif
 !  enddo
 !  enddo
 !  enddo
 !  enddo
-!  
+!
 !  print*,'mono int'
 !  do p=1,mo_num
 !    print*,mo_one_e_integrals(p,:)
 !  enddo
-!  
+!
 !  print*, 'one e rdm'
 !  do p=1,mo_num
 !    print*, (one_e_dm_mo_alpha(p,:,istate) + one_e_dm_mo_beta(p,:,istate))
@@ -105,7 +104,7 @@ subroutine gradient(n,v_grad)
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'
-  
+
   i=0
   do q = 1, mo_num
     do p = 1, q-1
@@ -113,32 +112,32 @@ subroutine gradient(n,v_grad)
       v_grad(i) = -(grad(p,q) - grad(q,p))
      ! if (ABS(v_grad(i)) < 1.d-12) then
      !   v_grad(i) = 0d0
-     ! else 
+     ! else
      !   v_grad(i) = v_grad(i)
      ! endif
      !print*,p,q,v_grad(i)
     enddo
   enddo
 
-  A = 0d0 
-  ! print matrice gradient 
-  do p=1,mo_num
-    do q=1,mo_num
+  A = 0d0
+  ! print matrice gradient
+  do q=1,mo_num
+    do p=1,mo_num
       A(p,q) = grad(p,q) - grad(q,p)
-    enddo 
+    enddo
   enddo
 
   print*,'Gradient'
   do p=1,mo_num
-    print*,A(p,:)
-  enddo 
-    
+    print*,real(A(p,:))
+  enddo
+
   ! Debug
   !print*,'grad'
   !print*, grad(:,:)
   !print*, 'v_grad'
   !print*, v_grad(:)
-  
+
   !==============
   ! Deallocation
   !==============

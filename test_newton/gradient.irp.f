@@ -60,13 +60,48 @@ subroutine gradient(n,v_grad)
            grad(p,q) = grad(p,q) &
                    + get_two_e_integral(r,s,p,t,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
                    - get_two_e_integral(q,t,r,s,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
-
            enddo
           enddo
         enddo
       enddo
     enddo
   !enddo
+
+!  print*,'two e rdm'
+!  do p=1,mo_num
+!  do q=1,mo_num
+!  do r=1,mo_num
+!  do s=1,mo_num
+!  print*,p,q,r,s,two_e_dm_mo(p,q,r,s,1)
+!  enddo
+!  enddo
+!  enddo
+!  enddo
+!
+!  print*,'bi int'
+!  do p=1,mo_num
+!  do q=1,mo_num
+!  do r=1,mo_num
+!  do s=1,mo_num
+!  if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
+!  print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
+!  else 
+!  print*,p,q,r,s,0d0
+!  endif
+!  enddo
+!  enddo
+!  enddo
+!  enddo
+!  
+!  print*,'mono int'
+!  do p=1,mo_num
+!    print*,mo_one_e_integrals(p,:)
+!  enddo
+!  
+!  print*, 'one e rdm'
+!  do p=1,mo_num
+!    print*, (one_e_dm_mo_alpha(p,:,istate) + one_e_dm_mo_beta(p,:,istate))
+!  enddo
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'

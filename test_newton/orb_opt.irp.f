@@ -114,16 +114,16 @@ program orb_opt
     !  enddo
     !enddo
     
-!     A=0d0
-!    A(1,3) = -0.0054456d0
-!    A(2,4) = 1.87241d0
-!    A(3,1) = 0.0054456d0
-!    A(4,2) = -1.87241d0
-!
-!    print*,'A'
-!    do i=1,mo_num
-!      print*,A(i,:)
-!    enddo
+     A=0d0
+    A(1,3) = -0.0054456d0
+    A(2,4) = 1.87241d0
+    A(3,1) = 0.0054456d0
+    A(4,2) = -1.87241d0
+
+    print*,'A'
+    do i=1,mo_num
+      print*,A(i,:)
+    enddo
 
 
     call dm_antisym(A,mo_num,mo_num,info)

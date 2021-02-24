@@ -105,19 +105,30 @@ subroutine gradient(n,v_grad)
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'
 
-  i=0
-  do q = 1, mo_num
-    do p = 1, q-1
-      i=i+1
-      v_grad(i) = -(grad(p,q) - grad(q,p))
-     ! if (ABS(v_grad(i)) < 1.d-12) then
-     !   v_grad(i) = 0d0
-     ! else
-     !   v_grad(i) = v_grad(i)
-     ! endif
-     !print*,p,q,v_grad(i)
-    enddo
-  enddo
+ 
+  do i=1,n
+    call in_mat_vec_index(i,p,q)
+    v_grad(i)=(grad(p,q) - grad(q,p))
+  enddo  
+  
+!  print*,'test grad'
+!  do i=1,n
+!    print*,v_grad(i)
+!  enddo
+
+!  i=0
+!  do q = 1, mo_num
+!    do p = 1, q-1
+!      i=i+1
+!      v_grad(i) = -(grad(p,q) - grad(q,p))
+!     ! if (ABS(v_grad(i)) < 1.d-12) then
+!     !   v_grad(i) = 0d0
+!     ! else
+!     !   v_grad(i) = v_grad(i)
+!     ! endif
+!     print*,p,q,v_grad(i)
+!    enddo
+!  enddo
 
   A = 0d0
   ! print matrice gradient

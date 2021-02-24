@@ -238,6 +238,14 @@ subroutine hess(n,H)
     enddo
   enddo
 
+  do pq = 1, n
+    call in_mat_vec_index(pq,p,q)
+    do rs = 1, n
+      call in_mat_vec_index(rs,r,s)
+      H(pq,rs) = h_tmpr(p,q,r,s)   
+    enddo
+  enddo
+
   !==============
   ! Deallocation
   !==============

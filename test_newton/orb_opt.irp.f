@@ -6,7 +6,7 @@ program orb_opt
   double precision, allocatable :: Hm1(:,:),v_grad(:),gHm1(:),A(:,:),vec(:),Hm1_tmpr(:,:)
   integer :: info,method,n,i,j,lwork
   !double precision, allocatable ::  Aexp(:,:),R_tmpr(:,:), H_diag(:,:),H_tmpr(:,:)
-  
+  integer :: p,q 
   double precision :: angle, norm, normH
   
   method = 1 
@@ -158,7 +158,12 @@ program orb_opt
 !    enddo   
 
     call dm_newton_test(R)
-    
+  
+    !do i = 1,15 
+    !call in_mat_vec_index(i,p,q)   
+    !print*,i,'p,q',p,q
+    !enddo
+
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif
 

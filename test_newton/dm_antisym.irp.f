@@ -93,7 +93,7 @@ subroutine dm_antisym(a,lda,n,info)
         ! Display
         !========
 
-        d=.true.
+        d=.false.
        
         if (d) then
                 print*,'Matrix after antisymmetrization :'

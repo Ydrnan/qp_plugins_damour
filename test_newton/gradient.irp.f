@@ -111,12 +111,10 @@ subroutine gradient(n,v_grad)
     v_grad(i)=(grad(p,q) - grad(q,p))
   enddo  
   
-!  print*,'test grad'
-!  do i=1,n
-!    print*,v_grad(i)
-!  enddo
-
-!  i=0
+  print*,'v grad :'
+  write(*,'(100(F10.5))') v_grad(1:n)
+  
+! i=0
 !  do q = 1, mo_num
 !    do p = 1, q-1
 !      i=i+1
@@ -138,16 +136,10 @@ subroutine gradient(n,v_grad)
     enddo
   enddo
 
-  print*,'Gradient'
-  do p=1,mo_num
-    print*,real(A(p,:))
+  print*,'Gradient :'
+  do p = 1, mo_num
+          write(*,'(100(F10.5))') 0.5d0*A(p,1:mo_num)
   enddo
-
-  ! Debug
-  !print*,'grad'
-  !print*, grad(:,:)
-  !print*, 'v_grad'
-  !print*, v_grad(:)
 
   !==============
   ! Deallocation

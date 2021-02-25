@@ -43,7 +43,7 @@ subroutine dm_newton_test(R)
   mo_coef = new_mos
   
   ! Save the new MOs
-  call save_mos
+!  call save_mos
   
   print*,'Done, MOs saved'
  

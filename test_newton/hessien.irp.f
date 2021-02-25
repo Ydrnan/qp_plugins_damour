@@ -45,8 +45,8 @@ subroutine hess(n,H)
                 do u = 1, mo_num
 
                   hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                    mo_one_e_integrals(p,u) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
-                  + mo_one_e_integrals(u,s) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
+                    mo_one_e_integrals(u,p) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
+                  + mo_one_e_integrals(s,u) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
 
                 enddo
               endif
@@ -66,8 +66,8 @@ subroutine hess(n,H)
                do u = 1, mo_num
 
                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       mo_one_e_integrals(r,u) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
-                     + mo_one_e_integrals(u,q) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
+                       mo_one_e_integrals(u,r) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
+                     + mo_one_e_integrals(q,u) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
                enddo
              endif
 
@@ -83,8 +83,8 @@ subroutine hess(n,H)
            do s = 1, mo_num
 
              hessian(p,q,r,s) = hessian(p,q,r,s) &
-             - mo_one_e_integrals(p,s) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-             - mo_one_e_integrals(r,q) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
+             - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
+             - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
 
            enddo
          enddo
@@ -103,8 +103,8 @@ subroutine hess(n,H)
                     do v = 1, mo_num
 
                       hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                        get_two_e_integral(p,t,u,v,mo_integrals_map) * two_e_dm_mo(u,v,s,t,istate) &
-                      + get_two_e_integral(u,v,s,t,mo_integrals_map) * two_e_dm_mo(p,t,u,v,istate))
+                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,istate) &
+                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,istate))
 
                     enddo
                   enddo
@@ -128,8 +128,8 @@ subroutine hess(n,H)
                    do v = 1, mo_num
 
                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       get_two_e_integral(u,v,q,t,mo_integrals_map) * two_e_dm_mo(r,t,u,v,istate) &
-                     + get_two_e_integral(r,t,u,v,mo_integrals_map) * two_e_dm_mo(u,v,q,t,istate))
+                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v,istate) &
+                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,istate))
 
                    enddo
                  enddo
@@ -151,8 +151,8 @@ subroutine hess(n,H)
               do v = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 + get_two_e_integral(p,r,u,v,mo_integrals_map) * two_e_dm_mo(u,v,q,s,istate) &
-                 + get_two_e_integral(u,v,q,s,mo_integrals_map) * two_e_dm_mo(p,r,u,v,istate)
+                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s,istate) &
+                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v,istate)
 
               enddo
             enddo
@@ -172,10 +172,10 @@ subroutine hess(n,H)
               do u = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 - get_two_e_integral(p,u,s,t,mo_integrals_map) * two_e_dm_mo(r,t,q,u,istate) &
-                 - get_two_e_integral(p,u,t,s,mo_integrals_map) * two_e_dm_mo(t,r,q,u,istate) &
-                 - get_two_e_integral(r,t,q,u,mo_integrals_map) * two_e_dm_mo(p,u,s,t,istate) &
-                 - get_two_e_integral(t,r,q,u,mo_integrals_map) * two_e_dm_mo(p,u,t,s,istate)
+                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,istate) &
+                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,istate) &
+                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t,istate) &
+                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s,istate)
 
               enddo
             enddo
@@ -197,23 +197,23 @@ subroutine hess(n,H)
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-  rs=0
-  do r = 1, mo_num
-    do s = 1, r-1
-      rs=rs+1
-      pq=0
-      do p = 1, mo_num
-        do q = 1, p-1
-            pq=pq+1
-
-            H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
-            H(pq,rs)=0.5d0*H(pq,rs)
-            ! TODO : check why 2.0 is here
-
-        enddo
-      enddo
-    enddo
-  enddo
+!  rs=0
+!  do r = 1, mo_num
+!    do s = 1, r-1
+!      rs=rs+1
+!      pq=0
+!      do p = 1, mo_num
+!        do q = 1, p-1
+!            pq=pq+1
+!
+!            H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
+!            H(pq,rs)=0.5d0*H(pq,rs)
+!            ! TODO : check why 2.0 is here
+!
+!        enddo
+!      enddo
+!    enddo
+!  enddo
 
   ! Verification des éléments du hessien
   do r = 1, mo_num
@@ -221,22 +221,26 @@ subroutine hess(n,H)
       do q = 1, mo_num
         do p = 1, mo_num
 
-          h_tmpr(p,q,r,s) =0.5d0* (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
+          !h_tmpr(p,q,r,s) =0.5d0* (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
+          h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
 
         enddo
       enddo
     enddo
   enddo
 
-!  double precision :: H_v(mo_num,mo_num), H_u(mo_num,mo_num,mo_num,mo_num)
-!  call lapack_diag
+  double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
+  call lapack_diag(e_val,H_v,h_tmpr,mo_num**2,mo_num**2)
 
-  print*,'verif H'
-  do p = 1, mo_num
-    do q = 1, mo_num
-          write(*,'(100(F10.5))') h_tmpr(p,q,1:mo_num,1:mo_num)
-    enddo
-  enddo
+  print*,'e_val'
+  write(*,'(100(F10.5))') e_val(:) 
+
+!  print*,'verif H'
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!          write(*,'(100(F10.5))') h_tmpr(p,q,1:mo_num,1:mo_num)
+!    enddo
+!  enddo
 
   do pq = 1, n
     call in_mat_vec_index(pq,p,q)

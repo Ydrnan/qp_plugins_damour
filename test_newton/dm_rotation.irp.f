@@ -399,14 +399,14 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! Display
         !=========
 
-        d=.true.
+        d=.false.
 
-        print*,'Rotation matrix'
-        if (d) then
-                do i=1,n
-                        print*,R(i,:)
-                enddo
-        endif
+       ! print*,'Rotation matrix'
+       ! if (d) then
+       !         do i=1,n
+       !                 print*,R(i,:)
+       !         enddo
+       ! endif
 
         !==============
         ! Deallocation

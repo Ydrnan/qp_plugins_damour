@@ -76,7 +76,7 @@ subroutine hess(n,H)
        enddo
      enddo
 
- !! First line, third term
+ ! First line, third term
      do p = 1, mo_num
        do q = 1, mo_num
          do r = 1, mo_num
@@ -91,7 +91,7 @@ subroutine hess(n,H)
        enddo
      enddo
 
- !Second line, first term
+ ! Second line, first term
      do p = 1, mo_num
        do q = 1, mo_num
          do r = 1, mo_num

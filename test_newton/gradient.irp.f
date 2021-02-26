@@ -138,7 +138,7 @@ subroutine gradient(n,v_grad)
 
   print*,'Gradient :'
   do p = 1, mo_num
-          write(*,'(100(F10.5))') 0.5d0*A(p,1:mo_num)
+          write(*,'(100(F10.5))') A(p,1:mo_num)
   enddo
 
   !==============

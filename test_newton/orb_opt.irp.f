@@ -2,12 +2,12 @@ program orb_opt
   implicit none
   
   double precision, allocatable :: grad(:,:),R(:,:)
-  double precision, allocatable :: H(:,:),e_val(:),work(:,:)
+  double precision, allocatable :: H(:,:),e_val(:),work(:,:),c_grad(:)
   double precision, allocatable :: Hm1(:,:),v_grad(:),gHm1(:),A(:,:),vec(:),Hm1_tmpr(:,:)
   integer :: info,method,n,i,j,lwork
   integer :: p,q 
   double precision :: angle, norm, normH
-  
+  integer, allocatable :: ipiv(:) 
   method = 1
   
   n = mo_num*(mo_num-1)/2
@@ -28,7 +28,7 @@ program orb_opt
   allocate(v_grad(n),R(mo_num,mo_num))
   allocate(H(n,n),Hm1(n,n),gHm1(n),A(mo_num,mo_num))  
   allocate(Hm1_tmpr(n,n))
-
+  allocate(c_grad(n),ipiv(n))
   !=============
   ! Calculation
   !=============
@@ -86,49 +86,30 @@ program orb_opt
    
     !normH = norm2(H)
     !print*, 'NormH : ', normH
-
-    ! Inversion of the hessian
-    call dm_inversion(n,H,Hm1)
-   
-!    ! Inversion de H 
-!    lwork=3*n-1
-!    allocate(work(lwork,n),e_val(n))
-!    
-!    call dsyev('V','U',n,H,size(H,1),e_val,work,lwork,info)
-!    if (info /= 0) then
-!        call ABORT
-!    endif
-!   
-!    Hm1=0d0 
-!    !H_diag=0d0
-!    print *, 'Hess:', real(e_val(:))
-!    do i=1,n
-!        !print*,'H_val',e_val(i)
-!        !H_diag(i,i)=e_val(i)
-!        if ( (e_val(i)>0.d0)) then
-!              Hm1(i,i)=1d0/max(1.d-4,e_val(i))
-!        else
-!              Hm1(i,i)=0d0  !1d0/min(-1.d-4,e_val(i))
-!        endif
-!    enddo
-!    
-!    deallocate(work,e_val)
-!    
-!    call dgemm('N','T',n,n,n,1d0,Hm1,size(Hm1,1),H,size(H,1),0d0,Hm1_tmpr,size(Hm1_tmpr,1))
-!    call dgemm('N','N',n,n,n,1d0,H,size(H,1),Hm1_tmpr,size(Hm1_tmpr,1),0d0,Hm1,size(Hm1,1))
-!    ! Fin de l'inversion
-
-    v_grad = 0.5d0 * v_grad
     
+   print*,'H'
+    do i=1,n
+    write(*,'(100(F10.5))') H(i,:)
+    enddo   
+    Hm1 = H 
+    gHm1 = -v_grad
+    ! Inversion of the hessian
+    !call dm_inversion(n,H,Hm1)
+    call dgesv (n , 1, H , size(H,1), ipiv , gHm1 , size(gHm1,1), info)
+    if (info/=0) then
+    call abort
+    endif    
+   
     ! Product Hm1^T.g
-    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,gHm1,1)
+    !call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,gHm1,1)
+     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),gHm1,1,0d0,v_grad,1)
     
     print*,'vector g^T.Hm1 :'
     write(*,'(100(F10.5))') gHm1(:) 
+    write(*,'(100(F10.5))') v_grad(:)
 
     ! Vector with n element -> mo_num by mo_num matrix
     call dm_vec_to_mat(gHm1,n,A,mo_num,info)
-    
     ! 
     print*,'matrix g^T.Hm1 :'  
     do i=1,mo_num
@@ -143,7 +124,7 @@ program orb_opt
 !    enddo
     
     ! Inutile d'antisym car fait dans vec to mat
-    call dm_antisym(A,mo_num,mo_num,info)
+    !call dm_antisym(A,mo_num,mo_num,info)
     ! Rotation matrix
     call dm_rotation(A,mo_num,R,mo_num,mo_num,info)
 
@@ -165,11 +146,10 @@ program orb_opt
        write(*,'(100(F10.5))') mo_coef(i,:)
     enddo
 
-
-    !do i = 1,15 
-    !call in_mat_vec_index(i,p,q)   
-    !print*,i,'p,q',p,q
-    !enddo
+!    do i = 1,15 
+!    call in_mat_vec_index(i,p,q)   
+!    print*,i,'p,q',p,q
+!    enddo
 
     deallocate(v_grad,H,Hm1,Hm1_tmpr,gHm1,A,R)
  endif

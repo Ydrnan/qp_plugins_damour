@@ -3,20 +3,25 @@ program prog_rotation
 
       integer :: n,i,info
       double precision, allocatable :: A(:,:),R(:,:),C(:,:),D(:,:),B(:,:)
-
-      n=10
+      double precision :: norm
+      n=2
 
       allocate(A(n,n), B(n,n), C(n,n), D(n,n), R(n,n))
 
 
       !call random_number(A)
-      A=0.1d0
-      print*,'A', A(:,:)
+      A=3.14d0
+      !print*,'A', A(:,:)
       call dm_antisym(A,size(A,1),n,info)      
 !      if (info /= 0) then
 !         call ABORT
 !      endif
 !      !Test 1, rotation
+       
+      norm = norm2(A)
+      print*, 'norm :', norm
+
+
       call dm_rotation(A,size(A,1),R,size(R,1),n,info)
       call dgemm('T','N',n,n,n,1d0,R,size(R,1),R,size(R,1),0d0,B,size(B,1))
       C=0d0
@@ -24,7 +29,16 @@ program prog_rotation
         C(i,i) = 1d0
       enddo
       B=B-C
-      print*,B(:,:)
+      !print*,B(:,:)
+     
+      do i=1,n
+        write(*,'(100(F10.5))') R(i,:)
+      enddo
+
+      norm = norm2(R)
+      print*, 'norm :', norm
+
+
 !      if (info /= 0) then
 !         call ABORT
 !      endif

@@ -232,7 +232,7 @@ subroutine hess(n,H)
   double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
   call lapack_diag(e_val,H_v,h_tmpr,mo_num**2,mo_num**2)
 
-  print*,'e_val'
+  print*,'Eigenvalues of the 4D hessian as a mo_num**2 by mo_num**2 matrix :'
   write(*,'(100(F10.5))') e_val(:) 
 
 !  print*,'verif H'

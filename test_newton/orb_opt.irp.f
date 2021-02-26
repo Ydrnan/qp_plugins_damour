@@ -74,17 +74,20 @@ program orb_opt
     deallocate(grad,R)
   
   else 
-    
+   
+    ! Gradient and norm 
     call gradient(n,v_grad)
     
     norm = norm2(v_grad)
     print*, 'Norm : ', norm
     
+    ! Hessian and norm
     call hess(n,H)
    
     !normH = norm2(H)
     !print*, 'NormH : ', normH
 
+    ! Inversion of the hessian
     call dm_inversion(n,H,Hm1)
    
 !    ! Inversion de H 
@@ -117,15 +120,17 @@ program orb_opt
 
     v_grad = 0.5d0 * v_grad
     
+    ! Product Hm1^T.g
     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,gHm1,1)
     
-    print*,'vecteur gHm1'
+    print*,'vector g^T.Hm1 :'
     write(*,'(100(F10.5))') gHm1(:) 
 
+    ! Vector with n element -> mo_num by mo_num matrix
     call dm_vec_to_mat(gHm1,n,A,mo_num,info)
     
-    ! print matrice a exponentialiser
-    print*,'gHm1 en matrice'  
+    ! 
+    print*,'matrix g^T.Hm1 :'  
     do i=1,mo_num
        write(*,'(100(F10.5))') A(i,:)
     enddo
@@ -137,21 +142,12 @@ program orb_opt
 !      enddo
 !    enddo
     
-!     A=0d0
-!    A(1,3) = -0.0054456d0
-!    A(2,4) = 1.87241d0
-!    A(3,1) = 0.0054456d0
-!    A(4,2) = -1.87241d0
-
-!    print*,'A'
-!    do i=1,mo_num
-!      print*,A(i,:)
-!    enddo
-
+    ! Inutile d'antisym car fait dans vec to mat
     call dm_antisym(A,mo_num,mo_num,info)
+    ! Rotation matrix
     call dm_rotation(A,mo_num,R,mo_num,mo_num,info)
 
-    print*,'Rotation matrix : '
+    print*,'Rotation matrix :'
     do i=1,mo_num
        write(*,'(100(F10.5))') R(i,:)
     enddo   
@@ -161,10 +157,10 @@ program orb_opt
        write(*,'(100(F10.5))') mo_coef(i,:)
     enddo
 
-
+   ! Orbital optimization
    ! call dm_newton_test(R)
   
-    print*,'new_mo_coef : '
+    print*,'New mo_coef : '
     do i=1,mo_num
        write(*,'(100(F10.5))') mo_coef(i,:)
     enddo

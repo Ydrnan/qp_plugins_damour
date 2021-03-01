@@ -15,6 +15,7 @@ subroutine dm_newton_test(R)
 
   ! internal
   double precision, allocatable :: new_mos(:,:)
+  integer :: i
   ! new_mos : ao_num by mo_num double precision matrix, new coefficients of the MOs 
   
   ! Provided 
@@ -41,7 +42,13 @@ subroutine dm_newton_test(R)
   print*,'Save MOs...'
   
   mo_coef = new_mos
-  
+ 
+  print*,'New mo_coef : '
+  do i=1,mo_num
+    write(*,'(100(F10.5))') mo_coef(i,:)
+  enddo
+
+ 
   ! Save the new MOs
   call save_mos
   

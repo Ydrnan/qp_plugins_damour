@@ -42,7 +42,6 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         integer :: info2, lwork ! for dsyev
         double precision :: pi, t1,t2
         double precision :: norm, norm_2
-        logical :: d
 
         ! B       : n by n symmetric double precision matrix, B=A.A
         ! lwork   : integer, dimension of the syev work array >= max(1, 3n-1)
@@ -64,7 +63,6 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         !           if R is a rotation matrix <=> R.R^t-1=0 <=> norm = 0
         ! norm    : integer, norm of R.R^t-1, must be equal to 0
         ! i,j     : integer, first and second indices to turn on the matrix elements
-        ! d       : logical, if true display the rotation matrix
 
         ! intrinsic
         double precision :: dnrm2
@@ -370,9 +368,7 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         call dgemm('N','T',n,n,n,1d0,R,size(R,1),R,size(R,1),-1d0,RR_t,size(RR_t,1))
 
         norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
-        print*, 'norm = ', norm
-
-        
+        print*, 'Rotation matrix check, norm = ', norm
 
         ! Debug
         !print*, 'RR_t'
@@ -399,14 +395,12 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! Display
         !=========
 
-        d=.false.
-
-       ! print*,'Rotation matrix'
-       ! if (d) then
-       !         do i=1,n
-       !                 print*,R(i,:)
-       !         enddo
-       ! endif
+        if (debug) then
+          print*,'Rotation matrix :'
+          do i=1,mo_num
+            write(*,'(100(F10.5))') R(i,:)
+          enddo
+        endif
 
         !==============
         ! Deallocation

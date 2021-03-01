@@ -17,7 +17,7 @@ subroutine gradient(n,v_grad)
   double precision, intent(out) :: v_grad(n)
   double precision, allocatable :: grad(:,:),A(:,:)
 
-  double precision :: get_two_e_integral
+  double precision :: get_two_e_integral, norm2, norm
   integer :: i,p,q,r,s,t
   integer :: istate
 
@@ -102,6 +102,77 @@ subroutine gradient(n,v_grad)
 !    print*, (one_e_dm_mo_alpha(p,:,istate) + one_e_dm_mo_beta(p,:,istate))
 !  enddo
 
+ !Ecriture des intégrales dans un fichier pour le lire avec OCaml
+  open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
+  do p = 1, mo_num
+    do q = 1, mo_num
+      write(10,*) p, q, (one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate))
+    enddo
+  enddo
+  close(10)
+
+  open(unit=11,file='../../../../../../App_y/miniconda3/Work_yann/one_e_int.dat')
+  do p = 1, mo_num
+    do q = 1, mo_num
+      write(11,*) p, q, mo_one_e_integrals(p,q)
+    enddo
+  enddo
+  close(11)
+  
+  open(unit=12,file='../../../../../../App_y/miniconda3/Work_yann/two_e_int.dat')
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+          write(12,*) p, q, r, s, get_two_e_integral(p,q,r,s,mo_integrals_map)
+        enddo
+      enddo
+    enddo
+  enddo
+  close(12)
+  
+  open(unit=13,file='../../../../../../App_y/miniconda3/Work_yann/two_e_dm.dat')
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+          write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,istate)
+        enddo
+      enddo
+    enddo
+  enddo
+  close(13)
+
+
+
+double precision, allocatable :: two_e_integrals(:,:,:,:)
+allocate(two_e_integrals(mo_num,mo_num,mo_num,mo_num))
+
+do p=1,mo_num
+do q=1,mo_num
+do r=1,mo_num
+do s=1,mo_num
+two_e_integrals(p,q,r,s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
+enddo
+enddo
+enddo
+enddo
+
+
+print*,'two e int'
+do p = 1,mo_num
+  do q= 1, mo_num
+    write(*,'(100(F10.5))') two_e_integrals(p,q,:,:)
+  enddo
+enddo
+
+print*,'two e rdm'
+do p = 1,mo_num
+  do q= 1, mo_num
+    write(*,'(100(F10.5))') two_e_dm_mo(p,q,:,:,1)
+  enddo
+enddo
+
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   !print*,'Gradient matrix -> vector'
 
@@ -114,6 +185,10 @@ subroutine gradient(n,v_grad)
   print*,'v grad :'
   write(*,'(100(F10.5))') v_grad(1:n)
   
+  ! Norm of the vector
+  norm = norm2(v_grad)
+  print*, 'Norm : ', norm
+
 ! i=0
 !  do q = 1, mo_num
 !    do p = 1, q-1
@@ -129,7 +204,7 @@ subroutine gradient(n,v_grad)
 !  enddo
 
   A = 0d0
-  ! print matrice gradient
+  ! Matrix gradient
   do q=1,mo_num
     do p=1,mo_num
       A(p,q) = grad(p,q) - grad(q,p)

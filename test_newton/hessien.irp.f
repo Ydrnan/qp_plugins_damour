@@ -1,4 +1,7 @@
 subroutine hess(n,H)
+
+  include 'constants.h' 
+
   implicit none
 
   !==================================================================
@@ -7,6 +10,7 @@ subroutine hess(n,H)
 
   integer, intent(in) :: n ! mo_num*(mo_num-1)/2
   double precision, allocatable :: hessian(:,:,:,:), h_tmpr(:,:,:,:)
+  double precision, allocatable :: H_test(:,:)
   double precision, intent(out) :: H(n,n)
   integer :: p,q
   integer :: r,s,t,u,v
@@ -25,17 +29,22 @@ subroutine hess(n,H)
   !============
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num),h_tmpr(mo_num,mo_num,mo_num,mo_num))
+  allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
   ! Calculation
   !=============
 
+  ! Initialization
   hessian = 0d0
 
   !do istate = 1, N_states
   istate = 1
 
-! First line, first term
+  ! From Anderson et. al. (2014) 
+  ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
+
+  ! First line, first term
     do p = 1, mo_num
       do q = 1, mo_num
         do r = 1, mo_num
@@ -77,19 +86,19 @@ subroutine hess(n,H)
      enddo
 
  ! First line, third term
-     do p = 1, mo_num
-       do q = 1, mo_num
-         do r = 1, mo_num
-           do s = 1, mo_num
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
 
-             hessian(p,q,r,s) = hessian(p,q,r,s) &
-             - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-             - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
+            hessian(p,q,r,s) = hessian(p,q,r,s) &
+            - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
+            - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
 
-           enddo
-         enddo
-       enddo
-     enddo
+          enddo
+        enddo
+      enddo
+    enddo
 
  ! Second line, first term
      do p = 1, mo_num
@@ -116,7 +125,7 @@ subroutine hess(n,H)
        enddo
      enddo
 
-! Second line, second term
+ ! Second line, second term
      do p = 1, mo_num
        do q = 1, mo_num
          do r = 1, mo_num
@@ -141,7 +150,7 @@ subroutine hess(n,H)
        enddo
      enddo
 
-! Third line, first term
+ ! Third line, first term
     do p = 1, mo_num
       do q = 1, mo_num
         do r = 1, mo_num
@@ -162,7 +171,7 @@ subroutine hess(n,H)
       enddo
     enddo
 
-! Third line, second term
+ ! Third line, second term
     do p = 1, mo_num
       do q = 1, mo_num
         do r = 1, mo_num
@@ -197,31 +206,12 @@ subroutine hess(n,H)
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-!  rs=0
-!  do r = 1, mo_num
-!    do s = 1, r-1
-!      rs=rs+1
-!      pq=0
-!      do p = 1, mo_num
-!        do q = 1, p-1
-!            pq=pq+1
-!
-!            H(pq,rs) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r)) ! pqrs-qprs-pqsr+qpsr
-!            H(pq,rs)=0.5d0*H(pq,rs)
-!            ! TODO : check why 2.0 is here
-!
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-
   ! Verification des éléments du hessien
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num
         do p = 1, mo_num
 
-          !h_tmpr(p,q,r,s) =0.5d0* (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
           h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
 
         enddo
@@ -229,19 +219,39 @@ subroutine hess(n,H)
     enddo
   enddo
 
-  double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
-  call lapack_diag(e_val,H_v,h_tmpr,mo_num**2,mo_num**2)
+  ! Debug, all the elements of the 4D hessian in a mo_num**2 by mo_num**2 matrix
+  if (debug) then
+    pq=0
+    rs=0
+    do p=1,mo_num
+      do q = 1,mo_num
+      pq=pq+1
+      rs=0
+        do r = 1, mo_num
+          do s = 1, mo_num
+          rs = rs+1 
+           H_test(pq,rs) = h_tmpr(p,q,r,s)
+          enddo
+        enddo
+      enddo
+    enddo
+  
+    print*,'mo_num**2 by mo_num**2 hessian matrix'
+    do pq=1,mo_num**2
+      write(*,'(100(F10.5))') H_test(pq,:)
+    enddo
+  endif
 
-  print*,'Eigenvalues of the 4D hessian as a mo_num**2 by mo_num**2 matrix :'
-  write(*,'(100(F10.5))') e_val(:) 
+  ! Debug, eigenvalues of the 4D hessian to compare with an other code
+  !double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
+  !call lapack_diag(e_val,H_v,H_test,mo_num**2,mo_num**2)
 
-!  print*,'verif H'
-!  do p = 1, mo_num
-!    do q = 1, mo_num
-!          write(*,'(100(F10.5))') h_tmpr(p,q,1:mo_num,1:mo_num)
-!    enddo
-!  enddo
+  !print*,'Eigenvalues of the 4D hessian as a mo_num**2 by mo_num**2 matrix :'
+  !write(*,'(100(F10.5))') e_val(:) 
+  
+  !deallocate(e_val,H_v,H_u)
 
+  ! 4D mo_num matrix to 2D n matrix
   do pq = 1, n
     call in_mat_vec_index(pq,p,q)
     do rs = 1, n
@@ -250,10 +260,19 @@ subroutine hess(n,H)
     enddo
   enddo
 
+
+  ! Display
+  if (debug) then 
+    print*,'2D Hessian matrix'
+    do pq = 1, n
+      write(*,'(100(F10.5))') H(pq,:)
+    enddo 
+  endif
+
   !==============
   ! Deallocation
   !==============
 
-  deallocate(hessian,h_tmpr)
+  deallocate(hessian,h_tmpr,H_test)
 
 end subroutine

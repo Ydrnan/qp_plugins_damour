@@ -32,7 +32,6 @@ subroutine dm_prodvecmat(v,n,A,LDA,B,LDB,top,info)
         ! internal
         !double precision, allocatable :: B(:,:)
         integer :: i,j,top
-        logical :: d
         ! B   : n by n double precision matrix, use to compute the
         !       the product with transpose matrix without compute 
         !       the transpose matrix of A
@@ -42,7 +41,6 @@ subroutine dm_prodvecmat(v,n,A,LDA,B,LDB,top,info)
         !       - 1 : diagonal matrix . matrix^t
         !       - 2 : matrix . diagonal matrix
         !       - 3 : matrix . diagonal matrix^t
-        ! d   : logical, if true display the rotation matrix
         
         ! intrinsic
         logical :: disnan
@@ -149,7 +147,7 @@ subroutine dm_prodvecmat(v,n,A,LDA,B,LDB,top,info)
         ! Display
         !=========
         
-        if (d) then 
+        if (debug) then 
                 print*, 'A'
                 do i=1,n
                         print*, A(i,:)

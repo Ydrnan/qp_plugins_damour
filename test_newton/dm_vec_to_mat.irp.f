@@ -70,9 +70,9 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
 
         ! Vector -> lower diagonal matrix
         l=1
-        do j=1,n-1
-                do i=j+1,n
-                        B(i,j)=v(l)
+        do i=1,n
+                do j=1,i-1
+                        B(i,j)=l!v(l)
                         l=l+1
                 enddo
         enddo
@@ -93,10 +93,8 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         ! Display
         !=========
         
-        d=.true.
-
-        !if (d) then
-        !        print*,'B'
+        !if (debug) then
+        !        print*,'Matrix from the vector :'
         !        do i=1,n
         !                print*,B(i,:)
         !        enddo

@@ -1,4 +1,7 @@
 subroutine dm_newton_test(R)
+  
+  include 'constants.h'
+
   implicit none
   
   !=================================================================
@@ -10,17 +13,18 @@ subroutine dm_newton_test(R)
   !===========
 
   ! intent in
-  double precision, intent(in) :: R(mo_num,mo_num)
-  ! R : double precision mo_num by mo_num double precision matrix, rotation matrix
+  double precision, intent(in)  :: R(mo_num,mo_num)
+  ! R       : double precision mo_num by mo_num double precision matrix, rotation matrix
 
   ! internal
   double precision, allocatable :: new_mos(:,:)
-  integer :: i
+  integer                       :: i
   ! new_mos : ao_num by mo_num double precision matrix, new coefficients of the MOs 
-  
+  ! i       : integer, index 
+ 
   ! Provided 
-  ! mo_num : number of MOs
-  ! ao_num : number of AOs
+  ! mo_num  : number of MOs
+  ! ao_num  : number of AOs
   ! mo_coef : ao_num by mo_num double precision matrix, contains the coefficients of the MOs
  
   !============
@@ -42,11 +46,13 @@ subroutine dm_newton_test(R)
   print*,'Save MOs...'
   
   mo_coef = new_mos
- 
-  print*,'New mo_coef : '
-  do i=1,mo_num
-    write(*,'(100(F10.5))') mo_coef(i,:)
-  enddo
+
+  if (debug) then  
+    print*,'New mo_coef : '
+    do i=1,mo_num
+      write(*,'(100(F10.5))') mo_coef(i,:)
+    enddo
+  endif
 
  
   ! Save the new MOs

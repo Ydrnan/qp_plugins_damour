@@ -1,26 +1,42 @@
 subroutine gradient(n,v_grad)
+
+  include 'constants.h'
+
   implicit none
 
   !===================================================================
   ! Compute the gradient of energy with respects to orbital rotations
   !===================================================================
 
-   BEGIN_DOC
-! TODO : Put the documentation of the program here
-
   ! Check if read_wf = true, else :
   ! qp set determinant read_wf true
 
   END_DOC
 
+  ! in
   integer, intent(in) :: n
+  ! n : integer, n = mo_num*(mo_num-1)/2
+  
+  ! out
   double precision, intent(out) :: v_grad(n)
-  double precision, allocatable :: grad(:,:),A(:,:)
+  ! v_grad : double precision vector of length n containeing the gradient
 
-  double precision :: get_two_e_integral, norm2, norm
+  ! internal
+  double precision, allocatable :: grad(:,:),A(:,:)
+  double precision :: norm
   integer :: i,p,q,r,s,t
   integer :: istate
+  ! grad : double precision matrix containing the gradient before the permutation
+  ! A : double precision matrix containing the gradient after the permutation
+  ! norm : double precision number, the norm of the vector gradient
+  ! i,p,q,r,s,t : integer, indexes 
+  ! istate : integer, the electronic state
 
+  ! Function
+  double precision :: get_two_e_integral, norm2
+  ! get_two_e_integral :  double precision function that gives the two e integrals
+  ! norm2 : double precision function that gives the norm of a vector
+ 
   ! Provided :
   ! mo_one_e_integrals : mono e- integrals
   ! get_two_e_integral : two e- integrals
@@ -66,30 +82,31 @@ subroutine gradient(n,v_grad)
     enddo
   !enddo
 
+ ! Debug ocaml
 !  print*,'two e rdm'
 !  do p=1,mo_num
-!  do q=1,mo_num
-!  do r=1,mo_num
-!  do s=1,mo_num
-!  print*,p,q,r,s,two_e_dm_mo(p,q,r,s,1)
-!  enddo
-!  enddo
-!  enddo
+!    do q=1,mo_num
+!      do r=1,mo_num
+!        do s=1,mo_num
+!          print*,p,q,r,s,two_e_dm_mo(p,q,r,s,1)
+!        enddo
+!      enddo
+!    enddo
 !  enddo
 !
 !  print*,'bi int'
 !  do p=1,mo_num
-!  do q=1,mo_num
-!  do r=1,mo_num
-!  do s=1,mo_num
-!  if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
-!  print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-!  else
-!  print*,p,q,r,s,0d0
-!  endif
-!  enddo
-!  enddo
-!  enddo
+!    do q=1,mo_num
+!      do r=1,mo_num
+!        do s=1,mo_num
+!          if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
+!            print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
+!          else
+!            print*,p,q,r,s,0d0
+!          endif
+!        enddo
+!      enddo
+!    enddo
 !  enddo
 !
 !  print*,'mono int'
@@ -103,123 +120,114 @@ subroutine gradient(n,v_grad)
 !  enddo
 
  !Ecriture des intégrales dans un fichier pour le lire avec OCaml
-  open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
-  do p = 1, mo_num
-    do q = 1, mo_num
-      write(10,*) p, q, (one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate))
-    enddo
-  enddo
-  close(10)
 
-  open(unit=11,file='../../../../../../App_y/miniconda3/Work_yann/one_e_int.dat')
-  do p = 1, mo_num
-    do q = 1, mo_num
-      write(11,*) p, q, mo_one_e_integrals(p,q)
+  if (ocaml) then
+    open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
+    do p = 1, mo_num
+      do q = 1, mo_num
+        write(10,*) p, q, (one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate))
+      enddo
     enddo
-  enddo
-  close(11)
+    close(10)
   
-  open(unit=12,file='../../../../../../App_y/miniconda3/Work_yann/two_e_int.dat')
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
-          write(12,*) p, q, r, s, get_two_e_integral(p,q,r,s,mo_integrals_map)
+    open(unit=11,file='../../../../../../App_y/miniconda3/Work_yann/one_e_int.dat')
+    do p = 1, mo_num
+      do q = 1, mo_num
+        write(11,*) p, q, mo_one_e_integrals(p,q)
+      enddo
+    enddo
+    close(11)
+    
+    open(unit=12,file='../../../../../../App_y/miniconda3/Work_yann/two_e_int.dat')
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
+            write(12,*) p, q, r, s, get_two_e_integral(p,q,r,s,mo_integrals_map)
+          enddo
         enddo
       enddo
     enddo
-  enddo
-  close(12)
-  
-  open(unit=13,file='../../../../../../App_y/miniconda3/Work_yann/two_e_dm.dat')
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
-          write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,istate)
+    close(12)
+    
+    open(unit=13,file='../../../../../../App_y/miniconda3/Work_yann/two_e_dm.dat')
+    do p = 1, mo_num
+      do q = 1, mo_num
+        do r = 1, mo_num
+          do s = 1, mo_num
+            write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,istate)
+          enddo
         enddo
       enddo
     enddo
-  enddo
-  close(13)
+    close(13)
+  endif
 
-
-
-double precision, allocatable :: two_e_integrals(:,:,:,:)
-allocate(two_e_integrals(mo_num,mo_num,mo_num,mo_num))
-
-do p=1,mo_num
-do q=1,mo_num
-do r=1,mo_num
-do s=1,mo_num
-two_e_integrals(p,q,r,s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
-enddo
-enddo
-enddo
-enddo
-
-
-print*,'two e int'
-do p = 1,mo_num
-  do q= 1, mo_num
-    write(*,'(100(F10.5))') two_e_integrals(p,q,:,:)
-  enddo
-enddo
-
-print*,'two e rdm'
-do p = 1,mo_num
-  do q= 1, mo_num
-    write(*,'(100(F10.5))') two_e_dm_mo(p,q,:,:,1)
-  enddo
-enddo
+ ! Debug ocaml
+!  double precision, allocatable :: two_e_integrals(:,:,:,:)
+!  allocate(two_e_integrals(mo_num,mo_num,mo_num,mo_num))
+!
+!  do p=1,mo_num
+!    do q=1,mo_num
+!      do r=1,mo_num
+!        do s=1,mo_num
+!          two_e_integrals(p,q,r,s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
+!        enddo
+!      enddo
+!    enddo
+!  enddo
+!
+!
+!  print*,'two e int'
+!  do p = 1,mo_num
+!    do q= 1, mo_num
+!      write(*,'(100(F10.5))') two_e_integrals(p,q,:,:)
+!    enddo
+!  enddo
+!
+!  print*,'two e rdm'
+!  do p = 1,mo_num
+!    do q= 1, mo_num
+!      write(*,'(100(F10.5))') two_e_dm_mo(p,q,:,:,1)
+!    enddo
+!  enddo
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
-  !print*,'Gradient matrix -> vector'
-
- 
   do i=1,n
     call in_mat_vec_index(i,p,q)
     v_grad(i)=(grad(p,q) - grad(q,p))
   enddo  
-  
-  print*,'v grad :'
-  write(*,'(100(F10.5))') v_grad(1:n)
-  
+
+  ! Display, vector containing the gradient elements 
+  if (debug) then  
+    print*,'Vector containing the gradient :'
+    write(*,'(100(F10.5))') v_grad(1:n)
+  endif  
+
   ! Norm of the vector
   norm = norm2(v_grad)
   print*, 'Norm : ', norm
 
-! i=0
-!  do q = 1, mo_num
-!    do p = 1, q-1
-!      i=i+1
-!      v_grad(i) = -(grad(p,q) - grad(q,p))
-!     ! if (ABS(v_grad(i)) < 1.d-12) then
-!     !   v_grad(i) = 0d0
-!     ! else
-!     !   v_grad(i) = v_grad(i)
-!     ! endif
-!     print*,p,q,v_grad(i)
-!    enddo
-!  enddo
-
-  A = 0d0
   ! Matrix gradient
+  A = 0d0
   do q=1,mo_num
     do p=1,mo_num
       A(p,q) = grad(p,q) - grad(q,p)
     enddo
   enddo
 
-  print*,'Gradient :'
-  do p = 1, mo_num
-          write(*,'(100(F10.5))') A(p,1:mo_num)
-  enddo
+  ! Display, matrix containting the gradient elements
+  if (debug) then
+    print*,'Matrix containing the gradient :'
+    do i = 1, mo_num
+      write(*,'(100(F10.5))') A(i,1:mo_num)
+    enddo
+  endif
 
   !==============
   ! Deallocation
   !==============
 
-  deallocate(grad)
+  deallocate(grad,A)
 
 end subroutine

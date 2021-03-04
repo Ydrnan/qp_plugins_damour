@@ -8,15 +8,38 @@ subroutine hess(n,H)
   ! Compute the hessian of energy with respects to orbital rotations
   !==================================================================
 
-  integer, intent(in) :: n ! mo_num*(mo_num-1)/2
+  !===========
+  ! Variables  
+  !===========
+
+  ! in
+  integer, intent(in)           :: n 
+  !n         : integer, n = mo_num*(mo_num-1)/2
+  
+  ! out
+  double precision, intent(out) :: H(n,n)
+  ! H        : n by n double precision matrix containing the 2D hessian
+ 
+  ! internal
   double precision, allocatable :: hessian(:,:,:,:), h_tmpr(:,:,:,:)
   double precision, allocatable :: H_test(:,:)
-  double precision, intent(out) :: H(n,n)
-  integer :: p,q
-  integer :: r,s,t,u,v
-  integer :: pq,rs
-  integer :: istate
-  double precision :: get_two_e_integral
+  integer                       :: p,q
+  integer                       :: r,s,t,u,v
+  integer                       :: pq,rs
+  integer                       :: istate
+  double precision              :: t1,t2,t3
+  ! hessian  : mo_num 4D double precision matrix containing the hessian before the permutations
+  ! h_tmpr   : mo_num 4D double precision matrix containing the hessian after the permutations
+  ! H_test   : monum**2 by mo_num**2 double precision matrix to debug the H matrix
+  ! p,q,r,s  : integer, indexes of the 4D hessian matrix
+  ! t,u,v    : integer, indexes to compute hessian elements
+  ! pq,rs    : integer, indexes for the conversion from 4D to 2D hessian matrix
+  ! istate   : integer, electronic state
+  ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the hessian 
+
+  ! Funtion 
+  double precision              :: get_two_e_integral
+  ! get_two_e_integral :  double precision function, two e integrals 
 
   ! Provided :
   ! mo_one_e_integrals : mono e- integrals
@@ -43,6 +66,8 @@ subroutine hess(n,H)
 
   ! From Anderson et. al. (2014) 
   ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
+
+  CALL CPU_TIME(t1)
 
   ! First line, first term
     do p = 1, mo_num
@@ -196,6 +221,10 @@ subroutine hess(n,H)
 
   !enddo
 
+  CALL CPU_TIME(t2)
+  t3 = t2 -t1
+  print*,'Time to compute the hessian : ', t3
+
   !===========
   ! 2D matrix
   !===========
@@ -206,7 +235,7 @@ subroutine hess(n,H)
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-  ! Verification des éléments du hessien
+  ! Permutations 
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num

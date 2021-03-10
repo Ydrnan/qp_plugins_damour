@@ -10,7 +10,7 @@ program orb_opt
   !===========
 
   double precision, allocatable :: grad(:,:),R(:,:)
-  double precision, allocatable :: H(:,:)
+  double precision, allocatable :: H(:,:),H1(:,:)
   double precision, allocatable :: Hm1(:,:),v_grad(:),m_Hm1g(:,:),Hm1g(:)
   integer                       :: info,method
   integer                       :: n
@@ -32,7 +32,9 @@ program orb_opt
   ! i,j,p,q,k : integer, indexes
   ! rho    : double precision : test
   ! f_t    : double precision : test
-
+  
+  double precision :: trust_coef, trust_radius, X_radius, norm
+ 
   ! Choice of the method 
   method = 2
  
@@ -53,7 +55,7 @@ program orb_opt
   !============
  
   allocate(v_grad(n),R(mo_num,mo_num))
-  allocate(H(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))  
+  allocate(H(n,n),H1(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))  
   allocate(ipiv(n))
 
   !=============
@@ -78,19 +80,62 @@ program orb_opt
   
   else  ! Full or diagonal hessian 
    
-    ! test : Rho 
-    !call dn_rho_model(rho)  
- 
+!    ! test : Rho 
+!    call dn_rho_model(rho)  
+!
+!    open(unit=10,file='trust_coef.dat')
+!    read(10,*) trust_coef
+!    close(10)
+! 
+!    if (rho > 0.75d0) then
+!    trust_coef = trust_coef * 1.5
+!    elseif (rho <= 0.25d0) then
+!    trust_coef = trust_coef * 0.5d0
+!    else 
+!    trust_coef = trust_coef
+!    endif
+!
+!    open(unit=10,file='trust_coef.dat')
+!    write(10,*) trust_coef
+!    close(10)
+! 
+!    print*,'trust_coef', trust_coef
+
     ! Gradient and norm 
     call gradient(n,v_grad)
     
     ! Hessian and norm
     if (method == 1) then 
       print*,'Use the full hessian matrix'
-      call hess(n,H)
+     call first_hess(n,H)
+     call hess(n,H1)
+     !H1=H-H1
+     !norm = norm2(H1)
+     !print*,'norm H-H', norm
+      do i=1,mo_num
+      print*,H(i,:)
+      print*,H1(i,:)
+      enddo
+      H=H-H1
+      print*,''
+      print*,'Diff'
+      do i=1,(mo_num*(mo_num-1)/2)
+        print*,H(i,:)
+      enddo
     else
       print*, 'Use the diagonal hessian matrix'
+      call first_diag_hess(n,H)
       call diag_hess(n,H)
+      do i=1,mo_num
+      print*,H(i,:)
+      print*,H1(i,:)
+      enddo
+      H=H-H1
+      print*,''
+      print*,'Diff'
+      do i=1,(mo_num*(mo_num-1)/2)
+        print*,H(i,:)
+      enddo
     endif
  
     ! Inversion of the hessian
@@ -106,14 +151,36 @@ program orb_opt
 
     ! Hm1.g product
     call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
-
-    ! test : Rho
-    ! Model energy calculation
-    !call dn_e_model(n,v_grad,H,Hm1g)   
+ 
+!    open(unit=10,file='trust_radius.dat')
+!    read(10,*) trust_radius
+!    close(10)
+!    
+!    trust_radius = trust_radius * trust_coef
+!    print*,'trust_radius', trust_radius
+!      
+!    open(unit=10,file='trust_radius.dat')
+!    write(10,*) trust_radius
+!    close(10)
+!
+!    X_radius = norm2(m_Hm1g)
+!    print*,'X_radius', X_radius
+!    
+!    if (X_radius > trust_radius) then
+!    m_Hm1g = (trust_radius / X_radius) * m_Hm1g 
+!    endif 
+!
+!    X_radius = norm2(m_Hm1g)
+!    print*,'X_radius2', X_radius
+!
+!
+!    ! test : Rho
+!    ! Model energy calculation
+!    call dn_e_model(n,v_grad,H,Hm1g)   
 
     !Test cyrus : f_t
-    !call test_cyrus(n,H,Hm1g,f_t)
-    !m_Hm1g = f_t * m_Hm1g
+!    call test_cyrus(n,H,Hm1g,f_t)
+!    m_Hm1g = f_t * m_Hm1g
 
     ! Rotation matrix
     call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)

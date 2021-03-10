@@ -56,7 +56,9 @@ subroutine dm_newton_test(R)
 
  
   ! Save the new MOs
+  mo_label = 'MCSCF'
   call save_mos
+  call ezfio_set_determinants_mo_label(mo_label)
   
   print*,'Done, MOs saved'
  

@@ -479,7 +479,7 @@ subroutine hess(n,H)
  t6 = t5 - t4
  print*,'t', t6
  deallocate(tmp_bi_int_3,tmp_2rdm_3)
-
+ deallocate(one_e_rdm_mo_y)
  ! Third line, second term
  !   do p = 1, mo_num
  !     do q = 1, mo_num

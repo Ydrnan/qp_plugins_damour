@@ -112,7 +112,7 @@ program orb_opt
      !H1=H-H1
      !norm = norm2(H1)
      !print*,'norm H-H', norm
-      do i=1,mo_num
+      do i=1,mo_num*(mo_num-1)/2
       print*,H(i,:)
       print*,H1(i,:)
       enddo
@@ -124,18 +124,18 @@ program orb_opt
       enddo
     else
       print*, 'Use the diagonal hessian matrix'
-      call first_diag_hess(n,H)
-      call diag_hess(n,H)
-      do i=1,mo_num
-      print*,H(i,:)
-      print*,H1(i,:)
-      enddo
-      H=H-H1
-      print*,''
-      print*,'Diff'
-      do i=1,(mo_num*(mo_num-1)/2)
-        print*,H(i,:)
-      enddo
+  !    call first_diag_hess(n,H)
+      call diag_hess(n,H1)
+ !     do i=1,mo_num*(mo_num-1)/2
+ !     print*,H(i,:)
+ !     print*,H1(i,:)
+ !     enddo
+ !     H=H-H1
+ !     print*,''
+ !     print*,'Diff'
+ !     do i=1,(mo_num*(mo_num-1)/2)
+ !       print*,H(i,:)
+ !     enddo
     endif
  
     ! Inversion of the hessian

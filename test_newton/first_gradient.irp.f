@@ -1,4 +1,4 @@
-subroutine gradient(n,v_grad)
+subroutine first_gradient(n,v_grad)
 
   include 'constants.h'
 
@@ -32,14 +32,6 @@ subroutine gradient(n,v_grad)
   ! i,p,q,r,s,t : integer, indexes 
   ! istate : integer, the electronic state
 
-  double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! One e density matrix
-
-  double precision, allocatable :: tmp_accu(:,:)
-  double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:)
-  ! tmp arrays
-
-
   ! Function
   double precision :: get_two_e_integral, norm2
   ! get_two_e_integral :  double precision function that gives the two e integrals
@@ -51,149 +43,44 @@ subroutine gradient(n,v_grad)
   ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
   ! two_e_dm_mo : two body density matrix
 
-  double precision :: t1,t2,t3,t4,t5,t6
-
   !============
   ! Allocation
   !============
 
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
-  allocate(one_e_rdm_mo_y(mo_num,mo_num))
-  allocate(tmp_accu(mo_num,mo_num))
-  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
-  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
- 
+
   !=============
   ! Calculation
-  !============= 
+  !=============
 
   v_grad = 0d0
-  grad = 0d0
- 
-  !!!do istate = 1, N_states
+
+  !do istate = 1, N_states
   istate = 1
- 
-    do q = 1, mo_num
-      do p = 1, mo_num
+    do p = 1, mo_num
+      do q = 1, mo_num
+         grad(p,q) = 0d0
+         do r = 1, mo_num
+           grad(p,q) = grad(p,q) + mo_one_e_integrals(p,r) &
+                          * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
+                         - mo_one_e_integrals(r,q) &
+                          * (one_e_dm_mo_alpha(p,r,istate) + one_e_dm_mo_beta(p,r,istate))
 
-         one_e_rdm_mo_y(p,q) = one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate)
+        enddo
 
-      enddo
-    enddo
+       do r = 1, mo_num
+         do s = 1, mo_num
+           do t= 1, mo_num
 
-    ! From Anderson et. al. (2014) 
-    ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
-
-    !!! first term 
-
-    !do p = 1, mo_num
-    !    do q = 1, mo_num
-    !       grad(p,q) = 0d0
-    !       do r = 1, mo_num
-    !        
-    !          grad(p,q) = grad(p,q) &
-    !                +2d0 * mo_one_e_integrals(p,r) * one_e_rdm_mo_y(r,q) !&
-    !                !- mo_one_e_integrals(r,q) * one_e_rdm_mo_y(p,r)
-    !
-    !      enddo
-    !   enddo
-    !enddo
-
-    !!! Opt first term
-  
-    CALL CPU_TIME(t4)
-    tmp_accu = 0d0
-  
-    call dgemm('N','N',mo_num,mo_num,mo_num,2d0,mo_one_e_integrals,&
-    mo_num,one_e_rdm_mo_y,mo_num,0d0,tmp_accu,mo_num)
-  
-    do q = 1, mo_num
-      do p = 1, mo_num
-
-        grad(p,q) = grad(p,q) + tmp_accu(p,q)
-
-      enddo
-    enddo 
-    
-    CALL CPU_TIME(t5)
-    t6 = t5-t4
-    print*,'Gradient, first term (s) :', t6 
-  
-    !!!!! Second term
-    
-    !do p = 1, mo_num
-    !  do q = 1, mo_num 
-    !    do r = 1, mo_num
-    !      do s = 1, mo_num
-    !        do t= 1, mo_num
-    !
-    !        grad(p,q) = grad(p,q) &
-    !                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
-    !                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
-    !       enddo
-    !      enddo
-    !    enddo
-    !  enddo
-    !enddo
-  
-    !!! Opt second term  
-    
-    CALL CPU_TIME(t4)
-  
-    tmp_accu = 0d0
-  
-    do t = 1, mo_num
-     
-      do p = 1, mo_num
-        do s = 1, mo_num
-          do r = 1, mo_num
-              
-            tmp_bi_int_3(r,s,p) = 2d0 * get_two_e_integral(r,s,p,t,mo_integrals_map)
-           
+           grad(p,q) = grad(p,q) &
+                   + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
+                   - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
+           enddo
           enddo
         enddo
       enddo
-      
-      do q = 1, mo_num
-        do s = 1, mo_num
-          do r = 1, mo_num
-               
-             tmp_2rdm_3(r,s,q) = two_e_dm_mo(r,s,q,t,istate)
-    
-          enddo
-        enddo
-      enddo
-  
-  !     tmp_accu = 0d0
-  !     do p = 1, mo_num
-  !      do q = 1, mo_num
-  !        do s = 1, mo_num
-  !          do r = 1, mo_num
-  !   
-  !          tmp_accu(p,q) = tmp_accu(p,q) + tmp_bi_int_3(r,s,p) * tmp_2rdm_3(r,s,q)
-  !         !grad(p,q) = grad(p,q) + tmp_bi_int_3(r,s,p) * tmp_2rdm_3(r,s,q)   
-  !         
-  !          enddo
-  !        enddo
-  !      enddo
-  !    enddo
-     
-      call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
-        mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
-     
-      do q = 1, mo_num
-        do p = 1, mo_num
-  
-          grad(p,q) = grad(p,q) + tmp_accu(p,q)
-  
-        enddo
-      enddo
-  
     enddo
-    
-    CALL CPU_TIME(t5)
-    t6 = t5-t4
-    print*,'Gradient second term (s) : ', t6
+  !enddo
 
  ! Debug ocaml
 !  print*,'two e rdm'
@@ -306,26 +193,22 @@ subroutine gradient(n,v_grad)
 !  enddo
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
-
   do i=1,n
     call in_mat_vec_index(i,p,q)
     v_grad(i)=(grad(p,q) - grad(q,p))
   enddo  
 
   ! Display, vector containing the gradient elements 
-
   if (debug) then  
     print*,'Vector containing the gradient :'
     write(*,'(100(F10.5))') v_grad(1:n)
   endif  
 
   ! Norm of the vector
-
   norm = norm2(v_grad)
-  print*, 'Gradient norm : ', norm
+  print*, 'Norm : ', norm
 
   ! Matrix gradient
-
   A = 0d0
   do q=1,mo_num
     do p=1,mo_num
@@ -334,7 +217,6 @@ subroutine gradient(n,v_grad)
   enddo
 
   ! Display, matrix containting the gradient elements
-
   if (debug) then
     print*,'Matrix containing the gradient :'
     do i = 1, mo_num
@@ -346,7 +228,6 @@ subroutine gradient(n,v_grad)
   ! Deallocation
   !==============
 
-  deallocate(grad,A,tmp_bi_int_3,tmp_2rdm_3)
-  deallocate(tmp_accu,one_e_rdm_mo_y)
+  deallocate(grad,A)
 
 end subroutine

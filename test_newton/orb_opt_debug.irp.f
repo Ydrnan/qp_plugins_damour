@@ -1,4 +1,4 @@
-program orb_opt
+program orb_opt_debug
   implicit none
 
   !===================================
@@ -10,11 +10,11 @@ program orb_opt
   !===========
 
   double precision, allocatable :: grad(:,:),R(:,:)
-  double precision, allocatable :: H(:,:),H1(:,:),h_f(:,:,:,:)
+  double precision, allocatable :: H(:,:),H1(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
   double precision, allocatable :: Hm1(:,:),v_grad(:),m_Hm1g(:,:),Hm1g(:)
   integer                       :: info,method
   integer                       :: n
-  integer                       :: i,j,p,q,k
+  integer                       :: i,j,p,q,k,l
   double precision              :: rho,f_t
   integer, allocatable          :: ipiv(:) 
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
@@ -36,10 +36,19 @@ program orb_opt
   double precision :: trust_coef, trust_radius, X_radius, norm
  
   ! Choice of the method 
-  method = 2 
+  method = 1
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
+
+  ! Debug
+  !mo_coef(:,1) = -mo_coef(:,1)
+  !mo_coef(:,2) = -mo_coef(:,2)
+  !mo_coef(:,3) = -mo_coef(:,3)
+  !mo_coef(:,4) = -mo_coef(:,4)
+  !mo_coef(:,6) = -mo_coef(:,6)
+  !mo_coef(:,7) = -mo_coef(:,7)
+  !call save_mos
 
   !============
   ! Allocation
@@ -48,7 +57,8 @@ program orb_opt
   allocate(v_grad(n),R(mo_num,mo_num))
   allocate(H(n,n),H1(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))  
   allocate(ipiv(n))
-  allocate(h_f(mo_num,mo_num,mo_num,mo_num))
+  
+  allocate(h_f(mo_num,mo_num,mo_num,mo_num),h_f2(mo_num,mo_num,mo_num,mo_num))
 
   !=============
   ! Calculation
@@ -71,8 +81,7 @@ program orb_opt
     deallocate(grad,R)
   
   else  ! Full or diagonal hessian 
-  
-! TEST 
+   
 !    ! test : Rho 
 !    call dn_rho_model(rho)  
 !
@@ -100,20 +109,71 @@ program orb_opt
     ! Hessian and norm
     if (method == 1) then 
       print*,'Use the full hessian matrix'
-     !call first_hess(n,H)
-     call hess(n,H,h_f) !h_f -> debug
-     deallocate(h_f)
+     call first_hess(n,H,h_f)
+     call hess(n,H1,h_f2)
+     !H1=H-H1
+     !norm = norm2(H1)
+     !print*,'norm H-H', norm
+      do i=1,mo_num*(mo_num-1)/2
+      print*,H(i,:)
+      print*,H1(i,:)
+      enddo
+      H=H-H1
+      print*,''
+      print*,'Diff'
+      do i=1,(mo_num*(mo_num-1)/2)
+        print*,H(i,:)
+      enddo
+
+      h_f = h_f - h_f2
+      !print*, h_f(:,:,:,:) 
+      do i = 1, mo_num
+      do j= 1, mo_num
+      do k = 1, mo_num
+      do l = 1, mo_num
+      if (h_f(i,j,k,l) > 1e-12) then
+      print*,h_f(i,j,k,l)
+      endif
+      enddo
+      enddo
+      enddo
+      enddo
+
     else
       print*, 'Use the diagonal hessian matrix'
-      !call first_diag_hess(n,H)
-      call diag_hess(n,H,h_f) !h_f -> debug
-      deallocate(h_f)
+      call first_diag_hess(n,H,h_f)
+      call diag_hess(n,H1,h_f2)
+      ! call first_diag_hess(n,H,h_f2)
+      do i=1,mo_num*(mo_num-1)/2
+      print*,H(i,:)
+      print*,H1(i,:)
+      enddo
+      H=H-H1
+      print*,''
+      print*,'Diff'
+      do i=1,(mo_num*(mo_num-1)/2)
+        print*,H(i,:)
+      enddo
+ 
+      h_f = h_f - h_f2
+      !print*, h_f(:,:,:,:) 
+      do i = 1, mo_num
+      do j= 1, mo_num
+      do k = 1, mo_num
+      do l = 1, mo_num
+      if (h_f(i,j,k,l) > 1e-12) then
+      print*,h_f(i,j,k,l)
+      endif
+      enddo
+      enddo
+      enddo
+      enddo
+
     endif
  
     ! Inversion of the hessian
     call dm_inversion(method,n,H,Hm1)
    
-! TEST
 !    Hm1 = H 
 !    gHm1 = -v_grad
 !    call dgesv (n , 1, H , size(H,1), ipiv , gHm1 , size(gHm1,1), info)
@@ -125,7 +185,6 @@ program orb_opt
     ! Hm1.g product
     call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
  
-! TEST
 !    open(unit=10,file='trust_radius.dat')
 !    read(10,*) trust_radius
 !    close(10)
@@ -147,11 +206,12 @@ program orb_opt
 !    X_radius = norm2(m_Hm1g)
 !    print*,'X_radius2', X_radius
 !
+!
 !    ! test : Rho
 !    ! Model energy calculation
 !    call dn_e_model(n,v_grad,H,Hm1g)   
-!
-!    !Test cyrus : f_t
+
+    !Test cyrus : f_t
 !    call test_cyrus(n,H,Hm1g,f_t)
 !    m_Hm1g = f_t * m_Hm1g
 

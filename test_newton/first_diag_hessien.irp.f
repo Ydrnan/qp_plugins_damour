@@ -1,4 +1,4 @@
-subroutine first_diag_hess(n,H)
+subroutine first_diag_hess(n,H, h_tmpr)
 
   include 'constants.h' 
 
@@ -17,11 +17,11 @@ subroutine first_diag_hess(n,H)
   ! n        : integer, n = mo_num*(mo_num-1)/2
  
   ! out
-  double precision, intent(out) :: H(n,n)
+  double precision, intent(out) :: H(n,n), h_tmpr(mo_num,mo_num,mo_num,mo_num)
   ! H        : n by n double precision matrix containing the 2D hessian
   
   ! internal
-  double precision, allocatable :: hessian(:,:,:,:), h_tmpr(:,:,:,:)
+  double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
   double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
   integer                       :: r,s,t,u,v
@@ -51,7 +51,7 @@ subroutine first_diag_hess(n,H)
   ! Allocation
   !============
 
-  allocate(hessian(mo_num,mo_num,mo_num,mo_num),h_tmpr(mo_num,mo_num,mo_num,mo_num))
+  allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
@@ -308,6 +308,6 @@ subroutine first_diag_hess(n,H)
   ! Deallocation
   !==============
 
-  deallocate(hessian,h_tmpr,H_test)
+  deallocate(hessian)!,h_tmpr,H_test)
 
 end subroutine

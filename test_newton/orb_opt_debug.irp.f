@@ -36,7 +36,7 @@ program orb_opt_debug
   double precision :: trust_coef, trust_radius, X_radius, norm
  
   ! Choice of the method 
-  method = 1
+  method = 2
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
@@ -156,7 +156,7 @@ program orb_opt_debug
       enddo
  
       h_f = h_f - h_f2
-      !print*, h_f(:,:,:,:) 
+      print*, h_f(:,:,:,:) 
       do i = 1, mo_num
       do j= 1, mo_num
       do k = 1, mo_num

@@ -8,14 +8,16 @@ module load intel/2019.0
 module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
-XYZ=h2
-BASIS=6_31g
-EXTRA=DOCI
+XYZ=CN
+BASIS= #6_31g
+EXTRA= #DOCI
 
 IT=_it_
 
-DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
-FILE=${XYZ}_${BASIS}_${EXTRA}
+#DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
+DIR=${XYZ}.ezfio
+#FILE=${XYZ}_${BASIS}_${EXTRA}
+FILE=${XYZ}
 PATH_CIPSI=../../../y_calculs
 PATH_OPT=../plugins/qp_plugins_damour/test_newton
 

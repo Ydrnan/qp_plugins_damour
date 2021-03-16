@@ -726,36 +726,39 @@ subroutine diag_hess(n,H, h_tmpr)
      enddo
 
     do p = 1, mo_num
-
       do v = 1, mo_num
         do u = 1, mo_num
 
-          tmp_bi_int_2(u,v) = 2d0* get_two_e_integral(u,v,p,p,mo_integrals_map)
+          tmp_bi_int_3(u,v,p) = 2d0* get_two_e_integral(u,v,p,p,mo_integrals_map)
 
         enddo
       enddo
-
-      do q = 1, mo_num
-        tmp_accu(p,q) = 0d0
-        do v = 1, mo_num
-          do u = 1, mo_num
-
-            tmp_accu(p,q) = tmp_accu(p,q) + tmp_bi_int_2(u,v) * tmp_2rdm_3(u,v,q)            
-
-          enddo
-        enddo
-
-      enddo
-
     enddo
+
+  !  do p = 1, mo_num
+  !    do q = 1, mo_num
+  !      tmp_accu(p,q) = 0d0
+  !      do v = 1, mo_num
+  !        do u = 1, mo_num
+
+  !          tmp_accu(p,q) = tmp_accu(p,q) + tmp_bi_int_3(u,v,p) * tmp_2rdm_3(u,v,q)
+
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+   
+    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
+    mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+ 
 
     do q = 1, mo_num
       do p = 1, mo_num
-  
+
         tmp_h_pqpq(p,q) = tmp_h_pqpq(p,q) + tmp_accu(p,q)
-  
+
       enddo
-    enddo 
+    enddo
 
     !(q==r) .and. (p==s)
     !

@@ -36,7 +36,7 @@ program orb_opt
   double precision :: trust_coef, trust_radius, X_radius, norm
  
   ! Choice of the method 
-  method = 1 
+  method = 2 
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2

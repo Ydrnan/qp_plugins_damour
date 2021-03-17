@@ -1079,6 +1079,19 @@ subroutine hess(n,H,h_tmpr)
     enddo 
   endif
 
+  if (ocaml) then
+    open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/H.dat')
+    do p = 1, n
+      do q = 1, n
+        write(10,*) p, q, H(p,q)
+      enddo
+    enddo
+    close(10)
+  endif
+
+
+
+
   !==============
   ! Deallocation
   !==============

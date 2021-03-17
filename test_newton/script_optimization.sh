@@ -8,9 +8,9 @@ module load intel/2019.0
 module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
-XYZ=CN
-BASIS=cc_pvdz
-EXTRA=1e4_h_diag
+XYZ=h2
+BASIS=6_31g
+EXTRA=DOCI
 
 IT=_it_
 
@@ -30,7 +30,7 @@ qp_run fci ${DIR} > ${DIR}/${FILE}${IT}.fci
 echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}${IT}.fci | tail -1) >> ${DIR}/optimization.dat
 
 # Optimization
-for ((i=1 ; 100 - $i ; i++))
+for ((i=1 ; 10 - $i ; i++))
 do
 		cd ${PATH_OPT}
 		qp_run orb_opt ${PATH_CIPSI}/${DIR} > ${PATH_CIPSI}/${DIR}/orb_trash${IT}${i}.dat
@@ -38,11 +38,17 @@ do
 		echo $i
 
 		cd ${PATH_CIPSI}
-		qp_run diagonalize_h ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.fci
+		qp_run diagonalize_h ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.diagonalize
 
-		echo $(echo $i) "   "  $(grep "E               =" ${DIR}/${FILE}${IT}${i}.fci | tail -1) "   " $(grep "Gradient norm :" ${DIR}/orb_trash${IT}${i}.dat)  >> ${DIR}/optimization.dat
+		echo $i >> ${DIR}/iteration.dat
+		grep "N_det =" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/nb_det.dat
+	    grep "* Energy of state    1" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/energy.dat
+	    grep "Gradient norm :" ${DIR}/orb_trash${IT}${i}.dat  >> ${DIR}/norm_grad.dat
 done
 
+paste ${DIR}/iteration.dat ${DIR}/energy.dat > ${DIR}/tmp_opt.dat
+paste ${DIR}/tmp_opt.dat ${DIR}/norm_grad.dat > ${DIR}/tmp2_opt.dat
+paste ${DIR}/tmp2_opt.dat ${DIR}/nb_det.dat > ${DIR}/optimization.dat
 
 #       -p xeonv1 -N 1 -n 1 -c 16 --exclusive
 #       -p xeonv2 -N 1 -n 1 -c 20 --exclusive

@@ -36,7 +36,7 @@ program orb_opt
   double precision :: trust_coef, trust_radius, X_radius, norm
  
   ! Choice of the method 
-  method = 2 
+  method = 1  
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
@@ -96,7 +96,8 @@ program orb_opt
 
     ! Gradient and norm 
     call gradient(n,v_grad)
-    
+    !v_grad = 0.5d0 * v_grad  
+  
     ! Hessian and norm
     if (method == 1) then 
       print*,'Use the full hessian matrix'
@@ -123,7 +124,24 @@ program orb_opt
 !    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),gHm1,1,0d0,v_grad,1)
 
     ! Hm1.g product
-    call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
+!    call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
+     call trust_region(n,method,H,v_grad,m_Hm1g)
+
+    open(unit=10,file='m_Hm1g.dat')
+    do i = 1, mo_num
+      do j = 1, mo_num
+        write(10,*) m_Hm1g(i,j)
+      enddo
+    enddo
+    close(10)
+    
+    open(unit=10,file='m_Hm1g.dat')
+    do i = 1, mo_num
+      do j = 1, mo_num
+        read(10,*) m_Hm1g(i,j)
+      enddo
+    enddo
+    close(10)
  
 ! TEST
 !    open(unit=10,file='trust_radius.dat')

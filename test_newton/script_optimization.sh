@@ -8,16 +8,16 @@ module load intel/2019.0
 module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
-XYZ=copie_trust2  #CN
+XYZ=CN
 BASIS=cc_pvtz
 EXTRA=DOCI
 
 IT=_it_
 
-#DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
-DIR=${XYZ}.ezfio
-#FILE=${XYZ}_${BASIS}_${EXTRA}
-FILE=${XYZ}
+DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
+#DIR=${XYZ}.ezfio
+FILE=${XYZ}_${BASIS}_${EXTRA}
+#FILE=${XYZ}
 PATH_CIPSI=../../../y_calculs
 PATH_OPT=../plugins/qp_plugins_damour/test_newton
 
@@ -37,7 +37,7 @@ cd $PATH_CIPSI
 #echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}${IT}.fci | tail -1) >> ${DIR}/optimization.dat
 
 # Optimization
-for ((i=1 ; 20 - $i ; i++))
+for ((i=1 ; 100 - $i ; i++))
 do
 		cd ${PATH_OPT}
 		qp_run orb_opt ${PATH_CIPSI}/${DIR} > ${PATH_CIPSI}/${DIR}/orb_trash${IT}${i}.dat

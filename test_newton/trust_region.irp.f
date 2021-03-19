@@ -113,12 +113,14 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   print*,'delta * coef',delta
 
   if (rho >= 0.1d0) then ! rho minimum pour accepter les pas !0.25d0
- 
+    print*,'!!! step accepted !!!' 
     ! Methode de newton pour trouver le lambda pour avoir ||p|| = Delta 
-    if (trust_radius < norm_p ) then 
+    if (trust_radius < norm_p ) then
+      print*,'computation of the optimal lambda for the next step' 
       !call trust_newton(n,e_val,W,v_grad,trust_radius,lambda)
       call trust_newton(n,e_val,W,v_grad,delta,lambda)
     else 
+      print*,'step in the trust region, no lambda optimization'
       lambda = 0d0
     endif
 
@@ -146,7 +148,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     close(10)
   
   else 
-   
+    print*,'!!! step rejected !!!' 
     ! Lecture du dernier pas pour l'annuler
     open(unit=10,file='Hm1g.dat')
       do i = 1, n
@@ -155,7 +157,6 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     close(10)
   
     ! Annulation du pas dernier pas
-    !p = -0.75d0 * p 
     p = -p 
 
     ! Remplacement de e_model et prev en simulant un premier pas 

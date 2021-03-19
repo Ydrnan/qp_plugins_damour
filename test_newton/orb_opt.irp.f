@@ -38,6 +38,9 @@ program orb_opt
   ! Choice of the method 
   method = 1  ! 1 -> full h, 2 -> diag_h
   trust_method = 1 ! 0 -> without trust region, 1 -> with trust region
+
+  print*, 'method :', method
+  print*, 'trust_method :', trust_method
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2

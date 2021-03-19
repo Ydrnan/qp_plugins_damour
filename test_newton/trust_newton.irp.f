@@ -33,7 +33,6 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
 !   enddo
 !   close(10)
  
-
   ! Iteration de la methode de Newton pour trouver lambda
   CALL CPU_TIME(t1)
   do i = 1, 100
@@ -107,27 +106,27 @@ function d2N(n,e_val,w,v_grad,lambda,delta)
   accu1 = 0d0
   
   do i = 1, n
-    if (e_val(i)>1e-6) then
-    wtg = ddot(n,w(:,i),1,v_grad,1)
-    accu1 = accu1 + 6d0 * wtg**2 / (e_val(i) + lambda)**4
+    if (e_val(i)>1d-6) then
+      wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu1 = accu1 + 6d0 * wtg**2 / (e_val(i) + lambda)**4
     endif
   enddo
   
   accu2 = 0d0
   
   do i = 1, n
-    if (e_val(i)>1e-6) then
-    wtg = ddot(n,w(:,i),1,v_grad,1)
-    accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
+    if (e_val(i)>1d-6) then
+      wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
     endif
   enddo
 
   accu3 = 0d0
   
   do i = 1, n
-    if (e_val(i)>1e-6) then
-    wtg = ddot(n,w(:,i),1,v_grad,1)
-    accu3 = accu3 -2d0* wtg**2 / (e_val(i) + lambda)**3
+    if (e_val(i)>1d-6) then
+      wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu3 = accu3 -2d0* wtg**2 / (e_val(i) + lambda)**3
     endif
   enddo
   
@@ -153,9 +152,9 @@ function fN(n,e_val,w,v_grad,lambda)
   fN = 0d0
 
   do i = 1, n
-    if (e_val(i)>1e-6) then
-    wtg = ddot(n,w(:,i),1,v_grad,1)
-    fN = fN + wtg**2 / (e_val(i) + lambda)**2
+    if (e_val(i)>1d-6) then
+      wtg = ddot(n,w(:,i),1,v_grad,1)
+      fN = fN + wtg**2 / (e_val(i) + lambda)**2
     endif
   enddo
 

@@ -12,7 +12,7 @@ program orb_opt
   double precision, allocatable :: grad(:,:),R(:,:)
   double precision, allocatable :: H(:,:),H1(:,:),h_f(:,:,:,:)
   double precision, allocatable :: Hm1(:,:),v_grad(:),m_Hm1g(:,:),Hm1g(:)
-  integer                       :: info,method
+  integer                       :: info,method, trust_method
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: rho,f_t
@@ -36,7 +36,8 @@ program orb_opt
   double precision :: trust_coef, trust_radius, X_radius, norm
  
   ! Choice of the method 
-  method = 1  
+  method = 1  ! 1 -> full h, 2 -> diag_h
+  trust_method = 1 ! 0 -> without trust region, 1 -> with trust region
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
@@ -124,25 +125,12 @@ program orb_opt
 !    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),gHm1,1,0d0,v_grad,1)
 
     ! Hm1.g product
-!    call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
-     call trust_region(n,method,H,v_grad,m_Hm1g)
+    if (trust_method == 0) then
+      call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
+    else 
+      call trust_region(n,method,H,v_grad,m_Hm1g)
+    endif
 
-    open(unit=10,file='m_Hm1g.dat')
-    do i = 1, mo_num
-      do j = 1, mo_num
-        write(10,*) m_Hm1g(i,j)
-      enddo
-    enddo
-    close(10)
-    
-    open(unit=10,file='m_Hm1g.dat')
-    do i = 1, mo_num
-      do j = 1, mo_num
-        read(10,*) m_Hm1g(i,j)
-      enddo
-    enddo
-    close(10)
- 
 ! TEST
 !    open(unit=10,file='trust_radius.dat')
 !    read(10,*) trust_radius

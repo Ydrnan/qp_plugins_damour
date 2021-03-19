@@ -15,7 +15,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
 
   !!!!!! Il faut automatiser l'écriture de l'énergie fci pour que cela marche !!!!!!
   open(unit=10,file='prev_energy.dat')
-  read(10,*) prev_energy
+    read(10,*) prev_energy
   close(10)
 
   part_1 = ddot(n,v_grad,1,Hm1g,1)
@@ -40,7 +40,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
   print*, 'e_model : ', e_model
 
   open(unit=10,file='e_model.dat')
-  write(10,*) e_model
+    write(10,*) e_model
   close(10)
 
  deallocate(part_2a)

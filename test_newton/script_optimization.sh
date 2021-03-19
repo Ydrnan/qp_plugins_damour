@@ -8,7 +8,7 @@ module load intel/2019.0
 module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
-XYZ=CN
+XYZ=copie_trust2  #CN
 BASIS=cc_pvtz
 EXTRA=DOCI
 
@@ -28,9 +28,12 @@ PATH_OPT=../plugins/qp_plugins_damour/test_newton
 
 echo ${DIR}
 
+#Initialisation du trust region
+qp_run init_nb_iteration ${PATH_CIPSI}/${DIR}
+
 # Go to the directory for a first CIPSI calculation
 cd $PATH_CIPSI
-#qp_run fci ${DIR} > ${DIR}/${FILE}${IT}.fci
+#qp_run fci ${DIR} > ${DIR}/${FILE}${IT}.fci  # normalement deja fait dans le repertoire
 #echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}${IT}.fci | tail -1) >> ${DIR}/optimization.dat
 
 # Optimization

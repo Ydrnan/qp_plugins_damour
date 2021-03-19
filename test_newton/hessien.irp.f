@@ -590,32 +590,32 @@ subroutine hess(n,H,h_tmpr)
  !!   enddo
  !! enddo
 
- open(unit=10,file='test_2rdm.dat')
- do p= 1, mo_num
-   do u = 1, mo_num
-     do t = 1, mo_num
-       do s = 1, mo_num
- !        if (ABS(two_e_dm_mo(p,u,t,s,istate))>1e-10) then
-          if (p /= u .and. p/=t .and. p/=s .and. u/=t .and. u/=s .and. t/=s ) then 
-            if ((u == 1 .or. u==2 .or. u==3 .or. u==4) .and. &
-               (p == 1 .or. p==2 .or. p==3 .or. p==4) .and. &
-               (t == 1 .or. t==2 .or. t==3 .or. t==4) .and. &
-               (s == 1 .or. s==2 .or. s==3 .or. s==4) ) then
-             
-                write(10,*) p,u,t,s,two_e_dm_mo(p,u,t,s,istate),get_two_e_integral(p,u,t,s,istate)
-                !write(10,*) two_e_dm_mo(p,u,t,s,istate)
-
-            endif
-          endif
-        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(p,u,s,t,istate)
-        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(u,p,t,s,istate)
-        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(u,p,s,t,istate)
- !        endif
-       enddo
-     enddo
-    enddo
-  enddo 
- close(10)
+! open(unit=10,file='test_2rdm.dat')
+! do p= 1, mo_num
+!   do u = 1, mo_num
+!     do t = 1, mo_num
+!       do s = 1, mo_num
+! !        if (ABS(two_e_dm_mo(p,u,t,s,istate))>1e-10) then
+!          if (p /= u .and. p/=t .and. p/=s .and. u/=t .and. u/=s .and. t/=s ) then 
+!            if ((u == 1 .or. u==2 .or. u==3 .or. u==4) .and. &
+!               (p == 1 .or. p==2 .or. p==3 .or. p==4) .and. &
+!               (t == 1 .or. t==2 .or. t==3 .or. t==4) .and. &
+!               (s == 1 .or. s==2 .or. s==3 .or. s==4) ) then
+!             
+!                write(10,*) p,u,t,s,two_e_dm_mo(p,u,t,s,istate),get_two_e_integral(p,u,t,s,istate)
+!                !write(10,*) two_e_dm_mo(p,u,t,s,istate)
+!
+!            endif
+!          endif
+!        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(p,u,s,t,istate)
+!        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(u,p,t,s,istate)
+!        !write(10,*) two_e_dm_mo(p,u,t,s,istate)-two_e_dm_mo(u,p,s,t,istate)
+! !        endif
+!       enddo
+!     enddo
+!    enddo
+!  enddo 
+! close(10)
 
 !   ! 2 part
 ! 

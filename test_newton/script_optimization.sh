@@ -9,15 +9,15 @@ module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
 XYZ=CN
-BASIS=cc_pvtz
-EXTRA=DOCI
+BASIS=cc_pvdz
+EXTRA=
 
 IT=_it_
 
 DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
-#DIR=${XYZ}.ezfio
+#DIR=${XYZ}_${BASIS}.ezfio
 FILE=${XYZ}_${BASIS}_${EXTRA}
-#FILE=${XYZ}
+#FILE=${XYZ}_${BASIS}
 PATH_CIPSI=../../../y_calculs
 PATH_OPT=../plugins/qp_plugins_damour/test_newton
 
@@ -28,16 +28,20 @@ PATH_OPT=../plugins/qp_plugins_damour/test_newton
 
 echo ${DIR}
 
+cd ${PATH_OPT}
+
 #Initialisation du trust region
 qp_run init_nb_iteration ${PATH_CIPSI}/${DIR}
+#Initialisation de la methode de cyrus
+qp_run init_cyrus ${PATH_CIPSI}/${DIR}
 
 # Go to the directory for a first CIPSI calculation
 cd $PATH_CIPSI
 #qp_run fci ${DIR} > ${DIR}/${FILE}${IT}.fci  # normalement deja fait dans le repertoire
-#echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}${IT}.fci | tail -1) >> ${DIR}/optimization.dat
+echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}.fci | tail -1) > ${DIR}/optimization.dat
 
 # Optimization
-for ((i=1 ; 100 - $i ; i++))
+for ((i=1 ; 20 - $i ; i++))
 do
 		cd ${PATH_OPT}
 		qp_run orb_opt ${PATH_CIPSI}/${DIR} > ${PATH_CIPSI}/${DIR}/orb_trash${IT}${i}.dat
@@ -46,11 +50,13 @@ do
 
 		cd ${PATH_CIPSI}
 		qp_run diagonalize_h ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.diagonalize
-
+        #qp_run fci ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.fci
 		echo $i >> ${DIR}/iteration.dat
 		grep "N_det =" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/nb_det.dat
 	    grep "* Energy of state    1" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/energy.dat
-	    grep "Gradient norm :" ${DIR}/orb_trash${IT}${i}.dat  >> ${DIR}/norm_grad.dat
+	    #grep "N_det =" ${DIR}/${FILE}${IT}${i}.fci >> ${DIR}/nb_det.dat
+        #grep "E               =" ${DIR}/${FILE}${IT}${i}.fci | tail -1 >> ${DIR}/energy.dat
+		grep "Gradient norm :" ${DIR}/orb_trash${IT}${i}.dat  >> ${DIR}/norm_grad.dat
 done
 
 paste ${DIR}/iteration.dat ${DIR}/energy.dat > ${DIR}/tmp_opt.dat

@@ -58,6 +58,10 @@ subroutine first_diag_hess(n,H, h_tmpr)
   ! Calculation
   !=============
 
+  if (debug) then
+          print*,'Enter in first_diag_hessien'
+  endif
+
   ! Initialization
   hessian = 0d0
 
@@ -309,5 +313,9 @@ subroutine first_diag_hess(n,H, h_tmpr)
   !==============
 
   deallocate(hessian)!,h_tmpr,H_test)
+
+  if (debug) then
+    print*,'Leaves first_diag_hessien'
+  endif
 
 end subroutine

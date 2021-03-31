@@ -1,48 +1,100 @@
 subroutine dn_e_model(n,v_grad,H,Hm1g)
+   
+  include 'constants.h' 
+
   implicit none
+ 
+  !===================================================
+  ! Compute the energy predicted by the Taylor series
+  !===================================================
 
-  integer, intent(in) :: n
+  integer, intent(in)          :: n
   double precision, intent(in) :: v_grad(n),H(n,n),Hm1g(n)
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! v_grad : double precision vector of size n containing the gradient
+  ! H      : n by n double precision matrix containing the hessian
+  ! Hm1g   : double precision vector of size n containg the elements
+  !          to compute the next step
 
-  double precision :: e_model, prev_energy
-  double precision :: ddot
-  double precision :: part_1, part_2
+  ! E(x+p) = E(x) + v_grad^T.p + 1/2 . p^T.H.p
+  ! with : p = Hm1g
+
+  double precision              :: e_model, prev_energy
+  double precision              :: part_1, part_2
   double precision, allocatable :: part_2a(:)
+  ! e_model     : double precision, predicted energy after the actual step
+  ! prev_energy : double precision, energy after the previous step
+  ! part_1      : double precision -> v_grad^T.p
+  ! part_2      : double precision -> 1/2 . p^T.H.p 
+  ! part_2a     : double precision vector of size n, temporary vector
+  !               containing the result of H.p
 
   integer :: i,j
+  ! i,j : integer, indexes
+
+  !Function
+  double precision              :: ddot
+  ! ddot : double precision Blas function, dot product
+
+  !============
+  ! Allocation
+  !============
 
   allocate(part_2a(n))
 
+  !=============
+  ! Calculation
+  !=============
+
+  if (debug) then
+    print*,'Enter in dn_e_model'
+  endif
+
   !!!!!! Il faut automatiser l'écriture de l'énergie fci pour que cela marche !!!!!!
+  ! De mémoire c'est fait ...
   open(unit=10,file='prev_energy.dat')
     read(10,*) prev_energy
   close(10)
 
+  ! v_grad.Hm1g
   part_1 = ddot(n,v_grad,1,Hm1g,1)
  
- !print*,'v_grad'
-  !print*, v_grad(:)
-  !print*,'Hm1g'
-  !print*, Hm1g(:)
+  if (debug) then
+    print*,'part_1 : ', part_1
+  endif  
 
-  print*,'part_1 : ', part_1
-  
+  ! H.p
   call dgemv('N',n,n,1d0,H,size(H,1),Hm1g,1,0d0,part_2a,1)
   
+  ! 1/2 . p^T.H.p
   part_2 = 0.5d0 * ddot(n,Hm1g,1,part_2a,1)
   
-  print*,'part_2 : ', part_2 
+  if (debug) then
+    print*,'part_2 : ', part_2 
+  endif
 
   ! Verif, pourquoi part_1 et 2 sont positifs ??
-  ! A revoir
+  ! Positif car le produit des MOs.R se fait dans dm_newton avec R^T
+  ! au lieu de R ... donc ça change des signes 
+
   e_model = prev_energy - part_1 - part_2
 
+  ! Writing the predicted energy
   print*, 'e_model : ', e_model
 
+  ! Storage of the predicted energy
   open(unit=10,file='e_model.dat')
     write(10,*) e_model
   close(10)
+ 
+  !==============
+  ! Deallocation
+  !==============
 
- deallocate(part_2a)
+  deallocate(part_2a)
 
+  if (debug) then
+    print*,'Leaves dn_e_model'
+  endif 
+ 
 end subroutine 

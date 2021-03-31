@@ -13,34 +13,49 @@ subroutine gradient(n,v_grad)
 
   END_DOC
 
+  !====
   ! in
+  !====
   integer, intent(in) :: n
   ! n : integer, n = mo_num*(mo_num-1)/2
   
+  !=====
   ! out
+  !=====
   double precision, intent(out) :: v_grad(n)
   ! v_grad : double precision vector of length n containeing the gradient
 
+  !==========
   ! internal
+  !==========
   double precision, allocatable :: grad(:,:),A(:,:)
-  double precision :: norm
-  integer :: i,p,q,r,s,t
-  integer :: istate
+  double precision              :: norm
+  integer                       :: i,p,q,r,s,t
+  integer                       :: istate
+  double precision              :: t1,t2,t3,t4,t5,t6
   ! grad : double precision matrix containing the gradient before the permutation
   ! A : double precision matrix containing the gradient after the permutation
   ! norm : double precision number, the norm of the vector gradient
   ! i,p,q,r,s,t : integer, indexes 
   ! istate : integer, the electronic state
+  ! t1,t2,t3 : t3 = t2 - t1, time to compute the gradient
+  ! t4,t5,t6 : t6 = t5 - t4, time to compute each element
 
   double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! One e density matrix
+  ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
+  !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta 
 
   double precision, allocatable :: tmp_accu(:,:)
   double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:)
-  ! tmp arrays
+  ! tmp_bi_int_3 : mo_num 3D double precision matrix containinig the bi electronic
+  !                integrals with 1 fix index
+  ! tmp_2rdm_3   : mo_num 3D double precision matrix containinig the 2 body reduce
+  !                density matrix with 1 fix index
+  ! tmp_accu     : mo_num 2D double precision matrix, temporary matrix
 
-
-  ! Function
+  !===========
+  ! Functions
+  !===========
   double precision :: get_two_e_integral, norm2
   ! get_two_e_integral :  double precision function that gives the two e integrals
   ! norm2 : double precision function that gives the norm of a vector
@@ -50,8 +65,6 @@ subroutine gradient(n,v_grad)
   ! get_two_e_integral : two e- integrals
   ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
   ! two_e_dm_mo : two body density matrix
-
-  double precision :: t1,t2,t3,t4,t5,t6
 
   !============
   ! Allocation
@@ -67,10 +80,16 @@ subroutine gradient(n,v_grad)
   ! Calculation
   !============= 
 
+  if (debug) then
+    print*,'Enter in gradient'
+  endif
+
+  ! Initialization
   v_grad = 0d0
   grad = 0d0
  
-  !!!do istate = 1, N_states
+  ! Electronic state
+  !!do istate = 1, N_states
   istate = 1
  
     do q = 1, mo_num
@@ -233,6 +252,7 @@ subroutine gradient(n,v_grad)
 !  enddo
 
  !Ecriture des intégrales dans un fichier pour le lire avec OCaml
+ ! Debug pour moi 
 
   if (ocaml) then
     open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
@@ -348,5 +368,9 @@ subroutine gradient(n,v_grad)
 
   deallocate(grad,A,tmp_bi_int_3,tmp_2rdm_3)
   deallocate(tmp_accu,one_e_rdm_mo_y)
+
+  if (debug) then
+    print*,'Leaves gradient'
+  endif
 
 end subroutine

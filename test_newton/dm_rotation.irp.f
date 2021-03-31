@@ -86,6 +86,10 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! Pre-conditions
         !================
 
+        if (debug) then
+          print*,'Enter in dm_rotation'
+        endif
+
         info=0
 
         ! Size of matrix A must be at least 1 by 1
@@ -413,6 +417,10 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         deallocate(part_1,part_1a)
         deallocate(part_2,part_2a,part_2b,part_2c)
         deallocate(RR_t)
+
+        if (debug) then
+          print*,'Leaves dm_rotation'
+        endif
 
 end subroutine dm_rotation
 

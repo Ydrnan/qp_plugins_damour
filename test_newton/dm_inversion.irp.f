@@ -12,7 +12,9 @@ subroutine dm_inversion(method,n,H,Hm1)
   ! Variables
   !===========
 
+  !====
   ! in
+  !====
   integer, intent(in)           :: method
   integer, intent(in)           :: n
   double precision, intent(in)  :: H(n,n)
@@ -20,11 +22,15 @@ subroutine dm_inversion(method,n,H,Hm1)
   ! n        :  integer, n = mo_num*(mo_num-1)/2
   ! H        : n by n double precision matrix containing the hessian
 
+  !=====
   ! out
+  !=====
   double precision, intent(out) :: Hm1(n,n)
   ! Hm1      :  n by n double precision matrix, the inverse matrix of the hessian 
 
+  !==========
   ! internal
+  !==========
   double precision, allocatable :: e_val(:),W(:,:),Hm1_tmpr(:,:)
   double precision, allocatable :: work(:,:)
   integer                       :: info,lwork
@@ -42,6 +48,13 @@ subroutine dm_inversion(method,n,H,Hm1)
   ! i        : integer, index for the matrices
   ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the inverse matrix 
  
+  ! dsyev : Lapack routine, diagonalization of symmetric matrix
+  ! dgemm : Blas routine, matrix matrix product
+
+  if (debug) then
+    print*,'Enter in dm_inversion'
+  endif
+
   CALL CPU_TIME(t1)
 
   if (method == 1) then
@@ -63,8 +76,10 @@ subroutine dm_inversion(method,n,H,Hm1)
   
     ! Diagonalization
     
+    ! Copy of the matrix, dsyev substitutes the matrix by the eigenvectors
     W = H
   
+    ! Diagonalization of the hessian matrix
     call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
     
     if (info /= 0) then
@@ -72,6 +87,7 @@ subroutine dm_inversion(method,n,H,Hm1)
         call ABORT
     endif
   
+    ! Initialization
     Hm1=0d0
   
     if (debug) then
@@ -119,5 +135,9 @@ subroutine dm_inversion(method,n,H,Hm1)
   
   t2 = t2-t1
   print*, 'Time to invert the Hessian (dm_inversion) : ', t2  
-
+ 
+  if (debug) then
+    print*,'Leaves dm_inversion'
+  endif
+  
 end subroutine

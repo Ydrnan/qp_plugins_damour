@@ -53,6 +53,10 @@ subroutine first_gradient(n,v_grad)
   ! Calculation
   !=============
 
+  if (debug) then
+    print*,'Enter in first_gradient'
+  endif
+
   v_grad = 0d0
 
   !do istate = 1, N_states
@@ -229,5 +233,9 @@ subroutine first_gradient(n,v_grad)
   !==============
 
   deallocate(grad,A)
+
+  if (debug) then
+    print*,'Leaves first_gradient'
+  endif
 
 end subroutine

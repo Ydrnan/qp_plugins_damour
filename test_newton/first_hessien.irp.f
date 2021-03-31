@@ -58,6 +58,10 @@ subroutine first_hess(n,H,h_tmpr)
   ! Calculation
   !=============
 
+  if (debug) then
+    print*,'Enter in first_hess'
+  endif
+
   ! Initialization
   hessian = 0d0
 
@@ -306,5 +310,9 @@ print*,'avec if',t6
   !==============
 
   deallocate(hessian)!,h_tmpr,H_test)
+
+  if (debug) then
+    print*,'Leaves first_hess'
+  endif
 
 end subroutine

@@ -43,6 +43,10 @@ subroutine dm_antisym(a,lda,n,info)
         !===============
         ! Pre conditions
         !===============
+
+        if (debug) then
+          print*,'Enter in dm_antisym'
+        endif
         
         info=0
         
@@ -101,6 +105,10 @@ subroutine dm_antisym(a,lda,n,info)
                         print*, a(i,:)
                 enddo
                 !print*, a(:,:)
+        endif
+
+        if (debug) then
+          print*,'Leaves dm_antisym'
         endif
 
 end subroutine

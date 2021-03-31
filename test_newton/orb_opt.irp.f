@@ -16,7 +16,6 @@ program orb_opt
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: rho,f_t
-  integer, allocatable          :: ipiv(:) 
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -33,18 +32,19 @@ program orb_opt
   ! rho    : double precision : test
   ! f_t    : double precision : test
   
-  double precision :: trust_coef, trust_radius, X_radius, norm
+  double precision ::  norm
  
   ! Choice of the method 
   method = 2  ! 1 -> full h, 2 -> diag_h
-  trust_method = 0 ! 0 -> without trust region, 1 -> with trust region
-  cyrus = 0 ! 0 -> o cyrus, 1 -> cyrus
+  trust_method = 1 ! 0 -> without trust region, 1 -> with trust region
+  cyrus = 0 ! 0 -> no cyrus, 1 -> cyrus
 
+  ! Display the method
   print*, 'method :', method
   print*, 'trust_method :', trust_method
   print*, 'cyrus :', cyrus 
  
-  ! Def of n  
+  ! Definition of n  
   n = mo_num*(mo_num-1)/2
 
   !============
@@ -53,7 +53,6 @@ program orb_opt
  
   allocate(v_grad(n),R(mo_num,mo_num))
   allocate(H(n,n),H1(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))  
-  allocate(ipiv(n))
   allocate(h_f(mo_num,mo_num,mo_num,mo_num))
 
   !=============
@@ -63,13 +62,13 @@ program orb_opt
   if (method == 0) then
     
     call gradient(n,v_grad)
-
+   
     allocate(grad(mo_num,mo_num))
 
     call dm_vec_to_mat(v_grad,size(v_grad,1),grad,size(grad,1),info)  
     
     call dm_antisym(grad,mo_num,mo_num,info)
-  
+    
     call dm_rotation(grad,mo_num,R,mo_num,mo_num,info)
 
     call dm_newton_test(R) 
@@ -80,7 +79,6 @@ program orb_opt
   
     ! Gradient and norm 
     call gradient(n,v_grad)
-    !v_grad = 0.5d0 * v_grad  
   
     ! Hessian and norm
     if (method == 1) then 
@@ -96,8 +94,10 @@ program orb_opt
     endif
  
     ! Inversion of the hessian
-    call dm_inversion(method,n,H,Hm1)
-   
+    if (trust_method == 0) then
+      call dm_inversion(method,n,H,Hm1)
+    endif
+
     ! Hm1.g product
     if (trust_method == 0) then
       call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     

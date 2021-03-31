@@ -12,15 +12,21 @@ subroutine hess(n,H,h_tmpr)
   ! Variables  
   !===========
 
+  !====
   ! in
+  !====
   integer, intent(in)           :: n 
   !n         : integer, n = mo_num*(mo_num-1)/2
   
+  !=====
   ! out
+  !=====
   double precision, intent(out) :: H(n,n),h_tmpr(mo_num,mo_num,mo_num,mo_num)
   ! H        : n by n double precision matrix containing the 2D hessian
  
+  !==========
   ! internal
+  !==========
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
   double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
@@ -36,20 +42,28 @@ subroutine hess(n,H,h_tmpr)
   ! pq,rs    : integer, indexes for the conversion from 4D to 2D hessian matrix
   ! istate   : integer, electronic state
   ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the hessian 
+  ! t4,t5,t6 : double precision, t6 = t5 - t4, time to compute each element
 
   double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:)
   double precision, allocatable :: tmp_accu(:,:), tmp_accu_sym(:,:)
-  ! tmp arrays  
+  ! tmp_bi_int_3 : mo_num 3D double precision matrix containinig the bi electronic
+  !                integrals with 1 fix index
+  ! tmp_2rdm_3   : mo_num 3D double precision matrix containinig the 2 body reduce
+  !                density matrix with 1 fix index
+  ! tmp_accu     : mo_num 2D double precision matrix, temporary matrix
+  ! tmp_accu_sym : mo_num 2D double precision matrix, temporary matrix
 
   double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! one e densitu matrix
- 
-  ! Funtion 
+  ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
+  !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta  
+
+  ! Function 
   double precision              :: get_two_e_integral
   ! get_two_e_integral :  double precision function, two e integrals 
 
   double precision :: ddot
-  
+  ! ddot : double precision Blas function, dot product  
+
   ! Provided :
   ! mo_one_e_integrals : mono e- integrals
   ! get_two_e_integral : two e- integrals
@@ -70,6 +84,10 @@ subroutine hess(n,H,h_tmpr)
   !=============
   ! Calculation
   !=============
+
+  if (debug) then
+    print*,'Enter in hess'
+  endif
 
   ! Initialization
   hessian = 0d0
@@ -1097,5 +1115,9 @@ subroutine hess(n,H,h_tmpr)
   !==============
 
   deallocate(hessian)!,h_tmpr,H_test)
+
+  if (debug) then
+    print*,'Leaves hess'
+  endif
 
 end subroutine

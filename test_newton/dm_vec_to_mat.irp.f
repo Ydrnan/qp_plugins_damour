@@ -1,4 +1,7 @@
 subroutine dm_vec_to_mat(v,k,B,n,info)
+
+        include 'constants.h'
+
         implicit none
 
         !=============================================================
@@ -37,7 +40,11 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         !================
         ! Pre conditions
         !================
-        
+
+        if (debug) then
+          print*,'Enter in dm_vec_to_mat'
+        endif        
+
         ! Size of vector a must be at least 1 
         if (k<1) then
                 info = 2
@@ -72,7 +79,7 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         l=1
         do i=1,n
                 do j=1,i-1
-                        B(i,j)=l!v(l)
+                        B(i,j)=v(l)
                         l=l+1
                 enddo
         enddo
@@ -99,5 +106,9 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         !                print*,B(i,:)
         !        enddo
         !endif
+
+        if (debug) then
+          print*,'Enter in dm_vec_to_mat'
+        endif
 
 end subroutine

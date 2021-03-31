@@ -7,20 +7,28 @@ subroutine diag_hess(n,H, h_tmpr)
   !===========================================================================
   ! Compute the diagonal hessian of energy with respects to orbital rotations
   !===========================================================================
+  
+  ! By diagonal hessian we mean, diagonal elements of the hessian  
 
   !===========
   ! Variables 
   !===========
  
+  !====
   ! in
+  !====
   integer, intent(in)           :: n 
   ! n        : integer, n = mo_num*(mo_num-1)/2
  
+  !=====
   ! out
+  !=====
   double precision, intent(out) :: H(n,n),  h_tmpr(mo_num,mo_num,mo_num,mo_num)
   ! H        : n by n double precision matrix containing the 2D hessian
   
+  !==========
   ! internal
+  !==========
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
   double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
@@ -36,28 +44,46 @@ subroutine diag_hess(n,H, h_tmpr)
   ! pq,rs    : integer, indexes for the conversion from 4D to 2D hessian matrix
   ! istate   : integer, electronic state
   ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the hessian 
+  ! t4,t5,t6 : double precision, t6 = t5 - t4, time to compute each term
 
+  !===========
+  ! temporary
+  !===========
   double precision :: accu
-  ! tmp variable
+  ! accu : tmp double precision variable to sum elements
 
   double precision, allocatable :: tmp_bi_int_2(:,:)
   double precision, allocatable :: tmp_2rdm_2(:,:)
   double precision, allocatable :: tmp_bi_int_3(:,:,:)
   double precision, allocatable :: tmp_2rdm_3(:,:,:)
   double precision, allocatable :: tmp_accu(:,:), tmp_accu_1(:)
-  ! tmp arrays
+  ! tmp_bi_int_2 : mo_num 2D double precision matrix containing the bi electronic integrals
+  !                with 2 fix indexes
+  ! tmp_bi_int_3 : mo_num 3D double precision matrix containing the bi electronic integrals
+  !                with 1 fix index
+  ! tmp_2rdm_2   : mo_num 2D double precision matrix containing the 2 body reduce density
+  !                matrix with 2 fix indexes
+  ! tmp_2rdm_3   : mo_num 3D double precision matrix containing the 2 body reduce density
+  !                matrix with 1 fix index
+  ! tmp_accu     : mo_num 2D double precision matrix temporary matrix
+  ! tmp_accu_1   : mo_num 1D double precision matrix temporary matrix
   
   double precision, allocatable :: tmp_h_pppp(:), tmp_h_pqpq(:,:), tmp_h_pqqp(:,:)
-  ! tmp arrays for the hessian elements 
+  ! tmp_h_pppp : mo_num 1D double precision matrix containing the hessien elements hessian(p,p,p,p)
+  ! tmp_h_pqpq : mo_num 2D double precision matrix containing the hessien elements hessian(p,q,p,q)
+  ! tmp_h_pqqp : mo_num 2D double precision matrix containing the hessien elements hessian(p,q,q,p)
+  
 
   double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! One e density  matrix
+  ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
+  !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta
  
   ! Function
   double precision :: get_two_e_integral
   ! get_two_e_integral : double precision function, two e integrals
    
   double precision :: ddot
+  ! ddot :: double precision Blas function, dot product
  
   ! Provided :
   ! mo_one_e_integrals : mono e- integrals
@@ -84,6 +110,10 @@ subroutine diag_hess(n,H, h_tmpr)
   ! Calculation
   !=============
 
+  if (debug) then
+    print*,'Enter in diag_hess'
+  endif
+
   ! Initialization
 
   hessian = 0d0
@@ -91,6 +121,7 @@ subroutine diag_hess(n,H, h_tmpr)
   tmp_h_pqpq = 0d0
   tmp_h_pqqp = 0d0
 
+  ! Electronic state
   !do istate = 1, N_states
   istate = 1
 
@@ -1253,5 +1284,9 @@ subroutine diag_hess(n,H, h_tmpr)
   !==============
 
   deallocate(hessian)!,h_tmpr,H_test)
+
+  if (debug) then
+    print*,'Leaves diag_hess'
+  endif
 
 end subroutine

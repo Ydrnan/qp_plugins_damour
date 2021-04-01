@@ -1,4 +1,10 @@
 program orb_opt
+  read_wf = .True.
+  TOUCH read_wf
+  call run
+end
+
+subroutine run
   implicit none
 
   !===================================
@@ -34,6 +40,8 @@ program orb_opt
   
   double precision ::  norm
  
+  PROVIDE mo_two_e_integrals_in_map
+
   ! Choice of the method 
   method = 2  ! 1 -> full h, 2 -> diag_h
   trust_method = 1 ! 0 -> without trust region, 1 -> with trust region
@@ -46,6 +54,8 @@ program orb_opt
  
   ! Definition of n  
   n = mo_num*(mo_num-1)/2
+
+  print *, 'CI energy : ', ci_energy
 
   !============
   ! Allocation
@@ -123,4 +133,11 @@ program orb_opt
     deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)
  endif
 
-end program
+    call clear_mo_map
+    TOUCH mo_coef
+
+!    SOFT_TOUCH mo_coef N_det psi_det psi_coef 
+
+    print *, ci_energy(1)
+
+end 

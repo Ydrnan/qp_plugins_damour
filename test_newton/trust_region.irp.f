@@ -1,7 +1,7 @@
 subroutine trust_region(n,method,H,v_grad,m_Hm1g)
 
-  include 'constants.h' 
-  
+  include 'constants.h'
+
   !=======================================================
   ! Compute the next step with the trust region algorithm
   !=======================================================
@@ -15,14 +15,14 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   !====
   ! in
   !====
-  integer, intent(in)          :: n 
+  integer, intent(in)          :: n
   integer, intent(in)          :: method ! pour la verif
-  double precision, intent(in) :: H(n,n), v_grad(n)   
+  double precision, intent(in) :: H(n,n), v_grad(n)
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! method : integer, method used to compute the hessian
   ! H      : n by n double precision matrix containing the hessian
   ! v_grad : double precision vector of size n containing the gradient
- 
+
   !=====
   ! out
   !=====
@@ -57,20 +57,20 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   ! info         : integer, info for the diagonalization
   ! lwork        : integer, for the diagonalization
   ! i,j,k        : integer, indexes
- 
+
   !===========
   ! Functions
   !===========
-  double precision :: ddot, norm2
+  double precision :: ddot, dnrm2
   double precision :: fN
   ! ddot  : double precision Blas function, dot product
-  ! norm2 : double precision Blas function, norm 
-  ! fN    : double precision function, compute ||p||^2 
+  ! dnrm2 : double precision Blas function, norm
+  ! fN    : double precision function, compute ||p||^2
 
   !============
   ! Allocation
   !============
- 
+
   lwork=3*n-1
 
   allocate(p(n),W(n,n))
@@ -85,9 +85,9 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     print*,'Enter in trust_region'
   endif
 
-  ! Copy the hessian matrix, the eigenvectors will be store in W 
+  ! Copy the hessian matrix, the eigenvectors will be store in W
   W=H
-  
+
   ! Diagonalization of the hessian
   call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
 
@@ -110,11 +110,11 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   print*, norm_p
 
   ! Norm^2 of v_grad
-  norm_g = (norm2(v_grad))**2
+  norm_g = (dnrm2(n,v_grad,1))**2
   print*,'norm grad^2 :'
   print*, norm_g
- 
-  ! Read the iteration number 
+
+  ! Read the iteration number
   open(unit=10,file='nb_iteration.dat')
     read(10,*) nb_iter
   close(10)
@@ -127,7 +127,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     else
       write(10,*) nb_iter + 1
     endif
-  close(10)  
+  close(10)
 
   ! Compute rho <=> the quality of the model
   call dn_rho_model(rho,nb_iter)
@@ -136,8 +136,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   ! For the first iteration trust_radius = norm_p
   ! else read the trust_radius
   if (nb_iter ==0) then
-    
-    trust_radius = norm_p !MIN(norm_g,norm_p)   
+
+    trust_radius = norm_p !MIN(norm_g,norm_p)
 
     open(unit=10,file='trust_radius.dat')
       write(10,*) trust_radius
@@ -148,15 +148,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     open(unit=10,file='trust_radius.dat')
       read(10,*) trust_radius
     close(10)
-    
+
   endif
-   
+
   ! Compute delta, delta = sqrt(trust_radius)
   delta = dsqrt(trust_radius)
   print*, 'delta', delta
 
   ! Modification of the trust radius in function of rho
-  if (rho >= 0.75d0) then 
+  if (rho >= 0.75d0) then
     delta = 2d0 * delta
   elseif (rho >= 0.5d0) then
     delta = delta
@@ -177,15 +177,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   print*,'delta * coef :',delta
 
   if (rho >= 0.1d0) then ! minimal rho for step acceptance
-    print*,'!!! step accepted !!!' 
+    print*,'!!! step accepted !!!'
 
-    ! Newton method to find ||p(lambda)|| = Delta 
+    ! Newton method to find ||p(lambda)|| = Delta
     if (trust_radius < norm_p ) then
 
-      print*,'Computation of the optimal lambda for the next step...' 
+      print*,'Computation of the optimal lambda for the next step...'
       call trust_newton(n,e_val,W,v_grad,delta,lambda)
 
-    else 
+    else
 
       ! Unconstraint solution, lambda = 0
       print*,'Step in the trust region, no lambda optimization'
@@ -194,8 +194,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
     endif
 
     ! Initialisation
-    p = 0d0 
-    
+    p = 0d0
+
     ! Calculation of the step p
     do i = 1, n
       if (e_val(i) > 1d-4) then
@@ -204,7 +204,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
         p = p - accu * W(:,i) / (e_val(i) + lambda)
       endif
     enddo
-  
+
     ! pour avoir la meme chose que gHm1
     p = -p
 
@@ -215,21 +215,21 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
         write(10,*) p(i)
       enddo
     close(10)
-  
-  else 
-    ! If rho < 0.1
-    print*,'!!! step rejected !!!' 
 
-    ! Cancellation of the previous step by applying 
+  else
+    ! If rho < 0.1
+    print*,'!!! step rejected !!!'
+
+    ! Cancellation of the previous step by applying
     ! step = - previous step
     open(unit=10,file='Hm1g.dat')
       do i = 1, n
         read(10,*) p(i)
       enddo
     close(10)
-  
+
     ! Cancellation of the previous step
-    p = -p 
+    p = -p
 
     ! Replacement of e_model and prev_energy by simulating
     ! the next step as a first step
@@ -239,7 +239,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
 
   endif
 
-  ! Compute the predicted energy for the next step 
+  ! Compute the predicted energy for the next step
   call dn_e_model(n,v_grad,H,p)
 
   ! Step transformation vector -> matrix
@@ -265,21 +265,21 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   enddo
 
   ! Debug
-  if (debug) then 
- 
+  if (debug) then
+
     print*,'p'
     write(*,'(100(F10.5))') p(:)
-    
+
     ! Verification
     call dm_inversion(method,n,H,Hm1)
-  
+
     print*,''
     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)
-  
+
     print*,'vector g^T.Hm1 :'
     write(*,'(100(F10.5))') Hm1g(:)
     !print*, gHm1
-  
+
     ! Calculation of the error
     p = p - Hm1g
 
@@ -289,13 +289,13 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
         print*,i,p(i)
       endif
     enddo
- 
+
   endif
 
   !==============
   ! Deallocation
-  !==============    
-  
+  !==============
+
   deallocate(p,W)
   deallocate(Hm1,Hm1g)
   deallocate(e_val,work)

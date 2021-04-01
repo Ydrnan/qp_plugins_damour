@@ -1,13 +1,13 @@
 subroutine dn_rho_model(rho,nb_iter)
- 
+
   include 'constants.h'
 
   implicit none
-  
+
   !=============================================================================
-  ! Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_modele) 
+  ! Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_modele)
   !=============================================================================
-  
+
   !===========
   ! Intent in
   !===========
@@ -15,7 +15,7 @@ subroutine dn_rho_model(rho,nb_iter)
   integer, intent(in)           :: nb_iter
   ! rho : double precision, ratio :
   ! rho = (prev_energy - energy) / (prev_energy - e_modele)
-  ! nb_iter : integer, number of iteration  
+  ! nb_iter : integer, number of iteration
 
   !==========
   ! Internal
@@ -28,7 +28,7 @@ subroutine dn_rho_model(rho,nb_iter)
   !open(unit=10,file='energy.dat')
   !read(10,*) energy
   !close(10)
- 
+
   !=============
   ! Calculation
   !=============
@@ -38,30 +38,30 @@ subroutine dn_rho_model(rho,nb_iter)
   endif
 
   ! Energy of the actual step
-  energy = ci_energy(1) 
+  energy = sum(ci_energy(1:N_states) / dble(N_states))
 
   print*, 'ci_energy', energy
 
-  if ( nb_iter >=1) then 
-  
+  if ( nb_iter >=1) then
+
     open(unit=11,file='prev_energy.dat')
       read(11,*) prev_energy
     close(11)
-  
+
     open(unit=12,file='e_model.dat')
       read(12,*) e_model
     close(12)
-    
+
     rho = (prev_energy - energy) / (prev_energy - e_model)
-    
+
     print*, 'prev_energy :', prev_energy
     print*, 'e_model :', e_model
     print*, 'energy :', energy
     print*, 'prev_energy - energy :', prev_energy - energy
     print*, 'e_model - energy :', prev_energy - e_model
     print*, 'Rho :', rho
-  
-  elseif (nb_iter == -1) then 
+
+  elseif (nb_iter == -1) then
 
     ! nb_iter = -1 corresponds to a cancellation of the previous step
     rho = 0.5d0
@@ -86,7 +86,7 @@ subroutine dn_rho_model(rho,nb_iter)
     open(unit=11,file='prev_energy.dat')
       write(11,*) energy
     close(11)
-   
+
     print*, 'energy -> prev_energy :', energy
 
   endif
@@ -94,5 +94,5 @@ subroutine dn_rho_model(rho,nb_iter)
   if (debug) then
     print*,'Leaves dn_rho_model'
   endif
-   
+
 end subroutine

@@ -1,4 +1,4 @@
-subroutine dn_rho_model(rho,nb_iter)
+subroutine dn_rho_model(rho,nb_iter,prev_energy)
 
   include 'constants.h'
 
@@ -13,6 +13,7 @@ subroutine dn_rho_model(rho,nb_iter)
   !===========
   double precision, intent(out) :: rho
   integer, intent(in)           :: nb_iter
+  double precision, intent(inout)  :: prev_energy
   ! rho : double precision, ratio :
   ! rho = (prev_energy - energy) / (prev_energy - e_modele)
   ! nb_iter : integer, number of iteration
@@ -20,7 +21,7 @@ subroutine dn_rho_model(rho,nb_iter)
   !==========
   ! Internal
   !==========
-  double precision :: energy, prev_energy, e_model
+  double precision :: energy, e_model
   ! energy      : double precision, energy of the actual step
   ! prev_energy : double precision, energy of the previous step
   ! e_model     : double precision, predicted energy for the actual step
@@ -38,15 +39,11 @@ subroutine dn_rho_model(rho,nb_iter)
   endif
 
   ! Energy of the actual step
-  energy = sum(ci_energy(1:N_states) / dble(N_states))
+  energy = sum(psi_energy_with_nucl_rep(1:N_states) / dble(N_states))
 
-  print*, 'ci_energy', energy
+  print*, 'psi_energy', energy
 
   if ( nb_iter >=1) then
-
-    open(unit=11,file='prev_energy.dat')
-      read(11,*) prev_energy
-    close(11)
 
     open(unit=12,file='e_model.dat')
       read(12,*) e_model
@@ -67,25 +64,21 @@ subroutine dn_rho_model(rho,nb_iter)
     rho = 0.5d0
 
     ! the previous energy doesn't change
-    open(unit=11,file='prev_energy.dat')
-      read(11,*) prev_energy
-    close(11)
 
     print*, 'prev_energy :', prev_energy
 
   else
 
     ! nb_iter = 0 corresponds to the first step after initialization
+    prev_energy = energy
     rho = 0.5d0
 
   endif
 
   if (rho >= 0.1d0 .and. nb_iter >= 0) then
 
-    ! Replacement of the previous energy
-    open(unit=11,file='prev_energy.dat')
-      write(11,*) energy
-    close(11)
+!    ! Replacement of the previous energy
+     prev_energy = energy
 
     print*, 'energy -> prev_energy :', energy
 

@@ -1,4 +1,4 @@
-subroutine trust_region(n,method,H,v_grad,m_Hm1g)
+subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
 
   include 'constants.h'
 
@@ -18,6 +18,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   integer, intent(in)          :: n
   integer, intent(in)          :: method ! pour la verif
   double precision, intent(in) :: H(n,n), v_grad(n)
+  double precision, intent(inout) :: prev_energy
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! method : integer, method used to compute the hessian
   ! H      : n by n double precision matrix containing the hessian
@@ -130,7 +131,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   close(10)
 
   ! Compute rho <=> the quality of the model
-  call dn_rho_model(rho,nb_iter)
+  call dn_rho_model(rho,nb_iter,prev_energy)
 
   ! trust radius
   ! For the first iteration trust_radius = norm_p
@@ -240,7 +241,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g)
   endif
 
   ! Compute the predicted energy for the next step
-  call dn_e_model(n,v_grad,H,p)
+  call dn_e_model(n,v_grad,H,p,prev_energy)
 
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix

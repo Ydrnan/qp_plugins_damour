@@ -1,4 +1,4 @@
-subroutine dn_e_model(n,v_grad,H,Hm1g)
+subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
    
   include 'constants.h' 
 
@@ -10,6 +10,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
 
   integer, intent(in)          :: n
   double precision, intent(in) :: v_grad(n),H(n,n),Hm1g(n)
+  double precision, intent(inout) :: prev_energy
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! v_grad : double precision vector of size n containing the gradient
   ! H      : n by n double precision matrix containing the hessian
@@ -19,7 +20,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
   ! E(x+p) = E(x) + v_grad^T.p + 1/2 . p^T.H.p
   ! with : p = Hm1g
 
-  double precision              :: e_model, prev_energy
+  double precision              :: e_model
   double precision              :: part_1, part_2
   double precision, allocatable :: part_2a(:)
   ! e_model     : double precision, predicted energy after the actual step
@@ -40,6 +41,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
   ! Allocation
   !============
 
+
   allocate(part_2a(n))
 
   !=============
@@ -49,12 +51,6 @@ subroutine dn_e_model(n,v_grad,H,Hm1g)
   if (debug) then
     print*,'Enter in dn_e_model'
   endif
-
-  !!!!!! Il faut automatiser l'écriture de l'énergie fci pour que cela marche !!!!!!
-  ! De mémoire c'est fait ...
-  open(unit=10,file='prev_energy.dat')
-    read(10,*) prev_energy
-  close(10)
 
   ! v_grad.Hm1g
   part_1 = ddot(n,v_grad,1,Hm1g,1)

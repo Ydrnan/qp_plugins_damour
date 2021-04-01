@@ -160,7 +160,7 @@ FILE=${XYZ}_${BASIS}
 # one for the SCF/CIPSI calculation
 # one for the optimiation
 # It's a dangerous way because of the path between the directories
-
+# But if it works, it works
 PATH_CIPSI=../../../y_calculs # !!! The path must be changed !!!
 PATH_OPT=../plugins/qp_plugins_damour/test_newton # !!! The path must be changed !!!
 
@@ -316,7 +316,7 @@ Since there is no convergence criterion the number of step for each optimization
 !!! Warning !!!
 
 For the moment some informations are store in temporary files...
-So for trust region or cyrus method it is not possible to run more than one calculation 
+So for trust region or cyrus method, it is not possible to run more than one calculation 
 at the same time...
 
 Trust region is mandatory to optimize orbitals. 

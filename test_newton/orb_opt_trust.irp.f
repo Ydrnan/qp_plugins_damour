@@ -22,6 +22,7 @@ subroutine run
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
+  integer                       :: nb_iter_trust
   double precision              :: trust_radius,rho,energy,e_model
   logical :: cancel_step
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
@@ -81,8 +82,11 @@ subroutine run
 
   nb_iter = 0
   do while (.not.converged)
+    if (.not.cancel_step) then
+    nb_iter_trust = 0
     ! Gradient and norm
     call gradient(n,v_grad)
+    !v_grad = 2d0 * v_grad
 
     ! Hessian and norm
     if (method == 1) then
@@ -94,23 +98,33 @@ subroutine run
       !call first_diag_hess(n,H)
       call diag_hess(n,H,h_f) !h_f -> debug
     endif
+    endif
 
     ! Inversion of the hessian
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
-    ! Rotation matrix
-    call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+    if (cancel_step) then
+      
+      mo_coef = prev_mos
+      call save_mos
+      nb_iter_trust += 1
+      print*,'step cancel :',nb_iter_trust
+      
+    else
+      ! Rotation matrix
+      call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
-    ! Orbital optimization
-    call dm_newton_test(R,prev_mos)
-    nb_iter += 1
+      ! Orbital optimization
+      call dm_newton_test(R,prev_mos)
 
-    call clear_mo_map
-    TOUCH mo_coef
+      call clear_mo_map
+      TOUCH mo_coef
 
-    !call diagonalize_ci
+      call diagonalize_ci
+      nb_iter += 1
+    endif
 
-    if (nb_iter == 10) then
+    if (nb_iter == 100) then
       converged = .True.
     endif
     !nb_iter += 1

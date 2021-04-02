@@ -215,15 +215,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     enddo
 
     ! pour avoir la meme chose que gHm1
-    p = -p
+    p = -p * 100d0
 
     ! Storage of the step (in order to cancel it if rho < 0.1
     ! for the next step
-    open(unit=10,file='Hm1g.dat')
-      do i = 1, n
-        write(10,*) p(i)
-      enddo
-    close(10)
+    !open(unit=10,file='Hm1g.dat')
+    !  do i = 1, n
+    !    write(10,*) p(i)
+    !  enddo
+    !close(10)
 
   else
     ! If rho < 0.1
@@ -231,14 +231,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
 
     ! Cancellation of the previous step by applying
     ! step = - previous step
-    open(unit=10,file='Hm1g.dat')
-      do i = 1, n
-        read(10,*) p(i)
-      enddo
-    close(10)
+    !open(unit=10,file='Hm1g.dat')
+    !  do i = 1, n
+    !    read(10,*) p(i)
+    !  enddo
+    !close(10)
 
     ! Cancellation of the previous step
-    p = -p
+    !p = -p
+    p=0d0
     cancel_step = .True.
 
     ! Replacement of e_model and prev_energy by simulating

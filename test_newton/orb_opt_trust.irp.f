@@ -42,7 +42,7 @@ subroutine run
 
   double precision ::  norm
 
-  PROVIDE mo_two_e_integrals_in_map
+  PROVIDE mo_two_e_integrals_in_map ci_energy
 
   ! Choice of the method
   method = 2  ! 1 -> full h, 2 -> diag_h
@@ -108,7 +108,7 @@ subroutine run
     call clear_mo_map
     TOUCH mo_coef
 
-    !call diagonalize_ci
+    call diagonalize_ci
 
     if (nb_iter == 10) then
       converged = .True.

@@ -82,32 +82,37 @@ subroutine run
 
   nb_iter = 0
   do while (.not.converged)
-    if (.not.cancel_step) then
-    nb_iter_trust = 0
-    ! Gradient and norm
-    call gradient(n,v_grad)
-
-    ! Hessian and norm
-    if (method == 1) then
-      print*,'Use the full hessian matrix'
-     !call first_hess(n,H)
-     call hess(n,H,h_f) !h_f -> debug
-    else
-      print*, 'Use the diagonal hessian matrix'
-      !call first_diag_hess(n,H)
-      call diag_hess(n,H,h_f) !h_f -> debug
-    endif
+    if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
+      nb_iter_trust = 0
+      ! Gradient and norm
+      call gradient(n,v_grad)
+  
+      ! Hessian and norm
+      if (method == 1) then
+        print*,'Use the full hessian matrix'
+       !call first_hess(n,H)
+       call hess(n,H,h_f) !h_f -> debug
+      else
+        print*, 'Use the diagonal hessian matrix'
+        !call first_diag_hess(n,H)
+        call diag_hess(n,H,h_f) !h_f -> debug
+      endif
     endif
 
     ! Inversion of the hessian
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
     if (cancel_step) then
-      
+      print*,'Cancellation of the previous step' 
       mo_coef = prev_mos
       call save_mos
+
       nb_iter_trust += 1
       print*,'step cancel :',nb_iter_trust
+      print*,''
+      print*,'========================================'
+      print*,'---trust region with a smaller radius---'
+      print*,'========================================'
       
     else
       ! Rotation matrix
@@ -120,6 +125,7 @@ subroutine run
       TOUCH mo_coef
 
       call diagonalize_ci
+
       nb_iter += 1
     endif
 

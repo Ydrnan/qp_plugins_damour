@@ -117,13 +117,13 @@ subroutine hess(n,H,h_tmpr)
 
   !$OMP MASTER
 
-  do s = 1, mo_num
-    do p = 1, mo_num
-
-      one_e_rdm_mo_y(p,s) = one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate)
-
-    enddo
-  enddo
+!  do s = 1, mo_num
+!    do p = 1, mo_num
+!
+!      one_e_rdm_mo_y(p,s) = one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate)
+!
+!    enddo
+!  enddo
 
   ! From Anderson et. al. (2014)
   ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
@@ -168,7 +168,7 @@ subroutine hess(n,H,h_tmpr)
   !   enddo
 
   call dgemm('T','N',mo_num,mo_num,mo_num,1d0,mo_one_e_integrals,    &
-      size(mo_one_e_integrals,1), one_e_rdm_mo_y, size(one_e_rdm_mo_y,1),&
+      size(mo_one_e_integrals,1), one_e_dm_mo, size(one_e_dm_mo,1),&
       0d0, tmp_accu, size(tmp_accu,1))
 
   do s = 1, mo_num
@@ -231,7 +231,7 @@ subroutine hess(n,H,h_tmpr)
   CALL wall_TIME(t4)
 
   call dgemm('T','N',mo_num,mo_num,mo_num,1d0,mo_one_e_integrals,    &
-      size(mo_one_e_integrals,1), one_e_rdm_mo_y, size(one_e_rdm_mo_y,1),&
+      size(mo_one_e_integrals,1), one_e_dm_mo, size(one_e_dm_mo,1),&
       0d0, tmp_accu, size(tmp_accu,1))
 
   do r = 1, mo_num
@@ -281,7 +281,7 @@ subroutine hess(n,H,h_tmpr)
         do s = 1, mo_num
 
           hessian(p,q,r,s) = hessian(p,q,r,s)                        &
-              -2d0 * mo_one_e_integrals(s,p) * one_e_rdm_mo_y(r,q)
+              -2d0 * mo_one_e_integrals(s,p) * one_e_dm_mo(r,q)
 
         enddo
       enddo
@@ -514,45 +514,44 @@ subroutine hess(n,H,h_tmpr)
   call wall_TIME(t4)
   !$OMP END MASTER
 
-
-  !    do v = 1, mo_num
+  !do v = 1, mo_num
   !
-  !      do u = 1, mo_num
-  !        do r = 1, mo_num
+  !  do u = 1, mo_num
+  !    do r = 1, mo_num
+  !      do p = 1, mo_num
+  !
+  !        tmp_bi_int_3(p,r,u) = 2d0 * get_two_e_integral(p,r,u,v,mo_integrals_map)
+  !
+  !      enddo
+  !    enddo
+  !  enddo
+  !
+  !  do u = 1, mo_num
+  !    do s = 1, mo_num
+  !      do q = 1, mo_num
+  !
+  !        tmp_2rdm_3(q,s,u) = two_e_dm_mo(q,s,u,v,1)
+  !
+  !      enddo
+  !    enddo
+  !  enddo
+  !
+  !  do u = 1, mo_num
+  !    do s = 1, mo_num
+  !      do r = 1, mo_num
+  !        do q = 1, mo_num
   !          do p = 1, mo_num
   !
-  !            tmp_bi_int_3(p,r,u) = 2d0 * get_two_e_integral(p,r,u,v,mo_integrals_map)
+  !                hessian(p,q,r,s) = hessian(p,q,r,s)           &
+  !                     + tmp_bi_int_3(p,r,u) * tmp_2rdm_3(q,s,u)
   !
   !          enddo
   !        enddo
   !      enddo
-  !
-  !      do u = 1, mo_num
-  !        do s = 1, mo_num
-  !          do q = 1, mo_num
-  !
-  !            tmp_2rdm_3(q,s,u) = two_e_dm_mo(q,s,u,v,1)
-  !
-  !          enddo
-  !        enddo
-  !      enddo
-  !
-  !      do u = 1, mo_num
-  !        do s = 1, mo_num
-  !          do r = 1, mo_num
-  !            do q = 1, mo_num
-  !              do p = 1, mo_num
-  !
-  !                    hessian(p,q,r,s) = hessian(p,q,r,s)           &
-      !                     + tmp_bi_int_3(p,r,u) * tmp_2rdm_3(q,s,u)
-  !
-  !              enddo
-  !            enddo
-  !          enddo
-  !        enddo
-  !      enddo
-  !
   !    enddo
+  !  enddo
+  !
+  !enddo
 
   !$OMP DO
   do v = 1, mo_num

@@ -22,6 +22,7 @@ subroutine run
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
+  integer                       :: nb_iter_trust
   double precision              :: trust_radius,rho,energy,e_model
   logical :: cancel_step
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
@@ -81,36 +82,54 @@ subroutine run
 
   nb_iter = 0
   do while (.not.converged)
-    ! Gradient and norm
-    call gradient(n,v_grad)
-
-    ! Hessian and norm
-    if (method == 1) then
-      print*,'Use the full hessian matrix'
-     !call first_hess(n,H)
-     call hess(n,H,h_f) !h_f -> debug
-    else
-      print*, 'Use the diagonal hessian matrix'
-      !call first_diag_hess(n,H)
-      call diag_hess(n,H,h_f) !h_f -> debug
+    if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
+      nb_iter_trust = 0
+      ! Gradient and norm
+      call gradient(n,v_grad)
+  
+      ! Hessian and norm
+      if (method == 1) then
+        print*,'Use the full hessian matrix'
+       !call first_hess(n,H)
+       call hess(n,H,h_f) !h_f -> debug
+      else
+        print*, 'Use the diagonal hessian matrix'
+        !call first_diag_hess(n,H)
+        call diag_hess(n,H,h_f) !h_f -> debug
+      endif
     endif
 
     ! Inversion of the hessian
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
-    ! Rotation matrix
-    call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+    if (cancel_step) then
+      print*,'Cancellation of the previous step' 
+      mo_coef = prev_mos
+      call save_mos
 
-    ! Orbital optimization
-    call dm_newton_test(R,prev_mos)
-    nb_iter += 1
+      nb_iter_trust += 1
+      print*,'step cancel :',nb_iter_trust
+      print*,''
+      print*,'========================================'
+      print*,'---trust region with a smaller radius---'
+      print*,'========================================'
+      
+    else
+      ! Rotation matrix
+      call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
-    call clear_mo_map
-    TOUCH mo_coef
+      ! Orbital optimization
+      call dm_newton_test(R,prev_mos)
 
-    call diagonalize_ci
+      call clear_mo_map
+      TOUCH mo_coef
 
-    if (nb_iter == 10) then
+      call diagonalize_ci
+
+      nb_iter += 1
+    endif
+
+    if (nb_iter == 100) then
       converged = .True.
     endif
     !nb_iter += 1

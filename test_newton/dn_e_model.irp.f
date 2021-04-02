@@ -1,4 +1,4 @@
-subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
+subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
    
   include 'constants.h' 
 
@@ -11,6 +11,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
   integer, intent(in)          :: n
   double precision, intent(in) :: v_grad(n),H(n,n),Hm1g(n)
   double precision, intent(inout) :: prev_energy
+  double precision, intent(out) :: e_model
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! v_grad : double precision vector of size n containing the gradient
   ! H      : n by n double precision matrix containing the hessian
@@ -20,7 +21,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
   ! E(x+p) = E(x) + v_grad^T.p + 1/2 . p^T.H.p
   ! with : p = Hm1g
 
-  double precision              :: e_model
+  !double precision              :: e_model
   double precision              :: part_1, part_2
   double precision, allocatable :: part_2a(:)
   ! e_model     : double precision, predicted energy after the actual step
@@ -48,16 +49,17 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
   ! Calculation
   !=============
 
-  if (debug) then
-    print*,'Enter in dn_e_model'
-  endif
+!  if (debug) then
+    print*,''
+    print*,'---Enter in dn_e_model---'
+!  endif
 
   ! v_grad.Hm1g
   part_1 = ddot(n,v_grad,1,Hm1g,1)
  
-  if (debug) then
+!  if (debug) then
     print*,'part_1 : ', part_1
-  endif  
+!  endif  
 
   ! H.p
   call dgemv('N',n,n,1d0,H,size(H,1),Hm1g,1,0d0,part_2a,1)
@@ -65,9 +67,9 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
   ! 1/2 . p^T.H.p
   part_2 = 0.5d0 * ddot(n,Hm1g,1,part_2a,1)
   
-  if (debug) then
+!  if (debug) then
     print*,'part_2 : ', part_2 
-  endif
+!  endif
 
   ! Verif, pourquoi part_1 et 2 sont positifs ??
   ! Positif car le produit des MOs.R se fait dans dm_newton avec R^T
@@ -76,12 +78,12 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
   e_model = prev_energy - part_1 - part_2
 
   ! Writing the predicted energy
-  print*, 'e_model : ', e_model
+  print*, 'e_model for the next iteration : ', e_model
 
   ! Storage of the predicted energy
-  open(unit=10,file='e_model.dat')
-    write(10,*) e_model
-  close(10)
+!  open(unit=10,file='e_model.dat')
+!    write(10,*) e_model
+!  close(10)
  
   !==============
   ! Deallocation
@@ -89,8 +91,9 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy)
 
   deallocate(part_2a)
 
-  if (debug) then
-    print*,'Leaves dn_e_model'
-  endif 
+  !if (debug) then
+    print*,'---Leaves dn_e_model---'
+    print*,''
+  !endif 
  
 end subroutine 

@@ -1,4 +1,4 @@
-subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
+subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
   include 'constants.h'
 
@@ -18,7 +18,11 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   integer, intent(in)          :: n
   integer, intent(in)          :: method ! pour la verif
   double precision, intent(in) :: H(n,n), v_grad(n)
-  double precision, intent(inout) :: prev_energy
+  double precision, intent(inout) :: prev_energy,trust_radius
+  integer, intent(inout)  :: nb_iter
+  double precision, intent(inout) :: e_model
+  logical, intent(inout) :: cancel_step
+  double precision, intent(in) :: prev_mos(ao_num,mo_num)
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! method : integer, method used to compute the hessian
   ! H      : n by n double precision matrix containing the hessian
@@ -35,11 +39,10 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   !==========
   double precision, allocatable :: p(:),W(:,:)
   double precision, allocatable :: Hm1(:,:), Hm1g(:)
-  double precision              :: accu, lambda, trust_radius
-  double precision              :: norm_p, norm_g, delta, rho
+  double precision              :: accu, lambda!, trust_radius
+  double precision              :: norm_p, norm_g, delta, rho!,e_model
   double precision, allocatable :: e_val(:),work(:,:)
-  integer                       :: nb_iter
-  integer                       :: info,lwork
+  integer                       :: info,lwork!, nb_iter
   integer                       :: i,j,k
   ! p            : double precision vector of size n containing the next step
   ! W            : double precision matrix containing the eigenvectors of the hessian matrix
@@ -82,9 +85,12 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   ! Calculation
   !=============
 
-  if (debug) then
-    print*,'Enter in trust_region'
-  endif
+ ! if (debug) then  
+    print*,''
+    print*,'==========================='
+    print*,'---Enter in trust_region---'
+    print*,'==========================='
+ ! endif
 
   ! Copy the hessian matrix, the eigenvectors will be store in W
   W=H
@@ -115,23 +121,23 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   print*,'norm grad^2 :'
   print*, norm_g
 
-  ! Read the iteration number
-  open(unit=10,file='nb_iteration.dat')
-    read(10,*) nb_iter
-  close(10)
-
-  ! Add 1
-  ! + 2 in the case of the cancellation of the previous step
-  open(unit=10,file='nb_iteration.dat')
-    if (nb_iter == -1) then
-      write(10,*) nb_iter + 2
-    else
-      write(10,*) nb_iter + 1
-    endif
-  close(10)
+!  ! Read the iteration number
+!  open(unit=10,file='nb_iteration.dat')
+!    read(10,*) nb_iter
+!  close(10)
+!
+!  ! Add 1
+!  ! + 2 in the case of the cancellation of the previous step
+!  open(unit=10,file='nb_iteration.dat')
+!    if (nb_iter == -1) then
+!      write(10,*) nb_iter + 2
+!    else
+!      write(10,*) nb_iter + 1
+!    endif
+!  close(10)
 
   ! Compute rho <=> the quality of the model
-  call dn_rho_model(rho,nb_iter,prev_energy)
+  call dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
 
   ! trust radius
   ! For the first iteration trust_radius = norm_p
@@ -140,15 +146,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
 
     trust_radius = norm_p !MIN(norm_g,norm_p)
 
-    open(unit=10,file='trust_radius.dat')
-      write(10,*) trust_radius
-    close(10)
-
-  else
-
-    open(unit=10,file='trust_radius.dat')
-      read(10,*) trust_radius
-    close(10)
+!    open(unit=10,file='trust_radius.dat')
+!      write(10,*) trust_radius
+!    close(10)
+!
+!  else
+!
+!    open(unit=10,file='trust_radius.dat')
+!      read(10,*) trust_radius
+!    close(10)
 
   endif
 
@@ -166,11 +172,13 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   else
     delta = 0.25d0 * delta
   endif
+  
+  trust_radius = delta**2
 
-  ! Replacement of the trust radius for the next step
-  open(unit=10,file='trust_radius.dat')
-    write(10,*) delta**2 ! Delta
-  close(10)
+!  ! Replacement of the trust radius for the next step
+!  open(unit=10,file='trust_radius.dat')
+!    write(10,*) delta**2 ! Delta
+!  close(10)
 
   ! En donnant delta, on cherche ||p||^2 - delta^2 = 0
   ! et non ||p||^2 - delta = 0
@@ -178,8 +186,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   print*,'delta * coef :',delta
 
   if (rho >= 0.1d0) then ! minimal rho for step acceptance
-    print*,'!!! step accepted !!!'
-
+    print*,'!!!previous step accepted !!!'
+    cancel_step = .False.
     ! Newton method to find ||p(lambda)|| = Delta
     if (trust_radius < norm_p ) then
 
@@ -219,7 +227,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
 
   else
     ! If rho < 0.1
-    print*,'!!! step rejected !!!'
+    print*,'!!! previous step rejected !!!'
 
     ! Cancellation of the previous step by applying
     ! step = - previous step
@@ -231,18 +239,23 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
 
     ! Cancellation of the previous step
     p = -p
+    cancel_step = .True.
 
     ! Replacement of e_model and prev_energy by simulating
     ! the next step as a first step
-    open(unit=10,file='nb_iteration.dat')
-      write(10,*) -1
-    close(10)
+!    open(unit=10,file='nb_iteration.dat')
+!      write(10,*) -1
+!    close(10)
 
   endif
 
   ! Compute the predicted energy for the next step
-  call dn_e_model(n,v_grad,H,p,prev_energy)
-
+  if (.not. cancel_step) then
+    call dn_e_model(n,v_grad,H,p,prev_energy,e_model)
+  else
+    print*,'Cancellation of the previous step no energy prediction'
+  endif
+ 
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
   do i=1,mo_num
@@ -302,7 +315,10 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy)
   deallocate(e_val,work)
 
   if (debug) then
-    print*,'Leaves trust_region'
+    print*,'========================='
+    print*,'---Leaves trust_region---'
+    print*,'========================='
+    print*,''
   endif
 
 end subroutine

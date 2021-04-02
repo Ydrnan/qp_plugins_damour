@@ -1,4 +1,4 @@
-subroutine dm_newton_test(R)
+subroutine dm_newton_test(R,prev_mos)
   
   include 'constants.h'
 
@@ -17,6 +17,10 @@ subroutine dm_newton_test(R)
   !===========
   double precision, intent(in)  :: R(mo_num,mo_num)
   ! R       : double precision mo_num by mo_num double precision matrix, rotation matrix
+
+  ! out 
+  double precision, intent(out) :: prev_mos(ao_num,mo_num)
+  
 
   !==========
   ! internal
@@ -55,6 +59,7 @@ subroutine dm_newton_test(R)
 
   print*,'Save MOs...'
   
+  prev_mos = mo_coef
   mo_coef = new_mos
 
   if (debug) then  

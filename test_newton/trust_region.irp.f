@@ -215,7 +215,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     enddo
 
     ! pour avoir la meme chose que gHm1
-    p = -p * 100d0
+    p = -p
 
     ! Storage of the step (in order to cancel it if rho < 0.1
     ! for the next step

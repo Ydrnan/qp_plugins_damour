@@ -86,7 +86,6 @@ subroutine run
     nb_iter_trust = 0
     ! Gradient and norm
     call gradient(n,v_grad)
-    !v_grad = 2d0 * v_grad
 
     ! Hessian and norm
     if (method == 1) then

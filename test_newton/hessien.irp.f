@@ -1,5 +1,5 @@
 subroutine hess(n,H,h_tmpr)
-
+  use omp_lib
   include 'constants.h'
 
   implicit none
@@ -88,6 +88,7 @@ subroutine hess(n,H,h_tmpr)
   endif
 
   ! Initialization
+  call omp_set_max_active_levels(1)
 
   !$OMP PARALLEL                                                     &
       !$OMP PRIVATE(                                                 &
@@ -1087,6 +1088,8 @@ subroutine hess(n,H,h_tmpr)
   deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu,tmp_accu_sym,one_e_rdm_mo_y)
 
   !$OMP END PARALLEL
+
+  call omp_set_max_active_levels(4)
 
   !===========
   ! 2D matrix

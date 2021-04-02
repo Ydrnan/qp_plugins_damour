@@ -147,8 +147,8 @@ subroutine gradient(n,v_grad)
     !        do t= 1, mo_num
     !
     !        grad(p,q) = grad(p,q) &
-    !                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,istate) &
-    !                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,istate)
+    !                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t) &
+    !                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s)
     !       enddo
     !      enddo
     !    enddo
@@ -177,7 +177,7 @@ subroutine gradient(n,v_grad)
         do s = 1, mo_num
           do r = 1, mo_num
                
-             tmp_2rdm_3(r,s,q) = two_e_dm_mo(r,s,q,t,istate)
+             tmp_2rdm_3(r,s,q) = two_e_dm_mo(r,s,q,t)
     
           enddo
         enddo
@@ -288,7 +288,7 @@ subroutine gradient(n,v_grad)
       do q = 1, mo_num
         do r = 1, mo_num
           do s = 1, mo_num
-            write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,istate)
+            write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s)
           enddo
         enddo
       enddo

@@ -12,7 +12,7 @@ program orb_opt_debug
   double precision, allocatable :: H(:,:),H1(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
   integer                       :: method
   integer                       :: n
-  integer                       :: i
+  integer                       :: i,j,k,l
   double precision :: max_error,threshold
   integer :: nb_error
   ! H      : n by n double precision matrix, Hessian matrix
@@ -23,7 +23,7 @@ program orb_opt_debug
   ! i,j,p,q,k : integer, indexes
   
   ! Choice of the method 
-  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2

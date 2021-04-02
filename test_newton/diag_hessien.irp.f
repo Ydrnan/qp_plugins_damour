@@ -74,7 +74,7 @@ subroutine diag_hess(n,H, h_tmpr)
   ! tmp_h_pqqp : mo_num 2D double precision matrix containing the hessien elements hessian(p,q,q,p)
   
 
-  double precision, allocatable :: one_e_rdm_mo_y(:,:)
+  !double precision, allocatable :: one_e_rdm_mo_y(:,:)
   ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
   !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta
  
@@ -97,7 +97,7 @@ subroutine diag_hess(n,H, h_tmpr)
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(H_test(mo_num**2,mo_num**2))
-  allocate(one_e_rdm_mo_y(mo_num,mo_num))
+  !allocate(one_e_rdm_mo_y(mo_num,mo_num))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
   allocate(tmp_bi_int_2(mo_num,mo_num))
   allocate(tmp_2rdm_2(mo_num,mo_num))
@@ -123,15 +123,15 @@ subroutine diag_hess(n,H, h_tmpr)
 
   ! Electronic state
   !do istate = 1, N_states
-  istate = 1
+  !istate = 1
 
-    do s = 1, mo_num
-      do p = 1, mo_num
+    !do s = 1, mo_num
+    !  do p = 1, mo_num
   
-       one_e_rdm_mo_y(p,s) = one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate)
+    !   one_e_rdm_mo_y(p,s) = one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate)
   
-      enddo
-    enddo
+    !  enddo
+    !enddo
 
     ! From Anderson et. al. (2014) 
     ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
@@ -188,7 +188,7 @@ subroutine diag_hess(n,H, h_tmpr)
     do p = 1, mo_num
       do u = 1, mo_num
   
-        tmp_accu_1(p) = tmp_accu_1(p) + mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p)
+        tmp_accu_1(p) = tmp_accu_1(p) + mo_one_e_integrals(u,p) * one_e_dm_mo(u,p)
   
       enddo
     enddo
@@ -216,7 +216,7 @@ subroutine diag_hess(n,H, h_tmpr)
     do p = 1, mo_num
       do u = 1, mo_num
 
-        tmp_accu_1(p) = tmp_accu_1(p) + mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p)
+        tmp_accu_1(p) = tmp_accu_1(p) + mo_one_e_integrals(u,p) * one_e_dm_mo(u,p)
 
       enddo
     enddo
@@ -282,7 +282,7 @@ subroutine diag_hess(n,H, h_tmpr)
     do p = 1, mo_num
       do u = 1, mo_num
  
-        tmp_accu_1(p) = tmp_accu_1(p) +  mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p) 
+        tmp_accu_1(p) = tmp_accu_1(p) +  mo_one_e_integrals(u,p) * one_e_dm_mo(u,p) 
  
       enddo
     enddo
@@ -312,7 +312,7 @@ subroutine diag_hess(n,H, h_tmpr)
     do q = 1, mo_num
       do u = 1, mo_num
  
-        tmp_accu_1(q) = tmp_accu_1(q) + mo_one_e_integrals(u,q) * one_e_rdm_mo_y(u,q)
+        tmp_accu_1(q) = tmp_accu_1(q) + mo_one_e_integrals(u,q) * one_e_dm_mo(u,q)
  
       enddo
     enddo
@@ -371,7 +371,7 @@ subroutine diag_hess(n,H, h_tmpr)
       do p = 1, mo_num
 
         tmp_h_pqpq(p,q) = tmp_h_pqpq(p,q) &
-        - 2d0 * mo_one_e_integrals(q,p) * one_e_rdm_mo_y(p,q)
+        - 2d0 * mo_one_e_integrals(q,p) * one_e_dm_mo(p,q)
 
       enddo
     enddo
@@ -392,7 +392,7 @@ subroutine diag_hess(n,H, h_tmpr)
       do p = 1, mo_num
 
         tmp_h_pqqp(p,q) = tmp_h_pqqp(p,q) &
-        - 2d0 * mo_one_e_integrals(p,p) * one_e_rdm_mo_y(q,q)
+        - 2d0 * mo_one_e_integrals(p,p) * one_e_dm_mo(q,q)
 
       enddo
     enddo
@@ -1183,6 +1183,8 @@ subroutine diag_hess(n,H, h_tmpr)
     print*, 'Time to compute the hessian :', t2
  
   !enddo
+  
+  deallocate(tmp_2rdm_3,tmp_bi_int_3,tmp_accu,tmp_accu_1)
 
   !===========
   ! 2D matrix
@@ -1211,6 +1213,8 @@ subroutine diag_hess(n,H, h_tmpr)
       hessian(p,q,q,p) = hessian(p,q,q,p) + tmp_h_pqqp(p,q)
     enddo
   enddo
+
+ deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
 
 !  do q = 1, mo_num
 !    do p = 1, mo_num

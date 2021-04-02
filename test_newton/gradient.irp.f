@@ -41,7 +41,7 @@ subroutine gradient(n,v_grad)
   ! t1,t2,t3 : t3 = t2 - t1, time to compute the gradient
   ! t4,t5,t6 : t6 = t5 - t4, time to compute each element
 
-  double precision, allocatable :: one_e_rdm_mo_y(:,:)
+  !double precision, allocatable :: one_e_rdm_mo_y(:,:)
   ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
   !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta 
 
@@ -56,7 +56,7 @@ subroutine gradient(n,v_grad)
   !===========
   ! Functions
   !===========
-  double precision :: get_two_e_integral, norm2
+  double precision :: get_two_e_integral, dnrm2
   ! get_two_e_integral :  double precision function that gives the two e integrals
   ! norm2 : double precision function that gives the norm of a vector
  
@@ -71,7 +71,7 @@ subroutine gradient(n,v_grad)
   !============
 
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
-  allocate(one_e_rdm_mo_y(mo_num,mo_num))
+  !allocate(one_e_rdm_mo_y(mo_num,mo_num))
   allocate(tmp_accu(mo_num,mo_num))
   allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
   allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
@@ -92,13 +92,13 @@ subroutine gradient(n,v_grad)
   !!do istate = 1, N_states
   istate = 1
  
-    do q = 1, mo_num
-      do p = 1, mo_num
+   ! do q = 1, mo_num
+   !   do p = 1, mo_num
 
-         one_e_rdm_mo_y(p,q) = one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate)
+   !      one_e_rdm_mo_y(p,q) = one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate)
 
-      enddo
-    enddo
+   !   enddo
+   ! enddo
 
     ! From Anderson et. al. (2014) 
     ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
@@ -124,7 +124,7 @@ subroutine gradient(n,v_grad)
     tmp_accu = 0d0
   
     call dgemm('N','N',mo_num,mo_num,mo_num,2d0,mo_one_e_integrals,&
-    mo_num,one_e_rdm_mo_y,mo_num,0d0,tmp_accu,mo_num)
+    mo_num,one_e_dm_mo,mo_num,0d0,tmp_accu,mo_num)
   
     do q = 1, mo_num
       do p = 1, mo_num
@@ -341,7 +341,7 @@ subroutine gradient(n,v_grad)
 
   ! Norm of the vector
 
-  norm = norm2(v_grad)
+  norm = dnrm2(v_grad)
   print*, 'Gradient norm : ', norm
 
   ! Matrix gradient
@@ -367,7 +367,7 @@ subroutine gradient(n,v_grad)
   !==============
 
   deallocate(grad,A,tmp_bi_int_3,tmp_2rdm_3)
-  deallocate(tmp_accu,one_e_rdm_mo_y)
+  deallocate(tmp_accu)!,one_e_rdm_mo_y)
 
   if (debug) then
     print*,'Leaves gradient'

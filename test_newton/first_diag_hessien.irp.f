@@ -145,8 +145,8 @@ subroutine first_diag_hess(n,H, h_tmpr)
                     do v = 1, mo_num
 
                       hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t) &
-                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v))
+                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,1) &
+                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,1))
 
                     enddo
                   enddo
@@ -170,8 +170,8 @@ subroutine first_diag_hess(n,H, h_tmpr)
                    do v = 1, mo_num
 
                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v) &
-                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t))
+                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v,1) &
+                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,1))
 
                    enddo
                  enddo
@@ -193,8 +193,8 @@ subroutine first_diag_hess(n,H, h_tmpr)
               do v = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s) &
-                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v)
+                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s,1) &
+                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v,1)
 
               enddo
             enddo
@@ -214,10 +214,10 @@ subroutine first_diag_hess(n,H, h_tmpr)
               do u = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u) &
-                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u) &
-                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t) &
-                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s)
+                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,1) &
+                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,1) &
+                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t,1) &
+                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s,1)
 
               enddo
             enddo

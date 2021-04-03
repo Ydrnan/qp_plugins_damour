@@ -1,5 +1,5 @@
 subroutine gradient(n,v_grad)
-
+  use omp_lib
   include 'constants.h'
 
   implicit none
@@ -72,6 +72,17 @@ subroutine gradient(n,v_grad)
 
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
   !allocate(one_e_rdm_mo_y(mo_num,mo_num))
+  
+  ! Initialization
+  call omp_set_max_active_levels(1)
+
+  !$OMP PARALLEL                                                     &
+      !$OMP PRIVATE(                                                 &
+      !$OMP   p,q,r,s,t,                                        &
+      !$OMP   tmp_accu,tmp_bi_int_3,tmp_2rdm_3)&
+      !$OMP SHARED(grad, one_e_dm_mo, mo_num,mo_one_e_integrals,mo_integrals_map,t4,t5,t6)&
+      !$OMP DEFAULT(SHARED)
+
   allocate(tmp_accu(mo_num,mo_num))
   allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
   allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
@@ -85,21 +96,17 @@ subroutine gradient(n,v_grad)
   endif
 
   ! Initialization
-  v_grad = 0d0
-  grad = 0d0
- 
-  ! Electronic state
-  !!do istate = 1, N_states
-  istate = 1
- 
-   ! do q = 1, mo_num
-   !   do p = 1, mo_num
+  !v_grad = 0d0
+  !grad = 0d0
 
-   !      one_e_rdm_mo_y(p,q) = one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate)
-
-   !   enddo
-   ! enddo
-
+  !$OMP MASTER 
+  do q = 1, mo_num
+    do p = 1,mo_num
+      grad(p,q) = 0d0
+    enddo
+  enddo
+  !$OMP END MASTER
+  
     ! From Anderson et. al. (2014) 
     ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
 
@@ -120,12 +127,16 @@ subroutine gradient(n,v_grad)
 
     !!! Opt first term
   
-    CALL CPU_TIME(t4)
-    tmp_accu = 0d0
-  
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER
+ 
+    !tmp_accu = 0d0
+
+    !$OMP MASTER
     call dgemm('N','N',mo_num,mo_num,mo_num,2d0,mo_one_e_integrals,&
     mo_num,one_e_dm_mo,mo_num,0d0,tmp_accu,mo_num)
-  
+
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -133,11 +144,14 @@ subroutine gradient(n,v_grad)
 
       enddo
     enddo 
+    !$OMP END MASTER
     
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6 = t5-t4
     print*,'Gradient, first term (s) :', t6 
-  
+    !$OMP END MASTER
+
     !!!!! Second term
     
     !do p = 1, mo_num
@@ -156,13 +170,15 @@ subroutine gradient(n,v_grad)
     !enddo
   
     !!! Opt second term  
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER 
+   
+    !tmp_accu = 0d0
     
-    CALL CPU_TIME(t4)
-  
-    tmp_accu = 0d0
-  
+    !$OMP DO
     do t = 1, mo_num
-     
+      
       do p = 1, mo_num
         do s = 1, mo_num
           do r = 1, mo_num
@@ -172,7 +188,7 @@ subroutine gradient(n,v_grad)
           enddo
         enddo
       enddo
-      
+  
       do q = 1, mo_num
         do s = 1, mo_num
           do r = 1, mo_num
@@ -209,143 +225,38 @@ subroutine gradient(n,v_grad)
       enddo
   
     enddo
-    
-    CALL CPU_TIME(t5)
+    !$OMP END DO
+
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6 = t5-t4
     print*,'Gradient second term (s) : ', t6
+    !$OMP END MASTER  
 
- ! Debug ocaml
-!  print*,'two e rdm'
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          print*,p,q,r,s,two_e_dm_mo(p,q,r,s,1)
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!  print*,'bi int'
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
-!            print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-!          else
-!            print*,p,q,r,s,0d0
-!          endif
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!  print*,'mono int'
-!  do p=1,mo_num
-!    print*,mo_one_e_integrals(p,:)
-!  enddo
-!
-!  print*, 'one e rdm'
-!  do p=1,mo_num
-!    print*, (one_e_dm_mo_alpha(p,:,istate) + one_e_dm_mo_beta(p,:,istate))
-!  enddo
+    deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu)
 
- !Ecriture des intégrales dans un fichier pour le lire avec OCaml
- ! Debug pour moi 
+  !$OMP END PARALLEL
 
-  if (ocaml) then
-    open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        write(10,*) p, q, (one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate))
-      enddo
-    enddo
-    close(10)
-  
-    open(unit=11,file='../../../../../../App_y/miniconda3/Work_yann/one_e_int.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        write(11,*) p, q, mo_one_e_integrals(p,q)
-      enddo
-    enddo
-    close(11)
-    
-    open(unit=12,file='../../../../../../App_y/miniconda3/Work_yann/two_e_int.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-            write(12,*) p, q, r, s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-          enddo
-        enddo
-      enddo
-    enddo
-    close(12)
-    
-    open(unit=13,file='../../../../../../App_y/miniconda3/Work_yann/two_e_dm.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-            write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,1)
-          enddo
-        enddo
-      enddo
-    enddo
-    close(13)
-  endif
+  call omp_set_max_active_levels(4)
 
- ! Debug ocaml
-!  double precision, allocatable :: two_e_integrals(:,:,:,:)
-!  allocate(two_e_integrals(mo_num,mo_num,mo_num,mo_num))
-!
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          two_e_integrals(p,q,r,s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!
-!  print*,'two e int'
-!  do p = 1,mo_num
-!    do q= 1, mo_num
-!      write(*,'(100(F10.5))') two_e_integrals(p,q,:,:)
-!    enddo
-!  enddo
-!
-!  print*,'two e rdm'
-!  do p = 1,mo_num
-!    do q= 1, mo_num
-!      write(*,'(100(F10.5))') two_e_dm_mo(p,q,:,:,1)
-!    enddo
-!  enddo
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
-
   do i=1,n
     call in_mat_vec_index(i,p,q)
     v_grad(i)=(grad(p,q) - grad(q,p))
   enddo  
 
   ! Display, vector containing the gradient elements 
-
   if (debug) then  
     print*,'Vector containing the gradient :'
     write(*,'(100(F10.5))') v_grad(1:n)
   endif  
 
   ! Norm of the vector
-
-  norm = dnrm2(v_grad)
+  norm = dnrm2(n,v_grad,1)
   print*, 'Gradient norm : ', norm
 
   ! Matrix gradient
-
   A = 0d0
   do q=1,mo_num
     do p=1,mo_num
@@ -354,7 +265,6 @@ subroutine gradient(n,v_grad)
   enddo
 
   ! Display, matrix containting the gradient elements
-
   if (debug) then
     print*,'Matrix containing the gradient :'
     do i = 1, mo_num
@@ -366,8 +276,8 @@ subroutine gradient(n,v_grad)
   ! Deallocation
   !==============
 
-  deallocate(grad,A,tmp_bi_int_3,tmp_2rdm_3)
-  deallocate(tmp_accu)!,one_e_rdm_mo_y)
+  deallocate(grad,A)!,tmp_bi_int_3,tmp_2rdm_3)
+  !deallocate(tmp_accu)!,one_e_rdm_mo_y)
 
   if (debug) then
     print*,'Leaves gradient'

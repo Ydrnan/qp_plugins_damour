@@ -118,7 +118,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
 
   ! Norm^2 of v_grad
   !norm_g = (dnrm2(n,v_grad,1))**2
-  norm_g = (dnrm2(v_grad))**2
+  norm_g = (dnrm2(n,v_grad,1))**2
   print*,'norm grad^2 :'
   print*, norm_g
 

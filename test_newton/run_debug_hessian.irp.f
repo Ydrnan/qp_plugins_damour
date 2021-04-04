@@ -1,4 +1,4 @@
-program orb_opt_debug
+program run_debug_hessian
   implicit none
 
   !======================================
@@ -23,7 +23,7 @@ program orb_opt_debug
   ! i,j,p,q,k : integer, indexes
   
   ! Choice of the method 
-  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
@@ -117,7 +117,7 @@ program orb_opt_debug
    
   print*,'Threshold :', threshold
   print*,'Nb error :', nb_error
-  print*,'Max erro :', max_error
+  print*,'Max error :', max_error
  
   deallocate(H,H1,h_f,h_f2)
 

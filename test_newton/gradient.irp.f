@@ -99,13 +99,13 @@ subroutine gradient(n,v_grad)
   !v_grad = 0d0
   !grad = 0d0
 
-  !$OMP MASTER 
+  !$OMP DO
   do q = 1, mo_num
     do p = 1,mo_num
       grad(p,q) = 0d0
     enddo
   enddo
-  !$OMP END MASTER
+  !$OMP END DO
   
     ! From Anderson et. al. (2014) 
     ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
@@ -133,10 +133,10 @@ subroutine gradient(n,v_grad)
  
     !tmp_accu = 0d0
 
-    !$OMP MASTER
     call dgemm('N','N',mo_num,mo_num,mo_num,2d0,mo_one_e_integrals,&
     mo_num,one_e_dm_mo,mo_num,0d0,tmp_accu,mo_num)
-
+    
+    !$OMP DO
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -144,7 +144,7 @@ subroutine gradient(n,v_grad)
 
       enddo
     enddo 
-    !$OMP END MASTER
+    !$OMP END DO
     
     !$OMP MASTER
     CALL wall_TIME(t5)
@@ -176,7 +176,7 @@ subroutine gradient(n,v_grad)
    
     !tmp_accu = 0d0
     
-    !$OMP DO
+    !$OMP MASTER
     do t = 1, mo_num
       
       do p = 1, mo_num
@@ -225,7 +225,7 @@ subroutine gradient(n,v_grad)
       enddo
   
     enddo
-    !$OMP END DO
+    !$OMP END MASTER
 
     !$OMP MASTER
     CALL wall_TIME(t5)

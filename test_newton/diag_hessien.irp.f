@@ -1,5 +1,7 @@
 subroutine diag_hess(n,H, h_tmpr)
-
+ 
+  use omp_lib
+  
   include 'constants.h' 
 
   implicit none

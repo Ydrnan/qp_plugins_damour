@@ -23,7 +23,7 @@ program run_debug_hessian
   ! i,j,p,q,k : integer, indexes
   
   ! Choice of the method 
-  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2

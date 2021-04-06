@@ -817,31 +817,85 @@ subroutine old_hess(n,H,h_tmpr)
 
     ! - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,istate)
 
-    do p = 1, mo_num
- 
-      do s = 1, mo_num
+!?!    do p = 1, mo_num
+!?! 
+!?!      do s = 1, mo_num
+!?!        do t = 1, mo_num
+!?!          do u = 1, mo_num
+!?!
+!?!            tmp_bi_int_3(u,t,s) = - get_two_e_integral(u,s,t,p,mo_integrals_map)
+!?!
+!?!          enddo
+!?!        enddo
+!?!      enddo
+!?!    
+!?!      !$OMP DO  
+!?!      do q = 1, mo_num
+!?! 
+!?!        do r = 1, mo_num
+!?!          do t = 1, mo_num
+!?!            do u = 1, mo_num
+!?!
+!?!              tmp_2rdm_3(u,t,r) = two_e_dm_mo(q,u,r,t,1)
+!?! 
+!?!            enddo
+!?!          enddo
+!?!        enddo
+!?! 
+!?!      !  tmp_accu = 0d0 
+!?!      !  do r = 1, mo_num
+!?!      !    do s = 1, mo_num
+!?!      !      do t = 1, mo_num
+!?!      !        do u = 1, mo_num
+!?!      !           tmp_accu(s,r) = tmp_accu(s,r) &
+!?!      !           ! - get_two_e_integral(u,s,t,p,mo_integrals_map) * two_e_dm_mo(u,r,t,q,istate)
+!?!      !           + tmp_bi_int_3(u,t,s) * tmp_2rdm_3(u,t,r)  
+!?!      !        enddo
+!?!      !      enddo
+!?!      !    enddo
+!?!      ! enddo 
+!?! 
+!?!        call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
+!?!          mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+!?!  
+!?!        do r = 1, mo_num 
+!?!          do s = 1, mo_num
+!?!      
+!?!             hessian(p,q,r,s) = hessian(p,q,r,s) + tmp_accu(s,r) 
+!?!
+!?!          enddo
+!?!        enddo 
+!?! 
+!?!      enddo
+!?!      !$OMP END DO
+!?! 
+!?!    enddo
+   
+    !$OMP DO  
+    do q = 1, mo_num
+
+      do r = 1, mo_num
         do t = 1, mo_num
           do u = 1, mo_num
 
-            tmp_bi_int_3(u,t,s) = - get_two_e_integral(u,s,t,p,mo_integrals_map)
+            tmp_2rdm_3(u,t,r) = two_e_dm_mo(q,u,r,t,1)
 
           enddo
         enddo
       enddo
-    
-      !$OMP DO  
-      do q = 1, mo_num
- 
-        do r = 1, mo_num
+
+      do p = 1, mo_num
+
+        do s = 1, mo_num
           do t = 1, mo_num
             do u = 1, mo_num
 
-              tmp_2rdm_3(u,t,r) = two_e_dm_mo(q,u,r,t,1)
- 
+              tmp_bi_int_3(u,t,s) = - get_two_e_integral(u,s,t,p,mo_integrals_map)
+
             enddo
           enddo
         enddo
- 
+
       !  tmp_accu = 0d0 
       !  do r = 1, mo_num
       !    do s = 1, mo_num
@@ -854,22 +908,22 @@ subroutine old_hess(n,H,h_tmpr)
       !      enddo
       !    enddo
       ! enddo 
- 
+
         call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
           mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
-  
-        do r = 1, mo_num 
+
+        do r = 1, mo_num
           do s = 1, mo_num
-      
-             hessian(p,q,r,s) = hessian(p,q,r,s) + tmp_accu(s,r) 
+
+             hessian(p,q,r,s) = hessian(p,q,r,s) + tmp_accu(s,r)
 
           enddo
-        enddo 
- 
+        enddo
+
       enddo
-      !$OMP END DO
- 
+
     enddo
+    !$OMP END DO
 
     ! 2 part 
     !- get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,istate)
@@ -1016,7 +1070,7 @@ subroutine old_hess(n,H,h_tmpr)
 !?!          enddo
 !?!        enddo
 !?! 
-!?!        tmp_accu = 0d0
+!?!        !tmp_accu = 0d0
 !?!        !  do r = 1, mo_num
 !?!        !    do s = 1, mo_num
 !?!        !      do t = 1, mo_num
@@ -1231,7 +1285,7 @@ subroutine old_hess(n,H,h_tmpr)
   !$OMP END MASTER
  
   !$OMP END PARALLEL
-  call omp_set_max_active_levels(4)
+  !call omp_set_max_active_levels(4)
  
   !=================================
   ! Deallocation of temporay arrays 
@@ -1249,8 +1303,14 @@ subroutine old_hess(n,H,h_tmpr)
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-  ! Permutations 
+  !$OMP PARALLEL                                                     &
+      !$OMP PRIVATE(                                                 &
+      !$OMP   p,q,r,s)                       &
+      !$OMP SHARED(hessian,h_tmpr,H, mo_num,n,t1,t2,t3,t4,t5,t6)&
+      !$OMP DEFAULT(NONE)
 
+  ! Permutations 
+  !$OMP DO
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num
@@ -1262,34 +1322,35 @@ subroutine old_hess(n,H,h_tmpr)
       enddo
     enddo
   enddo
+  !$OMP END DO
 
   ! Debug, all the elements of the 4D hessian in a mo_num**2 by mo_num**2 matrix
 
-  if (debug) then
-    pq=0
-    rs=0
-    do p=1,mo_num
-      do q = 1,mo_num
-      pq=pq+1
-      rs=0
-        do r = 1, mo_num
-          do s = 1, mo_num
+ !if (debug) then
+ !  pq=0
+ !  rs=0
+ !  do p=1,mo_num
+ !    do q = 1,mo_num
+ !    pq=pq+1
+ !    rs=0
+ !      do r = 1, mo_num
+ !        do s = 1, mo_num
 
-            rs = rs+1 
-            H_test(pq,rs) = h_tmpr(p,q,r,s)
+ !          rs = rs+1 
+ !          H_test(pq,rs) = h_tmpr(p,q,r,s)
 
-          enddo
-        enddo
-      enddo
-    enddo
-  
-    print*,'mo_num**2 by mo_num**2 hessian matrix'
+ !        enddo
+ !      enddo
+ !    enddo
+ !  enddo
+ !
+ !  print*,'mo_num**2 by mo_num**2 hessian matrix'
 
-    do pq=1,mo_num**2
-      write(*,'(100(F10.5))') H_test(pq,:)
-    enddo
+ !  do pq=1,mo_num**2
+ !    write(*,'(100(F10.5))') H_test(pq,:)
+ !  enddo
 
-  endif
+ !endif
 
   ! Debug, eigenvalues of the 4D hessian to compare with an other code
   !double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
@@ -1301,6 +1362,7 @@ subroutine old_hess(n,H,h_tmpr)
   !deallocate(e_val,H_v,H_u)
 
   ! 4D mo_num matrix to 2D n matrix
+  !$OMP DO
   do pq = 1, n
     call in_mat_vec_index(pq,p,q)
     do rs = 1, n
@@ -1308,7 +1370,10 @@ subroutine old_hess(n,H,h_tmpr)
       H(pq,rs) = h_tmpr(p,q,r,s)   
     enddo
   enddo
+  !$OMP END DO 
 
+  !$OMP END PARALLEL
+  call omp_set_max_active_levels(4)
 
   ! Display
   if (debug) then 
@@ -1317,19 +1382,6 @@ subroutine old_hess(n,H,h_tmpr)
       write(*,'(100(F10.5))') H(pq,:)
     enddo 
   endif
-
-  if (ocaml) then
-    open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/H.dat')
-    do p = 1, n
-      do q = 1, n
-        write(10,*) p, q, H(p,q)
-      enddo
-    enddo
-    close(10)
-  endif
-
-
-
 
   !==============
   ! Deallocation

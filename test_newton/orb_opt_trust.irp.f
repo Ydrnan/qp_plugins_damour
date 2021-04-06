@@ -18,7 +18,7 @@ subroutine run
   double precision, allocatable :: grad(:,:),R(:,:)
   double precision, allocatable :: H(:,:),H1(:,:),h_f(:,:,:,:)
   double precision, allocatable :: Hm1(:,:),v_grad(:),m_Hm1g(:,:),Hm1g(:)
-  double precision, allocatable :: prev_mos(:,:)
+  double precision, allocatable :: prev_mos(:,:),new_mos(:,:)
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
@@ -63,7 +63,7 @@ subroutine run
   allocate(v_grad(n),R(mo_num,mo_num))
   allocate(H(n,n),H1(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))
   allocate(h_f(mo_num,mo_num,mo_num,mo_num))
-  allocate(prev_mos(ao_num,mo_num))
+  allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num))
 
   !=============
   ! Calculation
@@ -119,8 +119,8 @@ subroutine run
       call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
       ! Orbital optimization
-      call dm_newton_test(R,prev_mos)
-
+      call dm_newton_test(R,prev_mos,new_mos)
+  
       call clear_mo_map
       TOUCH mo_coef
 

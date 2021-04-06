@@ -122,21 +122,6 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   print*,'norm grad^2 :'
   print*, norm_g
 
-!  ! Read the iteration number
-!  open(unit=10,file='nb_iteration.dat')
-!    read(10,*) nb_iter
-!  close(10)
-!
-!  ! Add 1
-!  ! + 2 in the case of the cancellation of the previous step
-!  open(unit=10,file='nb_iteration.dat')
-!    if (nb_iter == -1) then
-!      write(10,*) nb_iter + 2
-!    else
-!      write(10,*) nb_iter + 1
-!    endif
-!  close(10)
-
   ! Compute rho <=> the quality of the model
   call dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
 
@@ -146,16 +131,6 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   if (nb_iter ==0) then
 
     trust_radius = norm_p !MIN(norm_g,norm_p)
-
-!    open(unit=10,file='trust_radius.dat')
-!      write(10,*) trust_radius
-!    close(10)
-!
-!  else
-!
-!    open(unit=10,file='trust_radius.dat')
-!      read(10,*) trust_radius
-!    close(10)
 
   endif
 
@@ -175,11 +150,6 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   endif
   
   trust_radius = delta**2
-
-!  ! Replacement of the trust radius for the next step
-!  open(unit=10,file='trust_radius.dat')
-!    write(10,*) delta**2 ! Delta
-!  close(10)
 
   ! En donnant delta, on cherche ||p||^2 - delta^2 = 0
   ! et non ||p||^2 - delta = 0
@@ -218,36 +188,14 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     ! pour avoir la meme chose que gHm1
     p = -p
 
-    ! Storage of the step (in order to cancel it if rho < 0.1
-    ! for the next step
-    !open(unit=10,file='Hm1g.dat')
-    !  do i = 1, n
-    !    write(10,*) p(i)
-    !  enddo
-    !close(10)
-
   else
     ! If rho < 0.1
     print*,'!!! previous step rejected !!!'
-
-    ! Cancellation of the previous step by applying
-    ! step = - previous step
-    !open(unit=10,file='Hm1g.dat')
-    !  do i = 1, n
-    !    read(10,*) p(i)
-    !  enddo
-    !close(10)
 
     ! Cancellation of the previous step
     !p = -p
     p=0d0
     cancel_step = .True.
-
-    ! Replacement of e_model and prev_energy by simulating
-    ! the next step as a first step
-!    open(unit=10,file='nb_iteration.dat')
-!      write(10,*) -1
-!    close(10)
 
   endif
 

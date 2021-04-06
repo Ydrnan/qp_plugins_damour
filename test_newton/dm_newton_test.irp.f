@@ -1,4 +1,4 @@
-subroutine dm_newton_test(R,prev_mos)
+subroutine dm_newton_test(R,prev_mos,new_mos)
   
   include 'constants.h'
 
@@ -25,7 +25,7 @@ subroutine dm_newton_test(R,prev_mos)
   !==========
   ! internal
   !==========
-  double precision, allocatable :: new_mos(:,:)
+  double precision,intent(in)  :: new_mos(ao_num,mo_num)
   integer                       :: i
   ! new_mos : ao_num by mo_num double precision matrix, new coefficients of the MOs 
   ! i       : integer, index 
@@ -39,8 +39,6 @@ subroutine dm_newton_test(R,prev_mos)
   ! Allocation
   !============
 
-  allocate(new_mos(ao_num,mo_num))
-  
   !=============
   ! Calculation
   !=============
@@ -80,8 +78,6 @@ subroutine dm_newton_test(R,prev_mos)
   !==============
   ! Deallocation
   !==============
-
-  deallocate(new_mos)
 
   if (debug) then
     print*,'Leaves dm_newton_test'

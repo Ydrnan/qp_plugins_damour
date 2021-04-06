@@ -91,7 +91,7 @@ subroutine run
       if (method == 1) then
         print*,'Use the full hessian matrix'
        !call first_hess(n,H)
-       call hess(n,H,h_f) !h_f -> debug
+       call old_hess(n,H,h_f) !h_f -> debug
       else
         print*, 'Use the diagonal hessian matrix'
         !call first_diag_hess(n,H)

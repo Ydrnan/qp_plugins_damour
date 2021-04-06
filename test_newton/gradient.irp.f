@@ -29,7 +29,7 @@ subroutine gradient(n,v_grad)
   ! internal
   !==========
   double precision, allocatable :: grad(:,:),A(:,:)
-  double precision              :: norm
+  double precision              :: norm, max_elem
   integer                       :: i,p,q,r,s,t
   integer                       :: istate
   double precision              :: t1,t2,t3,t4,t5,t6
@@ -256,13 +256,22 @@ subroutine gradient(n,v_grad)
   norm = dnrm2(n,v_grad,1)
   print*, 'Gradient norm : ', norm
 
-  ! Matrix gradient
-  A = 0d0
-  do q=1,mo_num
-    do p=1,mo_num
-      A(p,q) = grad(p,q) - grad(q,p)
-    enddo
+  max_elem = 0d0
+  do i = 1, n
+    if (ABS(v_grad(i)) > ABS(max_elem)) then
+      max_elem = v_grad(i)
+    endif
   enddo
+
+  print*,'Max element in gardient :', max_elem  
+
+  ! Matrix gradient
+  !A = 0d0
+  !do q=1,mo_num
+  !  do p=1,mo_num
+  !    A(p,q) = grad(p,q) - grad(q,p)
+  !  enddo
+  !enddo
 
   ! Display, matrix containting the gradient elements
   if (debug) then

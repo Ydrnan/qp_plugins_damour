@@ -129,7 +129,7 @@ subroutine run
       nb_iter += 1
     endif
 
-    if (nb_iter == 5) then
+    if (nb_iter == 100) then
       converged = .True.
     endif
     !nb_iter += 1

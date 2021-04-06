@@ -44,6 +44,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   double precision, allocatable :: e_val(:),work(:,:)
   integer                       :: info,lwork!, nb_iter
   integer                       :: i,j,k
+  integer                       :: nb_negative_vp  
   ! p            : double precision vector of size n containing the next step
   ! W            : double precision matrix containing the eigenvectors of the hessian matrix
   ! Hm1g         : double precision vector of size n containing the next step
@@ -107,6 +108,15 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     print *, 'vp Hess:'
     write(*,'(100(F10.5))')  real(e_val(:))
   endif
+
+  nb_negative_vp = 0
+  do i = 1, n
+    if (e_val(i) < -1d-12) then 
+      nb_negative_vp = nb_negative_vp + 1
+      print*,'e_val < 0 :', e_val(i)
+    endif
+  enddo 
+  print*,'Number of negative eigenvalues :', nb_negative_vp
 
   ! Initialization
   lambda =0d0

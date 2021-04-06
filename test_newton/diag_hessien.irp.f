@@ -52,11 +52,9 @@ subroutine diag_hess(n,H, h_tmpr)
   double precision :: accu
   ! accu : tmp double precision variable to sum elements
 
-  double precision, allocatable :: tmp_bi_int_2(:,:)
-  double precision, allocatable :: tmp_2rdm_2(:,:)
-  double precision, allocatable :: tmp_bi_int_3(:,:,:)
-  double precision, allocatable :: tmp_2rdm_3(:,:,:)
-  double precision, allocatable :: tmp_accu(:,:), tmp_accu_1(:)
+  double precision, allocatable :: tmp_bi_int_3(:,:,:),tmp_bi_int_3_shared(:,:,:)
+  double precision, allocatable :: tmp_2rdm_3(:,:,:),tmp_2rdm_3_shared(:,:,:)
+  double precision, allocatable :: tmp_accu(:,:), tmp_accu_1(:), tmp_accu_shared(:,:)
   ! tmp_bi_int_2 : mo_num 2D double precision matrix containing the bi electronic integrals
   !                with 2 fix indexes
   ! tmp_bi_int_3 : mo_num 3D double precision matrix containing the bi electronic integrals
@@ -97,13 +95,10 @@ subroutine diag_hess(n,H, h_tmpr)
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(H_test(mo_num**2,mo_num**2))
-  !allocate(one_e_rdm_mo_y(mo_num,mo_num))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
-  allocate(tmp_bi_int_2(mo_num,mo_num))
-  allocate(tmp_2rdm_2(mo_num,mo_num))
-  allocate(tmp_accu(mo_num,mo_num))
-  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
-  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
+  allocate(tmp_accu(mo_num,mo_num),tmp_accu_shared(mo_num,mo_num))
+  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num),tmp_2rdm_3_shared(mo_num,mo_num,mo_num))
+  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num),tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
   allocate(tmp_accu_1(mo_num))
 
   !=============
@@ -116,27 +111,58 @@ subroutine diag_hess(n,H, h_tmpr)
 
   ! Initialization
 
-  hessian = 0d0
-  tmp_h_pppp = 0d0
-  tmp_h_pqpq = 0d0
-  tmp_h_pqqp = 0d0
+   call omp_set_max_active_levels(1)
 
-  ! Electronic state
-  !do istate = 1, N_states
-  !istate = 1
+  !$OMP PARALLEL                                                     &
+      !$OMP PRIVATE(                                                 &
+      !$OMP   p,q,r,s, tmp_accu, tmp_accu_1,                         &
+      !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                       &
+      !$OMP SHARED(hessian, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
+      !$OMP  mo_num, mo_one_e_integrals, one_e_dm_mo,    &
+      !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,      &
+      !$OMP two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6) &
+      !$OMP DEFAULT(NONE)
 
-    !do s = 1, mo_num
-    !  do p = 1, mo_num
+  !$OMP DO
+  do s = 1,mo_num
+    do r = 1, mo_num
+      do q = 1, mo_num
+        do p = 1, mo_num
+          hessian(p,q,r,s) = 0d0
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO
   
-    !   one_e_rdm_mo_y(p,s) = one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate)
-  
-    !  enddo
-    !enddo
+  !$OMP MASTER
+  do p = 1, mo_num
+    tmp_h_pppp(p) = 0d0
+  enddo
+  !$OMP END MASTER
 
+  !$OMP DO
+  do q = 1, mo_num
+    do p = 1, mo_num
+      tmp_h_pqpq(p,q) = 0d0
+    enddo
+  enddo
+  !$OMP END DO
+   
+  !$OMP DO
+  do q = 1, mo_num
+    do p = 1, mo_num
+      tmp_h_pqqp(p,q) = 0d0
+    enddo
+  enddo
+  !$OMP END DO
+ 
     ! From Anderson et. al. (2014) 
     ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
 
-    CALL CPU_TIME(t1)
+    !$OMP MASTER
+    CALL wall_TIME(t1)
+    !$OMP END MASTER
 
     !!!!! First line, first term
     ! do p = 1, mo_num
@@ -181,10 +207,17 @@ subroutine diag_hess(n,H, h_tmpr)
     ! =  
     !  mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p) 
 
-    CALL CPU_TIME(t4) 
+    !$OMP MASTER
+    CALL wall_TIME(t4) 
+    !$OMP END MASTER
   
-    tmp_accu_1 = 0d0
- 
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
+  
+    !$OMP MASTER
     do p = 1, mo_num
       do u = 1, mo_num
   
@@ -192,11 +225,14 @@ subroutine diag_hess(n,H, h_tmpr)
   
       enddo
     enddo
+    !$OMP END MASTER
     
+    !$OMP MASTER
     do p = 1, mo_num
       tmp_h_pppp(p) = tmp_h_pppp(p) + tmp_accu_1(p)
     enddo
-  
+    !$OMP END MASTER
+ 
     !!! (q==r) .and. (p==s) .and. (q==r)
     !
     ! hessian(p,q,r,s) -> hessian(p,q,q,p)
@@ -211,8 +247,13 @@ subroutine diag_hess(n,H, h_tmpr)
     ! =  
     !  mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p)    
 
-    tmp_accu_1 = 0d0
- 
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
+
+    !$OMP MASTER 
     do p = 1, mo_num
       do u = 1, mo_num
 
@@ -220,7 +261,9 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
+    !$OMP END MASTER
     
+    !$OMP MASTER
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -228,10 +271,13 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
+    !$OMP END MASTER
 
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6= t5-t4
     print*,'l1 1',t6
+    !$OMP END MASTER
 
     !!!!! First line, second term
     ! do p = 1, mo_num
@@ -275,10 +321,17 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! mo_one_e_integrals(u,p) * one_e_rdm_mo_y(u,p)
 
-    CALL CPU_TIME(t4)
-   
-    tmp_accu_1 = 0d0 
-  
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER  
+
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0 
+    enddo
+    !$OMP END MASTER  
+
+    !$OMP MASTER
     do p = 1, mo_num
       do u = 1, mo_num
  
@@ -286,12 +339,15 @@ subroutine diag_hess(n,H, h_tmpr)
  
       enddo
     enddo
+    !$OMP END MASTER
     
+    !$OMP MASTER
     do p = 1, mo_num
 
       tmp_h_pppp(p) = tmp_h_pppp(p) + tmp_accu_1(p)
 
     enddo
+    !$OMP END MASTER
 
     !!! (q==r) .and. (p==s) .and. (p==s)
     !
@@ -307,8 +363,13 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! mo_one_e_integrals(u,q) * one_e_rdm_mo_y(u,q)
 
-    tmp_accu_1 = 0d0
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
  
+    !$OMP MASTER
     do q = 1, mo_num
       do u = 1, mo_num
  
@@ -316,7 +377,9 @@ subroutine diag_hess(n,H, h_tmpr)
  
       enddo
     enddo
-    
+    !$OMP END MASTER
+
+    !$OMP MASTER
     do q = 1, mo_num
       do p = 1, mo_num
  
@@ -324,10 +387,13 @@ subroutine diag_hess(n,H, h_tmpr)
  
       enddo
     enddo
+    !$OMP END MASTER
 
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6= t5-t4
     print*,'l1 2',t6
+    !$OMP END MASTER
 
     !!!!! First line, third term
     ! do p = 1, mo_num
@@ -353,8 +419,10 @@ subroutine diag_hess(n,H, h_tmpr)
  
     !!!!! Opt First line, third term
  
-    CALL CPU_TIME(t4)
- 
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER 
+
     !!! (p==r) .and. (q==s)
     ! 
     ! hessian(p,q,r,s) -> hessian(p,q,p,q)
@@ -367,6 +435,7 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! - 2d0 mo_one_e_integrals(q,p) * one_e_rdm_mo_y(p,q)
  
+    !$OMP DO
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -375,7 +444,8 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
-
+    !$OMP END DO
+ 
     !!! (q==r) .and. (p==s)
     ! 
     ! hessian(p,q,r,s) -> hessian(p,q,p,q)
@@ -388,6 +458,7 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! - 2d0 mo_one_e_integrals(q,p) * one_e_rdm_mo_y(p,q)
 
+    !$OMP DO
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -396,10 +467,13 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
+    !$OMP END DO
 
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6= t5-t4
     print*,'l1 3',t6
+    !$OMP END MASTER
 
     !!!!! Second line, first term
     ! do p = 1, mo_num
@@ -446,10 +520,17 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,&)
 
-    CALL CPU_TIME(t4)
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER
 
-    tmp_accu_1 = 0d0
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
 
+    !$OMP MASTER
     do t = 1, mo_num 
   
       do p = 1, mo_num
@@ -482,15 +563,17 @@ subroutine diag_hess(n,H, h_tmpr)
           enddo
         enddo
       enddo
-    enddo 
+    enddo
+    !$OMP END MASTER
   
+    !$OMP MASTER
     do p =1, mo_num
   
       tmp_h_pppp(p) = tmp_h_pppp(p) + tmp_accu_1(p)
   
     enddo
+    !$OMP END MASTER
    
-
   !!! (q==r) .and. (p==s) .and. (q=r)
   !
   ! hessian(p,q,r,s) -> hessian(p,q,q,p)
@@ -505,8 +588,13 @@ subroutine diag_hess(n,H, h_tmpr)
   ! = 
   ! get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,p,t,1)
 
-    tmp_accu_1=0d0
+    !$OMP MASTER
+    do p = 1, mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
   
+    !$OMP MASTER
     do t = 1, mo_num
 
       do p = 1, mo_num
@@ -540,19 +628,24 @@ subroutine diag_hess(n,H, h_tmpr)
         enddo
       enddo
     enddo
+    !$OMP END MASTER
   
-    do p = 1, mo_num
-      do q = 1, mo_num
+    !$OMP MASTER
+    do q = 1, mo_num
+      do p = 1, mo_num
   
         tmp_h_pqqp(p,q) = tmp_h_pqqp(p,q) + tmp_accu_1(p) 
   
       enddo
     enddo
+    !$OMP END MASTER
   
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6 = t5-t4
     print*,'l2 1',t6
-
+    !$OMP END MASTER
+ 
  !!!!! Second line, second term
     ! do p = 1, mo_num
     !   do q = 1, mo_num
@@ -598,10 +691,17 @@ subroutine diag_hess(n,H, h_tmpr)
   ! =
   ! get_two_e_integral(p,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,1)
 
-      CALL CPU_TIME(t4)
+      !$OMP MASTER
+      CALL wall_TIME(t4)
+      !$OMP END MASTER
    
-      tmp_accu_1 = 0d0
-   
+      !$OMP MASTER
+      do p = 1, mo_num
+        tmp_accu_1(p) = 0d0
+      enddo
+      !$OMP END MASTER   
+
+      !$OMP MASTER
       do t = 1, mo_num
   
         do p = 1, mo_num
@@ -635,12 +735,15 @@ subroutine diag_hess(n,H, h_tmpr)
           enddo
         enddo
       enddo
+      !$OMP END MASTER
    
+      !$OMP MASTER
       do p = 1, mo_num
    
         tmp_h_pppp(p) = tmp_h_pppp(p) + tmp_accu_1(p)
    
       enddo
+      !$OMP END MASTER
    
     ! (q==r) .and. (p==s) .and. (p==s)
     !
@@ -656,8 +759,13 @@ subroutine diag_hess(n,H, h_tmpr)
     ! =
     ! get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(q,t,u,v,1)
 
-    tmp_accu_1 = 0d0
+    !$OMP MASTER
+    do p = 1,mo_num
+      tmp_accu_1(p) = 0d0
+    enddo
+    !$OMP END MASTER
   
+    !$OMP MASTER
     do t = 1, mo_num
   
       do q = 1, mo_num
@@ -691,18 +799,23 @@ subroutine diag_hess(n,H, h_tmpr)
         enddo
       enddo
     enddo
+    !$OMP END MASTER
     
-    do p = 1, mo_num
-      do q = 1, mo_num
+    !$OMP MASTER
+    do q = 1, mo_num
+      do p = 1, mo_num
    
         tmp_h_pqqp(p,q) = tmp_h_pqqp(p,q) + tmp_accu_1(p)
    
       enddo
-    enddo   
+    enddo
+    !$OMP END MASTER   
  
-    CALL CPU_TIME(t5)
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6 = t5-t4
     print*,'l2 2',t6
+    !$OMP END MASTER
 
     !!!!! Third line, first term
     !   do p = 1, mo_num
@@ -744,27 +857,33 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! 2d0 * get_two_e_integral(u,v,p,p,mo_integrals_map) * two_e_dm_mo(u,v,q,q,1)
 
-    CALL CPU_TIME(t4)
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER
 
+    !$OMP DO
     do q = 1, mo_num
       do v = 1, mo_num
         do u = 1, mo_num
 
-          tmp_2rdm_3(u,v,q) = two_e_dm_mo(u,v,q,q,1)
-
-         enddo
-       enddo
-     enddo
-
-    do p = 1, mo_num
-      do v = 1, mo_num
-        do u = 1, mo_num
-
-          tmp_bi_int_3(u,v,p) = 2d0* get_two_e_integral(u,v,p,p,mo_integrals_map)
+          tmp_2rdm_3_shared(u,v,q) = two_e_dm_mo(u,v,q,q,1)
 
         enddo
       enddo
     enddo
+    !$OMP END DO 
+
+    !$OMP DO
+    do p = 1, mo_num
+      do v = 1, mo_num
+        do u = 1, mo_num
+
+          tmp_bi_int_3_shared(u,v,p) = 2d0* get_two_e_integral(u,v,p,p,mo_integrals_map)
+
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
 
   !  do p = 1, mo_num
   !    do q = 1, mo_num
@@ -779,10 +898,10 @@ subroutine diag_hess(n,H, h_tmpr)
   !    enddo
   !  enddo
    
-    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
-    mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3_shared,&
+    mo_num*mo_num,tmp_2rdm_3_shared,mo_num*mo_num,0d0,tmp_accu,mo_num)
  
-
+    !$OMP DO
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -790,7 +909,8 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
-
+    !$OMP END DO
+  
     !(q==r) .and. (p==s)
     !
     ! hessian(p,q,r,s) -> hessian(p,q,q,p)
@@ -803,6 +923,7 @@ subroutine diag_hess(n,H, h_tmpr)
     ! = 
     ! 2d0 * get_two_e_integral(u,v,p,q,mo_integrals_map) * two_e_dm_mo(u,v,q,p,1)
 
+    !$OMP DO
     do q = 1, mo_num
       
       do p = 1, mo_num
@@ -826,29 +947,24 @@ subroutine diag_hess(n,H, h_tmpr)
       enddo
       
       do p = 1, mo_num
-        tmp_accu(p,q) = 0d0
         do v = 1, mo_num
           do u = 1, mo_num
  
-            tmp_accu(p,q) = tmp_accu(p,q) &
+            tmp_h_pqqp(p,q) = tmp_h_pqqp(p,q) &
             + tmp_bi_int_3(u,v,p) * tmp_2rdm_3(u,v,p)
 
           enddo
         enddo
       enddo
-    enddo
- 
-    do q = 1, mo_num
-      do p = 1, mo_num
- 
-       tmp_h_pqqp(p,q) = tmp_h_pqqp(p,q) + tmp_accu(p,q)
- 
-      enddo
-    enddo
- 
-    CALL CPU_TIME(t5)
+
+    enddo 
+    !$OMP END DO
+
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6= t5-t4
     print*,'l3 1',t6
+    !$OMP END MASTER
 
     !!!!! Third line, second term
     ! do p = 1, mo_num
@@ -896,12 +1012,21 @@ subroutine diag_hess(n,H, h_tmpr)
     ! =
     ! - 2d0 * get_two_e_integral(q,t,p,u,mo_integrals_map) * two_e_dm_mo(p,t,q,u,1) &
     ! - 2d0 * get_two_e_integral(t,q,p,u,mo_integrals_map) * two_e_dm_mo(t,p,q,u,1) 
-
-    CALL CPU_TIME(t4)
+    
+    !$OMP MASTER
+    CALL wall_TIME(t4)
+    !$OMP END MASTER
 
     !  part 1
-    tmp_accu = 0d0
+    !$OMP MASTER
+    do q = 1, mo_num
+      do p = 1, mo_num
+        tmp_accu(p,q) = 0d0
+      enddo
+    enddo 
+    !$OMP END MASTER
 
+    !$OMP MASTER
     do t = 1, mo_num
 
       do p = 1, mo_num
@@ -936,7 +1061,9 @@ subroutine diag_hess(n,H, h_tmpr)
       enddo
 
     enddo
+    !$OMP END MASTER
     
+    !$OMP MASTER
     do q = 1, mo_num
       do p = 1, mo_num
  
@@ -944,11 +1071,19 @@ subroutine diag_hess(n,H, h_tmpr)
  
       enddo
     enddo
+    !$OMP END MASTER
 
    ! part 2 of the term
     
-    tmp_accu = 0d0
-   
+    !$OMP MASTER
+    do q = 1, mo_num
+      do p = 1, mo_num
+        tmp_accu(p,q) = 0d0
+      enddo
+    enddo
+    !$OMP END MASTER
+
+    !$OMP MASTER
     do u = 1, mo_num
       
       do p = 1, mo_num
@@ -984,7 +1119,9 @@ subroutine diag_hess(n,H, h_tmpr)
       enddo
 
     enddo
+    !$OMP END MASTER
 
+    !$OMP MASTER
     do q = 1, mo_num
       do p = 1, mo_num
 
@@ -992,7 +1129,8 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
-   
+    !$OMP END MASTER
+
     ! (q==r) .and. (p==s)
     !
     ! hessian(p,q,r,s) -> hessian(p,q,p,q)
@@ -1049,25 +1187,30 @@ subroutine diag_hess(n,H, h_tmpr)
 !!    enddo
   
     !!!!!!!!!!!!!!!!!!
+    
+    !$OMP DO
     do q = 1, mo_num
-       do u = 1, mo_num
-         do t = 1, mo_num
-
-           tmp_2rdm_3(t,u,q) = two_e_dm_mo(t,q,u,q,1)
-
-         enddo
-       enddo
-     enddo
-
-    do p = 1, mo_num
       do u = 1, mo_num
         do t = 1, mo_num
 
-          tmp_bi_int_3(t,u,p) = 2d0* get_two_e_integral(t,p,u,p,mo_integrals_map)
+          tmp_2rdm_3_shared(t,u,q) = two_e_dm_mo(t,q,u,q,1)
 
         enddo
       enddo
     enddo
+    !$OMP END DO
+  
+    !$OMP DO
+    do p = 1, mo_num
+      do u = 1, mo_num
+        do t = 1, mo_num
+
+          tmp_bi_int_3_shared(t,u,p) = 2d0* get_two_e_integral(t,p,u,p,mo_integrals_map)
+
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
 
    !   do p = 1, mo_num
    !     do q = 1, mo_num
@@ -1083,10 +1226,10 @@ subroutine diag_hess(n,H, h_tmpr)
    !      enddo
    !   enddo
 
-   call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
-    mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+   call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3_shared,&
+    mo_num*mo_num,tmp_2rdm_3_shared,mo_num*mo_num,0d0,tmp_accu,mo_num)
 
-
+    !$OMP MASTER
     do p = 1, mo_num
       do q = 1, mo_num
 
@@ -1094,7 +1237,8 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
- 
+    !$OMP END MASTER
+   
   !!! second part of the term 
   
 !!    do q = 1, mo_num
@@ -1141,31 +1285,35 @@ subroutine diag_hess(n,H, h_tmpr)
 !!    enddo
 
     !!!!!!!!!!!!!!!!!
+  
+    !$OMP DO
     do p = 1, mo_num
       do u = 1, mo_num
         do t = 1, mo_num
  
-              tmp_bi_int_3(t,u,p) = 2d0* get_two_e_integral(t,u,p,p,mo_integrals_map)
+          tmp_bi_int_3_shared(t,u,p) = 2d0* get_two_e_integral(t,u,p,p,mo_integrals_map)
  
         enddo
       enddo
     enddo
+    !$OMP END DO
 
+    !$OMP DO
     do q = 1, mo_num
       do t = 1, mo_num
         do u = 1, mo_num
 
-          tmp_2rdm_3(u,t,q) = two_e_dm_mo(q,u,t,q,1)
+          tmp_2rdm_3_shared(u,t,q) = two_e_dm_mo(q,u,t,q,1)
 
         enddo
       enddo
     enddo
-     
-    tmp_accu = 0d0    
-  
-    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_2rdm_3,&
-      mo_num*mo_num,tmp_bi_int_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+    !$OMP END DO
+ 
+    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_2rdm_3_shared,&
+      mo_num*mo_num,tmp_bi_int_3_shared,mo_num*mo_num,0d0,tmp_accu,mo_num)
 
+    !$OMP MASTER
     do p = 1, mo_num
       do q = 1, mo_num
 
@@ -1173,17 +1321,23 @@ subroutine diag_hess(n,H, h_tmpr)
 
        enddo
     enddo
-  
-    CALL CPU_TIME(t5)
+    !$OMP END MASTER
+ 
+    !$OMP MASTER
+    CALL wall_TIME(t5)
     t6= t5-t4
     print*,'l3 2',t6
-  
-    CALL CPU_TIME(t2)
+    !$OMP END MASTER  
+
+    !$OMP MASTER
+    CALL wall_TIME(t2)
     t2 = t2 - t1
     print*, 'Time to compute the hessian :', t2
- 
-  !enddo
-  
+    !$OMP END MASTER
+
+    !$OMP END PARALLEL
+    call omp_set_max_active_levels(4)
+
   deallocate(tmp_2rdm_3,tmp_bi_int_3,tmp_accu,tmp_accu_1)
 
   !===========

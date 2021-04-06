@@ -565,6 +565,7 @@ subroutine diag_hess(n,H, h_tmpr)
           enddo
         enddo
       enddo
+
     enddo
     !$OMP END MASTER
   
@@ -629,6 +630,7 @@ subroutine diag_hess(n,H, h_tmpr)
           enddo
         enddo
       enddo
+
     enddo
     !$OMP END MASTER
   
@@ -736,6 +738,7 @@ subroutine diag_hess(n,H, h_tmpr)
             enddo
           enddo
         enddo
+
       enddo
       !$OMP END MASTER
    
@@ -800,6 +803,7 @@ subroutine diag_hess(n,H, h_tmpr)
           enddo
         enddo
       enddo
+
     enddo
     !$OMP END MASTER
     
@@ -1231,7 +1235,7 @@ subroutine diag_hess(n,H, h_tmpr)
    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3_shared,&
     mo_num*mo_num,tmp_2rdm_3_shared,mo_num*mo_num,0d0,tmp_accu,mo_num)
 
-    !$OMP MASTER
+    !$OMP DO
     do p = 1, mo_num
       do q = 1, mo_num
 
@@ -1239,7 +1243,7 @@ subroutine diag_hess(n,H, h_tmpr)
 
       enddo
     enddo
-    !$OMP END MASTER
+    !$OMP END DO
    
   !!! second part of the term 
   
@@ -1315,7 +1319,7 @@ subroutine diag_hess(n,H, h_tmpr)
     call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_2rdm_3_shared,&
       mo_num*mo_num,tmp_bi_int_3_shared,mo_num*mo_num,0d0,tmp_accu,mo_num)
 
-    !$OMP MASTER
+    !$OMP DO
     do p = 1, mo_num
       do q = 1, mo_num
 
@@ -1323,7 +1327,7 @@ subroutine diag_hess(n,H, h_tmpr)
 
        enddo
     enddo
-    !$OMP END MASTER
+    !$OMP END DO
  
     !$OMP MASTER
     CALL wall_TIME(t5)
@@ -1338,7 +1342,7 @@ subroutine diag_hess(n,H, h_tmpr)
     !$OMP END MASTER
 
     !$OMP END PARALLEL
-    call omp_set_max_active_levels(4)
+    !call omp_set_max_active_levels(4)
 
   deallocate(tmp_2rdm_3,tmp_bi_int_3,tmp_accu,tmp_accu_1)
 
@@ -1352,32 +1356,47 @@ subroutine diag_hess(n,H, h_tmpr)
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
+  !$OMP PARALLEL                                                     &
+      !$OMP PRIVATE(                                                 &
+      !$OMP   p,q,r,s,pq,rs)                                         &
+      !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
+      !$OMP  mo_num, n,t1,t2,t3,t4,t5,t6)                            &
+      !$OMP DEFAULT(NONE)
+
   ! Permutations  
-  
+  !$OMP MASTER
   do p = 1, mo_num
     hessian(p,p,p,p) = hessian(p,p,p,p) + tmp_h_pppp(p)
   enddo
+  !$OMP END MASTER
 
+  !$OMP DO
   do q = 1, mo_num
     do p = 1, mo_num
       hessian(p,q,p,q) = hessian(p,q,p,q) + tmp_h_pqpq(p,q)
     enddo
   enddo
+  !$OMP END DO
   
+  !$OMP DO
   do q = 1, mo_num
     do p = 1, mo_num
       hessian(p,q,q,p) = hessian(p,q,q,p) + tmp_h_pqqp(p,q)
     enddo
   enddo
+  !$OMP END DO
 
- deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
+  !$OMP MASTER
+  deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
+  !$OMP END MASTER 
 
-!  do q = 1, mo_num
-!    do p = 1, mo_num
-!      h_tmpr(p,q,p,q) = (hessian(p,q,p,q) - hessian(q,p,p,q) - hessian(p,q,q,p) + hessian(q,p,q,p))
-!    enddo
-!  enddo
- 
+  !do q = 1, mo_num
+  !  do p = 1, mo_num
+  !    h_tmpr(p,q,p,q) = (hessian(p,q,p,q) - hessian(q,p,p,q) - hessian(p,q,q,p) + hessian(q,p,q,p))
+  !  enddo
+  !enddo
+
+  !$OMP DO
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num
@@ -1389,6 +1408,7 @@ subroutine diag_hess(n,H, h_tmpr)
       enddo
     enddo
   enddo
+  !$OMP END DO
 
   ! Debug, all the elements of the 4D hessian in a mo_num**2 by mo_num**2 matrix
 !  if (debug) then
@@ -1423,6 +1443,7 @@ subroutine diag_hess(n,H, h_tmpr)
   !deallocate(e_val,H_v,H_u)
 
   ! 4D mo_num matrix to 2D n matrix
+  !$OMP DO
   do pq = 1, n
     call in_mat_vec_index(pq,p,q)
     do rs = 1, n
@@ -1430,6 +1451,10 @@ subroutine diag_hess(n,H, h_tmpr)
       H(pq,rs) = h_tmpr(p,q,r,s)   
     enddo
   enddo
+  !$OMP END DO
+
+  !$OMP END PARALLEL
+  call omp_set_max_active_levels(4)
 
   ! Display
   if (debug) then 

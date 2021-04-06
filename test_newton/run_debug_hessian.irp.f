@@ -13,8 +13,8 @@ program run_debug_hessian
   integer                       :: method
   integer                       :: n
   integer                       :: i,j,k,l
-  double precision :: max_error,threshold
-  integer :: nb_error
+  double precision :: max_error,threshold,max_error_H
+  integer :: nb_error, nb_error_H
   ! H      : n by n double precision matrix, Hessian matrix
   ! method : 
   !          - 1 : Full hessian
@@ -49,16 +49,17 @@ program run_debug_hessian
     call old_hess(n,H1,h_f2) 
  
     h_f = h_f - h_f2
+    H = H - H1
     max_error = 0d0
     nb_error = 0    
     threshold = 1d-12
 
-    do i = 1, mo_num
-      do j= 1, mo_num
-        do k = 1, mo_num
-          do l = 1, mo_num
+    do l = 1, mo_num
+      do k= 1, mo_num
+        do j = 1, mo_num
+          do i = 1, mo_num
 
-            if (h_f(i,j,k,l) > threshold) then
+            if (ABS(h_f(i,j,k,l)) > threshold) then
 
               print*,h_f(i,j,k,l)
               nb_error = nb_error + 1
@@ -73,6 +74,23 @@ program run_debug_hessian
         enddo
       enddo
     enddo
+
+   max_error_H = 0d0
+   nb_error_H = 0
+
+   do j = 1, n
+     do i = 1, n
+       if (ABS(H(i,j)) > threshold) then
+         print*, H(i,j)
+         nb_error_H = nb_error_H + 1
+
+         if (ABS(H(i,j)) > ABS(max_error_H)) then
+           max_error_H = H(i,j)
+         endif
+
+       endif
+     enddo
+   enddo 
 
   else
 
@@ -85,12 +103,12 @@ program run_debug_hessian
     nb_error = 0
     threshold = 1d-12
 
-    do i = 1, mo_num
-      do j= 1, mo_num
-        do k = 1, mo_num
-          do l = 1, mo_num
+    do l = 1, mo_num
+      do k = 1, mo_num
+        do j = 1, mo_num
+          do i = 1, mo_num
 
-            if (h_f(i,j,k,l) > threshold) then
+            if (ABS(h_f(i,j,k,l)) > threshold) then
 
               print*,h_f(i,j,k,l)
               nb_error = nb_error + 1
@@ -106,6 +124,25 @@ program run_debug_hessian
       enddo
     enddo
 
+    h=H-H1
+  
+    max_error_H = 0d0
+    nb_error_H = 0
+ 
+    do j = 1, n
+      do i = 1, n
+        if (ABS(H(i,j)) > threshold) then
+          print*, H(i,j)
+          nb_error_H = nb_error_H + 1
+ 
+          if (ABS(H(i,j)) > ABS(max_error_H)) then
+            max_error_H = H(i,j)
+          endif
+ 
+        endif
+      enddo
+    enddo
+   
   endif
   
   print*,''
@@ -118,6 +155,9 @@ program run_debug_hessian
   print*,'Threshold :', threshold
   print*,'Nb error :', nb_error
   print*,'Max error :', max_error
+  print*,''
+  print*,'Nb error_H :', nb_error_H
+  print*,'Max error_H :', max_error_H
  
   deallocate(H,H1,h_f,h_f2)
 

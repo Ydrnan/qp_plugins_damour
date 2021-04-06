@@ -86,7 +86,7 @@ subroutine dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
 
   endif
 
-  if (rho >= 0.1d0 .and. nb_iter >= 0) then
+  if (rho >= 0.1d0 .and. nb_iter >= 0 .and. .not. cancel_step) then
 
 !    ! Replacement of the previous energy
      prev_energy = energy

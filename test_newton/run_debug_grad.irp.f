@@ -32,6 +32,10 @@ program run_debug_grad
   ! Calculation
   !=============
 
+  call clear_mo_map
+      TOUCH mo_coef
+      call diagonalize_ci
+
   ! Gradient and norm 
   call first_gradient(n,v_grad)
   call gradient(n,v_grad2)

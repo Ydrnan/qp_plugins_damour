@@ -80,10 +80,16 @@ subroutine run
   prev_energy = 0.d0
   cancel_step = .False.
 
+
+  call clear_mo_map
+  TOUCH mo_coef
+  call diagonalize_ci
+
+
   nb_iter = 0
   do while (.not.converged)
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
-      nb_iter_trust = 0
+      
       ! Gradient and norm
       call gradient(n,v_grad)
   
@@ -107,13 +113,15 @@ subroutine run
       mo_coef = prev_mos
       call save_mos
 
-      nb_iter_trust += 1
-      print*,'step cancel :',nb_iter_trust
       print*,''
       print*,'========================================'
       print*,'---trust region with a smaller radius---'
       print*,'========================================'
-      
+    
+      call clear_mo_map
+      TOUCH mo_coef
+      call diagonalize_ci     
+ 
     else
       ! Rotation matrix
       call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)

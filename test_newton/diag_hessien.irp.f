@@ -98,10 +98,9 @@ subroutine diag_hess(n,H, h_tmpr)
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(H_test(mo_num**2,mo_num**2))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
-  allocate(tmp_accu(mo_num,mo_num),tmp_accu_shared(mo_num,mo_num))
-  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num),tmp_2rdm_3_shared(mo_num,mo_num,mo_num))
-  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num),tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
-  allocate(tmp_accu_1(mo_num))
+  allocate(tmp_accu_shared(mo_num,mo_num))
+  allocate(tmp_2rdm_3_shared(mo_num,mo_num,mo_num))
+  allocate(tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
 
   !=============
   ! Calculation
@@ -119,11 +118,14 @@ subroutine diag_hess(n,H, h_tmpr)
       !$OMP PRIVATE(                                                 &
       !$OMP   p,q,r,s, tmp_accu, tmp_accu_1,                         &
       !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                       &
-      !$OMP SHARED(hessian, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
-      !$OMP  mo_num, mo_one_e_integrals, one_e_dm_mo,    &
+      !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
+      !$OMP  mo_num,n, mo_one_e_integrals, one_e_dm_mo,    &
       !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,      &
       !$OMP two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6) &
       !$OMP DEFAULT(NONE)
+
+  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num),tmp_bi_int_3(mo_num,mo_num,mo_num))
+  allocate(tmp_accu_1(mo_num),tmp_accu(mo_num,mo_num))
 
   !$OMP DO
   do s = 1,mo_num
@@ -1341,10 +1343,8 @@ subroutine diag_hess(n,H, h_tmpr)
     print*, 'Time to compute the hessian :', t2
     !$OMP END MASTER
 
-    !$OMP END PARALLEL
-    !call omp_set_max_active_levels(4)
-
-  deallocate(tmp_2rdm_3,tmp_bi_int_3,tmp_accu,tmp_accu_1)
+    deallocate(tmp_2rdm_3,tmp_bi_int_3)
+    deallocate(tmp_accu_1,tmp_accu)
 
   !===========
   ! 2D matrix
@@ -1355,13 +1355,6 @@ subroutine diag_hess(n,H, h_tmpr)
   ! H(pq,rs) : p<q and r<s
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
-
-  !$OMP PARALLEL                                                     &
-      !$OMP PRIVATE(                                                 &
-      !$OMP   p,q,r,s,pq,rs)                                         &
-      !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
-      !$OMP  mo_num, n,t1,t2,t3,t4,t5,t6)                            &
-      !$OMP DEFAULT(NONE)
 
   ! Permutations  
   !$OMP MASTER

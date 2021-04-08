@@ -28,6 +28,8 @@ program run_debug_hessian
   ! Def of n  
   n = mo_num*(mo_num-1)/2
 
+  PROVIDE mo_two_e_integrals_in_map
+
   !============
   ! Allocation
   !============

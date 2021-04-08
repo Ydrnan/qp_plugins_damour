@@ -21,6 +21,8 @@ program run_debug_grad
   ! Def of n  
   n = mo_num*(mo_num-1)/2
 
+  PROVIDE mo_two_e_integrals_in_map
+
   !============
   ! Allocation
   !============
@@ -32,9 +34,11 @@ program run_debug_grad
   ! Calculation
   !=============
 
-  call clear_mo_map
-      TOUCH mo_coef
-      call diagonalize_ci
+  !read_wf = .True.
+  !TOUCH read_wf
+  !call clear_mo_map
+  !TOUCH mo_coef
+  call diagonalize_ci
 
   ! Gradient and norm 
   call first_gradient(n,v_grad)

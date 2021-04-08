@@ -81,13 +81,14 @@ subroutine run
   cancel_step = .False.
 
 
-  call clear_mo_map
-  TOUCH mo_coef
+  !call clear_mo_map
+  !TOUCH mo_coef
   call diagonalize_ci
 
 
   nb_iter = 0
   do while (.not.converged)
+
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
       
       ! Gradient and norm

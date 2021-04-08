@@ -71,10 +71,7 @@ subroutine old_hess(n,H,h_tmpr)
   !============
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  allocate(H_test(mo_num**2,mo_num**2))
-  allocate(tmp_accu(mo_num,mo_num), tmp_accu_sym(mo_num,mo_num))
-  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
-  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
+  !allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
   ! Calculation
@@ -92,10 +89,14 @@ subroutine old_hess(n,H,h_tmpr)
       !$OMP PRIVATE(                                                 &
       !$OMP   p,q,r,s, tmp_accu, tmp_accu_sym,                       &
       !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                       &
-      !$OMP SHARED(hessian, mo_num, mo_one_e_integrals, one_e_dm_mo, &
+      !$OMP SHARED(hessian,h_tmpr,H, mo_num,n, mo_one_e_integrals, one_e_dm_mo, &
       !$OMP two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6)&
       !$OMP DEFAULT(NONE)
   
+  allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
+  allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
+  allocate(tmp_accu(mo_num,mo_num), tmp_accu_sym(mo_num,mo_num))
+
   !$OMP DO
   do s=1,mo_num
     do r=1,mo_num
@@ -1284,14 +1285,11 @@ subroutine old_hess(n,H,h_tmpr)
   print*,'Time to compute the hessian : ', t3
   !$OMP END MASTER
  
-  !$OMP END PARALLEL
-  !call omp_set_max_active_levels(4)
- 
+  deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu,tmp_accu_sym)
+
   !=================================
   ! Deallocation of temporay arrays 
   !=================================
-
-  deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu,tmp_accu_sym)
 
   !===========
   ! 2D matrix
@@ -1302,12 +1300,6 @@ subroutine old_hess(n,H,h_tmpr)
   ! H(pq,rs) : p<q and r<s
   ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
   ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
-
-  !$OMP PARALLEL                                                     &
-      !$OMP PRIVATE(                                                 &
-      !$OMP   p,q,r,s)                       &
-      !$OMP SHARED(hessian,h_tmpr,H, mo_num,n,t1,t2,t3,t4,t5,t6)&
-      !$OMP DEFAULT(NONE)
 
   ! Permutations 
   !$OMP DO

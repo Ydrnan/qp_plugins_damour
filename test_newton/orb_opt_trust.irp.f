@@ -23,7 +23,7 @@ subroutine run
   integer                       :: n
   integer                       :: i,j,p,q,k
   integer                       :: nb_iter_trust
-  double precision              :: trust_radius,rho,energy,e_model
+  double precision              :: trust_radius,rho,energy,e_model,max_elem
   logical :: cancel_step
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
@@ -89,10 +89,15 @@ subroutine run
   nb_iter = 0
   do while (.not.converged)
 
+  print*,'*********************'
+  print*,'Iteration :',nb_iter
+  print*,'*********************'
+
+
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
       
       ! Gradient and norm
-      call gradient(n,v_grad)
+      call gradient(n,v_grad,max_elem)
   
       ! Hessian and norm
       if (method == 1) then
@@ -138,7 +143,7 @@ subroutine run
       nb_iter += 1
     endif
 
-    if (nb_iter == 100) then
+    if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
     !nb_iter += 1

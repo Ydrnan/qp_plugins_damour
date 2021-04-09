@@ -1,4 +1,4 @@
-subroutine gradient(n,v_grad)
+subroutine gradient(n,v_grad,max_elem)
   use omp_lib
   include 'constants.h'
 
@@ -22,14 +22,14 @@ subroutine gradient(n,v_grad)
   !=====
   ! out
   !=====
-  double precision, intent(out) :: v_grad(n)
+  double precision, intent(out) :: v_grad(n), max_elem
   ! v_grad : double precision vector of length n containeing the gradient
 
   !==========
   ! internal
   !==========
   double precision, allocatable :: grad(:,:),A(:,:)
-  double precision              :: norm, max_elem
+  double precision              :: norm
   integer                       :: i,p,q,r,s,t
   integer                       :: istate
   double precision              :: t1,t2,t3,t4,t5,t6

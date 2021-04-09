@@ -12,7 +12,7 @@ program run_debug_grad
   double precision, allocatable :: v_grad(:),v_grad2(:)
   integer                       :: n
   integer                       :: i
-  double precision :: max_error, threshold
+  double precision :: max_error, threshold,max_elem
   integer :: nb_error
   ! v_grad : double precision vector of length n, gradient
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
@@ -41,8 +41,8 @@ program run_debug_grad
   call diagonalize_ci
 
   ! Gradient and norm 
-  call first_gradient(n,v_grad)
-  call gradient(n,v_grad2)
+  call first_gradient(n,v_grad,max_elem)
+  call gradient(n,v_grad2,max_elem)
   
   v_grad = v_grad - v_grad2
   nb_error = 0

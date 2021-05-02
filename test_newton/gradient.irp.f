@@ -31,7 +31,6 @@ subroutine gradient(n,v_grad,max_elem)
   double precision, allocatable :: grad(:,:),A(:,:)
   double precision              :: norm
   integer                       :: i,p,q,r,s,t
-  integer                       :: istate
   double precision              :: t1,t2,t3,t4,t5,t6
   ! grad : double precision matrix containing the gradient before the permutation
   ! A : double precision matrix containing the gradient after the permutation
@@ -71,17 +70,32 @@ subroutine gradient(n,v_grad,max_elem)
   !============
 
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num))
-  !allocate(one_e_rdm_mo_y(mo_num,mo_num))
   
-  ! Initialization
+  ! From Anderson et. al. (2014) 
+  ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384 
+
+  ! LaTeX formula
+
+  ! \begin{align*}
+  ! G_{pq}&= \dfrac{\partial E(x)}{\partial x_{pq}} \\ 
+  ! &= \mathcal{P}_{pq} \left[ \sum_r ( h_p^r \gamma_r^q - h_r^q \gamma_p^r) 
+  !+ \sum_{rst} (v_{pt}^{rs} \Gamma_{rs}^{qt} - v_{rs}^{qt} \Gamma_{pt}^{rs}) \right]
+  ! \end{align*} 
+
+ ! Initialization
   call omp_set_max_active_levels(1)
 
-  !$OMP PARALLEL                                                     &
-      !$OMP PRIVATE(                                                 &
-      !$OMP   p,q,r,s,t,                                        &
-      !$OMP   tmp_accu,tmp_bi_int_3,tmp_2rdm_3)&
-      !$OMP SHARED(grad, one_e_dm_mo, mo_num,mo_one_e_integrals,mo_integrals_map,t4,t5,t6)&
+  !$OMP PARALLEL                                                 &
+      !$OMP PRIVATE(                                             &
+      !$OMP   p,q,r,s,t,                                         &
+      !$OMP   tmp_accu, tmp_bi_int_3, tmp_2rdm_3)                &
+      !$OMP SHARED(grad, one_e_dm_mo, mo_num,mo_one_e_integrals, &
+      !$OMP mo_integrals_map,t4,t5,t6)                           &
       !$OMP DEFAULT(SHARED)
+ 
+  !==============================
+  ! Allocation of private arrays
+  !==============================
 
   allocate(tmp_accu(mo_num,mo_num))
   allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
@@ -96,8 +110,6 @@ subroutine gradient(n,v_grad,max_elem)
   endif
 
   ! Initialization
-  !v_grad = 0d0
-  !grad = 0d0
 
   !$OMP DO
   do q = 1, mo_num
@@ -107,138 +119,134 @@ subroutine gradient(n,v_grad,max_elem)
   enddo
   !$OMP END DO
   
-    ! From Anderson et. al. (2014) 
-    ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
+  !========
+  ! Term 1
+  !======== 
 
-    !!! first term 
+  !do p = 1, mo_num
+  !    do q = 1, mo_num
+  !       do r = 1, mo_num
+  !        
+  !          grad(p,q) = grad(p,q) &
+  !                + mo_one_e_integrals(p,r) * one_e_rdm_mo_y(r,q) &
+  !                - mo_one_e_integrals(r,q) * one_e_rdm_mo_y(p,r)
+  !
+  !      enddo
+  !   enddo
+  !enddo
 
-    !do p = 1, mo_num
-    !    do q = 1, mo_num
-    !       grad(p,q) = 0d0
-    !       do r = 1, mo_num
-    !        
-    !          grad(p,q) = grad(p,q) &
-    !                +2d0 * mo_one_e_integrals(p,r) * one_e_rdm_mo_y(r,q) !&
-    !                !- mo_one_e_integrals(r,q) * one_e_rdm_mo_y(p,r)
-    !
-    !      enddo
-    !   enddo
-    !enddo
+  !****************
+  ! Opt first term
+  !****************
 
-    !!! Opt first term
+  !$OMP MASTER
+  CALL wall_TIME(t4)
+  !$OMP END MASTER
+
+  call dgemm('N','N',mo_num,mo_num,mo_num,1d0,mo_one_e_integrals,&
+  mo_num,one_e_dm_mo,mo_num,0d0,tmp_accu,mo_num)
   
-    !$OMP MASTER
-    CALL wall_TIME(t4)
-    !$OMP END MASTER
- 
-    !tmp_accu = 0d0
+  !$OMP DO
+  do q = 1, mo_num
+    do p = 1, mo_num
 
-    call dgemm('N','N',mo_num,mo_num,mo_num,2d0,mo_one_e_integrals,&
-    mo_num,one_e_dm_mo,mo_num,0d0,tmp_accu,mo_num)
+      grad(p,q) = grad(p,q) + (tmp_accu(p,q) - tmp_accu(q,p))
+
+    enddo
+  enddo 
+  !$OMP END DO
+  
+  !$OMP MASTER
+  CALL wall_TIME(t5)
+  t6 = t5-t4
+  print*,'Gradient, first term (s) :', t6 
+  !$OMP END MASTER
+
+  !========
+  ! Term 2
+  !========
+  
+  !do p = 1, mo_num
+  !  do q = 1, mo_num 
+  !    do r = 1, mo_num
+  !      do s = 1, mo_num
+  !        do t= 1, mo_num
+  !
+  !        grad(p,q) = grad(p,q) &
+  !                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t) &
+  !                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s)
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  !*****************
+  ! Opt second term  
+  !*****************
+
+  !$OMP MASTER
+  CALL wall_TIME(t4)
+  !$OMP END MASTER 
+ 
+  !$OMP DO
+  do t = 1, mo_num
     
-    !$OMP DO
+    do p = 1, mo_num
+      do s = 1, mo_num
+        do r = 1, mo_num
+            
+          tmp_bi_int_3(r,s,p) = get_two_e_integral(r,s,p,t,mo_integrals_map)
+         
+        enddo
+      enddo
+    enddo
+
+    do q = 1, mo_num
+      do s = 1, mo_num
+        do r = 1, mo_num
+             
+           tmp_2rdm_3(r,s,q) = two_e_dm_mo(r,s,q,t)
+  
+        enddo
+      enddo
+    enddo
+
+    call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
+      mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
+
+    !$OMP CRITICAL   
     do q = 1, mo_num
       do p = 1, mo_num
 
-        grad(p,q) = grad(p,q) + tmp_accu(p,q)
+        grad(p,q) = grad(p,q) + tmp_accu(p,q) - tmp_accu(q,p)
 
       enddo
-    enddo 
-    !$OMP END DO
-    
-    !$OMP MASTER
-    CALL wall_TIME(t5)
-    t6 = t5-t4
-    print*,'Gradient, first term (s) :', t6 
-    !$OMP END MASTER
-
-    !!!!! Second term
-    
-    !do p = 1, mo_num
-    !  do q = 1, mo_num 
-    !    do r = 1, mo_num
-    !      do s = 1, mo_num
-    !        do t= 1, mo_num
-    !
-    !        grad(p,q) = grad(p,q) &
-    !                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,1) &
-    !                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,1)
-    !       enddo
-    !      enddo
-    !    enddo
-    !  enddo
-    !enddo
-  
-    !!! Opt second term  
-    !$OMP MASTER
-    CALL wall_TIME(t4)
-    !$OMP END MASTER 
-   
-    !tmp_accu = 0d0
-    
-    !$OMP MASTER
-    do t = 1, mo_num
-      
-      do p = 1, mo_num
-        do s = 1, mo_num
-          do r = 1, mo_num
-              
-            tmp_bi_int_3(r,s,p) = 2d0 * get_two_e_integral(r,s,p,t,mo_integrals_map)
-           
-          enddo
-        enddo
-      enddo
-  
-      do q = 1, mo_num
-        do s = 1, mo_num
-          do r = 1, mo_num
-               
-             tmp_2rdm_3(r,s,q) = two_e_dm_mo(r,s,q,t,1)
-    
-          enddo
-        enddo
-      enddo
-  
-  !     tmp_accu = 0d0
-  !     do p = 1, mo_num
-  !      do q = 1, mo_num
-  !        do s = 1, mo_num
-  !          do r = 1, mo_num
-  !   
-  !          tmp_accu(p,q) = tmp_accu(p,q) + tmp_bi_int_3(r,s,p) * tmp_2rdm_3(r,s,q)
-  !         !grad(p,q) = grad(p,q) + tmp_bi_int_3(r,s,p) * tmp_2rdm_3(r,s,q)   
-  !         
-  !          enddo
-  !        enddo
-  !      enddo
-  !    enddo
-     
-      call dgemm('T','N',mo_num,mo_num,mo_num*mo_num,1d0,tmp_bi_int_3,&
-        mo_num*mo_num,tmp_2rdm_3,mo_num*mo_num,0d0,tmp_accu,mo_num)
-     
-      do q = 1, mo_num
-        do p = 1, mo_num
-  
-          grad(p,q) = grad(p,q) + tmp_accu(p,q)
-  
-        enddo
-      enddo
-  
     enddo
-    !$OMP END MASTER
+    !$OMP END CRITICAL
 
-    !$OMP MASTER
-    CALL wall_TIME(t5)
-    t6 = t5-t4
-    print*,'Gradient second term (s) : ', t6
-    !$OMP END MASTER  
+  enddo
+  !$OMP END DO
 
-    deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu)
+  !$OMP MASTER
+  CALL wall_TIME(t5)
+  t6 = t5-t4
+  print*,'Gradient second term (s) : ', t6
+  !$OMP END MASTER  
+
+  !================================
+  ! Deallocation of private arrays
+  !================================
+
+  deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu)
 
   !$OMP END PARALLEL
 
   call omp_set_max_active_levels(4)
 
+  !=====================
+  ! 2D matrix to vector
+  !=====================
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   do i=1,n
@@ -252,10 +260,19 @@ subroutine gradient(n,v_grad,max_elem)
     write(*,'(100(F10.5))') v_grad(1:n)
   endif  
 
+  !======
+  ! Norm
+  !======
+
   ! Norm of the vector
   norm = dnrm2(n,v_grad,1)
   print*, 'Gradient norm : ', norm
 
+  !=============
+  ! Max element
+  !=============
+
+  ! Max element of the gradient
   max_elem = 0d0
   do i = 1, n
     if (ABS(v_grad(i)) > ABS(max_elem)) then
@@ -265,16 +282,16 @@ subroutine gradient(n,v_grad,max_elem)
 
   print*,'Max element in gardient :', max_elem  
 
-  ! Matrix gradient
-  !A = 0d0
-  !do q=1,mo_num
-  !  do p=1,mo_num
-  !    A(p,q) = grad(p,q) - grad(q,p)
-  !  enddo
-  !enddo
-
   ! Display, matrix containting the gradient elements
   if (debug) then
+    ! Matrix gradient
+    A = 0d0
+    do q=1,mo_num
+      do p=1,mo_num
+        A(p,q) = grad(p,q) - grad(q,p)
+      enddo
+    enddo
+
     print*,'Matrix containing the gradient :'
     do i = 1, mo_num
       write(*,'(100(F10.5))') A(i,1:mo_num)
@@ -285,8 +302,7 @@ subroutine gradient(n,v_grad,max_elem)
   ! Deallocation
   !==============
 
-  deallocate(grad,A)!,tmp_bi_int_3,tmp_2rdm_3)
-  !deallocate(tmp_accu)!,one_e_rdm_mo_y)
+  deallocate(grad,A)
 
   if (debug) then
     print*,'Leaves gradient'

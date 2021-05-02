@@ -88,7 +88,7 @@ subroutine dm_inversion(method,n,H,Hm1)
     endif
   
     ! Initialization
-    Hm1=0d0
+    Hm1 = 0d0
   
     if (debug) then
       print *, 'Eigenvalues of the n by n Hessian matrix (dm_inversion) :'
@@ -96,25 +96,27 @@ subroutine dm_inversion(method,n,H,Hm1)
     endif
   
     ! Inversion of the eigenvalues
-    do i=1,n
+    do i = 1, n
   
         if ( (e_val(i)>0.d0)) then
-              Hm1(i,i)=1d0/max(1.d-4,e_val(i))
+              Hm1(i,i) = 1d0/max(1.d-4,e_val(i))
         else
-              Hm1(i,i)=0d0  !1d0/min(-1.d-4,e_val(i))
+              Hm1(i,i) = 0d0  !1d0/min(-1.d-4,e_val(i))
         endif
   
     enddo
   
     ! Back transformation to the initial basis : Hm1 = W.(1/e_val).W^T
-    call dgemm('N','T',n,n,n,1d0,Hm1,size(Hm1,1),W,size(W,1),0d0,Hm1_tmpr,size(Hm1_tmpr,1))
-    call dgemm('N','N',n,n,n,1d0,W,size(W,1),Hm1_tmpr,size(Hm1_tmpr,1),0d0,Hm1,size(Hm1,1))
+    call dgemm('N','T',n,n,n, 1d0, Hm1, size(Hm1,1), W, size(W,1), &
+               0d0, Hm1_tmpr, size(Hm1_tmpr,1))
+    call dgemm('N','N',n,n,n, 1d0, W, size(W,1), Hm1_tmpr, &
+               size(Hm1_tmpr,1), 0d0, Hm1, size(Hm1,1))
    
     !==============
     ! Deallocation
     !==============
     
-    deallocate(Hm1_tmpr)
+    deallocate(Hm1_tmpr,W)
     deallocate(work,e_val)
 
   else

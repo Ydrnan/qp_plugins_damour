@@ -51,8 +51,8 @@ subroutine dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)
   endif
 
   ! Vector with n element -> mo_num by mo_num matrix
-  do p=1,mo_num
-    do q=1,mo_num
+  do q=1,mo_num
+    do p=1,mo_num
       if (p>q) then
         call in_vec_to_mat(p,q,k)
         m_Hm1g(p,q) = Hm1g(k)
@@ -63,8 +63,8 @@ subroutine dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)
   enddo
 
   ! Antisymmetrization of the previous matrix
-  do p=1,mo_num
-    do q=1,mo_num
+  do q=1,mo_num
+    do p=1,mo_num
       if (p<q) then
         m_Hm1g(p,q) = - m_Hm1g(q,p)
       endif
@@ -80,7 +80,7 @@ subroutine dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)
   endif
 
   if (debug) then
-    print*,'Enter in dm_Hm1g'
+    print*,'Leaves dm_Hm1g'
   endif
 
 end subroutine

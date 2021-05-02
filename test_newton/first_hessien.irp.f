@@ -22,11 +22,9 @@ subroutine first_hess(n,H,h_tmpr)
  
   ! internal
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
-  double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
   integer                       :: r,s,t,u,v
   integer                       :: pq,rs
-  integer                       :: istate
   double precision              :: t1,t2,t3,t4,t5,t6
   ! hessian  : mo_num 4D double precision matrix containing the hessian before the permutations
   ! h_tmpr   : mo_num 4D double precision matrix containing the hessian after the permutations
@@ -52,7 +50,6 @@ subroutine first_hess(n,H,h_tmpr)
   !============
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
   ! Calculation
@@ -62,189 +59,241 @@ subroutine first_hess(n,H,h_tmpr)
     print*,'Enter in first_hess'
   endif
 
-  ! Initialization
-  hessian = 0d0
-
-  !do istate = 1, N_states
-  istate = 1
-
   ! From Anderson et. al. (2014) 
   ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
 
-  CALL CPU_TIME(t1)
+  CALL wall_time(t1)
 
+  ! Initialization
+  hessian = 0d0
+
+  !========================
   ! First line, first term
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
+  !========================
 
-              if (q==r) then
-                do u = 1, mo_num
+  CALL wall_time(t4)
 
-                  hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                    mo_one_e_integrals(u,p) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
-                  + mo_one_e_integrals(s,u) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
 
-                enddo
-              endif
-
-          enddo
-        enddo
-      enddo
-    enddo
-
- ! First line, second term
-     do p = 1, mo_num
-       do q = 1, mo_num
-         do r = 1, mo_num
-           do s = 1, mo_num
-
-             if (p==s) then
-               do u = 1, mo_num
-
-                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       mo_one_e_integrals(u,r) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
-                     + mo_one_e_integrals(q,u) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
-               enddo
-             endif
-
-           enddo
-         enddo
-       enddo
-     enddo
-
- ! First line, third term
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-
-            hessian(p,q,r,s) = hessian(p,q,r,s) &
-            - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-            - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
-
-          enddo
-        enddo
-      enddo
-    enddo
-
- ! Second line, first term
-CALL CPU_TIME(t4)
-     do p = 1, mo_num
-       do q = 1, mo_num
-         do r = 1, mo_num
-           do s = 1, mo_num
-
-              if (q==r) then
-                do t = 1, mo_num
-                  do u = 1, mo_num
-                    do v = 1, mo_num
-
-                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,1) &
-                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,1))
-
-                    enddo
-                  enddo
-                enddo
-              endif
-
-           enddo
-         enddo
-       enddo
-     enddo
-CALL CPU_TIME(t5)
-t6=t5-t4
-print*,'avec if',t6
- ! Second line, second term
-     do p = 1, mo_num
-       do q = 1, mo_num
-         do r = 1, mo_num
-           do s = 1, mo_num
-
-             if (p==s) then
-               do t = 1, mo_num
-                 do u = 1, mo_num
-                   do v = 1, mo_num
-
-                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v,1) &
-                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,1))
-
-                   enddo
-                 enddo
-               enddo
-             endif
-
-           enddo
-         enddo
-       enddo
-     enddo
-
- ! Third line, first term
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-
-            do u = 1, mo_num
-              do v = 1, mo_num
-
-                hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s,1) &
-                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v,1)
-
-              enddo
-            enddo
-
-          enddo
-        enddo
-      enddo
-    enddo
-
- ! Third line, second term
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-
-            do t = 1, mo_num
+            if (q==r) then
               do u = 1, mo_num
 
-                hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,1) &
-                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,1) &
-                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t,1) &
-                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s,1)
+                hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
+                  mo_one_e_integrals(u,p) * one_e_dm_mo(u,s) &
+                + mo_one_e_integrals(s,u) * one_e_dm_mo(p,u))
 
               enddo
-            enddo
+            endif
 
-          enddo
         enddo
       enddo
     enddo
+  enddo
 
-  !enddo
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l1 1 :', t6
 
-  CALL CPU_TIME(t2)
+  !=========================
+  ! First line, second term
+  !=========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          if (p==s) then
+            do u = 1, mo_num
+
+                  hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                    mo_one_e_integrals(u,r) * one_e_dm_mo(u,q) &
+                  + mo_one_e_integrals(q,u) * one_e_dm_mo(r,u))
+            enddo
+          endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l1 2 :', t6
+
+  !========================
+  ! First line, third term
+  !========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          hessian(p,q,r,s) = hessian(p,q,r,s) &
+          - mo_one_e_integrals(s,p) * one_e_dm_mo(r,q)&
+          - mo_one_e_integrals(q,r) * one_e_dm_mo(p,s)
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l1 3 :', t6
+
+
+  !=========================
+  ! Second line, first term
+  !=========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+           if (q==r) then
+             do t = 1, mo_num
+               do u = 1, mo_num
+                 do v = 1, mo_num
+
+                   hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
+                     get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t) &
+                   + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v))
+
+                 enddo
+               enddo
+             enddo
+           endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l2 1 :', t6
+
+  !==========================
+  ! Second line, second term
+  !==========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          if (p==s) then
+            do t = 1, mo_num
+              do u = 1, mo_num
+                do v = 1, mo_num
+
+                  hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                    get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v) &
+                  + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t))
+
+                enddo
+              enddo
+            enddo
+          endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l2 2 :', t6
+
+  !========================
+  ! Third line, first term
+  !========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          do u = 1, mo_num
+            do v = 1, mo_num
+
+              hessian(p,q,r,s) = hessian(p,q,r,s) &
+               + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s) &
+               + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v)
+
+            enddo
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+ 
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l3 1 :', t6
+
+  !=========================
+  ! Third line, second term
+  !=========================
+
+  CALL wall_time(t4)
+
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          do t = 1, mo_num
+            do u = 1, mo_num
+
+              hessian(p,q,r,s) = hessian(p,q,r,s) &
+               - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u) &
+               - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u) &
+               - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t) &
+               - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s)
+
+            enddo
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  CALL wall_time(t5)
+  t6 = t5-t4
+  print*,'l3 2 :', t6
+
+  CALL wall_time(t2)
   t3 = t2 -t1
   print*,'Time to compute the hessian : ', t3
 
-  !===========
-  ! 2D matrix
-  !===========
-
-  ! Convert the hessian mo_num * mo_num * mo_num * mo_num matrix in a
-  ! 2D n * n matrix (n = mo_num*(mo_num-1)/2)
-  ! H(pq,rs) : p<q and r<s
-  ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
-  ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
-
+  !==============
   ! Permutations 
-  do r = 1, mo_num
-    do s = 1, mo_num
+  !==============
+
+  ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
+  ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r) 
+
+  do s = 1, mo_num
+    do r = 1, mo_num
       do q = 1, mo_num
         do p = 1, mo_num
 
@@ -255,37 +304,13 @@ print*,'avec if',t6
     enddo
   enddo
 
-  ! Debug, all the elements of the 4D hessian in a mo_num**2 by mo_num**2 matrix
-  if (debug) then
-    pq=0
-    rs=0
-    do p=1,mo_num
-      do q = 1,mo_num
-      pq=pq+1
-      rs=0
-        do r = 1, mo_num
-          do s = 1, mo_num
-          rs = rs+1 
-           H_test(pq,rs) = h_tmpr(p,q,r,s)
-          enddo
-        enddo
-      enddo
-    enddo
-  
-    print*,'mo_num**2 by mo_num**2 hessian matrix'
-    do pq=1,mo_num**2
-      write(*,'(100(F10.5))') H_test(pq,:)
-    enddo
-  endif
+  !========================
+  ! 4D matrix to 2D matrix
+  !========================
 
-  ! Debug, eigenvalues of the 4D hessian to compare with an other code
-  !double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
-  !call lapack_diag(e_val,H_v,H_test,mo_num**2,mo_num**2)
-
-  !print*,'Eigenvalues of the 4D hessian as a mo_num**2 by mo_num**2 matrix :'
-  !write(*,'(100(F10.5))') e_val(:) 
-  
-  !deallocate(e_val,H_v,H_u)
+  ! Convert the hessian mo_num * mo_num * mo_num * mo_num matrix in a
+  ! 2D n * n matrix (n = mo_num*(mo_num-1)/2)
+  ! H(pq,rs) : p<q and r<s
 
   ! 4D mo_num matrix to 2D n matrix
   do pq = 1, n
@@ -295,7 +320,6 @@ print*,'avec if',t6
       H(pq,rs) = h_tmpr(p,q,r,s)   
     enddo
   enddo
-
 
   ! Display
   if (debug) then 
@@ -309,7 +333,7 @@ print*,'avec if',t6
   ! Deallocation
   !==============
 
-  deallocate(hessian)!,h_tmpr,H_test)
+  deallocate(hessian)
 
   if (debug) then
     print*,'Leaves first_hess'

@@ -40,8 +40,8 @@ subroutine first_gradient(n,v_grad)
   ! Provided :
   ! mo_one_e_integrals : mono e- integrals
   ! get_two_e_integral : two e- integrals
-  ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
-  ! two_e_dm_mo : two body density matrix
+  ! one_e_dm_mo : one body density matrix (state average)
+  ! two_e_dm_mo : two body density matrix (state average)
 
   !============
   ! Allocation
@@ -59,142 +59,27 @@ subroutine first_gradient(n,v_grad)
 
   v_grad = 0d0
 
-  !do istate = 1, N_states
-  istate = 1
-    do p = 1, mo_num
-      do q = 1, mo_num
-         grad(p,q) = 0d0
-         do r = 1, mo_num
-           grad(p,q) = grad(p,q) + mo_one_e_integrals(p,r) &
-                          * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-                         - mo_one_e_integrals(r,q) &
-                          * (one_e_dm_mo_alpha(p,r,istate) + one_e_dm_mo_beta(p,r,istate))
+  do p = 1, mo_num
+    do q = 1, mo_num
+      grad(p,q) = 0d0
+      do r = 1, mo_num
+        grad(p,q) = grad(p,q) + mo_one_e_integrals(p,r) * one_e_dm_mo(r,q) &
+                               - mo_one_e_integrals(r,q) * one_e_dm_mo(p,r)
 
-        enddo
+      enddo
 
-       do r = 1, mo_num
-         do s = 1, mo_num
-           do t= 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+          do t= 1, mo_num
 
-           grad(p,q) = grad(p,q) &
-                   + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t,1) &
-                   - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s,1)
-           enddo
+            grad(p,q) = grad(p,q) &
+                + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t) &
+                - get_two_e_integral(r,s,q,t,mo_integrals_map) * two_e_dm_mo(p,t,r,s)
           enddo
         enddo
       enddo
     enddo
-  !enddo
-
- ! Debug ocaml
-!  print*,'two e rdm'
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          print*,p,q,r,s,two_e_dm_mo(p,q,r,s,1)
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!  print*,'bi int'
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          if (ABS(get_two_e_integral(p,q,r,s,mo_integrals_map))>1.d-14) then
-!            print*,p,q,r,s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-!          else
-!            print*,p,q,r,s,0d0
-!          endif
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!  print*,'mono int'
-!  do p=1,mo_num
-!    print*,mo_one_e_integrals(p,:)
-!  enddo
-!
-!  print*, 'one e rdm'
-!  do p=1,mo_num
-!    print*, (one_e_dm_mo_alpha(p,:,istate) + one_e_dm_mo_beta(p,:,istate))
-!  enddo
-
- !Ecriture des intégrales dans un fichier pour le lire avec OCaml
-
-  if (ocaml) then
-    open(unit=10,file='../../../../../../App_y/miniconda3/Work_yann/one_e_dm.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        write(10,*) p, q, (one_e_dm_mo_alpha(p,q,istate) + one_e_dm_mo_beta(p,q,istate))
-      enddo
-    enddo
-    close(10)
-  
-    open(unit=11,file='../../../../../../App_y/miniconda3/Work_yann/one_e_int.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        write(11,*) p, q, mo_one_e_integrals(p,q)
-      enddo
-    enddo
-    close(11)
-    
-    open(unit=12,file='../../../../../../App_y/miniconda3/Work_yann/two_e_int.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-            write(12,*) p, q, r, s, get_two_e_integral(p,q,r,s,mo_integrals_map)
-          enddo
-        enddo
-      enddo
-    enddo
-    close(12)
-    
-    open(unit=13,file='../../../../../../App_y/miniconda3/Work_yann/two_e_dm.dat')
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
-            write(13,*) p, q, r, s, two_e_dm_mo(p,q,r,s,1)
-          enddo
-        enddo
-      enddo
-    enddo
-    close(13)
-  endif
-
- ! Debug ocaml
-!  double precision, allocatable :: two_e_integrals(:,:,:,:)
-!  allocate(two_e_integrals(mo_num,mo_num,mo_num,mo_num))
-!
-!  do p=1,mo_num
-!    do q=1,mo_num
-!      do r=1,mo_num
-!        do s=1,mo_num
-!          two_e_integrals(p,q,r,s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!
-!  print*,'two e int'
-!  do p = 1,mo_num
-!    do q= 1, mo_num
-!      write(*,'(100(F10.5))') two_e_integrals(p,q,:,:)
-!    enddo
-!  enddo
-!
-!  print*,'two e rdm'
-!  do p = 1,mo_num
-!    do q= 1, mo_num
-!      write(*,'(100(F10.5))') two_e_dm_mo(p,q,:,:,1)
-!    enddo
-!  enddo
+  enddo
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   do i=1,n

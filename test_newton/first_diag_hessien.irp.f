@@ -22,7 +22,6 @@ subroutine first_diag_hess(n,H, h_tmpr)
   
   ! internal
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
-  double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
   integer                       :: r,s,t,u,v
   integer                       :: pq,rs
@@ -52,7 +51,6 @@ subroutine first_diag_hess(n,H, h_tmpr)
   !============
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
   ! Calculation
@@ -62,82 +60,118 @@ subroutine first_diag_hess(n,H, h_tmpr)
           print*,'Enter in first_diag_hessien'
   endif
 
-  ! Initialization
-  hessian = 0d0
-
-  !do istate = 1, N_states
-  istate = 1
-
   ! From Anderson et. al. (2014) 
   ! The Journal of Chemical Physics 141, 244104 (2014); doi: 10.1063/1.4904384
 
-  CALL CPU_TIME(t1)
+  ! LaTeX formula :
 
+  !\begin{align*}
+  !H_{pq,rs} &= \dfrac{\partial^2 E(x)}{\partial x_{pq}^2} \\
+  !&= \mathcal{P}_{pq} \mathcal{P}_{rs} [ \frac{1}{2} \sum_u [\delta_{qr}(h_p^u \gamma_u^s + h_u^s \gamma_p^u) 
+  !+ \delta_{ps}(h_r^u \gamma_u^q + h_u^q \gamma_u^r)]
+  !-(h_p^s \gamma_r^q + h_r^q \gamma_p^s) \\
+  !&+ \frac{1}{2} \sum_{tuv} [\delta_{qr}(v_{pt}^{uv} \Gamma_{uv}^{st} +v_{uv}^{st} \Gamma_{pt}^{uv}) 
+  !+ \delta_{ps}(v_{uv}^{qt} \Gamma_{rt}^{uv} + v_{rt}^{uv}\Gamma_{uv}^{qt})] \\
+  !&+ \sum_{uv} (v_{pr}^{uv} \Gamma_{uv}^{qs} + v_{uv}^{qs}  \Gamma_{ps}^{uv}) \\
+  !&- \sum_{tu} (v_{pu}^{st} \Gamma_{rt}^{qu}+v_{pu}^{tr} \Gamma_{tr}^{qu}+v_{rt}^{qu}\Gamma_{pu}^{st} + v_{tr}^{qu}\Gamma_{pu}^{ts}) 
+  !\end{align*} 
+
+  !================
+  ! Initialization
+  !================
+  hessian = 0d0
+
+  CALL wall_time(t1)
+
+  !========================
   ! First line, first term
-    do p = 1, mo_num
-      do q = 1, mo_num
-        do r = 1, mo_num
-          do s = 1, mo_num
+  !========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
 
-          ! Et oui il y a des permutations après, donc il faut prendre aussi les permutations !!!! 
+          ! Permutations 
           if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
              .or. ((p==s) .and. (q==r))) then
            
-              if (q==r) then
-                do u = 1, mo_num
+            if (q==r) then
+              do u = 1, mo_num
 
-                  hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                    mo_one_e_integrals(u,p) * (one_e_dm_mo_alpha(u,s,istate) + one_e_dm_mo_beta(u,s,istate)) &
-                  + mo_one_e_integrals(s,u) * (one_e_dm_mo_alpha(p,u,istate) + one_e_dm_mo_beta(p,u,istate)))
+                hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                    mo_one_e_integrals(u,p) * one_e_dm_mo(u,s) &
+                  + mo_one_e_integrals(s,u) * one_e_dm_mo(p,u))
 
-                enddo
-              endif
+              enddo
+            endif
+          endif
 
-!          enddo
-!        enddo
-!      enddo
-!    enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
- ! First line, second term
-!     do p = 1, mo_num
-!       do q = 1, mo_num
-!         do r = 1, mo_num
-!           do s = 1, mo_num
+  !=========================
+  ! First line, second term
+  !=========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+           ! Permutations 
+           if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+            .or. ((p==s) .and. (q==r))) then
 
              if (p==s) then
                do u = 1, mo_num
 
-                     hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       mo_one_e_integrals(u,r) * (one_e_dm_mo_alpha(u,q,istate) + one_e_dm_mo_beta(u,q,istate)) &
-                     + mo_one_e_integrals(q,u) * (one_e_dm_mo_alpha(r,u,istate) + one_e_dm_mo_beta(r,u,istate)))
+                    hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
+                      mo_one_e_integrals(u,r) * one_e_dm_mo(u,q) &
+                    + mo_one_e_integrals(q,u) * one_e_dm_mo(r,u))
                enddo
              endif
+           endif
 
-!           enddo
-!         enddo
-!       enddo
-!     enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
- ! First line, third term
- !   do p = 1, mo_num
- !     do q = 1, mo_num
- !       do r = 1, mo_num
- !         do s = 1, mo_num
+  !========================
+  ! First line, third term
+  !========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+         
+          ! Permutations 
+          if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+             .or. ((p==s) .and. (q==r))) then
 
             hessian(p,q,r,s) = hessian(p,q,r,s) &
-            - mo_one_e_integrals(s,p) * (one_e_dm_mo_alpha(r,q,istate) + one_e_dm_mo_beta(r,q,istate)) &
-            - mo_one_e_integrals(q,r) * (one_e_dm_mo_alpha(p,s,istate) + one_e_dm_mo_beta(p,s,istate))
+            - mo_one_e_integrals(s,p) * one_e_dm_mo(r,q) &
+            - mo_one_e_integrals(q,r) * one_e_dm_mo(p,s)
 
-!          enddo
-!        enddo
-!      enddo
-!    enddo
+          endif
 
- ! Second line, first term
- !    do p = 1, mo_num
- !      do q = 1, mo_num
- !        do r = 1, mo_num
- !          do s = 1, mo_num
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !=========================
+  ! Second line, first term
+  !=========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          ! Permutations 
+          if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+             .or. ((p==s) .and. (q==r))) then
 
               if (q==r) then
                 do t = 1, mo_num
@@ -145,24 +179,31 @@ subroutine first_diag_hess(n,H, h_tmpr)
                     do v = 1, mo_num
 
                       hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t,1) &
-                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v,1))
+                        get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t) &
+                      + get_two_e_integral(s,t,u,v,mo_integrals_map) * two_e_dm_mo(p,t,u,v))
 
                     enddo
                   enddo
                 enddo
               endif
+            endif
 
-!           enddo
-!         enddo
-!       enddo
-!     enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
- ! Second line, second term
- !    do p = 1, mo_num
- !      do q = 1, mo_num
- !        do r = 1, mo_num
- !          do s = 1, mo_num
+  !==========================
+  ! Second line, second term
+  !==========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+           ! Permutations 
+           if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+              .or. ((p==s) .and. (q==r))) then
 
              if (p==s) then
                do t = 1, mo_num
@@ -170,82 +211,92 @@ subroutine first_diag_hess(n,H, h_tmpr)
                    do v = 1, mo_num
 
                      hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * ( &
-                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v,1) &
-                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t,1))
+                       get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v) &
+                     + get_two_e_integral(u,v,r,t,mo_integrals_map) * two_e_dm_mo(u,v,q,t))
 
                    enddo
                  enddo
                enddo
              endif
+           endif
 
-!           enddo
-!         enddo
-!       enddo
-!     enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
- ! Third line, first term
-!    do p = 1, mo_num
-!      do q = 1, mo_num
-!        do r = 1, mo_num
-!          do s = 1, mo_num
+  !========================
+  ! Third line, first term
+  !========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+
+           ! Permutations 
+           if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+                .or. ((p==s) .and. (q==r))) then
 
             do u = 1, mo_num
               do v = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s,1) &
-                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v,1)
+                 + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s) &
+                 + get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v)
 
               enddo
             enddo
+          endif
 
-!          enddo
-!        enddo
-!      enddo
-!    enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
- ! Third line, second term
-!    do p = 1, mo_num
-!      do q = 1, mo_num
-!        do r = 1, mo_num
-!          do s = 1, mo_num
+  !=========================
+  ! Third line, second term
+  !=========================
+  do p = 1, mo_num
+    do q = 1, mo_num
+      do r = 1, mo_num
+        do s = 1, mo_num
+
+          ! Permutations 
+          if (((p==r) .and. (q==s)) .or. ((q==r) .and. (p==s)) &
+           .or. ((p==s) .and. (q==r))) then
 
             do t = 1, mo_num
               do u = 1, mo_num
 
                 hessian(p,q,r,s) = hessian(p,q,r,s) &
-                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u,1) &
-                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u,1) &
-                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t,1) &
-                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s,1)
+                 - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u) &
+                 - get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u) &
+                 - get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t) &
+                 - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s)
 
               enddo
             enddo
 
           endif     
   
-          enddo
         enddo
       enddo
     enddo
+  enddo
 
-    CALL CPU_TIME(t2)
+    CALL wall_time(t2)
     t2 = t2 - t1
     print*, 'Time to compute the hessian :', t2
+
+  !==============
+  ! Permutations
+  !==============
  
-  !enddo
-
-  !===========
-  ! 2D matrix
-  !===========
-
   ! Convert the hessian mo_num * mo_num * mo_num * mo_num matrix in a
   ! 2D n * n matrix (n = mo_num*(mo_num-1)/2)
   ! H(pq,rs) : p<q and r<s
-  ! Hessian(p,q,r,s) = P_pq P_rs [ ...]
-  ! => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-  ! Verification des éléments du hessien
   do r = 1, mo_num
     do s = 1, mo_num
       do q = 1, mo_num
@@ -258,47 +309,22 @@ subroutine first_diag_hess(n,H, h_tmpr)
     enddo
   enddo
 
-  ! Debug, all the elements of the 4D hessian in a mo_num**2 by mo_num**2 matrix
-!  if (debug) then
-!    pq=0
-!    rs=0
-!    do p=1,mo_num
-!      do q = 1,mo_num
-!      pq=pq+1
-!      rs=0
-!        do r = 1, mo_num
-!          do s = 1, mo_num
-!          rs = rs+1 
-!           H_test(pq,rs) = h_tmpr(p,q,r,s)
-!          enddo
-!        enddo
-!      enddo
-!    enddo
-!  
-!    print*,'mo_num**2 by mo_num**2 hessian matrix'
-!    do pq=1,mo_num**2
-!      write(*,'(100(F10.5))') H_test(pq,:)
-!    enddo
-!  endif
-
-  ! Debug, eigenvalues of the 4D hessian to compare with an other code
-  !double precision :: e_val(mo_num**2),H_v(mo_num**2,mo_num**2), H_u(mo_num,mo_num,mo_num,mo_num)
-  !call lapack_diag(e_val,H_v,H_test,mo_num**2,mo_num**2)
-
-  !print*,'Eigenvalues of the 4D hessian as a mo_num**2 by mo_num**2 matrix :'
-  !write(*,'(100(F10.5))') e_val(:) 
+  !========================
+  ! 4D matrix -> 2D matrix
+  !========================
   
-  !deallocate(e_val,H_v,H_u)
+  ! Convert the hessian mo_num * mo_num * mo_num * mo_num matrix in a
+  ! 2D n * n matrix (n = mo_num*(mo_num-1)/2)
+  ! H(pq,rs) : p<q and r<s
 
   ! 4D mo_num matrix to 2D n matrix
-  do pq = 1, n
-    call in_mat_vec_index(pq,p,q)
-    do rs = 1, n
-      call in_mat_vec_index(rs,r,s)
+  do rs = 1, n
+    call in_mat_vec_index(rs,r,s)
+    do pq = 1, n
+      call in_mat_vec_index(pq,p,q)
       H(pq,rs) = h_tmpr(p,q,r,s)   
     enddo
   enddo
-
 
   ! Display
   if (debug) then 
@@ -312,7 +338,7 @@ subroutine first_diag_hess(n,H, h_tmpr)
   ! Deallocation
   !==============
 
-  deallocate(hessian)!,h_tmpr,H_test)
+  deallocate(hessian)!,h_tmpr)
 
   if (debug) then
     print*,'Leaves first_diag_hessien'

@@ -20,7 +20,7 @@ program run_debug_rotation
   double precision              :: trust_radius,rho,energy,e_model
   logical :: cancel_step
   integer :: nb_error
-  double precision :: max_error, threshold
+  double precision :: max_error, threshold, max_elem
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -76,7 +76,7 @@ program run_debug_rotation
 
   nb_iter_trust = 0
   ! Gradient and norm
-  call gradient(n,v_grad)
+  call gradient(n,v_grad,max_elem)
   
   ! Hessian and norm
   if (method == 1) then

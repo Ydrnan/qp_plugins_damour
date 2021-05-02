@@ -26,7 +26,7 @@ subroutine dm_newton_test(R,prev_mos,new_mos)
   ! internal
   !==========
   double precision,intent(in)  :: new_mos(ao_num,mo_num)
-  integer                       :: i
+  integer                       :: i,j
   ! new_mos : ao_num by mo_num double precision matrix, new coefficients of the MOs 
   ! i       : integer, index 
  
@@ -46,7 +46,7 @@ subroutine dm_newton_test(R,prev_mos,new_mos)
   if (debug) then
     print*,'Enter in dm_newton_test'
   endif
- 
+
   ! Product of old MOs (mo_coef) by Rotation matrix (R) 
 
   call dgemm('N','T',ao_num,mo_num,mo_num,1d0,mo_coef,size(mo_coef,1),R,size(R,1),0d0,new_mos,size(new_mos,1)) 

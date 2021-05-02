@@ -23,7 +23,7 @@ program run_debug_hessian
   ! i,j,p,q,k : integer, indexes
   
   ! Choice of the method 
-  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
  
   ! Def of n  
   n = mo_num*(mo_num-1)/2
@@ -47,9 +47,8 @@ program run_debug_hessian
 
     print*,'Use the full hessian matrix'
     call first_hess(n,H,h_f)
-    !call hess(n,H1,h_f2)
-    call old_hess(n,H1,h_f2) 
- 
+    call hess(n,H1,h_f2)
+
     h_f = h_f - h_f2
     H = H - H1
     max_error = 0d0

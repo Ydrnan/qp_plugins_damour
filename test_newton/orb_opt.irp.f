@@ -124,9 +124,6 @@ subroutine run
     ! Rotation matrix
     call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
    
-    ! send MOs to ocaml 
-    call ocaml_debug
-
     ! Orbital optimization
     call dm_newton_test(R)
   

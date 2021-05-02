@@ -98,12 +98,12 @@ subroutine run
       
       ! Gradient and norm
       call gradient(n,v_grad,max_elem)
-  
+      
       ! Hessian and norm
       if (method == 1) then
         print*,'Use the full hessian matrix'
        !call first_hess(n,H)
-       call old_hess(n,H,h_f) !h_f -> debug
+       call hess(n,H,h_f) !h_f -> debug
       else
         print*, 'Use the diagonal hessian matrix'
         !call first_diag_hess(n,H)
@@ -143,7 +143,7 @@ subroutine run
       nb_iter += 1
     endif
 
-    if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
+    if (nb_iter == 1 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
     !nb_iter += 1

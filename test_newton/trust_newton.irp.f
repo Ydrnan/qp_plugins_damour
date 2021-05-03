@@ -55,22 +55,31 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
   lambda = 0d0
 
   ! Debug
-!   open(unit=10,file='norm_p.dat')
-!   do i = 1, 10000
-!   f_N = fN(n,e_val,w,v_grad,lambda)
-!   d_N = dN(n,e_val,w,v_grad,lambda,delta)
-!   d2_N = d2N(n,e_val,w,v_grad,lambda,delta)
-!   write(10,*) lambda, (f_N-1d0)**2, d_N, d2_N
-!   lambda = lambda + 0.0001
-!   enddo
-!   close(10)
+  if (debug) then
+     open(unit=10,file='norm_x.dat')
+     write(10,*) 'lambda, f_N, d_N, d2_N'
+     do i = 1, 10000
+       f_N = fN(n,e_val,w,v_grad,lambda)
+       d_N = dN(n,e_val,w,v_grad,lambda,delta)
+       d2_N = d2N(n,e_val,w,v_grad,lambda,delta)
+       write(10,*) lambda, f_N, d_N, d2_N
+       lambda = lambda + 0.0001
+     enddo
+     close(10)
+  endif
  
   ! Iteration de la methode de Newton pour trouver lambda
-  CALL CPU_TIME(t1)
+  CALL wall_time(t1)
   ! Il y a beaucoup trop d'itérations 
 
-  do i = 1, 100
-
+  ! Diŝplay
+  if (debug) then
+      print*, 'Iteration   First derivative   lambda    ||x||^2'
+  endif
+  
+  i = 1
+  f_N = 0d0
+  do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
     d_N = dN(n,e_val,w,v_grad,lambda,delta)
     d2_N = d2N(n,e_val,w,v_grad,lambda,delta)
     lambda = lambda - (1d0/ABS(d2_N))*d_N
@@ -78,23 +87,23 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
     
     ! Diŝplay
     if (debug) then
-      print*, 'iteration number', 'value of the first derivative', 'lambda', '||p||^2'
-      print*,i,d_N, lambda, f_N
+      print*, i, d_N, lambda, f_N, ABS(1d0-f_N/delta**2)
     endif  
-
+    i = i+1
   enddo
 
-  CALL CPU_TIME(t2)
+  CALL wall_time(t2)
 
   t3 = t2 - t1
   print*,'Time to search the optimal lambda :', t3
+  print*,'Error on the trust region :', 1d0-f_N/delta**2
 
 end subroutine
 
 function dN(n,e_val,w,v_grad,lambda,delta)
 
   !=============================================================
-  ! Function to compute the first derivative of ||p||^2 - Delta
+  ! Function to compute the first derivative of ||x||^2 - Delta
   !=============================================================
 
   implicit none
@@ -134,7 +143,7 @@ function dN(n,e_val,w,v_grad,lambda,delta)
   !===========
   double precision :: dN
   double precision :: ddot
-  ! dN   : double precision function, first derivative with respect to lambda of ||p||^2 - Delta
+  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
   ! ddot : double precision Blas function, dot product  
 
   !=============
@@ -168,7 +177,7 @@ end function
 function d2N(n,e_val,w,v_grad,lambda,delta)
 
   !=============================================================
-  ! Function to compute the second derivative of ||p||^2 - Delta
+  ! Function to compute the second derivative of ||x||^2 - Delta
   !=============================================================
 
   implicit none
@@ -198,7 +207,7 @@ function d2N(n,e_val,w,v_grad,lambda,delta)
   !===========
   double precision :: d2N
   double precision :: ddot
-  ! dN   : double precision function, first derivative with respect to lambda of ||p||^2 - Delta
+  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
   ! ddot : double precision Blas function, dot product 
 
   !==========
@@ -250,7 +259,7 @@ end function
 function fN(n,e_val,w,v_grad,lambda)
 
   !==============================
-  ! Compute the value of ||p||^2
+  ! Compute the value of ||x||^2
   !==============================
 
   implicit none

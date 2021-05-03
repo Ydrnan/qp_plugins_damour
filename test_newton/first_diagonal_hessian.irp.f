@@ -319,9 +319,9 @@ subroutine first_diag_hess(n,H, h_tmpr)
 
   ! 4D mo_num matrix to 2D n matrix
   do rs = 1, n
-    call in_mat_vec_index(rs,r,s)
+    call vec_to_mat_index(rs,r,s)
     do pq = 1, n
-      call in_mat_vec_index(pq,p,q)
+      call vec_to_mat_index(pq,p,q)
       H(pq,rs) = h_tmpr(p,q,r,s)   
     enddo
   enddo

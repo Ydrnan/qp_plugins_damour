@@ -1,4 +1,4 @@
-subroutine in_mat_vec_index(i,p,q)
+subroutine vec_to_mat_index(i,p,q)
 
   include 'constants.h'
 

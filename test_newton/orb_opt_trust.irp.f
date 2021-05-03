@@ -80,11 +80,9 @@ subroutine run
   prev_energy = 0.d0
   cancel_step = .False.
 
-
   !call clear_mo_map
   !TOUCH mo_coef
   call diagonalize_ci
-
 
   nb_iter = 0
   do while (.not.converged)
@@ -125,28 +123,36 @@ subroutine run
       print*,'========================================'
     
       call clear_mo_map
+print*,'1'
       TOUCH mo_coef
+print*,'2'
       call diagonalize_ci     
+print*,'3'
  
     else
       ! Rotation matrix
-      call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+      call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
       ! Orbital optimization
-      call dm_newton_test(R,prev_mos,new_mos)
+      call apply_mo_rotation(R,prev_mos,new_mos)
   
       call clear_mo_map
+print*,'1'
       TOUCH mo_coef
-
+print*,'2'
       call diagonalize_ci
+print*,'3'
 
       nb_iter += 1
     endif
 
-    if (nb_iter == 1 .or. ABS(max_elem) <= 1d-5) then
+    if (nb_iter == 5 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
-    !nb_iter += 1
+
+    call save_wavefunction   
+print*,'4'
+ 
   end do
 
   deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)

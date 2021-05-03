@@ -37,7 +37,11 @@ subroutine run
   ! i,j,p,q,k : integer, indexes
   ! rho    : double precision : test
   ! f_t    : double precision : test
+ 
+  double precision, allocatable :: prev_mos(:,:), new_mos(:,:)
   
+  allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num))
+
   double precision ::  norm
  
   PROVIDE mo_two_e_integrals_in_map
@@ -68,73 +72,88 @@ subroutine run
   !=============
   ! Calculation
   !=============
+  
+  call diagonalize_ci
 
-  if (method == 0) then
-    
-    call gradient(n,v_grad)
+  logical :: converged
+
+  converged = .False.
+
+  integer :: nb_iter
+  double precision :: max_elem
+
+  nb_iter = 0
+  max_elem = 1d0
+  do while (.not.converged)
+
+    print*,'*********************'
+    print*,'Iteration :',nb_iter
+    print*,'*********************'
    
-    allocate(grad(mo_num,mo_num))
-
-    call dm_vec_to_mat(v_grad,size(v_grad,1),grad,size(grad,1),info)  
+  
+    if (method == 0) then
+      
+      call gradient(n,v_grad,max_elem)
+     
+      allocate(grad(mo_num,mo_num))
+  
+      call dm_vec_to_mat(v_grad,size(v_grad,1),grad,size(grad,1),info)  
+      
+      call dm_antisym(grad,mo_num,mo_num,info)
+      
+      call rotation_matrix(grad,mo_num,R,mo_num,mo_num,info)
+  
+      call apply_mo_rotation(R) 
+  
+      deallocate(grad,R)
     
-    call dm_antisym(grad,mo_num,mo_num,info)
+    else  ! Full or diagonal hessian 
     
-    call dm_rotation(grad,mo_num,R,mo_num,mo_num,info)
-
-    call dm_newton_test(R) 
-
-    deallocate(grad,R)
-  
-  else  ! Full or diagonal hessian 
-  
-    ! Gradient and norm 
-    call gradient(n,v_grad)
-  
-    ! Hessian and norm
-    if (method == 1) then 
-      print*,'Use the full hessian matrix'
-     !call first_hess(n,H)
-     call hess(n,H,h_f) !h_f -> debug
-     deallocate(h_f)
-    else
-      print*, 'Use the diagonal hessian matrix'
-      !call first_diag_hess(n,H)
-      call diag_hess(n,H,h_f) !h_f -> debug
-      deallocate(h_f)
-    endif
- 
-    ! Inversion of the hessian
-    if (trust_method == 0) then
-      call dm_inversion(method,n,H,Hm1)
-    endif
-
-    ! Hm1.g product
-    if (trust_method == 0) then
-      call dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)     
-    else
-      call trust_region(n,method,H,v_grad,m_Hm1g)
-    endif
-
-    if (cyrus == 1) then
-      !Test cyrus : f_t
-      call test_cyrus(n,H,Hm1g,f_t)
-      m_Hm1g = f_t * m_Hm1g
-    endif
-
-    ! Rotation matrix
-    call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+      ! Gradient and norm 
+      call gradient(n,v_grad,max_elem)
+    
+      ! Hessian and norm
+      if (method == 1) then 
+        print*,'Use the full hessian matrix'
+       !call first_hess(n,H)
+       call hess(n,H,h_f) !h_f -> debug
+      else
+        print*, 'Use the diagonal hessian matrix'
+        !call first_diag_hess(n,H)
+        call diag_hess(n,H,h_f) !h_f -> debug
+      endif
    
-    ! Orbital optimization
-    call dm_newton_test(R)
+      ! Inversion of the hessian
+      call matrix_inversion(method,n,H,Hm1)
   
-    deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)
- endif
+      ! Hm1.g product
+      call Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)     
+  
+      if (cyrus == 1) then
+        !Test cyrus : f_t
+        call test_cyrus(n,H,Hm1g,f_t)
+        m_Hm1g = f_t * m_Hm1g
+      endif
+  
+      ! Rotation matrix
+      call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+     
+      ! Orbital optimization
+      call apply_mo_rotation(R,prev_mos,new_mos)
+    
+    endif
+  
+      call clear_mo_map
+      TOUCH mo_coef
+      call diagonalize_ci
+  
+    nb_iter = nb_iter+1
+    if (nb_iter == 5 .or. ABS(max_elem) <= 1d-5) then
+        converged = .True.
+    endif
 
-    call clear_mo_map
-    TOUCH mo_coef
-    print *, psi_energy_with_nucl_rep(1)
+  enddo
 
-!    SOFT_TOUCH mo_coef N_det psi_det psi_coef 
-
-
+  deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)
+  deallocate(h_f)
 end 

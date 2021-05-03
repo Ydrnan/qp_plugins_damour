@@ -1,4 +1,4 @@
-subroutine dm_inversion(method,n,H,Hm1)
+subroutine matrix_inversion(method,n,H,Hm1)
   
   include 'constants.h'
  
@@ -52,7 +52,7 @@ subroutine dm_inversion(method,n,H,Hm1)
   ! dgemm : Blas routine, matrix matrix product
 
   if (debug) then
-    print*,'Enter in dm_inversion'
+    print*,'Enter in matrix_inversion'
   endif
 
   CALL CPU_TIME(t1)
@@ -139,7 +139,7 @@ subroutine dm_inversion(method,n,H,Hm1)
   print*, 'Time to invert the Hessian (dm_inversion) : ', t2  
  
   if (debug) then
-    print*,'Leaves dm_inversion'
+    print*,'Leaves matrix_inversion'
   endif
   
 end subroutine

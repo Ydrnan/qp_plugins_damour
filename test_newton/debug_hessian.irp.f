@@ -1,4 +1,4 @@
-program run_debug_hessian
+program debug_hessian
   implicit none
 
   !======================================

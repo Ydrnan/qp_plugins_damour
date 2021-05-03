@@ -1,4 +1,4 @@
-program run_debug_grad
+program debug_grad
   implicit none
 
   !================================

@@ -1,4 +1,4 @@
-subroutine dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)
+subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
   
   include 'constants.h'  
   
@@ -54,7 +54,7 @@ subroutine dm_Hm1g(n,Hm1,v_grad,m_Hm1g,Hm1g)
   do q=1,mo_num
     do p=1,mo_num
       if (p>q) then
-        call in_vec_to_mat(p,q,k)
+        call mat_to_vec_index(p,q,k)
         m_Hm1g(p,q) = Hm1g(k)
       else
         m_Hm1g(p,q)=0d0

@@ -1,52 +1,54 @@
 program extrapolation
 implicit none
-integer :: nb_lines, i, k, nb_points, index_first_PT2
+integer :: nb_lines,l, i, k, nb_points_max, index_first_PT2
 double precision, allocatable :: E(:), E_corr(:), PT2(:), rPT2(:)
 character(len=10) :: text_PT2, text_rPT2
 character(len=100) :: ezfio_dir
 character(len=200) :: path_cipsi
 character(len=120) :: path_hf
+character(len=140) :: file1, file2, file_PT2, file_rPT2
 double precision :: hf_e
 
-!write(*,*) 'ezfio directory name ?'
-!read(*,*) ezfio_dir
-!print*, ezfio_dir
+write(*,*) 'ezfio directory name ?'
+read(*,*) ezfio_dir
 
-!path_hf = ezfio_dir//'hartree_fock/energy'
+path_hf = adjustl(adjustr(ezfio_dir)//'/hartree_fock/energy')
+call execute_command_line('echo '//path_hf)
 
-! ! on utilise une variable logique
- logical::existe
-!
-! ! on teste l'existence de mon_fichier
-! inquire( file=path_hf, exist=existe)
-!
-! ! la réponse est dans la variable existe
-! If    ( existe ) Then
-!    ! existe = .true.
-!    write(*,*)"le répertoire existe"
-! ElseIf( .NOT. existe) Then
-!    ! existe = .false.
-!    write(*,*)"le répertoire n'existe pas"
-!    STOP 
-! Endif
+ ! on utilise une variable logique
+logical::existe
+
+ ! on teste l'existence du fichier hartree_fock/energy
+ inquire( file=path_hf, exist=existe)
+
+ ! la réponse est dans la variable existe
+ If    ( existe ) Then
+    ! existe = .true.
+    write(*,*)'le répertoire existe'
+    write(*,*)''
+ ElseIf( .NOT. existe) Then
+    ! existe = .false.
+    write(*,*)'le répertoire n existe pas'
+    STOP 
+ Endif
 
 write(*,*) 'fci.out name ?'
 read(*,*) path_cipsi
 
-!path_cipsi = adjustl(adjustr(ezfio_dir)//'/'//path_cipsi)
+path_cipsi = adjustl(adjustr(ezfio_dir)//'/'//path_cipsi)
 
-!print*, path_cipsi
 call execute_command_line('echo '//path_cipsi)
- ! on teste l'existence de mon_fichier
+
+ ! on teste l'existence du fichier
  inquire( file=path_cipsi, exist=existe)
 
  ! la réponse est dans la variable existe
  If    ( existe ) Then
     ! existe = .true.
-    write(*,*)"le fichier existe"
+    write(*,*)'le fichier existe'
  ElseIf( .NOT. existe) Then
     ! existe = .false.
-    write(*,*)"le fichier n'existe pas"
+    write(*,*)'le fichier n existe pas'
     STOP
  Endif
 
@@ -67,7 +69,7 @@ call execute_command_line('grep "Summary at N_det = " '//path_cipsi//' > Ndet.da
 call execute_command_line("awk '{print $5}' Ndet.dat > newNdet.dat")
 
 !call execute_command_line("sed 's/#//' E.dat > tmp1.dat")
-call execute_command_line("wc -l E.dat > nb_lines.dat")
+call execute_command_line('wc -l E.dat > nb_lines.dat')
 !call execute_command_line("sed 's/tmp1.dat//' nb_line.dat > example2.dat")
 call execute_command_line("awk '{print $1}' nb_lines.dat > newnb_lines.dat")
 
@@ -75,7 +77,7 @@ call execute_command_line("awk '{print $1}' nb_lines.dat > newnb_lines.dat")
 open(unit=10,file='newnb_lines.dat')
 read(10,*) nb_lines
 close(10)
-print*,nb_lines
+!print*,nb_lines
 
 ! allocation
 allocate(E(nb_lines))
@@ -108,12 +110,12 @@ close(10)
 print*,'rPT2'
 print*,rPT2(:)
 
+! HF energy to comute the correlation
 !hf_e = hf_energy
-hf_e = -88d0
-!path_hf = ezfio_dir//'hartree_fock/energy'
-!open(unit=10,file=path_hf)
-!read(10,*) hf_e
-!close(10)
+!hf_e = -89.5234718987352d0
+open(unit=10,file=path_hf)
+read(10,*) hf_e
+close(10)
 
 ! compute and write the correlation energies (mH)
 do i = 1, nb_lines
@@ -128,26 +130,38 @@ do i = 1, nb_lines
 enddo
 close(10)
 
-call execute_command_line("paste newNdet.dat newE.dat > tmp2.dat")
-call execute_command_line("paste tmp2.dat newPT2.dat > tmp3.dat")
-call execute_command_line("paste tmp3.dat newrPT2.dat > tmp4.dat")
-call execute_command_line("paste tmp4.dat e_correlation.dat > tmp5.dat")
-call execute_command_line("cat newnb_lines.dat > data_correlation.dat")
+call execute_command_line('paste newNdet.dat newE.dat > tmp2.dat')
+call execute_command_line('paste tmp2.dat newPT2.dat > tmp3.dat')
+call execute_command_line('paste tmp3.dat newrPT2.dat > tmp4.dat')
+call execute_command_line('paste tmp4.dat e_correlation.dat > tmp5.dat')
 
-open(unit=10,file='data_correlation.dat')
+file1 = adjustl(adjustr(ezfio_dir)//'/data_correlation.dat')
+
+call execute_command_line('cat newnb_lines.dat > data_correlation.dat')
+
+open(unit=10,file=file1)
 write(10,*) nb_lines
-write(10,*) "N_det      E           PT2          rPT2           E_corr"
+write(10,*) 'N_det      E           PT2          rPT2           E_corr'
 close(10)
 
-call execute_command_line("cat tmp5.dat >> data_correlation.dat")
+call execute_command_line('cat tmp5.dat >> '//file1)
 
-call execute_command_line("rm Ndet.dat E.dat PT2.dat rPT2.dat nb_lines.dat")
-call execute_command_line("rm newNdet.dat newE.dat newPT2.dat newrPT2.dat e_correlation.dat newnb_lines.dat")
-call execute_command_line("rm tmp2.dat tmp3.dat tmp4.dat tmp5.dat")
+call execute_command_line('rm Ndet.dat E.dat PT2.dat rPT2.dat nb_lines.dat')
+call execute_command_line('rm newNdet.dat newE.dat newPT2.dat newrPT2.dat e_correlation.dat newnb_lines.dat')
+call execute_command_line('rm tmp2.dat tmp3.dat tmp4.dat tmp5.dat')
 
-k = MAX(1, nb_lines-7)
+file2 = adjustl(adjustr(ezfio_dir)//'/E_correlation.dat')
+file_PT2 = adjustl(adjustr(ezfio_dir)//'/E_correlation_PT2.gnu')
+file_rPT2 = adjustl(adjustr(ezfio_dir)//'/E_correlation_rPT2.gnu')
 
-open(unit=10, file='E_correlation.dat')
+! Index to take the lat 7 points
+k = MAX(1, nb_lines-7+1)
+!print*,'k',k
+
+! Max number of points for the regression (numer of points must be >= 3)
+nb_points_max = MIN(5,nb_lines - 2)
+
+open(unit=10, file=file2)
 write(10,*) 'FCI energy extrapolation'
 write(10,*) ''
 write(10,*) 'With PT2 :'
@@ -155,35 +169,47 @@ write(10,*) 'Nb points  E_corr     R^2     error    error^2'
 write(10,*) '            (mH)              (mH)     (mH^2)'
 close(10)
 
-index_first_PT2 = MAX(1,nb_lines-6)
+! Index to store the largest PT2 and rPT2 values
+index_first_PT2 = MAX(1,nb_lines-7+1)
 
+! Largest PT2 and rPT2 values
 write(text_PT2,'(F10.4)') PT2(index_first_PT2)
 write(text_rPT2,'(F10.4)') rPT2(index_first_PT2)
 
-open(unit=10, file='E_correlation.gnu')
+open(unit=10, file=file_PT2)
 write(10,*) '#!/bin/gnuplot'
 write(10,*) 'set xrange ['//text_PT2//':0]'
 write(10,*) 'plot "data_correlation.dat" u 3:5 title "E corr = f(PT2)"'
 close(10)
 
-do nb_points = 3, nb_lines - k + 1
-call linear_reg(nb_lines - k + 1 - nb_points + 1, nb_lines, PT2, E_corr)
+open(unit=10, file=file_rPT2)
+write(10,*) '#!/bin/gnuplot'
+write(10,*) 'set xrange ['//text_PT2//':0]'
+write(10,*) 'plot "data_correlation.dat" u 4:5 title "E corr = f(rPT2)"'
+close(10)
+
+! Linear regression with PT2
+do l = k, k + nb_points_max - 1 
+call linear_reg(l, nb_lines, PT2, E_corr, file2, file_PT2)
+!print*,'k',l
 enddo
 
-open(unit=10, file='E_correlation.dat', position='append')
+open(unit=10, file=file2, position='append')
 write(10,*) ''
 write(10,*) 'With rPT2 :'
 write(10,*) 'Nb points  E_corr     R^2     error    error^2'
 write(10,*) '            (mH)              (mH)     (mH^2)'
 close(10)
 
-do nb_points = 3, nb_lines - k + 1
-call linear_reg(nb_lines - k + 1 - nb_points + 1, nb_lines, rPT2, E_corr)
+! Linear regression with rPT2
+do l = k, k +  nb_points_max - 1
+call linear_reg(l, nb_lines, rPT2, E_corr, file2, file_rPT2)
+!print*,'k',l
 enddo
 
 end program
 
-subroutine linear_reg(k,nb_lines,x,y)
+subroutine linear_reg(k,nb_lines,x,y,file1, file2)
 implicit none
 
   ! Linear regression to fin a and b such as :
@@ -202,8 +228,12 @@ implicit none
 
   ! \hat{y}_i = a*x_i + b
 
+  ! method = 1 -> with PT2
+  ! method = 2 -> with rPT2
+
   integer, intent(in) :: k, nb_lines
   double precision, intent(in) :: x(nb_lines), y(nb_lines)
+  character(len=140), intent(in) :: file1, file2
 
   double precision :: a,b
   double precision :: x_bar, y_bar, num, denom
@@ -219,7 +249,8 @@ implicit none
 
   ! Number of points for the regression
   n = nb_lines - k + 1
-  print*,n
+  print*, 'Number of points for the regression :', n
+
   ! Allocation
   allocate(y_hat(nb_lines))
 
@@ -303,7 +334,7 @@ implicit none
   print*,'Error (mH) :', abs_error
   print*,'Error^2 :', abs_error2
 
-  open(unit=10, file='E_correlation.dat', position='append')
+  open(unit=10, file=file1, position='append')
   write(10,'(I7, F10.2, F10.5, F10.5, F10.5)') n, b, R2, abs_error, abs_error2              
   close(10)
 
@@ -315,9 +346,9 @@ implicit none
   text_title2 = '"'
   write(text_title3,'(F10.2)') b
   text = adjustl(adjustr(text_title3)//' mH'//'"')
-  print*, text
 
-  open(unit=10, file='E_correlation.gnu', position='append')
+  open(unit=10, file=file2, position='append')
+
   write(10,*) 'replot ', text_a, '*x', text_b, text_title1, text_points,' points : ', text
   close(10)
 

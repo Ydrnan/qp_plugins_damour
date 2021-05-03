@@ -1,4 +1,4 @@
-subroutine dm_newton_test(R,prev_mos,new_mos)
+subroutine apply_mo_rotation(R,prev_mos,new_mos)
   
   include 'constants.h'
 
@@ -67,7 +67,6 @@ subroutine dm_newton_test(R,prev_mos,new_mos)
     enddo
   endif
 
- 
   ! Save the new MOs and change the label
   mo_label = 'MCSCF'
   call save_mos

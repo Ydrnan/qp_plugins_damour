@@ -83,7 +83,7 @@ subroutine first_gradient(n,v_grad)
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   do i=1,n
-    call in_mat_vec_index(i,p,q)
+    call vec_to_mat_index(i,p,q)
     v_grad(i)=(grad(p,q) - grad(q,p))
   enddo  
 

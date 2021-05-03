@@ -1,4 +1,7 @@
-subroutine dm_rotation(A,LDA,R,LDR,n,info)
+subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
+     
+        use omp_lib     
+   
         implicit none
 
         include 'constants.h'
@@ -117,17 +120,29 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         endif
 
         ! Matrix elements of A must by non-NaN
+        call omp_set_max_active_levels(1)
+
+        !$OMP PARALLEL                                                     &
+          !$OMP PRIVATE(i,j)                                               &
+          !$OMP SHARED(a,info,n)&
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,n
                         if (disnan(a(i,j))) then
                                 info=1
                                 print*, 'dm_rotation : invalid parameter 1'
                                 print*, 'NaN element in A matrix'
-                                return
                         endif
                 enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
+       
+        if (info == 1) then
+          return
+        endif
 
         !==============
         ! Calculations
@@ -135,8 +150,13 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         !==============
         ! Compute B=A.A
-
+        
+        !$OMP PARALLEL     &
+          !$OMP SHARED(n,A,B) &
+          !$OMP DEFAULT(NONE)
         call dgemm('N','N',n,n,n,1d0,A,size(A,1),A,size(A,1),0d0,B,size(B,1))
+        !$OMP END PARALLEL
+     
 
         ! Debug
         ! Display the B=A.A
@@ -160,7 +180,7 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         print*,'Starting diagonalization ...'
 
         call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info2)
-
+           
         deallocate(work)
 
         if (info2==0) then
@@ -229,6 +249,12 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! if i==j then cos_tau(i,j)=cos(tau(i)) else 0d0
         ! if i==j then sin_tau(i,j)=sin(tau(i)) else 0d0
 
+        !$OMP PARALLEL     &
+          !$OMP PRIVATE(i,j) &
+          !$OMP SHARED(n,cos_tau,e_val) &
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,n
                         if (i==j) then
@@ -238,11 +264,19 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
                         endif
                 enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         do i=1,n
                 v_cos_tau(i)=dcos(dsqrt(e_val(i)))
         enddo
 
+        !$OMP PARALLEL     &
+          !$OMP PRIVATE(i,j) &
+          !$OMP SHARED(n,sin_tau,e_val) &
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,n
                         if (i==j) then
@@ -252,6 +286,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
                         endif
                 enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         do i=1,n
                 v_sin_tau(i)=dsin(dsqrt(e_val(i)))
@@ -270,6 +306,13 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
 
         !=======
         ! tau^-1
+
+        !$OMP PARALLEL     &
+          !$OMP PRIVATE(i,j) &
+          !$OMP SHARED(n,tau_m1,e_val) &
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,n
                         if ((i==j).and.(e_val(i) > 0.d0)) then
@@ -279,6 +322,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
                         endif
                 enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         do i=1,n
                 if (e_val(i) > 0.d0) then
@@ -307,7 +352,11 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! part_2 = dgemm(W, part_2c)
         ! Rotation matrix R = part_1+part_2
 
-        !call cpu_time(t1) 
+        !call cpu_time(t1)
+        !$OMP PARALLEL     &
+          !$OMP SHARED(n,cos_tau,sin_tau,tau_m1,W,part_1a,part_1, &
+          !$OMP part_2a,part_2b,part_2c,part_2,A) &
+          !$OMP DEFAULT(NONE) 
         call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
 !        call dm_prodvecmat(v_cos_tau,n,W,size(W,1),part_1a,size(part_1a,1),1,info) 
 
@@ -326,6 +375,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         call dgemm('N','N',n,n,n,1d0,tau_m1,size(tau_m1,1),part_2b,size(part_2b,1),0d0,part_2c,size(part_2c,1))
 !        call dm_prodvecmat(v_taum1,n,part_2b,size(part_2b,1),part_2c,size(part_2c,1),0,info)
         call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_2c,size(part_2c,1),0d0,part_2,size(part_2,1))
+        !$OMP END PARALLEL
+
         !call cpu_time(t2)
         !t2=t2-t1
         !print*,t2
@@ -359,6 +410,12 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         ! R.R^t and R^t.R must be equal to identity matrix
         ! On ne fait la vérification que sur R.R^t pour le moment
 
+        !$OMP PARALLEL     &
+          !$OMP PRIVATE(i,j) &
+          !$OMP SHARED(n,RR_t,R) &
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,n
                         if (i==j) then
@@ -368,7 +425,9 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
                         endif
                 enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
+  
         call dgemm('N','T',n,n,n,1d0,R,size(R,1),R,size(R,1),-1d0,RR_t,size(RR_t,1))
 
         norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
@@ -385,6 +444,13 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
         !=================
 
         ! Matrix elements of R must by non-NaN
+
+        !$OMP PARALLEL     &
+          !$OMP PRIVATE(i,j) &
+          !$OMP SHARED(n,LDR,R,info) &
+          !$OMP DEFAULT(NONE)
+
+        !$OMP DO
         do j=1,n
                 do i=1,LDR
                         if (disnan(R(i,j))) then
@@ -394,6 +460,8 @@ subroutine dm_rotation(A,LDA,R,LDR,n,info)
                         endif
                 enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         !=========
         ! Display

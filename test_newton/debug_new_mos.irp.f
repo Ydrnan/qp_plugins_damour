@@ -1,4 +1,4 @@
-program run_debug_new_mos
+program debug_new_mos
   implicit none
 
   !===================================
@@ -93,14 +93,14 @@ program run_debug_new_mos
   call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
   ! Rotation matrix
-  call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+  call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
   ! Orbital optimization
-  call dm_newton_test(R,prev_mos,new_mos)
+  call apply_mo_rotation(R,prev_mos,new_mos)
   
   mo_coef = prev_mos
   call save_mos
-  call omp_dm_newton_test(R,prev_mos,new_mos1)
+  call apply_mo_rotation_omp(R,prev_mos,new_mos1)
  
   new_mos = new_mos -new_mos1
   

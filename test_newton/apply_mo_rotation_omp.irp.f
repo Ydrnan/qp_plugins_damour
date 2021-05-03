@@ -1,4 +1,4 @@
-subroutine omp_dm_newton_test(R,prev_mos,new_mos)
+subroutine apply_mo_rotation_omp(R,prev_mos,new_mos)
   
   include 'constants.h'
 
@@ -44,7 +44,7 @@ subroutine omp_dm_newton_test(R,prev_mos,new_mos)
   !=============
  
   if (debug) then
-    print*,'Enter in dm_newton_test'
+    print*,'Enter in apply_mo_rotation_omp'
   endif
  
   ! Product of old MOs (mo_coef) by Rotation matrix (R) 
@@ -86,7 +86,7 @@ subroutine omp_dm_newton_test(R,prev_mos,new_mos)
   !==============
 
   if (debug) then
-    print*,'Leaves dm_newton_test'
+    print*,'Leaves apply_mo_rotation_omp'
   endif
 
 end subroutine

@@ -1,4 +1,4 @@
-program run_debug_rotation
+program debug_rotation_matrix
   implicit none
 
   !===================================
@@ -93,9 +93,9 @@ program run_debug_rotation
   call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
   ! Rotation matrix
-  call dm_rotation(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+  call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
-  call omp_dm_rotation(m_Hm1g,mo_num,R1,mo_num,mo_num,info) 
+  call rotation_matrix_omp(m_Hm1g,mo_num,R1,mo_num,mo_num,info) 
 
   R = R1 - R
   

@@ -1,69 +1,100 @@
 #!/bin/bash
-
-# for the cluster :
-# Change the source !!!!!!!!!
 #SBATCH -p xeonv3 -N 1 -n 1 -c 24 --exclusive
 source /home/ydamour/qp2/quantum_package.rc
 module load intel/2019.0
 module load python/3.7.6-gcc-9.2.0
 module load gcc/8.2.0
 
-XYZ=CN
-BASIS=cc_pvdz
-EXTRA=
+XYZ=benzene
+BASIS=HF_opt_S2
+DIR=${XYZ}_${BASIS}.ezfio
+FILE=${XYZ}_${BASIS}
+INITIAL_DIR
 
-IT=_it_
+cp -r ${INITIAL_DIR} ${DIR}
 
-DIR=${XYZ}_${BASIS}_${EXTRA}.ezfio
-#DIR=${XYZ}_${BASIS}.ezfio
-FILE=${XYZ}_${BASIS}_${EXTRA}
-#FILE=${XYZ}_${BASIS}
-PATH_CIPSI=../../../y_calculs
-PATH_OPT=../plugins/qp_plugins_damour/test_newton
+qp set_file $DIR
+qp reset -a
+qp reset -d
+qp run scf > ${DIR}/${FILE}.scf
 
-# path between 
-# /qp2/plugin/qp_plugin_damour/test_newton the directory for optimizations
-# and 
-# /qp2/y_calculs/ the directory for the CIPSI calculations
+# frozen core ?
+qp set_frozen_core > ${DIR}/${FILE}.frozen
 
-echo ${DIR}
+qp set determinants read_wf true
+qp set determinants mo_label MCSCF
+qp set mo_basis mo_label MCSCF
 
-cd ${PATH_OPT}
+# S^2 true or false
+qp set determinants s2_eig true
+#qp set determinants s2_eig false
 
-#Initialisation du trust region
-qp_run init_nb_iteration ${PATH_CIPSI}/${DIR}
-#Initialisation de la methode de cyrus
-qp_run init_cyrus ${PATH_CIPSI}/${DIR}
+# Number of determinants
+Ndet=5
+Nb_max_det = 200000
 
-# Go to the directory for a first CIPSI calculation
-cd $PATH_CIPSI
-#qp_run fci ${DIR} > ${DIR}/${FILE}${IT}.fci  # normalement deja fait dans le repertoire
-echo $(echo 0) "   "  $(grep "E               =" ${DIR}/${FILE}.fci | tail -1) > ${DIR}/optimization.dat
-
-# Optimization
-for ((i=1 ; 20 - $i ; i++))
+while [ ${Ndet} -lt ${Nb_max_det} ]
 do
-		cd ${PATH_OPT}
-		qp_run orb_opt ${PATH_CIPSI}/${DIR} > ${PATH_CIPSI}/${DIR}/orb_trash${IT}${i}.dat
-         
-		echo $i
+    echo ${Ndet}
+    qp set determinants n_det_max ${Ndet}
+    qp run fci > ${DIR}/${FILE}_${Ndet}.fci
+ 
+    grep "Summary at N_det = " ${DIR}/${FILE}_${Ndet}.fci | tail -1 >> ${DIR}/${FILE}_n_det.dat
+    grep "# E   " ${DIR}/${FILE}_${Ndet}.fci | tail -1 >> ${DIR}/${FILE}_energy.dat
+    grep "# PT2   " ${DIR}/${FILE}_${Ndet}.fci | tail -1 >> ${DIR}/${FILE}_pt2.dat
+    grep "# rPT2   " ${DIR}/${FILE}_${Ndet}.fci | tail -1 >> ${DIR}/${FILE}_rpt2.dat
 
-		cd ${PATH_CIPSI}
-		qp_run diagonalize_h ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.diagonalize
-        #qp_run fci ${DIR} > ${DIR}/${FILE} > ${DIR}/${FILE}${IT}${i}.fci
-		echo $i >> ${DIR}/iteration.dat
-		grep "N_det =" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/nb_det.dat
-	    grep "* Energy of state    1" ${DIR}/${FILE}${IT}${i}.diagonalize >> ${DIR}/energy.dat
-	    #grep "N_det =" ${DIR}/${FILE}${IT}${i}.fci >> ${DIR}/nb_det.dat
-        #grep "E               =" ${DIR}/${FILE}${IT}${i}.fci | tail -1 >> ${DIR}/energy.dat
-		grep "Gradient norm :" ${DIR}/orb_trash${IT}${i}.dat  >> ${DIR}/norm_grad.dat
+    qp run orb_opt_trust > ${DIR}/${FILE}_opt_trash_${Ndet}.dat
+    grep "Max element in gardient :" ${DIR}/${FILE}_opt_trash_${Ndet}.dat > ${DIR}/${FILE}_grad_${Ndet}.dat
+    grep "Number of negative eigenvalues :"  ${DIR}/${FILE}_opt_trash_${Ndet}.dat > ${DIR}/${FILE}_eval_${Ndet}.dat        
+    grep "e_val < 0 :"  ${DIR}/${FILE}_opt_trash_${Ndet}.dat > ${DIR}/${FILE}_eval_value_${Ndet}.dat
+    grep "Energy of state    1" ${DIR}/${FILE}_opt_trash_${Ndet}.dat > ${DIR}/${FILE}_opt_energy_${Ndet}.dat
+
+    qp run pt2 > ${DIR}/${FILE}_${Ndet}.pt2 
+
+    grep "Summary at N_det = " ${DIR}/${FILE}_${Ndet}.pt2 | tail -1 >> ${DIR}/${FILE}_n_det.dat
+    grep "# E   " ${DIR}/${FILE}_${Ndet}.pt2 | tail -1 >> ${DIR}/${FILE}_energy.dat
+    grep "# PT2   " ${DIR}/${FILE}_${Ndet}.pt2 | tail -1 >> ${DIR}/${FILE}_pt2.dat
+    grep "# rPT2   " ${DIR}/${FILE}_${Ndet}.pt2 | tail -1 >> ${DIR}/${FILE}_rpt2.dat
+
+Ndet=$[${Ndet}*2]    
 done
 
-paste ${DIR}/iteration.dat ${DIR}/energy.dat > ${DIR}/tmp_opt.dat
-paste ${DIR}/tmp_opt.dat ${DIR}/norm_grad.dat > ${DIR}/tmp2_opt.dat
-paste ${DIR}/tmp2_opt.dat ${DIR}/nb_det.dat >> ${DIR}/optimization.dat
+paste ${DIR}/${FILE}_n_det_opt.dat ${DIR}/${FILE}_energy_opt.dat > ${DIR}/${FILE}_result_opt.dat
+paste ${DIR}/${FILE}_n_det.dat ${DIR}/${FILE}_energy.dat > ${DIR}/${FILE}_tmp1.dat
+paste ${DIR}/${FILE}_tmp1.dat ${DIR}/${FILE}_pt2.dat > ${DIR}/${FILE}_tmp2.dat
+paste ${DIR}/${FILE}_tmp2.dat ${DIR}/${FILE}_rpt2.dat > ${DIR}/${FILE}_result.dat
 
-cd ${PATH_OPT}
+# CIPSI calculation
+DIR2=${FILE}_cipsi_S2.ezfio
+FILE2=${FILE}_cipsi_S2
+cp -r ${DIR} ${DIR2}
+
+qp set_file ${DIR2}
+qp reset -d
+qp set determinants read_wf true
+qp set determinants mo_label MCSCF
+qp set mo_basis mo_label MCSCF
+
+# S^2 true or false
+qp set determinants s2_eig true
+#qp set determinants s2_eig false
+
+# Number of determinants
+qp set determinants n_det_max 3e6
+
+qp run fci > ${DIR2}/${FILE2}.fci
+
+grep "Summary at N_det = " ${DIR2}/${FILE2}.fci >> ${DIR2}/${FILE2}_n_det.dat
+grep "# E   " ${DIR2}/${FILE2}.fci >> ${DIR2}/${FILE2}_energy.dat
+grep "# PT2   " ${DIR2}/${FILE2}.fci >> ${DIR2}/${FILE2}_pt2.dat
+grep "# rPT2   " ${DIR2}/${FILE2}.fci >> ${DIR2}/${FILE2}_rpt2.dat
+
+paste ${DIR2}/${FILE2}_n_det_opt.dat ${DIR2}/${FILE2}_energy_opt.dat > ${DIR2}/${FILE2}_result_opt.dat
+
+paste ${DIR2}/${FILE2}_n_det.dat ${DIR2}/${FILE2}_energy.dat > ${DIR2}/${FILE2}_tmp1.dat
+paste ${DIR2}/${FILE2}_tmp1.dat ${DIR2}/${FILE2}_pt2.dat > ${DIR2}/${FILE2}_tmp2.dat
+paste ${DIR2}/${FILE2}_tmp2.dat ${DIR2}/${FILE2}_rpt2.dat > ${DIR2}/${FILE2}_result.dat
 
 #       -p xeonv1 -N 1 -n 1 -c 16 --exclusive
 #       -p xeonv2 -N 1 -n 1 -c 20 --exclusive

@@ -1,4 +1,4 @@
-subroutine test_cyrus(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,f_t)
+subroutine umrigar_acc_newton_v1(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,f_t)
   
   include 'constants.h'
   

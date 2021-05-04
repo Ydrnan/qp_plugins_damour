@@ -1,10 +1,10 @@
 program orb_opt
   read_wf = .True.
   TOUCH read_wf
-  call run
+  call run_orb_opt
 end
 
-subroutine run
+subroutine run_orb_opt
   implicit none
 
   !===================================
@@ -21,6 +21,10 @@ subroutine run
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
+  double precision, allocatable :: prev_mos(:,:), new_mos(:,:)
+  logical :: converged
+  integer :: nb_iter
+  double precision :: max_elem
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -34,11 +38,11 @@ subroutine run
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
- 
-  double precision, allocatable :: prev_mos(:,:), new_mos(:,:)
-  logical :: converged
-  integer :: nb_iter
-  double precision :: max_elem 
+  ! max_elem : double precision, maximum element value in the gradient
+  ! converged : logical, if the algorithm is converged
+  ! nb_iter : integer, number of iteration
+  ! prev_mos : ao_num by mo_num double precision matrix containing the previous mos
+  ! new_mos : ao_num by mo_num double precision matrix containing the new mos
  
   PROVIDE mo_two_e_integrals_in_map
 

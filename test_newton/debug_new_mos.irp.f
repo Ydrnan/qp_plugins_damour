@@ -17,7 +17,7 @@ program debug_new_mos
   integer                       :: n
   integer                       :: i,j,p,q,k
   integer                       :: nb_iter_trust
-  double precision              :: trust_radius,rho,energy,e_model
+  double precision              :: trust_radius,e_model
   logical :: cancel_step
   integer :: nb_error
   double precision :: max_error, threshold
@@ -36,6 +36,15 @@ program debug_new_mos
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
+  ! trust_radius : double precision, radius of the trust region
+  ! e_model : double precision, predicted energy after the orbital rotation
+  ! max_elem : double precision, maximum element value in the gradient
+  ! cancel_step : logical, if the previous step must be cancel
+  ! converged : logical, if the algorithm is converged
+  ! nb_iter : integer, number of iteration
+  ! prev_energy : double precision, previous energy
+  ! prev_mos : ao_num by mo_num double precision matrix containing the previous mos
+  ! new_mos : ao_num by mo_num double precision matrix containing the new mos
 
   PROVIDE mo_two_e_integrals_in_map ci_energy
 

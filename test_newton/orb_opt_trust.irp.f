@@ -1,10 +1,10 @@
-program orb_opt
+program orb_opt_trust
   read_wf = .True.
   TOUCH read_wf
-  call run
+  call run_orb_opt_trust
 end
 
-subroutine run
+subroutine run_orb_opt_trust
   implicit none
 
   !===================================

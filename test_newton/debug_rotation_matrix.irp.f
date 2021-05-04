@@ -34,11 +34,12 @@ program debug_rotation_matrix
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
-  ! rho    : double precision : test
-  ! f_t    : double precision : test
-
-  double precision ::  norm
-
+  ! max_elem : double precision, maximum element value in the gradient
+  ! converged : logical, if the algorithm is converged
+  ! nb_iter : integer, number of iteration
+  ! prev_mos : ao_num by mo_num double precision matrix containing the previous mos
+  ! new_mos : ao_num by mo_num double precision matrix containing the new mos 
+ 
   PROVIDE mo_two_e_integrals_in_map ci_energy
 
   ! Choice of the method
@@ -80,12 +81,8 @@ program debug_rotation_matrix
   
   ! Hessian and norm
   if (method == 1) then
-    print*,'Use the full hessian matrix'
-   !call first_hess(n,H)
    call hess(n,H,h_f) !h_f -> debug
   else
-    print*, 'Use the diagonal hessian matrix'
-    !call first_diag_hess(n,H)
     call diag_hess(n,H,h_f) !h_f -> debug
   endif
 

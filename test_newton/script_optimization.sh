@@ -24,6 +24,7 @@ qp set_frozen_core > ${DIR}/${FILE}.frozen
 qp set determinants read_wf true
 qp set determinants mo_label MCSCF
 qp set mo_basis mo_label MCSCF
+qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write
 
 # S^2 true or false
 qp set determinants s2_eig true
@@ -95,6 +96,10 @@ paste ${DIR2}/${FILE2}_n_det_opt.dat ${DIR2}/${FILE2}_energy_opt.dat > ${DIR2}/$
 paste ${DIR2}/${FILE2}_n_det.dat ${DIR2}/${FILE2}_energy.dat > ${DIR2}/${FILE2}_tmp1.dat
 paste ${DIR2}/${FILE2}_tmp1.dat ${DIR2}/${FILE2}_pt2.dat > ${DIR2}/${FILE2}_tmp2.dat
 paste ${DIR2}/${FILE2}_tmp2.dat ${DIR2}/${FILE2}_rpt2.dat > ${DIR2}/${FILE2}_result.dat
+
+qp run extrapolation
+echo ${DIR2}
+echo ${FILE2}
 
 #       -p xeonv1 -N 1 -n 1 -c 16 --exclusive
 #       -p xeonv2 -N 1 -n 1 -c 20 --exclusive

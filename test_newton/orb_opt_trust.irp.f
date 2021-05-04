@@ -133,7 +133,7 @@ subroutine run_orb_opt_trust
     call diagonalize_ci
     call save_wavefunction_unsorted
 
-    if (nb_iter == 5 .or. ABS(max_elem) <= 1d-5) then
+    if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
 

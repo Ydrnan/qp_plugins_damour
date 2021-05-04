@@ -131,7 +131,7 @@ subroutine run_orb_opt
     call save_wavefunction_unsorted
   
     nb_iter = nb_iter+1
-    if (nb_iter == 5 .or. ABS(max_elem) <= 1d-5) then
+    if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
         converged = .True.
     endif
 

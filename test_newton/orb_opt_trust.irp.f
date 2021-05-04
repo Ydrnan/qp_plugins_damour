@@ -22,9 +22,11 @@ subroutine run
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
-  integer                       :: nb_iter_trust
-  double precision              :: trust_radius,rho,energy,e_model,max_elem
+  double precision              :: trust_radius,e_model,max_elem
   logical :: cancel_step
+  logical :: converged
+  integer :: nb_iter
+  double precision :: prev_energy
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -38,18 +40,23 @@ subroutine run
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
-  ! rho    : double precision : test
-  ! f_t    : double precision : test
-
-  double precision ::  norm
-
-  PROVIDE mo_two_e_integrals_in_map ci_energy
+  ! trust_radius : double precision, radius of the trust region
+  ! e_model : double precision, predicted energy after the orbital rotation
+  ! max_elem : double precision, maximum element value in the gradient
+  ! cancel_step : logical, if the previous step must be cancel
+  ! converged : logical, if the algorithm is converged
+  ! nb_iter : integer, number of iteration
+  ! prev_energy : double precision, previous energy
+  ! prev_mos : ao_num by mo_num double precision matrix containing the previous mos
+  ! new_mos : ao_num by mo_num double precision matrix containing the new mos
+  
+  PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
 
   ! Choice of the method
   method = 2  ! 1 -> full h, 2 -> diag_h
 
   ! Display the method
-  print*, 'method :', method
+  print*, 'Method :', method
 
   ! Definition of n
   n = mo_num*(mo_num-1)/2
@@ -69,19 +76,12 @@ subroutine run
   ! Calculation
   !=============
 
-  logical :: converged
-
+  ! Initialization
   converged = .False.
-
-  integer :: nb_iter
-  double precision :: prev_energy
-
   trust_radius = 0d0
   prev_energy = 0.d0
   cancel_step = .False.
 
-  !call clear_mo_map
-  !TOUCH mo_coef
   call diagonalize_ci
 
   nb_iter = 0
@@ -94,22 +94,19 @@ subroutine run
 
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
       
-      ! Gradient and norm
+      ! Gradient
       call gradient(n,v_grad,max_elem)
       
-      ! Hessian and norm
+      ! Hessian
       if (method == 1) then
-        print*,'Use the full hessian matrix'
-       !call first_hess(n,H)
        call hess(n,H,h_f) !h_f -> debug
       else
-        print*, 'Use the diagonal hessian matrix'
-        !call first_diag_hess(n,H)
         call diag_hess(n,H,h_f) !h_f -> debug
       endif
+
     endif
 
-    ! Inversion of the hessian
+    ! Step in the trust region
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
 
     if (cancel_step) then
@@ -122,40 +119,27 @@ subroutine run
       print*,'---trust region with a smaller radius---'
       print*,'========================================'
     
-      call clear_mo_map
-print*,'1'
-      TOUCH mo_coef
-print*,'2'
-      call diagonalize_ci     
-print*,'3'
- 
     else
       ! Rotation matrix
       call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
 
       ! Orbital optimization
       call apply_mo_rotation(R,prev_mos,new_mos)
-  
-      call clear_mo_map
-print*,'1'
-      TOUCH mo_coef
-print*,'2'
-      call diagonalize_ci
-print*,'3'
-
       nb_iter += 1
     endif
+   
+    call clear_mo_map
+    TOUCH mo_coef psi_det psi_coef
+    call diagonalize_ci
+    call save_wavefunction_unsorted
 
     if (nb_iter == 5 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
 
-    call save_wavefunction   
-print*,'4'
- 
-  end do
+  enddo
 
   deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)
-  deallocate(h_f)
+  deallocate(h_f,prev_mos,new_mos)
 
-end
+end program

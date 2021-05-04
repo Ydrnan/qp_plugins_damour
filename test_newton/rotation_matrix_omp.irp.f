@@ -90,7 +90,7 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         !================
 
         if (debug) then
-          print*,'Enter in dm_rotation'
+          print*,'Enter in rotation_matrix_omp'
         endif
 
         info=0
@@ -98,7 +98,7 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         ! Size of matrix A must be at least 1 by 1
         if (n<1) then
                 info = 3
-                print*, 'dm_rotation : invalid parameter 5'
+                print*, 'rotation_matrix_omp : invalid parameter 5'
                 print*, 'n<1'
                 return
         endif
@@ -106,7 +106,7 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         ! Leading dimension of A must be >= n
         if (LDA < n) then
                 info = 25
-                print*, 'dm_rotation : invalid parameter 2 or 5'
+                print*, 'rotation_matrix_omp : invalid parameter 2 or 5'
                 print*, 'LDA < n'
                 return
         endif
@@ -114,7 +114,7 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         ! Leading dimension of A must be >= n
         if (LDR < n) then
                 info = 4
-                print*, 'dm_rotation : invalid parameter 4'
+                print*, 'rotation_matrix_omp : invalid parameter 4'
                 print*, 'LDR < n'
                 return
         endif
@@ -129,13 +129,13 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,n
-                        if (disnan(a(i,j))) then
-                                info=1
-                                print*, 'dm_rotation : invalid parameter 1'
-                                print*, 'NaN element in A matrix'
-                        endif
-                enddo
+          do i=1,n
+            if (disnan(a(i,j))) then
+              info=1
+              print*, 'rotation_matrix_omp : invalid parameter 1'
+              print*, 'NaN element in A matrix'
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
@@ -160,14 +160,15 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         ! Debug
         ! Display the B=A.A
-        !print*,'B=A.A'
-        !do i=1,n
-        !        print*, B(i,:)
-        !enddo
+        if (debug) then
+          print*,'B=A.A'
+          do i=1,n
+            print*, B(i,:)
+          enddo
+        endif
 
         !============================================================
         ! Copy B in W, diagonalization will put the eigenvectors in W
-        ! + efficace avec pdgemr2d ?
         W=B
 
         !=====================
@@ -184,64 +185,61 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         deallocate(work)
 
         if (info2==0) then
-                print*, 'Diagonalization : Done'
+          print*, 'Diagonalization : Done'
         elseif (info<0) then
-                print*, 'Diagonalization : error'
-                print*, 'Illegal value of the ', info2,'-th parameter'
+          print*, 'Diagonalization : error'
+          print*, 'Illegal value of the ', info2,'-th parameter'
         else
-                print*, "Diagonalization : Failed to converge"
+          print*, "Diagonalization : Failed to converge"
         endif
 
         ! Debug
-        !print*, 'Eigenvalues'
-        !print*, e_val(:)
-        !print*, 'Eigenvectors'
-        !do i=1,n
-        !        print*, W(i,:)
-        !enddo
+        if (debug) then
+          print*, 'Eigenvalues'
+          print*, e_val(:)
+          print*, 'Eigenvectors'
+          do i=1,n
+            print*, W(i,:)
+          enddo
+        endif
 
         ! W.W^t-1 =? 0
-        !do j=1,n
-        !        do i=1,n
-        !                if (i==j) then
-        !                        WW_t(i,j)=1d0
-        !                else
-        !                        WW_t(i,j)=0d0
-        !                endif
-        !        enddo
-        !enddo
-        !
-        !call dgemm('N','T',n,n,n,1d0,W,size(W,1),W,size(W,1),-1d0,WW_t,size(WW_t,1))
-        !norm = dnrm2(n*n,WW_t,1) / (dble(n)**2)
-        !print*, 'norm = ', norm
+        if (debug) then
+          do j=1,n
+            do i=1,n
+              if (i==j) then
+                WW_t(i,j)=1d0
+              else
+                WW_t(i,j)=0d0
+              endif
+            enddo
+          enddo
+          
+          call dgemm('N','T',n,n,n,1d0,W,size(W,1),W,size(W,1),-1d0,WW_t,size(WW_t,1))
+          norm = dnrm2(n*n,WW_t,1) / (dble(n)**2)
+          print*, 'norm = ', norm
 
-        !print*, 'W.W^t'
-        !do i=1,n
-        !        print*,WW_t(i,:)
-        !enddo
+          print*, 'W.W^t'
+          do i=1,n
+                  print*,WW_t(i,:)
+          enddo
+        endif 
 
         ! ======================
         ! Diagonal matrix m_diag
 
         do j=1,n
-                if (e_val(j) >= 0.d0) then
-                        e_val(j) = 0.d0
-                else
-                        e_val(j) = -e_val(j)
-                endif
+          if (e_val(j) >= 0.d0) then
+            e_val(j) = 0.d0
+          else
+             e_val(j) = -e_val(j)
+          endif
         enddo
 
         m_diag = 0.d0
         do i=1,n
-                m_diag(i,i)=e_val(i)
+          m_diag(i,i)=e_val(i)
         enddo
-
-        ! Debug
-        ! Display diagonal matrix
-        !print*, 'Diagonal matrix'
-        !do i=1,n
-        !        print*,m_diag(i,:)
-        !enddo
 
         !=================================================
         ! eigenvalues = -tau^2 => tau = -sqrt(eignevalues)
@@ -256,19 +254,19 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,n
-                        if (i==j) then
-                                cos_tau(i,j)=dcos(dsqrt(e_val(i)))
-                        else
-                                cos_tau(i,j)=0d0
-                        endif
-                enddo
+          do i=1,n
+            if (i==j) then
+              cos_tau(i,j)=dcos(dsqrt(e_val(i)))
+            else
+              cos_tau(i,j)=0d0
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
         do i=1,n
-                v_cos_tau(i)=dcos(dsqrt(e_val(i)))
+          v_cos_tau(i)=dcos(dsqrt(e_val(i)))
         enddo
 
         !$OMP PARALLEL     &
@@ -278,31 +276,33 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,n
-                        if (i==j) then
-                                sin_tau(i,j)=dsin(dsqrt(e_val(i)))
-                        else
-                                sin_tau(i,j)=0d0
-                        endif
-                enddo
+          do i=1,n
+            if (i==j) then
+              sin_tau(i,j)=dsin(dsqrt(e_val(i)))
+            else
+              sin_tau(i,j)=0d0
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
         do i=1,n
-                v_sin_tau(i)=dsin(dsqrt(e_val(i)))
+          v_sin_tau(i)=dsin(dsqrt(e_val(i)))
         enddo
 
         ! Debug
         ! Display the cos_tau and sin_tau matrix
-        !print*, 'cos_tau'
-        !do i=1,n
-        !        print*, cos_tau(i,:)
-        !enddo
-        !print*, 'sin_tau'
-        !do i=1,n
-        !        print*, sin_tau(i,:)
-        !enddo
+        if (debug) then
+          print*, 'cos_tau'
+          do i=1,n
+                  print*, cos_tau(i,:)
+          enddo
+          print*, 'sin_tau'
+          do i=1,n
+                  print*, sin_tau(i,:)
+          enddo
+        endif
 
         !=======
         ! tau^-1
@@ -314,31 +314,33 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,n
-                        if ((i==j).and.(e_val(i) > 0.d0)) then
-                               tau_m1(i,j)=1d0/(dsqrt(e_val(i)))
-                        else
-                               tau_m1(i,j)=0d0
-                        endif
-                enddo
+          do i=1,n
+            if ((i==j).and.(e_val(i) > 0.d0)) then
+              tau_m1(i,j)=1d0/(dsqrt(e_val(i)))
+            else
+              tau_m1(i,j)=0d0
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
         do i=1,n
-                if (e_val(i) > 0.d0) then
-                        v_taum1(i)=1d0/(dsqrt(e_val(i)))
-                else
-                        v_taum1(i)=0d0
-                endif
+          if (e_val(i) > 0.d0) then
+            v_taum1(i)=1d0/(dsqrt(e_val(i)))
+          else
+            v_taum1(i)=0d0
+          endif
         enddo
 
-        !Debug
+        ! Debug
         ! Display tau^-1
-        ! print*, 'tau^-1'
-        ! do i=1,n
-        !         print*,tau_m1(i,:)
-        ! enddo
+        if (debug) then
+          print*, 'tau^-1'
+          do i=1,n
+            print*,tau_m1(i,:)
+          enddo
+        endif
 
         !============================================================
         ! We now have to compute W.cos_tau.W^t+W.tau_m1.sin_tau.W^t.A
@@ -358,52 +360,17 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
           !$OMP part_2a,part_2b,part_2c,part_2,A) &
           !$OMP DEFAULT(NONE) 
         call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
-!        call dm_prodvecmat(v_cos_tau,n,W,size(W,1),part_1a,size(part_1a,1),1,info) 
-
-        !call cpu_time(t2)
-        !t2=t2-t1
-        !do i=1,n
-        !        print*,'part_1a',part_1a(i,:)
-        !enddo
-        !print*,t2
-        
         call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_1a,size(part_1a,1),0d0,part_1,size(part_1,1))
 
         call dgemm('T','N',n,n,n,1d0,W,size(W,1),A,size(A,1),0d0,part_2a,size(part_2a,1))
         call dgemm('N','N',n,n,n,1d0,sin_tau,size(sin_tau,1),part_2a,size(part_2a,1),0d0,part_2b,size(part_2b,1))
-!        call dm_prodvecmat(v_sin_tau,n,part_2a,size(part_2a,1),part_2b,size(part_2b,1),0,info)
         call dgemm('N','N',n,n,n,1d0,tau_m1,size(tau_m1,1),part_2b,size(part_2b,1),0d0,part_2c,size(part_2c,1))
-!        call dm_prodvecmat(v_taum1,n,part_2b,size(part_2b,1),part_2c,size(part_2c,1),0,info)
         call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_2c,size(part_2c,1),0d0,part_2,size(part_2,1))
         !$OMP END PARALLEL
-
-        !call cpu_time(t2)
-        !t2=t2-t1
-        !print*,t2
-        !call abort
 
         !=========================
         ! n by n rotation matrix R
         R = part_1 + part_2
-
-        ! Debug
-        ! 2 by 2 rotation matrix (test pour comparer)
-        !do i=1,2
-        !        do j=1,2
-        !                if (i==j) then
-        !                        rot_2(i,j)=cos(A(2,1))
-        !                elseif (i>j) then
-        !                        rot_2(i,j)=sin(A(2,1))
-        !                else
-        !                        rot_2(i,j)=-sin(A(2,1))
-        !                endif
-        !        enddo
-        !enddo
-        !
-        !print*, 'rot_2'
-        !do i=1,2
-        !        print*,rot_2(i,:)
-        !enddo
 
         !=============
         ! Matrix check
@@ -417,13 +384,13 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,n
-                        if (i==j) then
-                                RR_t(i,j)=1d0
-                        else
-                                RR_t(i,j)=0d0
-                        endif
-                enddo
+          do i=1,n
+            if (i==j) then
+              RR_t(i,j)=1d0
+            else
+              RR_t(i,j)=0d0
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
@@ -431,13 +398,15 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         call dgemm('N','T',n,n,n,1d0,R,size(R,1),R,size(R,1),-1d0,RR_t,size(RR_t,1))
 
         norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
-        print*, 'Rotation matrix check, norm = ', norm
+        print*, 'Rotation matrix check, norm R.R^T = ', norm
 
         ! Debug
-        !print*, 'RR_t'
-        !do i=1,n
-        !        print*, RR_t(i,:)
-        !enddo
+        if (debug) then
+          print*, 'RR_t'
+          do i=1,n
+            print*, RR_t(i,:)
+          enddo
+        endif
 
         !=================
         ! Post-conditions
@@ -452,13 +421,13 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
 
         !$OMP DO
         do j=1,n
-                do i=1,LDR
-                        if (disnan(R(i,j))) then
-                                info=666
-                                print*, 'NaN in rotation matrix'
-                                call ABORT
-                        endif
-                enddo
+          do i=1,LDR
+            if (disnan(R(i,j))) then
+              info=666
+              print*, 'NaN in rotation matrix'
+              call ABORT
+            endif
+          enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
@@ -487,7 +456,7 @@ subroutine rotation_matrix_omp(A,LDA,R,LDR,n,info)
         deallocate(RR_t)
 
         if (debug) then
-          print*,'Leaves dm_rotation'
+          print*,'Leave rotation_matrix_omp'
         endif
 
 end subroutine dm_rotation

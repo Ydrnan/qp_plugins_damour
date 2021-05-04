@@ -1,4 +1,4 @@
-subroutine dm_antisym(a,lda,n,info)
+subroutine matrix_antisym(a,lda,n,info)
         implicit none
         
         include 'constants.h'
@@ -45,7 +45,7 @@ subroutine dm_antisym(a,lda,n,info)
         !===============
 
         if (debug) then
-          print*,'Enter in dm_antisym'
+          print*,'Enter matrix_antisym'
         endif
         
         info=0
@@ -53,7 +53,7 @@ subroutine dm_antisym(a,lda,n,info)
         ! Size of matrix a must be at least 1 by 1
         if (n<1) then
                 info = 3
-                print*, 'dm_antisym : invalid parameter 3'
+                print*, 'matrix_antisym : invalid parameter 3'
                 print*, 'n < 1'
                 return
         endif
@@ -61,7 +61,7 @@ subroutine dm_antisym(a,lda,n,info)
         ! Leading dimension of A must be >= n
         if (lda < n) then
                 info = 23
-                print*, 'dm_antisym : invalid parameter 2 or 3'
+                print*, 'matrix_antisym : invalid parameter 2 or 3'
                 print*, 'lda < n'
                 return
         endif
@@ -71,7 +71,7 @@ subroutine dm_antisym(a,lda,n,info)
                 do i=1,n
                         if (disnan(a(i,j))) then 
                                 info = 1
-                                print*, 'dm_antisym : invalid parameter 1'
+                                print*, 'matrix_antisym : invalid parameter 1'
                                 print*, 'NaN element in a matrix'
                                 return
                         endif
@@ -97,18 +97,15 @@ subroutine dm_antisym(a,lda,n,info)
         ! Display
         !========
 
-        d=.false.
-       
-        if (d) then
+        if (debug) then
                 print*,'Matrix after antisymmetrization :'
                 do i=1,n
                         print*, a(i,:)
                 enddo
-                !print*, a(:,:)
         endif
 
         if (debug) then
-          print*,'Leaves dm_antisym'
+          print*,'Leave matrix_antisym'
         endif
 
 end subroutine

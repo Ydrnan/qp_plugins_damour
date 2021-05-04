@@ -132,7 +132,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   print*, norm_g
 
   ! Compute rho <=> the quality of the model
-  call dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
+  call rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
 
   ! trust radius
   ! For the first iteration trust_radius = norm_p
@@ -207,7 +207,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
 
   ! Compute the predicted energy for the next step
   if (.not. cancel_step) then
-    call dn_e_model(n,v_grad,H,x,prev_energy,e_model)
+    call trust_e_model(n,v_grad,H,x,prev_energy,e_model)
   else
     print*,'Cancellation of the previous step no energy prediction'
   endif

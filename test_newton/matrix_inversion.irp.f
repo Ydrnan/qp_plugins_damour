@@ -83,7 +83,7 @@ subroutine matrix_inversion(method,n,H,Hm1)
     call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
     
     if (info /= 0) then
-        print*, 'Error diagonalization : dm_inversion'
+        print*, 'Error diagonalization : matrix_inversion'
         call ABORT
     endif
   
@@ -91,7 +91,7 @@ subroutine matrix_inversion(method,n,H,Hm1)
     Hm1 = 0d0
   
     if (debug) then
-      print *, 'Eigenvalues of the n by n Hessian matrix (dm_inversion) :'
+      print *, 'Eigenvalues of the n by n Hessian matrix (matrix_inversion) :'
       write(*,'(100(F10.5))')  real(e_val(:))
     endif
   
@@ -136,10 +136,10 @@ subroutine matrix_inversion(method,n,H,Hm1)
   CALL CPU_TIME(t2)
   
   t2 = t2-t1
-  print*, 'Time to invert the Hessian (dm_inversion) : ', t2  
+  print*, 'Time to invert the Hessian (matrix_inversion) : ', t2  
  
   if (debug) then
-    print*,'Leaves matrix_inversion'
+    print*,'Leave matrix_inversion'
   endif
   
 end subroutine

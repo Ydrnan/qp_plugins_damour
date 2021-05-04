@@ -120,7 +120,7 @@ subroutine first_gradient(n,v_grad)
   deallocate(grad,A)
 
   if (debug) then
-    print*,'Leaves first_gradient'
+    print*,'Leave first_gradient'
   endif
 
 end subroutine

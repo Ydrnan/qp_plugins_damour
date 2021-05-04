@@ -101,6 +101,8 @@ subroutine diag_hess(n,H, h_tmpr)
   ! Calculation
   !=============
 
+  print*,'Use the diagonal hessian'
+
   if (debug) then
     print*,'Enter in diag_hess'
   endif
@@ -1442,7 +1444,7 @@ subroutine diag_hess(n,H, h_tmpr)
   deallocate(tmp_accu_1_shared, tmp_accu_shared) 
  
   if (debug) then
-    print*,'Leaves diag_hess'
+    print*,'Leave diag_hess'
   endif
 
 end subroutine

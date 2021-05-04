@@ -38,7 +38,7 @@ subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
   !=============
  
   if (debug) then
-    print*,'Enter in dm_Hm1g'
+    print*,'Enter in Hm1g_product'
   endif
   
   ! Product Hm1^T.g
@@ -80,7 +80,7 @@ subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
   endif
 
   if (debug) then
-    print*,'Leaves dm_Hm1g'
+    print*,'Leaves Hm1g_product'
   endif
 
 end subroutine

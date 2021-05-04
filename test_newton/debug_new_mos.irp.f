@@ -21,6 +21,8 @@ program debug_new_mos
   logical :: cancel_step
   integer :: nb_error
   double precision :: max_error, threshold
+  integer :: nb_iter
+  double precision :: prev_energy
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -34,10 +36,6 @@ program debug_new_mos
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
-  ! rho    : double precision : test
-  ! f_t    : double precision : test
-
-  double precision ::  norm
 
   PROVIDE mo_two_e_integrals_in_map ci_energy
 
@@ -63,29 +61,19 @@ program debug_new_mos
   ! Calculation
   !=============
 
-  logical :: converged
-
-  converged = .False.
-
-  integer :: nb_iter
-  double precision :: prev_energy
-
+  ! Initialization
   trust_radius = 0d0
   prev_energy = 0.d0
   cancel_step = .False.
 
   nb_iter_trust = 0
-  ! Gradient and norm
+  ! Gradient 
   call gradient(n,v_grad)
   
   ! Hessian and norm
   if (method == 1) then
-    print*,'Use the full hessian matrix'
-   !call first_hess(n,H)
    call hess(n,H,h_f) !h_f -> debug
   else
-    print*, 'Use the diagonal hessian matrix'
-    !call first_diag_hess(n,H)
     call diag_hess(n,H,h_f) !h_f -> debug
   endif
 

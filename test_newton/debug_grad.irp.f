@@ -34,13 +34,9 @@ program debug_grad
   ! Calculation
   !=============
 
-  !read_wf = .True.
-  !TOUCH read_wf
-  !call clear_mo_map
-  !TOUCH mo_coef
   call diagonalize_ci
 
-  ! Gradient and norm 
+  ! Gradient  
   call first_gradient(n,v_grad,max_elem)
   call gradient(n,v_grad2,max_elem)
   

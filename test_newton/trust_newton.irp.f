@@ -51,6 +51,10 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
   ! Calculation
   !=============
 
+  if (debug) then
+    print*,'Enter in trust_newton'
+  endif
+
   ! Initialization
   lambda = 0d0
 
@@ -97,6 +101,10 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
   t3 = t2 - t1
   print*,'Time to search the optimal lambda :', t3
   print*,'Error on the trust region :', 1d0-f_N/delta**2
+
+  if (debug) then
+    print*,'Leave trust_newton'
+  endif
 
 end subroutine
 

@@ -1,4 +1,4 @@
-subroutine dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
+subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
 
   include 'constants.h'
 
@@ -36,10 +36,10 @@ subroutine dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   ! Calculation
   !=============
 
-!  if (debug) then
+  !if (debug) then
     print*,''
-    print*,'---Enter in dn_rho_model---'
-!  endif
+    print*,'---Enter in rho_model---'
+  !endif
 
   ! Energy of the actual step
   energy = sum(psi_energy_with_nucl_rep(1:N_states) / dble(N_states))
@@ -50,10 +50,6 @@ subroutine dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   print*, 'ci_energy', energy
 
   if ( nb_iter >=1  .and. .not.(cancel_step)) then
-
-!    open(unit=12,file='e_model.dat')
-!      read(12,*) e_model
-!    close(12)
 
     rho = (prev_energy - energy) / (prev_energy - e_model)
 
@@ -96,7 +92,7 @@ subroutine dn_rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   endif
 
   !if (debug) then
-    print*,'---Leaves dn_rho_model---'
+    print*,'---Leave rho_model---'
     print*,''
   !endif
 

@@ -8,9 +8,8 @@ program test_rotation
 
       allocate(A(n,n), B(n,n), R(n,n))
 
-
       A=3.14d0
-      call dm_antisym(A,size(A,1),n,info)             
+      call matrix_antisym(A,size(A,1),n,info)             
       call rotation_matrix(A,size(A,1),R,size(R,1),n,info)
 
       ! R^T.R = identity

@@ -1,4 +1,4 @@
-subroutine dm_vec_to_mat(v,k,B,n,info)
+subroutine vec_to_mat(v,k,B,n,info)
 
         include 'constants.h'
 
@@ -42,13 +42,13 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         !================
 
         if (debug) then
-          print*,'Enter in dm_vec_to_mat'
+          print*,'Enter in vec_to_mat'
         endif        
 
         ! Size of vector a must be at least 1 
         if (k<1) then
                 info = 2
-                print*, 'dm_vec_mat : invalid parameter 2'
+                print*, 'vec_to_mat : invalid parameter 2'
                 print*, 'k < 1'
                 return
         endif
@@ -56,7 +56,7 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         ! Size of vector must be k=n*(n-1)/2
         if (k/=(n*(n-1)/2)) then
                 info = 24
-                print*, 'dm_vec_mat : invalid parameter 2 or 4'
+                print*, 'vec_to_mat : invalid parameter 2 or 4'
                 print*, 'k/=(n*(n-1)/2)'
                 return
         endif
@@ -65,7 +65,7 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         do i=1,k
                 if (disnan(v(k))) then
                         info = 1
-                        print*, 'dm_vec_mat : invalid parameter 1'
+                        print*, 'vec_to_mat : invalid parameter 1'
                         print*, 'NaN element in v vector'
                         return
                 endif
@@ -108,7 +108,7 @@ subroutine dm_vec_to_mat(v,k,B,n,info)
         !endif
 
         if (debug) then
-          print*,'Enter in dm_vec_to_mat'
+          print*,'Enter in vec_to_mat'
         endif
 
 end subroutine

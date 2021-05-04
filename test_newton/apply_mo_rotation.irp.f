@@ -44,7 +44,7 @@ subroutine apply_mo_rotation(R,prev_mos,new_mos)
   !=============
  
   if (debug) then
-    print*,'Enter in dm_newton_test'
+    print*,'Enter in apply_mo_rotation'
   endif
 
   ! Product of old MOs (mo_coef) by Rotation matrix (R) 
@@ -79,7 +79,7 @@ subroutine apply_mo_rotation(R,prev_mos,new_mos)
   !==============
 
   if (debug) then
-    print*,'Leaves dm_newton_test'
+    print*,'Leave apply_mo_rotation'
   endif
 
 end subroutine

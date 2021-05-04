@@ -336,7 +336,7 @@ subroutine first_hess(n,H,h_tmpr)
   deallocate(hessian)
 
   if (debug) then
-    print*,'Leaves first_hess'
+    print*,'Leave first_hess'
   endif
 
 end subroutine

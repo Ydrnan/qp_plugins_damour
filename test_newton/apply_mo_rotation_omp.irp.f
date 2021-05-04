@@ -86,7 +86,7 @@ subroutine apply_mo_rotation_omp(R,prev_mos,new_mos)
   !==============
 
   if (debug) then
-    print*,'Leaves apply_mo_rotation_omp'
+    print*,'Leave apply_mo_rotation_omp'
   endif
 
 end subroutine

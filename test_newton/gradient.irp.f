@@ -305,7 +305,7 @@ subroutine gradient(n,v_grad,max_elem)
   deallocate(grad,A)
 
   if (debug) then
-    print*,'Leaves gradient'
+    print*,'Leave gradient'
   endif
 
 end subroutine

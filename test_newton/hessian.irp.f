@@ -67,11 +67,12 @@ subroutine hess(n,H,h_tmpr)
   !============
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  !allocate(H_test(mo_num**2,mo_num**2))
 
   !=============
   ! Calculation
   !=============
+
+  print*,'Use the full hessian'
 
   if (debug) then
     print*,'Enter in hessien.irp.f'
@@ -961,7 +962,7 @@ subroutine hess(n,H,h_tmpr)
   deallocate(hessian)!,h_tmpr)
 
   if (debug) then
-    print*,'Leaves hess'
+    print*,'Leave hess'
   endif
 
 end subroutine

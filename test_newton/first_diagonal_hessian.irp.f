@@ -341,7 +341,7 @@ subroutine first_diag_hess(n,H, h_tmpr)
   deallocate(hessian)!,h_tmpr)
 
   if (debug) then
-    print*,'Leaves first_diag_hessien'
+    print*,'Leave first_diag_hessien'
   endif
 
 end subroutine

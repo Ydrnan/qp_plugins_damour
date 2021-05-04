@@ -36,7 +36,7 @@ subroutine mat_to_vec_index(p,q,i)
   !=============
  
   if (debug) then
-    print*, 'Enter in in_vec_to_mat'
+    print*, 'Enter in mat_to_vec_index'
   endif
 
   a = p-1
@@ -45,6 +45,6 @@ subroutine mat_to_vec_index(p,q,i)
   i = q+b
 
   if (debug) then
-    print*, 'Leaves in_vec_to_mat'
+    print*, 'Leave mat_to_vec_index'
   endif
 end subroutine

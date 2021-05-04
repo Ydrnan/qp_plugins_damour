@@ -1,4 +1,4 @@
-subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
+subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
    
   include 'constants.h' 
 
@@ -51,7 +51,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
 
 !  if (debug) then
     print*,''
-    print*,'---Enter in dn_e_model---'
+    print*,'---Enter in trust_e_model---'
 !  endif
 
   ! v_grad.Hm1g
@@ -92,7 +92,7 @@ subroutine dn_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
   deallocate(part_2a)
 
   !if (debug) then
-    print*,'---Leaves dn_e_model---'
+    print*,'---Leave trust_e_model---'
     print*,''
   !endif 
  

@@ -98,7 +98,6 @@ subroutine hess(n,H,h_tmpr)
 
   ! OMP 
   !$OMP PARALLEL                                                     &
-      !$OMP NUM_THREADS(8) &
       !$OMP PRIVATE(                                                 &
       !$OMP   p,q,r,s, tmp_accu, tmp_accu_sym,                       &
       !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3, ind_3)                       &

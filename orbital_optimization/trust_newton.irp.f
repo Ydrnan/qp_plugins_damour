@@ -74,7 +74,6 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
  
   ! Iteration de la methode de Newton pour trouver lambda
   CALL wall_time(t1)
-  ! Il y a beaucoup trop d'itérations 
 
   ! Diŝplay
   if (debug) then
@@ -89,10 +88,10 @@ subroutine trust_newton(n,e_val,w,v_grad,delta,lambda)
     lambda = lambda - (1d0/ABS(d2_N))*d_N
     f_N = fN(n,e_val,w,v_grad,lambda)
     
-    ! Diŝplay
-    if (debug) then
-      print*, i, d_N, lambda, f_N, ABS(1d0-f_N/delta**2)
-    endif  
+    ! Display
+    !if (debug) then
+    !  print*, i, d_N, lambda, f_N, ABS(1d0-f_N/delta**2)
+    !endif  
     i = i+1
   enddo
 
@@ -140,7 +139,7 @@ function dN(n,e_val,w,v_grad,lambda,delta)
   ! Internal
   !==========
   double precision :: wtg,accu1,accu2
-  integer          :: i
+  integer          :: i,j
   ! wtg   : double precision, w_i^T.v_grad
   ! accu1 : double precision, temporary variable
   ! accu2 : double precision, temporary variable 
@@ -163,14 +162,22 @@ function dN(n,e_val,w,v_grad,lambda,delta)
   accu2 = 0d0
 
   do i = 1, n
-    wtg = ddot(n,w(:,i),1,v_grad,1)
+    wtg = 0d0
+    do j = 1, n
+      wtg = wtg + w(j,i) * v_grad(j) 
+    enddo
+    !wtg = ddot(n,w(:,i),1,v_grad,1)
     if (e_val(i)>1e-6) then
     accu1 = accu1 - 2d0 * wtg**2 / (e_val(i) + lambda)**3
     endif
   enddo 
 
   do i = 1, n 
-   wtg = ddot(n,w(:,i),1,v_grad,1)
+    wtg = 0d0
+    do j = 1, n
+      wtg = wtg + w(j,i) * v_grad(j)
+    enddo
+    !wtg = ddot(n,w(:,i),1,v_grad,1)
     if (e_val(i)>1e-6) then
     accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
     endif
@@ -222,7 +229,7 @@ function d2N(n,e_val,w,v_grad,lambda,delta)
   ! Internal
   !==========
   double precision :: wtg,accu1,accu2,accu3
-  integer :: i
+  integer :: i, j
   ! wtg   : double precision, w_i^T.v_grad
   ! accu1 : double precision, temporary variable
   ! accu2 : double precision, temporary variable 
@@ -241,21 +248,33 @@ function d2N(n,e_val,w,v_grad,lambda,delta)
  
   do i = 1, n
     if (e_val(i)>1d-6) then
-      wtg = ddot(n,w(:,i),1,v_grad,1)
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
       accu1 = accu1 + 6d0 * wtg**2 / (e_val(i) + lambda)**4
     endif
   enddo
   
   do i = 1, n
     if (e_val(i)>1d-6) then
-      wtg = ddot(n,w(:,i),1,v_grad,1)
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
       accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
     endif
   enddo
 
   do i = 1, n
     if (e_val(i)>1d-6) then
-      wtg = ddot(n,w(:,i),1,v_grad,1)
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
       accu3 = accu3 -2d0* wtg**2 / (e_val(i) + lambda)**3
     endif
   enddo
@@ -286,7 +305,7 @@ function fN(n,e_val,w,v_grad,lambda)
   double precision :: ddot
 
   double precision :: wtg
-  integer :: i
+  integer :: i,j
 
   !=============
   ! Calculation
@@ -297,7 +316,11 @@ function fN(n,e_val,w,v_grad,lambda)
 
   do i = 1, n
     if (e_val(i)>1d-6) then
-      wtg = ddot(n,w(:,i),1,v_grad,1)
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
       fN = fN + wtg**2 / (e_val(i) + lambda)**2
     endif
   enddo

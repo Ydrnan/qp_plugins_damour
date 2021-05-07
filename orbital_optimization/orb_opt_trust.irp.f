@@ -27,6 +27,7 @@ subroutine run_orb_opt_trust
   logical :: converged
   integer :: nb_iter
   double precision :: prev_energy
+  double precision :: t1, t2, t3
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
   ! H      : n by n double precision matrix, Hessian matrix
@@ -95,22 +96,35 @@ subroutine run_orb_opt_trust
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
       
       ! Gradient
+      call wall_time(t1)
       call gradient(n,v_grad,max_elem)
+      call wall_time(t2)
+      t3 = t2 - t1
+      print*, 'Time to compute the gradient', t3
       
       ! Hessian
+      call wall_time(t1)
       if (method == 1) then
        call hess(n,H,h_f) !h_f -> debug
       else
         call diag_hess(n,H,h_f) !h_f -> debug
       endif
+      call wall_time(t2)
+      t3 = t2 - t1
+      print*, 'Time to compute the hessian', t3
+
 
     endif
 
     ! Step in the trust region
+    call wall_time(t1)
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'Time for trust region', t3
 
     if (cancel_step) then
-      print*,'Cancellation of the previous step' 
+      print*,'Cancellation of the previous step', t3
       mo_coef = prev_mos
       call save_mos
 
@@ -121,7 +135,11 @@ subroutine run_orb_opt_trust
     
     else
       ! Rotation matrix
+      call wall_time(t1)
       call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
+      call wall_time(t2)
+      t3 = t2 - t1
+      print*, 'Time to compute the rotation matrix', t3
 
       ! Orbital optimization
       call apply_mo_rotation(R,prev_mos,new_mos)

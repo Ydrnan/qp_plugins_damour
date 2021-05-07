@@ -57,9 +57,9 @@ subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
   ! v_grad.Hm1g
   part_1 = ddot(n,v_grad,1,Hm1g,1)
  
-!  if (debug) then
+  if (debug) then
     print*,'part_1 : ', part_1
-!  endif  
+  endif  
 
   ! H.p
   call dgemv('N',n,n,1d0,H,size(H,1),Hm1g,1,0d0,part_2a,1)
@@ -67,9 +67,9 @@ subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
   ! 1/2 . p^T.H.p
   part_2 = 0.5d0 * ddot(n,Hm1g,1,part_2a,1)
   
-!  if (debug) then
+  if (debug) then
     print*,'part_2 : ', part_2 
-!  endif
+  endif
 
   ! Verif, pourquoi part_1 et 2 sont positifs ??
   ! Positif car le produit des MOs.R se fait dans dm_newton avec R^T
@@ -80,11 +80,6 @@ subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
   ! Writing the predicted energy
   print*, 'e_model for the next iteration : ', e_model
 
-  ! Storage of the predicted energy
-!  open(unit=10,file='e_model.dat')
-!    write(10,*) e_model
-!  close(10)
- 
   !==============
   ! Deallocation
   !==============

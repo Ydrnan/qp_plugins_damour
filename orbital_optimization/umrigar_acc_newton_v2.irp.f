@@ -49,6 +49,11 @@ subroutine umrigar_acc_newton_v2(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,prev_m,m,f_t)
   double precision :: ddot
   ! ddot : double precision Blas function, dot product
 
+  ! Ref:
+  ! Orbital Optimization in Selected Configuration Interaction Methods
+  ! Yuan Yao, C. J. Umrigar
+ 
+
   !============
   ! Allocation 
   !============
@@ -103,7 +108,7 @@ subroutine umrigar_acc_newton_v2(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,prev_m,m,f_t)
   vhv = ddot(n,v,1,hv,1)
  
   if (debug) then
-    print*, 'test_cyrus part_1', vhv
+    print*, 'Part_1', vhv
   endif 
 
   ! <w,w>  
@@ -111,7 +116,7 @@ subroutine umrigar_acc_newton_v2(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,prev_m,m,f_t)
   whw = ddot(n,w,1,hw,1)
 
   if (debug) then
-    print*, 'test_cyrus part_2', whw
+    print*, 'Part_2', whw
   endif
 
   ! <v,w>
@@ -119,7 +124,7 @@ subroutine umrigar_acc_newton_v2(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,prev_m,m,f_t)
   vhw = ddot(n,v,1,hw,1)
 
   if (debug) then
-    print*, 'test_cyrus part_3', vhw 
+    print*, 'Part_3', vhw 
   endif 
  
   ! cos(v,w)
@@ -137,12 +142,12 @@ subroutine umrigar_acc_newton_v2(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,prev_m,m,f_t)
   endif
 
   ! Compute the f_t factor
-  f_t = MIN(1d0/(2d0-cos_vw),1d0/epsilon)
+  f_t = MIN(2d0/(1d0-cos_vw),1d0/epsilon)
 
   print*,'Umrigar factor f_t :', f_t
 
   if (debug) then
-    print*,'Leave test_cyrus'
+    print*,'Leave umrigar_acc_newton_v2'
   endif
 
 end subroutine

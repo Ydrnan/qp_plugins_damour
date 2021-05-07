@@ -42,10 +42,6 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   !endif
 
   ! Energy of the actual step
-  energy = sum(psi_energy_with_nucl_rep(1:N_states) / dble(N_states))
-  
-  print*, 'psi_energy', energy
- 
   energy = sum(ci_energy(1:N_states) / dble(N_states))
   print*, 'ci_energy', energy
 
@@ -63,11 +59,10 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   elseif (cancel_step) then
 
     print*,'cancel_step = ', cancel_step
-    ! nb_iter = -1 corresponds to a cancellation of the previous step
     rho = 0.5d0
     print*,'rho initialized :', rho
 
-    ! the previous energy doesn't change
+    ! the previous energy doesn't change since the step is cancelled
 
     print*, 'prev_energy :', prev_energy
 

@@ -47,6 +47,11 @@ subroutine umrigar_acc_newton_v1(n,H,prev2_Hm1g,prev_Hm1g,Hm1g,f_t)
   double precision :: ddot
   ! ddot : double precision Blas function, dot product
 
+  ! Ref:
+  ! Almost exact energies for the Gaussian-2 set with the semistochastic heat-bath configuration interaction method
+  ! Yuan Yao, Emmanuel Giner, Junhao Li, Julien Toulouse, C. J. Umrigar
+
+
   !============
   ! Allocation 
   !============

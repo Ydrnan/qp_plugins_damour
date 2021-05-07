@@ -173,7 +173,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     ! Newton method to find lambda such as: ||x(lambda)|| = Delta
     if (trust_radius < norm_x ) then
       print*,'Computation of the optimal lambda for the next step...'
-      call trust_newton(n,e_val,W,v_grad,delta,lambda)
+      call trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
     else
       ! Unconstraint solution, lambda = 0
       print*,'Step in the trust region, no lambda optimization'
@@ -183,12 +183,18 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     ! Initialisation
     x = 0d0
 
-    ! Calculation of the step p
+    ! Calculation of the step x
     do i = 1, n
       if (e_val(i) > 1d-4) then
         accu = 0d0
-        accu = ddot(n,W(:,i),1,v_grad,1)
-        x = x - accu * W(:,i) / (e_val(i) + lambda)
+        do j = 1, n 
+          accu = accu + W(j,i) * v_grad(i)
+        enddo 
+        !accu = ddot(n,W(:,i),1,v_grad,1)
+        do j = 1, n
+          x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
+        enddo 
+        !x = x - accu * W(:,i) / (e_val(i) + lambda)
       endif
     enddo
 
@@ -214,8 +220,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
  
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
-  do i=1,mo_num
-    do j=1,mo_num
+  do j = 1, mo_num
+    do i = 1, mo_num
       if (i>j) then
         call mat_to_vec_index(i,j,k)
         m_Hm1g(i,j) = x(k)
@@ -226,8 +232,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   enddo
 
   ! Antisymmetrization of the previous matrix
-  do i=1,mo_num
-    do j=1,mo_num
+  do j = 1, mo_num
+    do i = 1, mo_num
       if (i<j) then
         m_Hm1g(i,j) = - m_Hm1g(j,i)
       endif

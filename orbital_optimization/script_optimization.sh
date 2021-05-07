@@ -32,9 +32,8 @@ qp set determinants s2_eig true
 
 # Number of determinants
 Ndet=5
-Nb_max_det = 200000
 
-while [ ${Ndet} -lt ${Nb_max_det} ]
+while [ ${Ndet} -lt 200000 ]
 do
     echo ${Ndet}
     qp set determinants n_det_max ${Ndet}

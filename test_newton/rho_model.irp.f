@@ -24,6 +24,7 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   ! Internal
   !==========
   double precision :: energy!, e_model
+  integer :: i
   ! energy      : double precision, energy of the actual step
   ! prev_energy : double precision, energy of the previous step
   ! e_model     : double precision, predicted energy for the actual step
@@ -42,10 +43,18 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   !endif
 
   ! Energy of the actual step
-  energy = sum(ci_energy(1:N_states) / dble(N_states))
+  ! ajouter poids états
+  !energy = sum(ci_energy(1:N_states) / dble(N_states))
+
+  energy = 0d0
+  do i = 1, N_states
+    energy = energy + ci_energy(i)*state_average_weight(i)
+  enddo
+  energy = energy / DBLE(N_states)
+
   print*, 'ci_energy', energy
 
-  if ( nb_iter >=1  .and. .not.(cancel_step)) then
+  if ( nb_iter >= 1  .and. .not.(cancel_step)) then
 
     rho = (prev_energy - energy) / (prev_energy - e_model)
 

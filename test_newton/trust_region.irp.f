@@ -137,7 +137,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   ! trust radius
   ! For the first iteration trust_radius = norm_p
   ! else read the trust_radius
-  if (nb_iter ==0) then
+  if (nb_iter == 0) then
 
     trust_radius = norm_x 
 

@@ -96,23 +96,15 @@ subroutine run_orb_opt_trust
     if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
       
       ! Gradient
-      call wall_time(t1)
       call gradient(n,v_grad,max_elem)
-      call wall_time(t2)
-      t3 = t2 - t1
-      print*, 'Time to compute the gradient', t3
       
       ! Hessian
-      call wall_time(t1)
       if (method == 1) then
        call hess(n,H,h_f) !h_f -> debug
       else
         call diag_hess(n,H,h_f) !h_f -> debug
       endif
       call wall_time(t2)
-      t3 = t2 - t1
-      print*, 'Time to compute the hessian', t3
-
 
     endif
 
@@ -121,10 +113,10 @@ subroutine run_orb_opt_trust
     call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
     call wall_time(t2)
     t3 = t2 - t1
-    print*, 'Time for trust region', t3
+    print*, 'Time for trust region :', t3
 
     if (cancel_step) then
-      print*,'Cancellation of the previous step', t3
+      print*,'Cancellation of the previous step :', t3
       mo_coef = prev_mos
       call save_mos
 
@@ -139,17 +131,25 @@ subroutine run_orb_opt_trust
       call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
       call wall_time(t2)
       t3 = t2 - t1
-      print*, 'Time to compute the rotation matrix', t3
+      print*, 'Time to compute the rotation matrix :', t3
 
       ! Orbital optimization
+      call wall_time(t1)
       call apply_mo_rotation(R,prev_mos,new_mos)
+      call wall_time(t2)
+      t3 = t2 - t1
+      print*, 'Time to apply MO rotations :', t3
       nb_iter += 1
     endif
    
+    call wall_time(t1)
     call clear_mo_map
     TOUCH mo_coef psi_det psi_coef
     call diagonalize_ci
     call save_wavefunction_unsorted
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'Time to diagonalize ci :', t3
 
     if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.

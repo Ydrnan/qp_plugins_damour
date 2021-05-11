@@ -42,7 +42,6 @@ subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
   ! Allocation
   !============
 
-
   allocate(part_2a(n))
 
   !=============

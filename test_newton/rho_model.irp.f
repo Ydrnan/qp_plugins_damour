@@ -29,10 +29,6 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   ! prev_energy : double precision, energy of the previous step
   ! e_model     : double precision, predicted energy for the actual step
 
-  !open(unit=10,file='energy.dat')
-  !read(10,*) energy
-  !close(10)
-
   !=============
   ! Calculation
   !=============
@@ -43,7 +39,6 @@ subroutine rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
   !endif
 
   ! Energy of the actual step
-  ! ajouter poids états
   !energy = sum(ci_energy(1:N_states) / dble(N_states))
 
   energy = 0d0

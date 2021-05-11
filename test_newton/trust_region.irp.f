@@ -188,7 +188,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
       if (e_val(i) > 1d-4) then
         accu = 0d0
         do j = 1, n 
-          accu = accu + W(j,i) * v_grad(i)
+          accu = accu + W(j,i) * v_grad(j) ! j !!!!!
         enddo 
         !accu = ddot(n,W(:,i),1,v_grad,1)
         do j = 1, n

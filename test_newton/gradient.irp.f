@@ -40,10 +40,6 @@ subroutine gradient(n,v_grad,max_elem)
   ! t1,t2,t3 : t3 = t2 - t1, time to compute the gradient
   ! t4,t5,t6 : t6 = t5 - t4, time to compute each element
 
-  !double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
-  !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta 
-
   double precision, allocatable :: tmp_accu(:,:)
   double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:)
   ! tmp_bi_int_3 : mo_num 3D double precision matrix containinig the bi electronic

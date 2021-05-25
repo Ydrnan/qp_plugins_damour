@@ -4,6 +4,10 @@ subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
   
   !==============================
   ! Compute the product H^-1 . g
+  ! 
+  ! The result is a vector but we
+  ! do the transformation into a
+  ! matrix for the next step
   !==============================
 
   implicit none
@@ -50,7 +54,7 @@ subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
     write(*,'(100(F10.5))') Hm1g(:)
   endif
 
-  ! Vector with n element -> mo_num by mo_num matrix
+  ! Vector with n element -> mo_num by mo_num matrix (lower diagonal)
   do q=1,mo_num
     do p=1,mo_num
       if (p>q) then
@@ -80,7 +84,7 @@ subroutine Hm1g_product(n,Hm1,v_grad,m_Hm1g,Hm1g)
   endif
 
   if (debug) then
-    print*,'Leaves Hm1g_product'
+    print*,'Leave Hm1g_product'
   endif
 
 end subroutine

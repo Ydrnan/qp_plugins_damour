@@ -408,7 +408,7 @@ subroutine hess(n,H,h_tmpr)
   !$OMP MASTER
   call wall_TIME(t5)
   t6=t5-t4
-  print*,'l2 2', t6 
+  print*,'l2 1', t6 
   !$OMP END MASTER
 
   !==========================

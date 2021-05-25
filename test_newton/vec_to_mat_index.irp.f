@@ -8,7 +8,9 @@ subroutine vec_to_mat_index(i,p,q)
   ! Compute the indexes p,q of a matrix element with
   ! the vector index i
   !
-  ! Vector -> lower/upper diagonal matrix
+  ! Vector -> lower diagonal matrix
+  ! For upper diagonal matrix you must change the
+  ! indexes p <-> q
   !==================================================
 
   !===========

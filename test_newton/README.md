@@ -96,12 +96,11 @@ rotation_matrix_omp : subroutine to compute a rotation matrix (omp version)
 apply_mo_rotation : subroutine to compute the new MOs
 apply_mo_rotation_omp : subroutine to compute the new MOs (omp version)
 
-mat_to_vec_index : subroutine to compute the index of a vector element from matrix indexes
-vec_to_mat_index : subroutine to compute the indexes of a matrix element from a vector index
+mat_to_vec_index : subroutine to compute the index of a vector element from a matrix index
+vec_to_mat_index : subroutine to compute the index of a matrix element from a vector index
 
-mat_to_vec : subroutine to transform a antisymmetric matrix mo_num by mo_num in a vector of size mo_num.(mo-num-1)/2
-vec_to_mat : subroutine to transform a vector of size mo_num.(mo-num-1)/2 in a lower/upper diagonal matrix mo_num by mo_num
-The in_mat_vec_index and in_vec_mat_index is equivalent to dv_mat_to_vec and dm_vec_to_mat, the two first ones compute the indexes of the elements
+/error/mat_to_vec : subroutine to transform a antisymmetric matrix mo_num by mo_num in a vector of size mo_num.(mo-num-1)/2
+/error/vec_to_mat : subroutine to transform a vector of size mo_num.(mo-num-1)/2 in a lower/upper diagonal matrix mo_num by mo_num
 
 Calculation procedure :
 
@@ -158,8 +157,8 @@ qp set mo_basis mo_label MCSCF
 qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write
 
 # S^2 true or false
-qp set determinants s2_eig true
-#qp set determinants s2_eig false
+#qp set determinants s2_eig true
+qp set determinants s2_eig false
 
 # Number of determinants
 Ndet=5
@@ -197,8 +196,8 @@ paste ${DIR}/${FILE}_tmp1.dat ${DIR}/${FILE}_pt2.dat > ${DIR}/${FILE}_tmp2.dat
 paste ${DIR}/${FILE}_tmp2.dat ${DIR}/${FILE}_rpt2.dat > ${DIR}/${FILE}_result.dat
 
 # CIPSI calculation
-DIR2=${FILE}_cipsi_S2.ezfio
-FILE2=${FILE}_cipsi_S2
+DIR2=${FILE}_cipsi.ezfio
+FILE2=${FILE}_cipsi
 cp -r ${DIR} ${DIR2}
 
 qp set_file ${DIR2}
@@ -208,8 +207,8 @@ qp set determinants mo_label MCSCF
 qp set mo_basis mo_label MCSCF
 
 # S^2 true or false
-qp set determinants s2_eig true
-#qp set determinants s2_eig false
+#qp set determinants s2_eig true
+qp set determinants s2_eig false
 
 # Number of determinants
 qp set determinants n_det_max 3e6

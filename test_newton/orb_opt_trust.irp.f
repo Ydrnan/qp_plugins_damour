@@ -16,17 +16,17 @@ subroutine run_orb_opt_trust
   !===========
 
   double precision, allocatable :: grad(:,:),R(:,:)
-  double precision, allocatable :: H(:,:),H1(:,:),h_f(:,:,:,:)
-  double precision, allocatable :: Hm1(:,:),v_grad(:),m_Hm1g(:,:),Hm1g(:)
+  double precision, allocatable :: H(:,:),h_f(:,:,:,:)
+  double precision, allocatable :: v_grad(:),m_x(:,:),x(:)
+  double precision, allocatable :: e_val(:), w(:,:)
   double precision, allocatable :: prev_mos(:,:),new_mos(:,:)
   integer                       :: info,method
   integer                       :: n
   integer                       :: i,j,p,q,k
-  double precision              :: trust_radius,e_model,max_elem
-  logical :: cancel_step
-  logical :: converged
+  double precision              :: max_elem, delta, rho
+  logical :: converged, cancel_step
   integer :: nb_iter
-  double precision :: prev_energy
+  double precision :: prev_energy, e_model
   double precision :: t1, t2, t3
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
   ! R      : mo_num by mo_num double precision matrix, rotation matrix to change the MOs
@@ -36,8 +36,7 @@ subroutine run_orb_opt_trust
   ! Hm1g   : double precision vector of length n, result of the product Hm1.v_grad
   ! m_Hm1g : double precision matrix builds from Hm1g
   ! info   : integer, if 0 ok, else problem in a Lapack routine
-  ! method : - 0 : gradient
-  !          - 1 : Full hessian
+  ! method : - 1 : Full hessian
   !          - 2 : Diagonal hessian
   ! n      :  integer, n = mo_num*(mo_num-1)/2, number of orbital pairs (p,q) with p < q
   ! i,j,p,q,k : integer, indexes
@@ -54,7 +53,7 @@ subroutine run_orb_opt_trust
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
 
   ! Choice of the method
-  method = 2  !! 1 -> full h, 2 -> diag_h
+  method = 2  ! 1 -> full h, 2 -> diag_h
 
   ! Display the method
   print*, 'Method :', method
@@ -62,14 +61,13 @@ subroutine run_orb_opt_trust
   ! Definition of n
   n = mo_num*(mo_num-1)/2
 
-  print *, 'CI energy : ', ci_energy
-
   !============
   ! Allocation
   !============
 
   allocate(v_grad(n),R(mo_num,mo_num))
-  allocate(H(n,n),H1(n,n),Hm1(n,n),m_Hm1g(mo_num,mo_num),Hm1g(n))
+  allocate(H(n,n),m_x(mo_num,mo_num),x(n))
+  allocate(e_val(n), w(n,n))
   allocate(h_f(mo_num,mo_num,mo_num,mo_num))
   allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num))
 
@@ -79,85 +77,80 @@ subroutine run_orb_opt_trust
 
   ! Initialization
   converged = .False.
-  trust_radius = 0d0
-  prev_energy = 0.d0
   cancel_step = .False.
+  delta = 0d0
+  rho = 0.5d0
 
   call diagonalize_ci
+  print *, 'CI energy : ', ci_energy
+  prev_energy = 0d0
+  do i = 1, N_states
+    prev_energy = prev_energy + ci_energy(i) * state_average_weight(i)
+  enddo
+  prev_energy = prev_energy / DBLE(N_states)
+  print*, 'State av energy :', prev_energy
 
   nb_iter = 0
   do while (.not.converged)
 
-  print*,'*********************'
-  print*,'Iteration :',nb_iter
-  print*,'*********************'
+    print*,'*********************'
+    print*,'Iteration :', nb_iter
+    print*,'*********************'
 
+     print *, 'CI energy : ', ci_energy
 
-    if (.not.cancel_step) then ! Car inutile de recalculer le gardient et l'hessien si on annule l'étape
-      
-      ! Gradient
-      call gradient(n,v_grad,max_elem)
-      
-      ! Hessian
-      if (method == 1) then
-        call hess(n,H,h_f) !h_f -> debug
-      else
-        call diag_hess(n,H,h_f) !h_f -> debug
-      endif
-      call wall_time(t2)
-
-    endif
-
-    ! Step in the trust region
-    call wall_time(t1)
-    call trust_region(n,method,H,v_grad,m_Hm1g,prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'Time for trust region :', t3
-
-    if (cancel_step) then
-      print*,'Cancellation of the previous step :', t3
-      mo_coef = prev_mos
-      call save_mos
-
-      print*,''
-      print*,'========================================'
-      print*,'---trust region with a smaller radius---'
-      print*,'========================================'
+    ! Gradient
+    call gradient(n,v_grad,max_elem)
     
+    ! Hessian
+    if (method == 1) then
+      call hess(n,H,h_f) !h_f -> debug
     else
-      ! Rotation matrix
-      call wall_time(t1)
-      call rotation_matrix(m_Hm1g,mo_num,R,mo_num,mo_num,info)
-      call wall_time(t2)
-      t3 = t2 - t1
-      print*, 'Time to compute the rotation matrix :', t3
-
-      ! Orbital optimization
-      call wall_time(t1)
-      call apply_mo_rotation(R,prev_mos,new_mos)
-      call wall_time(t2)
-      t3 = t2 - t1
-      print*, 'Time to apply MO rotations :', t3
-      nb_iter += 1
+      call diag_hess(n,H,h_f) !h_f -> debug
     endif
+
+    call diagonalization_hessian(n,H,e_val,w)
+
+    cancel_step = .True.
+
+    do while ( cancel_step )
+      
+      call trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+
+      call trust_e_model(n,v_grad,H,x,prev_energy,e_model)
+ 
+      call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+
+      call apply_mo_rotation(R,prev_mos,new_mos)
+
+      call clear_mo_map
+      TOUCH mo_coef psi_det psi_coef
+      call diagonalize_ci
+      call save_wavefunction_unsorted
+
+      call rho_model(prev_energy,e_model,rho)
+
+      if (rho >= 0.1d0) then
+        cancel_step = .False.
+      else
+        mo_coef = prev_mos
+        call save_mos
+        print*, '***********************'
+        print*, 'Step cancel : rho < 0.1'
+        print*, '***********************'
+      endif
+  
+    enddo
    
-    call wall_time(t1)
-    call clear_mo_map
-    TOUCH mo_coef psi_det psi_coef
-    call diagonalize_ci
-    call save_wavefunction_unsorted
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'Time to diagonalize ci :', t3
+    nb_iter = nb_iter + 1      
 
     if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
 
-  enddo
+  enddo    
 
-  deallocate(v_grad,H,Hm1,m_Hm1g,R,Hm1g)
+  deallocate(v_grad,H,m_x,R,x,e_val,w)
   deallocate(h_f,prev_mos,new_mos)
 
 end program

@@ -1,4 +1,4 @@
-subroutine trust_e_model(n,v_grad,H,Hm1g, prev_energy,e_model)
+subroutine trust_e_model(n,v_grad,H,Hm1g,prev_energy,e_model)
    
   include 'constants.h' 
 

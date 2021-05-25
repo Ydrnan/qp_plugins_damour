@@ -1,4 +1,4 @@
-subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radius,e_model,cancel_step,prev_mos)
+subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
   include 'constants.h'
 
@@ -17,34 +17,39 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   !====
   integer, intent(in)          :: n
   integer, intent(in)          :: method ! pour la verif
-  double precision, intent(in) :: H(n,n), v_grad(n)
-  double precision, intent(inout) :: prev_energy,trust_radius
-  integer, intent(inout)  :: nb_iter
-  double precision, intent(inout) :: e_model
-  logical, intent(inout) :: cancel_step
-  double precision, intent(in) :: prev_mos(ao_num,mo_num)
+  double precision, intent(in) :: H(n,n), v_grad(n), rho
+  integer, intent(in)  :: nb_iter
+  double precision, intent(in) :: e_val(n), w(n,n)
   ! n      : integer, n = mo_num*(mo_num-1)/2
   ! method : integer, method used to compute the hessian
   ! H      : n by n double precision matrix containing the hessian
   ! v_grad : double precision vector of size n containing the gradient
+  ! rho    : double precision, represent the quality of the energy prediction
+  !          with respect to the reality
+  ! nb_iter : integer, number of iterations
+  ! e_val : double precision vector of size n containing the eigenvalues of the hessian H
+  ! w     : n by n double precision matrix containing the eigenvectors of the hessian H 
+
+  !=======
+  ! inout
+  !=======
+  double precision, intent(inout) :: delta
 
   !=====
   ! out
   !=====
-  double precision, intent(out) :: m_Hm1g(mo_num,mo_num)
-  ! m_Hm1g : mo_num by mo_num double precision matrix containing the next step
+  double precision, intent(out) :: m_x(mo_num,mo_num), x(n)
+  ! m_x : mo_num by mo_num double precision matrix containing the next step
+  ! x   : double precision vector of size n containing the next step
 
   !==========
   ! Internal
   !==========
-  double precision, allocatable :: x(:),W(:,:)
+  double precision, allocatable :: diff(:)
   double precision, allocatable :: Hm1(:,:), Hm1g(:)
-  double precision              :: accu, lambda!, trust_radius
-  double precision              :: norm_x, norm_g, delta, rho!,e_model
-  double precision, allocatable :: e_val(:),work(:,:)
-  integer                       :: info,lwork!, nb_iter
+  double precision              :: accu, lambda, trust_radius
+  double precision              :: norm_x, norm_g
   integer                       :: i,j,k
-  integer                       :: nb_negative_vp  
   ! x            : double precision vector of size n containing the next step
   ! W            : double precision matrix containing the eigenvectors of the hessian matrix
   ! Hm1g         : double precision vector of size n containing the next step
@@ -76,11 +81,8 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   ! Allocation
   !============
 
-  lwork=3*n-1
-
-  allocate(x(n),W(n,n))
+  allocate(diff(n))
   allocate(Hm1(n,n),Hm1g(n))
-  allocate(e_val(n),work(lwork,n))
 
   !=============
   ! Calculation
@@ -91,32 +93,6 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   print*,'---Enter in trust_region---'
   print*,'==========================='
 
-  ! Copy the hessian matrix, the eigenvectors will be store in W
-  W=H
-
-  ! Diagonalization of the hessian
-  call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
-
-  if (info /= 0) then
-      print*, 'Error diagonalization : trust_region'
-      call ABORT
-  endif
-
-  if (debug) then
-    print *, 'vp Hess:'
-    write(*,'(100(F10.5))')  real(e_val(:))
-  endif
-
-  ! Number of negative eigenvalues
-  nb_negative_vp = 0
-  do i = 1, n
-    if (e_val(i) < -1d-12) then 
-      nb_negative_vp = nb_negative_vp + 1
-      print*,'e_val < 0 :', e_val(i)
-    endif
-  enddo 
-  print*,'Number of negative eigenvalues :', nb_negative_vp
-
   ! Initialization of the Lagrange multiplier
   lambda =0d0
 
@@ -126,26 +102,16 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   print*, norm_x
 
   ! Norm^2 of v_grad
-  !norm_g = (dnrm2(n,v_grad,1))**2
   norm_g = (dnrm2(n,v_grad,1))**2
   print*,'norm grad^2 :'
   print*, norm_g
 
-  ! Compute rho <=> the quality of the model
-  call rho_model(rho,nb_iter,prev_energy,e_model,cancel_step)
-
   ! trust radius
-  ! For the first iteration trust_radius = norm_p
-  ! else read the trust_radius
   if (nb_iter == 0) then
-
     trust_radius = norm_x 
-
+    ! Compute delta, delta = sqrt(trust_radius)
+    delta = dsqrt(trust_radius)
   endif
-
-  ! Compute delta, delta = sqrt(trust_radius)
-  delta = dsqrt(trust_radius)
-  print*, 'delta', delta
 
   ! Modification of the trust radius in function of rho
   if (rho >= 0.75d0) then
@@ -157,76 +123,52 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   else
     delta = 0.25d0 * delta
   endif
+ 
+  print*, 'Delta :', delta
   
-  trust_radius = delta**2
-
   ! En donnant delta, on cherche ||x||^2 - delta^2 = 0
   ! et non ||x||^2 - delta = 0
-  print*,'trust_radius :',trust_radius
-  print*,'delta * coef :',delta
 
-  if (rho >= 0.1d0) then ! minimal rho for step acceptance
+  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
+  if (trust_radius < norm_x ) then
+    print*,'Computation of the optimal lambda for the next step...'
+    call trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+  else
+    ! Unconstraint solution, lambda = 0
+    print*,'Step in the trust region, no lambda optimization'
+    lambda = 0d0
+  endif
 
-    print*,'!!!previous step accepted !!!'
-    cancel_step = .False.
+  ! Initialisation
+  x = 0d0
 
-    ! Newton method to find lambda such as: ||x(lambda)|| = Delta
-    if (trust_radius < norm_x ) then
-      print*,'Computation of the optimal lambda for the next step...'
-      call trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
-    else
-      ! Unconstraint solution, lambda = 0
-      print*,'Step in the trust region, no lambda optimization'
-      lambda = 0d0
+  ! Calculation of the step x
+  do i = 1, n
+    if (e_val(i) > 1d-4) then
+      accu = 0d0
+      do j = 1, n 
+        accu = accu + W(j,i) * v_grad(j) ! j !!!!!
+      enddo 
+      !accu = ddot(n,W(:,i),1,v_grad,1)
+      do j = 1, n
+        x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
+      enddo 
+      !x = x - accu * W(:,i) / (e_val(i) + lambda)
     endif
+  enddo
 
-    ! Initialisation
-    x = 0d0
+  ! pour avoir la meme chose que gHm1
+  x = -x
 
-    ! Calculation of the step x
-    do i = 1, n
-      if (e_val(i) > 1d-4) then
-        accu = 0d0
-        do j = 1, n 
-          accu = accu + W(j,i) * v_grad(j) ! j !!!!!
-        enddo 
-        !accu = ddot(n,W(:,i),1,v_grad,1)
-        do j = 1, n
-          x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
-        enddo 
-        !x = x - accu * W(:,i) / (e_val(i) + lambda)
-      endif
-    enddo
-
-    ! pour avoir la meme chose que gHm1
-    x = -x
-
-  else
-    ! If rho < 0.1
-    print*,'!!! previous step rejected !!!'
-
-    ! Cancellation of the previous step
-    x = 0d0
-    cancel_step = .True.
-
-  endif
-
-  ! Compute the predicted energy for the next step
-  if (.not. cancel_step) then
-    call trust_e_model(n,v_grad,H,x,prev_energy,e_model)
-  else
-    print*,'Cancellation of the previous step no energy prediction'
-  endif
- 
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
   do j = 1, mo_num
     do i = 1, mo_num
       if (i>j) then
         call mat_to_vec_index(i,j,k)
-        m_Hm1g(i,j) = x(k)
+        m_x(i,j) = x(k)
       else
-        m_Hm1g(i,j)=0d0
+        m_x(i,j)=0d0
       endif
     enddo
   enddo
@@ -235,7 +177,7 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   do j = 1, mo_num
     do i = 1, mo_num
       if (i<j) then
-        m_Hm1g(i,j) = - m_Hm1g(j,i)
+        m_x(i,j) = - m_x(j,i)
       endif
     enddo
   enddo
@@ -257,12 +199,12 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
     !print*, gHm1
 
     ! Calculation of the error
-    x = x - Hm1g
+    diff = x - Hm1g
 
     print*,'diff'
     do i = 1, n
       if (ABS(x(i)) > 1e-12) then
-        print*,i,x(i)
+        print*,i, diff(i)
       endif
     enddo
 
@@ -272,14 +214,12 @@ subroutine trust_region(n,method,H,v_grad,m_Hm1g, prev_energy,nb_iter,trust_radi
   ! Deallocation
   !==============
 
-  deallocate(x,W)
   deallocate(Hm1,Hm1g)
-  deallocate(e_val,work)
 
   if (debug) then
-    print*,'========================='
-    print*,'---Leaves trust_region---'
-    print*,'========================='
+    print*,'========================'
+    print*,'---Leave trust_region---'
+    print*,'========================'
     print*,''
   endif
 

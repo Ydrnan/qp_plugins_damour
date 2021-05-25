@@ -54,7 +54,7 @@ subroutine run_orb_opt_trust
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
 
   ! Choice of the method
-  method = 2  ! 1 -> full h, 2 -> diag_h
+  method = 2  !! 1 -> full h, 2 -> diag_h
 
   ! Display the method
   print*, 'Method :', method

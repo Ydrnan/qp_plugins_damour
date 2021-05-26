@@ -125,6 +125,9 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   endif
  
   print*, 'Delta :', delta
+
+  trust_radius = delta**2
+  print*, 'trust_radius :', trust_radius
   
   ! En donnant delta, on cherche ||x||^2 - delta^2 = 0
   ! et non ||x||^2 - delta = 0

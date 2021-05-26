@@ -25,7 +25,7 @@ subroutine run_orb_opt_trust
   integer                       :: i,j,p,q,k
   double precision              :: max_elem, delta, rho
   logical :: converged, cancel_step
-  integer :: nb_iter
+  integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: prev_energy, e_model
   double precision :: t1, t2, t3
   ! grad   : mo_num by mo_num double precision matrix, the gradient for the gradient method
@@ -82,6 +82,7 @@ subroutine run_orb_opt_trust
   rho = 0.5d0
 
   call diagonalize_ci
+
   print *, 'CI energy : ', ci_energy
   prev_energy = 0d0
   do i = 1, N_states
@@ -91,13 +92,17 @@ subroutine run_orb_opt_trust
   print*, 'State av energy :', prev_energy
 
   nb_iter = 0
+  nb_cancel = 0
+  nb_diag = 0
+  nb_cancel_tot = 0
+
   do while (.not.converged)
 
     print*,'*********************'
     print*,'Iteration :', nb_iter
     print*,'*********************'
 
-     print *, 'CI energy : ', ci_energy
+    print *, 'CI energy : ', ci_energy
 
     ! Gradient
     call gradient(n,v_grad,max_elem)
@@ -112,6 +117,7 @@ subroutine run_orb_opt_trust
     call diagonalization_hessian(n,H,e_val,w)
 
     cancel_step = .True.
+    nb_cancel = 0
 
     do while ( cancel_step )
       
@@ -135,16 +141,29 @@ subroutine run_orb_opt_trust
       else
         mo_coef = prev_mos
         call save_mos
+        nb_cancel = nb_cancel + 1
+        nb_cancel_tot = nb_cancel_tot + 1
         print*, '***********************'
         print*, 'Step cancel : rho < 0.1'
         print*, '***********************'
       endif
-  
-    enddo
-   
-    nb_iter = nb_iter + 1      
+      nb_diag = nb_diag + 1
 
-    if (nb_iter == 40 .or. ABS(max_elem) <= 1d-5) then
+      print*, 'nb_diag :', nb_diag
+      print*, 'nb_cancel :', nb_cancel
+      print*, 'nb_cancel_tot :', nb_cancel_tot
+     
+      ! exit  
+      if (nb_diag >= 40) then
+        print*,'nb_diag >= 40 : end'
+        return
+      endif
+
+    enddo
+
+    nb_iter = nb_iter + 1
+   
+    if (nb_diag >= 40 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
 

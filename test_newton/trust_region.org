@@ -1,0 +1,463 @@
+* Trust region
+
+=======================================================
+ Compute the next step with the trust region algorithm
+=======================================================
+
+The goal of the trust region is to restrict the step size of the
+Newton method's in a certain area around the actual position. In
+function of the agreement between the Taylor development of the energy
+and the real energy, the size of the trust region will be update at
+each iteration. By doing so, the step size are not too large and not
+too small. Normally, the size of the steps is optimal. In addition,
+since we add a criterion to cancel the step if the energy increases
+(more precisely if rho < 0.1), so it's impossible to diverge.
+
+References :
+Nocedal & Wright, Numerical Optimization, chapter 4 (1999)
+
+The step of the Newton method's is :
+\begin{equation}
+x^{k+1} = - (H^{k})^{-1} g^{k}
+\end{equation}
+
+And we want that $$||x^{k+1}|| \leq \Delta^{k+1}$$ <=> $$(x^{k+1})^T
+x^{k+1} (\Delta^{k+1})^2$$
+Where : 
+$$x^{k+1}$$ is the newton step for the k+1-th iteration (vector of size n)
+$$H^{k}$$ is the hessian at the k-th iteration (n by n matrix)
+$$g^{k}$$ is the gradient at the k-th iteration (vecor of size n)
+$$\Delta^{k+1}$$ is the trust radius for the k+1-th iteration
+
+To do that, we have to put a constraint on $$x^{k+1}$$ with a Lagrange
+mutiplier.
+The Taylor development of the energy at the 2nd order is :
+$$ E(x^{k+1}) =  E + (g^{k})^T x^{k+1} + \frac{1}{2}
+(x^{k+1})^T H^{k} x^{k+1} $$
+
+With the constraint it becomes :
+\begin{equation}
+\mathcal{L}(x^k,\lambda) = E + (g^{k})^T x^{k+1}  + \frac{1}{2} (x^{k+1})^T H^[k} (x^{k+1}) 
++ \frac{1}{2} \lambda ((x^{k+1})^T x^{k+1} - \Delta^2)
+\end{equation}
+Where :
+$$\lambda$$ is the Lagrange multiplier
+$$E$$ is the energy at the k_th iteration
+
+To solve this equation, we search a stationary point where the first
+derivative of $\mathcal{L}$ with respect to $x$ becomes 0, ie.
+\begin{equation}
+\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}=0
+\end{equation}
+\begin{equation}
+\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}
+= g^k + H^k x + \lambda x 
+\end{equation}
+Noting $x^*$ the solution :
+\begin{equation}
+\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}
+= g^k + H^k x^* + \lambda x^* = 0
+\end{equation}
+We can rewrite that as :
+\begin{equation}
+ g^k + H^k x^* + \lambda x^* =  g^k + (H^k + I \lambda) x^*=0
+\end{equation}
+Where $I$ is the identity matrix.
+By doing so, the solution is :
+\begin{equation}
+(H^k + I \lambda)x^*= - g^k
+\end{equation}
+\begin{equation}
+x^*= - (H^k + I \lambda)^{-1} g^k
+\end{equation}
+With $x^*T x^* = \Delta^2$.
+
+So $x^*$ is the Newton step $x^{k+1}$ in the trust region.
+
+We have to solve this previous equation to find this $x^*$ in the
+trust region.
+
+Now this problem is just a one dimension problem because we can
+express $x^*$ as a function of $\lambda$ :
+\begin{equation}
+x^*(\lambda) = - (H^k + I \lambda)^{-1} g^k
+\end{equation}
+
+To simplify the next part we will remove the indexes (k, k+1). 
+To do that, we start from the fact that the hessian is
+diagonalizable. So we have :
+
+\begin{equation}
+H = W h W^T
+\end{equation}
+
+With :
+$$H$$, the hessian matrix
+$$W$$, the matrix containing the eigenvectors 
+$$h$$, the matrix containing the eigenvalues in ascending order
+
+Now we use the fact that :
+\begin{equation}
+H + I \lambda = W (h+ I \lambda) W^T
+\end{equation}
+
+By doing so we can express $x^*$ as a function of $\lambda$
+\begin{equation}
+x(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+\end{equation}
+With $\lambda \neq h_i$
+
+An interesting thing in our case is the norm of $$x$$, because we want
+$$||x^{k+1}|| = \Delta^{k+1}$$. So we have :
+
+\begin{equation}
+||x(\lambda)||^2 = \sum_{i=1}^n \frac{(w_i^T g)^2}{(h_i + \lambda)^2}
+\end{equation}
+
+If we study the properties of this function we see that : 
+\begin{equation}
+\lim_{\lambda\to\infty} ||x(\lambda)|| = 0
+\end{equation}
+
+And : 
+\begin{equation}
+\lim_{\lambda\to -h_i} ||(\lambda)x|| = + \infty
+\end{equation}
+
+So $||x(\lambda)||$ is continuous, strictly decreasing function on the
+interval $\lambda \in ]-h_i;\infty[$. Thus, there is one \lambda that
+gives $||x(\lambda)|| = \Delta$, consequently there is one solution.
+
+To find the solution, we can write :
+\begin{equation}
+||x(\lambda)|| = \Delta
+\end{equation}
+\begin{equation}
+||x(\lambda)|| - \Delta = 0
+\end{equation}
+
+The previous equation is strictly decreasing on $]-h_i;\infty[$ and
+becomes null for the optimal lambda. So by taking the square of this
+equation :
+\begin{equation}
+(||x(\lambda)|| - \Delta)^2 = 0
+\end{equation}
+Now we have a function with one minimum for the optimal $\lambda$.
+Since we have the formula of $||x(\lambda)||^2$, we solve :
+\begin{equation}
+(||x(\lambda)||^2 - \Delta^2)^2 = 0
+\end{equation}
+
+To do that, we just use the Newton's method with "trust_newton" using
+first and second derivative of $(||x(\lambda)||^2 - \Delta^2)^2$ with
+respect to $x$. This will give the optimal $\lambda$ to compute the
+solution $x^*$ :
+\begin{equation}
+x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+\end{equation}
+
+This solution $x^*$ is our step to go from the k-th to the k+1-th
+iteration, $x^{*k+1}$.
+
+In the case where $||x^{k+1}|| \leq \Delta$, the solution is the
+unconstraint solution, $\lambda = 0$
+
+So after computing $||x^{k+1}||$ there are 2 options :
+if  $||x^{k+1}|| \leq \Delta$ then we put $\lambda = 0$
+else we search the optimal $\lambda$.
+
+With $\lambda$ we compute the step $x^*(\lambda)$. The result is a
+vector.
+
+After that, we take this vector x and do the transformation in an
+antisymmetric matrix m_x.
+
+
+#+BEGIN_SRC f90
+subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+  include 'constants.h'
+
+  implicit none
+#+END_SRC
+
+** Variables
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in)          :: n
+  integer, intent(in)          :: method ! pour la verif
+  double precision, intent(in) :: H(n,n), v_grad(n), rho
+  integer, intent(in)  :: nb_iter
+  double precision, intent(in) :: e_val(n), w(n,n)
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! method : integer, method used to compute the hessian
+  ! H      : n by n double precision matrix containing the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! rho    : double precision, represent the quality of the energy prediction
+  !          with respect to the reality
+  ! nb_iter : integer, number of iterations
+  ! e_val : double precision vector of size n containing the eigenvalues of the hessian H
+  ! w     : n by n double precision matrix containing the eigenvectors of the hessian H 
+
+  !=======
+  ! inout
+  !=======
+  double precision, intent(inout) :: delta
+
+  !=====
+  ! out
+  !=====
+  double precision, intent(out) :: m_x(mo_num,mo_num), x(n)
+  ! m_x : mo_num by mo_num double precision matrix containing the next step
+  ! x   : double precision vector of size n containing the next step
+
+  !==========
+  ! Internal
+  !==========
+  double precision, allocatable :: diff(:)
+  double precision, allocatable :: Hm1(:,:), Hm1g(:)
+  double precision              :: accu, lambda, trust_radius
+  double precision              :: norm2_x, norm2_g
+  integer                       :: i,j,k
+  ! W            : double precision matrix containing the eigenvectors of the hessian matrix
+  ! Hm1g         : double precision vector of size n containing the next step (debug)
+  ! Hm1          : double precision matrix containing the inverse of the hessian matrix (debug)
+  ! accu         : double precision, temporary variable
+  ! lambda       : double precision, lagrange multiplier to put the trust region constraint
+  ! trust_radius : double precision, trust region radius = delta^2
+  ! norm2_x       : double precision, norm^2 of the vector x
+  ! norm2_g       : double precision, norm^2 of the gradient
+  ! i,j,k        : integer, indexes
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: ddot, dnrm2
+  double precision :: fN
+  ! ddot  : double precision Blas function, dot product
+  ! dnrm2 : double precision Blas function, norm
+  ! fN    : double precision function, (function Norm -> fN), compute ||x||^2
+#+END_SRC
+
+** Allocation
+#+BEGIN_SRC f90
+  allocate(diff(n))
+  allocate(Hm1(n,n),Hm1g(n))
+#+END_SRC
+
+** Calculations
+*** Initialization and norm
+
+The norm of the step size will be useful for the trust region
+
+#+BEGIN_SRC f90                                                                                                                                                                                                     
+  print*,''
+  print*,'==========================='
+  print*,'---Enter in trust_region---'
+  print*,'==========================='
+
+  ! Initialization of the Lagrange multiplier
+  lambda = 0d0
+
+  ! Norm^2 of x, ||x||^2
+  print*,'||x||^2 :'
+  norm2_x = fN(n,e_val,W,v_grad,0d0)
+  print*, norm2_x
+
+  ! Norm^2 of the gradient, ||v_grad||^2
+  norm2_g = (dnrm2(n,v_grad,1))**2
+  print*,'||grad||^2 :'
+  print*, norm2_g
+#+END_SRC
+
+*** Trust radius initialization
+
+At the first iteration (nb_iter=0) we initialize the trust region with
+the norm of the step generate by the Newton's method ($x^1 =
+(H^0)^{-1} g^0$, we compute this norm using fN)
+
+#+BEGIN_SRC f90
+  ! trust radius
+  if (nb_iter == 0) then
+    trust_radius = norm2_x 
+
+    ! Compute delta, delta = sqrt(trust_radius)
+    delta = dsqrt(trust_radius)
+  endif
+#+END_SRC
+
+*** Modification of the trust radius
+In function of rho (which represents the agreement between the model
+and the reality, cf. rho_model) the trust region evolves. We update
+delta such as :
+
+#+BEGIN_SRC f90
+  ! Modification of the trust radius in function of rho
+  if (rho >= 0.75d0) then
+    delta = 2d0 * delta
+  elseif (rho >= 0.5d0) then
+    delta = delta
+  elseif (rho >= 0.25d0) then
+    delta = 0.5d0 * delta
+  else
+    delta = 0.25d0 * delta
+  endif
+ 
+  print*, 'Delta :', delta
+
+  trust_radius = delta**2
+  print*, 'trust_radius :', trust_radius
+#+END_SRC 
+  
+*** Calculation of the optimal lambda
+
+We search the solution of $(||x||^2 - \Delta^2)^2 =0$
+
+#+BEGIN_SRC f90
+  ! En donnant delta, on cherche (||x||^2 - delta^2)^2 = 0
+  ! et non (||x||^2 - delta)^2 = 0
+
+  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
+  if (trust_radius < norm2_x ) then
+    ! Constraint solution
+    print*,'Computation of the optimal lambda for the next step...'
+    call trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+  else
+    ! Unconstraint solution, lambda = 0
+    print*,'Step in the trust region, no lambda optimization'
+    lambda = 0d0
+  endif
+#+END_SRC
+
+*** Calculation of the step x
+
+We compue x in function of lambda using its formula :
+\begin{equation}
+x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+\end{equation}
+
+#+BEGIN_SRC f90
+  ! Initialisation
+  x = 0d0
+
+  ! Calculation of the step x
+  do i = 1, n
+    if (e_val(i) > 1d-4) then ! in order to avoid 1/0
+    ! eigenvalues must be > 0 !!!
+      accu = 0d0
+      do j = 1, n 
+        accu = accu + W(j,i) * v_grad(j)
+      enddo 
+      !accu = ddot(n,W(:,i),1,v_grad,1)
+      do j = 1, n
+        x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
+      enddo 
+      !x = x - accu * W(:,i) / (e_val(i) + lambda)
+    endif
+  enddo
+
+  ! In order to have the same thing that -H^{-1} g
+  ! Why ? Because we want -H^{-1} g and not +H^{-1} g
+  x = -x
+#+END_SRC
+
+*** Transformation of x
+
+x is a vector of size n, so it can be write as a mo_num by mo_num
+antisymmetric matrix m_x.
+
+#+BEGIN_SRC f90
+  ! Step transformation vector -> matrix
+  ! Vector with n element -> mo_num by mo_num matrix
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i>j) then
+        call mat_to_vec_index(i,j,k)
+        m_x(i,j) = x(k)
+      else
+        m_x(i,j)=0d0
+      endif
+    enddo
+  enddo
+
+  ! Antisymmetrization of the previous matrix
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i<j) then
+        m_x(i,j) = - m_x(j,i)
+      endif
+    enddo
+  enddo
+#+END_SRC
+
+*** Debug
+
+The goal of this part is to compare the previous result (only if you
+force the use of lambda = 0 !!!) with the "standard method". Clearly,
+here we inverse the matrix in a way that only work for matrix with a
+good conditionning (cf. matrix_inversion).
+
+For that reason, in some cases, little differences appear but I don't
+know which calculation is wrong... But don't worry, both work well in
+our case.
+
+Don't put debug = .True. in constants.h, the output will be a
+nightmare, just add "!" before the if/endif. 
+
+#+BEGIN_SRC f90
+  ! Debug
+  if (debug) then
+  integer :: nb_error
+  double precision :: max_error
+
+    print*,'x'
+    write(*,'(100(F10.5))') x(:)
+
+    ! Verification
+    call matrix_inversion(method,n,H,Hm1)
+
+    print*,''
+    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)
+
+    print*,'vector Hm1.g :'
+    write(*,'(100(F10.5))') Hm1g(:)
+
+    ! Calculation of the error
+    diff = x - Hm1g
+
+    nb_error = 0
+    max_error = 0d0
+   
+    print*,'diff'
+    do i = 1, n
+      if (ABS(x(i)) > 1e-12) then
+        print*,i, diff(i)
+        nb_error = nb_error + 1
+        if ((ABS(x(i)) > max_error) then
+          max_error =  x(i)
+        endif
+      endif
+    enddo
+
+    print*, 'Number of errors :', nb_error
+    print*, 'Max error :', max_error
+
+  endif
+#+END_SRC 
+
+*** Deallocation, end
+
+#+BEGIN_SRC f90
+  deallocate(Hm1,Hm1g)
+
+  if (debug) then
+    print*,'========================'
+    print*,'---Leave trust_region---'
+    print*,'========================'
+    print*,''
+  endif
+
+end
+#+END_SRC
+ 

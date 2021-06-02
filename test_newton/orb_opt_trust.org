@@ -131,7 +131,7 @@ subroutine run_orb_opt_trust
   converged = .False.
   cancel_step = .False.
   delta = 0d0
-  rho = 0.5d0 ! Must be 0.5 in order to not change delta 
+  rho = 0.5d0 ! Must be 0.5 for the first step else delta will be changed
   nb_iter = 0
   nb_cancel = 0
   nb_diag = 0
@@ -184,6 +184,11 @@ subroutine run_orb_opt_trust
     "rho_model" takes prev_energy, e_model (and the actual energy) and gives :
     - rho, which estimate the 'quality' of the model (taylor expansion)
       compare to the real energy
+
+    While rho < 0.1 the algorithm goes back to "trust_region" and delta
+    will be reduced.
+    If rho >= 0.1 the step is accepted and the algorithm goes back to
+    the camculation of the gradient.
 
     #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   do while (.not.converged)
@@ -241,7 +246,7 @@ subroutine run_orb_opt_trust
            cancel_step = .False.
         else
            ! Cancellation of the previous rotation
-           mo_coef = prev_mos
+           mo_coef = prev_mos ! previous MOs 
            call save_mos
 
            nb_cancel = nb_cancel + 1

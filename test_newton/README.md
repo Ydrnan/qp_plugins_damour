@@ -1,5 +1,11 @@
 Doc
 
+Dev branch : only the orb_opt_trust.irp.f will work
+the other programs orb_opt... will failed (maybe at the compilation, if it 
+works they will give bad results)
+If a problem appears at compilation time with one of the orb_opt... 
+juste delete the program  
+
 Main program : orb_opt_trust
 - methods for the hessian : 
     * diagonal hessian 

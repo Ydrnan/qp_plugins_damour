@@ -1,0 +1,126 @@
+* Rho
+
+=============================================================================
+ Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_modele)
+=============================================================================
+
+Rho represents the agreement between the model (predicted energy by
+the Taylor expansion at the 2nd order) and the real energy :
+
+\begin{equation}
+\rho^{k+1} = \frac{E^{k} - E^{k+1}}{E^{k} - m^{k+1}}
+\end{equation}
+With :
+$E^{k}$ the energy at the previous iteration
+$E^{k+1}$ the energy at the actual iteration
+$m^{k+1}$ the predicted energy for the actual iteration
+(cf. trust_e_model)
+
+If $\rho \approx 1$, the agreement is good, contrary to $\rho \approx
+0$. If $\rho \leq 0$ the energy of the previous step is lower than the
+actual step. We have to cancel this last step and use a smaller trust
+region.
+
+#+BEGIN_SRC f90
+subroutine rho_model(prev_energy,e_model,rho)
+
+  include 'constants.h'
+
+  implicit none
+#+END_SRC  
+
+** Variables
+
+#+BEGIN_SRC f90
+!====
+  ! in
+  !====
+  double precision, intent(inout)  :: prev_energy
+  double precision, intent(in)  :: e_model
+  ! nb_iter : integer, number of iteration
+  ! prev_energy : double precision, energy of the previous step
+  ! e_model     : double precision, predicted energy for the actual step
+
+  !=====
+  ! out
+  !=====
+  double precision, intent(out) :: rho
+  ! rho : double precision, representing the quality of the model
+
+  !==========
+  ! Internal
+  !==========
+  double precision :: energy
+  integer :: i
+  ! energy      : double precision, energy of the actual step
+#+END_SRC
+
+** State average energy
+The state average energy $E$, is defined as :
+\begin{equation}
+E = \sum_i E_i w_i
+\end{equation}
+With :
+$E_i$ energy of state i
+$w_i$ weight of state i
+
+#+BEGIN_SRC f90
+  !if (debug) then
+    print*,''
+    print*,'---Enter in rho_model---'
+  !endif
+
+  ! Energy of the actual step
+  !energy = sum(ci_energy(1:N_states) / dble(N_states))
+
+  energy = 0d0
+  do i = 1, N_states
+    energy = energy + ci_energy(i) * state_average_weight(i)
+  enddo
+  energy = energy / DBLE(N_states)
+
+  print*, 'ci_energy :', energy
+#+END_SRC
+
+** Rho
+\begin{equation}
+\rho^{k+1} = \frac{E^{k} - E^{k+1}}{E^{k} - m^{k+1}}
+\end{equation}
+
+In function of $\rho$ th step can be accepted or cancelled.
+
+If we cancel the last step (k+1), the previous energy (k) doesn't
+change !
+If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
+
+#+BEGIN_SRC f90
+  rho = (prev_energy - energy) / (prev_energy - e_model)
+
+  print*, 'previous energy, prev_energy :', prev_energy
+  print*, 'predicted energy, e_model :', e_model
+  print*, 'real energy, energy :', energy
+  print*, 'prev_energy - energy :', prev_energy - energy
+  print*, 'e_model - energy :', prev_energy - e_model
+  print*, 'Rho :', rho
+
+  ! Modification of prev_energy in function of rho
+  if (rho < 0.1) then
+    ! the step is accepted  
+    print*, 'Rho < 0.1, the previous energy does not change'
+    print*, 'prev_energy :', prev_energy  
+  else
+    ! the step will is cancelled
+    prev_energy = energy
+    print*, 'Rho >= 0.1, energy -> prev_energy :', energy
+  endif
+#+END_SRC
+
+** End 
+#+BEGIN_SRC f90
+  !if (debug) then
+    print*,'---Leave rho_model---'
+    print*,''
+  !endif
+
+end subroutine
+#+END_SRC

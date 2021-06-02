@@ -1,0 +1,648 @@
+* Newton's method to find the optimal lambda
+
+===============================================
+ Compute the lambda value for the trust region
+===============================================
+
+This subroutine use the Newton's method in order to find the optimal
+lambda (to have the step in the trust region). So we just search the
+minimum of $||x(\lambda)||^2 - \Delta^2$ for $\lambda \in
+]-h_1;+\infty[$. $h_1$ is the smallest eigenvalue and $h_1 < 0$. So to
+avoid numerical problems (cf. trust_region) we start the algorithm at
+$\lambda=0$.
+
+By the way, we already know the value of the function
+$||x(\lambda)||^2 - \Delta^2$ for the optimal lambda (0). 
+
+The Newton's method is :
+
+x^{k+1} = x^{k} - (H^{k})^{-1} g^{k}
+
+Not the same x... It's just the general formula
+
+H : the hessian <=> second derivative with respect to lambda
+g : the gradient <=> first derivative with respect to lambda
+
+#+BEGIN_SRC f90
+subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
+
+  include 'constants.h'
+
+  implicit none
+#+END_SRC
+
+** Variables
+
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in) :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: delta 
+
+  !=====
+  ! out
+  !=====
+  double precision, intent(out) :: lambda
+
+  !==========
+  ! Internal
+  !==========
+  double precision :: d_N,d2_N,f_N
+  double precision :: t1,t2,t3
+  integer          :: i
+  ! d_N      : double precision, value of dN
+  ! d2_N     : double precision, value of d2N
+  ! f_N      : double precision, value of fN
+  ! t1,t2,t3 : double precision, t3 = t2 - t1, time to search the optimal
+  !            lambda value
+  ! i        : integer, index
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: dN,dN_omp, d2N, d2N_omp, fN, fN_omp
+  ! dN  : double precision function, first derivative with respect to lambda of ||p||^2 - Delta 
+  ! d2N : double precision function, second derivative with respect to lambda of ||p||^2 - Delta 
+  ! fN  : double precision function, value of ||p||^2
+#+END_SRC
+
+** Calculations 
+#+BEGIN_SRC f90
+ if (debug) then
+    print*,'Enter in trust_newton'
+  endif
+
+  ! Initialization
+  lambda = 0d0
+#+END_SRC
+
+** Debug, OMP vs no OMP
+Just to compare the results of the OMP vs no OMP functions.
+In addition, you can plot these file using 1:2 to see the evolution of
+fN in function of lambda.
+
+The values can be very large so, doing the difference of the results
+is not a good idea. A better way to check the value is to compute 
+1 -f1/f2, where f1 and f2 are the functions which have to be compared.  
+
+#+BEGIN_SRC f90
+  ! Debug
+  if (debug) then
+     open(unit=10,file='debug_trust_region.dat')
+     write(10,*) 'lambda, f_N, d_N, d2_N'
+     do i = 1, 10000
+
+       ! No OMP
+       f_N = fN(n,e_val,w,v_grad,lambda)
+       d_N = dN(n,e_val,w,v_grad,lambda,delta)
+       d2_N = d2N(n,e_val,w,v_grad,lambda,delta)
+       write(10,'(100(F10.5))') lambda, f_N, d_N, d2_N
+
+       ! OMP
+       f_N = fN_omp(n,e_val,w,v_grad,lambda)
+       d_N = dN_omp(n,e_val,w,v_grad,lambda,delta)
+       d2_N = d2N_omp(n,e_val,w,v_grad,lambda,delta)
+       write(10,'(100(F10.5))') lambda, f_N, d_N, d2_N, '(OMP)'
+
+       lambda = lambda + 0.0001
+     enddo
+     close(10)
+  endif
+#+END_SRC
+
+** Newton's method
+
+#+BEGIN_SRC f90
+  ! Newton's method to find the optimal lambda for the trust region
+  CALL wall_time(t1)
+
+  ! Diŝplay
+  if (debug) then
+      print*, 'Iteration   First derivative   lambda    ||x||^2'
+  endif
+
+  ! Initialization  
+  i = 1
+  f_N = 0d0 ! to enter in the loop ...
+
+  do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
+    d_N = dN_omp(n,e_val,w,v_grad,lambda,delta)
+    d2_N = d2N_omp(n,e_val,w,v_grad,lambda,delta)
+    lambda = lambda - (1d0/ABS(d2_N))*d_N
+    f_N = fN_omp(n,e_val,w,v_grad,lambda)
+    
+    ! Display
+    if (debug) then
+      print*, i, d_N, lambda, f_N, ABS(1d0-f_N/delta**2)
+    endif  
+
+    i = i+1
+  enddo
+
+  CALL wall_time(t2)
+
+  t3 = t2 - t1
+  print*,'Time to search the optimal lambda :', t3
+  print*,'Number of iterations :', i
+  print*,'Error on the trust region :', 1d0-f_N/delta**2
+#+END_SRC 
+
+** End
+
+#+BEGIN_SRC f90 
+  if (debug) then
+    print*,'Leave trust_newton'
+  endif
+
+end subroutine
+#+END_SRC
+
+* First derivative of (||x||^2 - Delta^2)^2
+
+===================================================================
+ Function to compute the first derivative of (||x||^2 - Delta^2)^2
+===================================================================
+
+This function compute the first derivative of (||x||^2 - Delta^2)^2
+with respect to lambda.
+
+\begin{equation}
+\frac{\partial }{\partial \lambda} (||x(\lambda)||^2 - \Delta^2)^2 
+= 2 \left(\sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3} \right)
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2} \right)
+\end{equation}
+
+#+BEGIN_SRC f90
+function dN_omp(n,e_val,w,v_grad,lambda,delta)
+
+  use omp_lib
+
+  implicit none
+#+END_SRC
+  
+** Variables
+
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in)          :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+  double precision, intent(in) :: delta
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
+  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! lambda : double precision, lagrange multiplier for the trust region
+  ! delta  : double precision, trust radius 
+   
+  !==========
+  ! Internal
+  !==========
+  double precision :: wtg,accu1,accu2, accu12, accu22
+  integer          :: i,j
+  double precision, allocatable :: tmp_accu1(:), tmp_accu2(:), tmp_wtg(:)
+  ! wtg   : double precision, w_i^T.v_grad
+  ! accu1 : double precision, temporary variable
+  ! accu2 : double precision, temporary variable 
+  ! i     : integer, index
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: dN_omp
+  double precision :: ddot
+  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! ddot : double precision Blas function, dot product
+#+END_SRC  
+
+** Allocation and OMP
+#+BEGIN_SRC f90
+  allocate(tmp_accu1(n), tmp_accu2(n), tmp_wtg(n))
+
+  call omp_set_max_active_levels(1)
+
+  ! OMP 
+  !$OMP PARALLEL                                                      &
+      !$OMP PRIVATE(i,j,wtg)                                          &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val,                         &
+      !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1,accu2,accu12,accu22) &
+      !$OMP DEFAULT(NONE)
+#+END_SRC
+
+** Initialization
+
+#+BEGIN_SRC f90
+  ! Initialization
+  !$OMP MASTER
+  accu1 = 0d0
+  accu2 = 0d0
+  accu12 = 0d0
+  accu22 = 0d0
+  !$OMP END MASTER
+
+  !$OMP DO
+  do i = 1, n
+    tmp_accu1(i) = 0d0
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    tmp_accu2(i) = 0d0
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    tmp_wtg = 0d0
+  enddo
+  !$OMP END DO
+#+END_SRC
+
+** Part 1
+
+\begin{equation}
+\sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3}
+\end{equation}
+
+#+BEGIN_SRC f90
+  ! Part 1
+  !$OMP DO
+  do i = 1, n
+    do j = 1, n
+      tmp_wtg(i) = tmp_wtg(i) +  w(j,i) * v_grad(j)
+    enddo
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1e-6) then
+      tmp_accu1(i) = - 2d0 * tmp_wtg(i)**2 /  (e_val(i) + lambda)**3
+    endif
+  enddo
+  !$OMP END DO
+ 
+  !$OMP MASTER
+  do i = 1, n 
+    accu1 = accu1 + tmp_accu1(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+** Part 2
+
+\begin{equation}
+\sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2}
+\end{equation}
+
+#+BEGIN_SRC f90
+  ! Part2
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1e-6) then
+      tmp_accu2(i) =  tmp_wtg(i)**2 / (e_val(i) + lambda)**2
+    endif
+  enddo
+  !$OMP END DO
+
+  !$OMP MASTER
+  do i = 1, n
+    accu2 = accu2 + tmp_accu2(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+** End 
+
+#+BEGIN_SRC f90
+  !$OMP END PARALLEL
+
+  call omp_set_max_active_levels(4)
+
+  accu2 = accu2 - delta**2 
+
+  dN_omp = 2d0 * accu1 * accu2
+
+  deallocate(tmp_accu1, tmp_accu2, tmp_wtg)
+
+end function
+#+END_SRC
+
+* Second derivative of (||x||^2 - Delta^2)^2
+
+====================================================================
+ Function to compute the second derivative of (||x||^2 - Delta^2)^2
+====================================================================
+
+This function compute the second derivative of (||x||^2 - Delta^2)^2
+with respect to lambda.
+
+\begin{equation}
+\frac{\partial^2 }{\partial \lambda^2} (||x(\lambda)||^2 - \Delta^2)^2 
+= 2 \left[ \left( \sum_{i=1}^n 6 \frac{(w_i^T g_k)^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{w_i^T g_k)^2}{(h_i + \lambda)^3} \right) + \left( \sum_{i=1}^n -2 \frac{(w_i^T g_k)^2}{(h_i + \lambda)^3} \right)^2 \right]
+\end{equation}
+
+#+BEGIN_SRC f90
+function d2N_omp(n,e_val,w,v_grad,lambda,delta)
+  
+  use omp_lib
+
+  implicit none
+#+END_SRC
+
+** Variables
+
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in) :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+  double precision, intent(in) :: delta
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
+  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! lambda : double precision, lagrange multiplier for the trust region
+  ! delta  : double precision, trust radius
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: d2N_omp
+  double precision :: ddot
+  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! ddot : double precision Blas function, dot product 
+
+  !==========
+  ! Internal
+  !==========
+  double precision :: wtg,accu1,accu2,accu3
+  double precision, allocatable :: tmp_wtg(:), tmp_accu1(:), tmp_accu2(:), tmp_accu3(:)
+  integer :: i, j
+  ! wtg   : double precision, w_i^T.v_grad
+  ! accu1 : double precision, temporary variable
+  ! accu2 : double precision, temporary variable 
+  ! accu3 : double precision, temporary variable
+  ! i     : integer, index
+#+END_SRC
+
+** Allocation and OMP
+
+#+BEGIN_SRC f90
+  allocate(tmp_wtg(n), tmp_accu1(n), tmp_accu2(n), tmp_accu3(n))
+
+  call omp_set_max_active_levels(1)
+
+  ! OMP 
+  !$OMP PARALLEL                                                     &
+      !$OMP PRIVATE(i,j,wtg)                                         &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, &
+      !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg, accu1,accu2,accu3)&
+      !$OMP DEFAULT(NONE)
+#+END_SRC
+ 
+** Initialization
+
+#+BEGIN_SRC f90
+  ! Initialization
+  !$OMP MASTER
+  accu1 = 0d0
+  accu2 = 0d0
+  accu3 = 0d0 
+  !$OMP END MASTER
+
+  !$OMP DO
+  do i = 1, n 
+    tmp_wtg(i) = 0d0
+  enddo
+  !$OMP END DO
+  !$OMP DO
+  do i = 1, n 
+    tmp_accu1(i) = 0d0
+  enddo
+  !$OMP END DO
+  !$OMP DO
+  do i = 1, n
+    tmp_accu2(i) = 0d0
+  enddo
+  !$OMP END DO
+  !$OMP DO
+  do i = 1, n
+    tmp_accu3(i) = 0d0
+  enddo
+  !$OMP END DO
+#+END_SRC
+ 
+** Part 1
+
+#+BEGIN_SRC f90
+  ! Part 1
+  !$OMP DO
+  do i = 1, n
+    do j = 1, n
+      tmp_wtg(i) = tmp_wtg(i) +  w(j,i) * v_grad(j)
+    enddo
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1e-6) then
+      tmp_accu1(i) = 6d0 * tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
+    endif
+  enddo
+  !$OMP END DO
+
+  !$OMP MASTER
+  do i = 1, n
+    accu1 = accu1 + tmp_accu1(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+  
+** Part 2
+
+#+BEGIN_SRC f90
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1e-6) then
+      tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2
+    endif
+  enddo
+  !$OMP END DO
+ 
+  !$OMP MASTER
+  do i = 1, n
+    accu2 = accu2 + tmp_accu2(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+** Part 3
+
+#+BEGIN_SRC f90
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1e-6) then
+      tmp_accu3(i) = -2d0 * tmp_wtg(i)**2 /  (e_val(i) + lambda)**3
+    endif
+  enddo
+  !$OMP END DO
+
+  !$OMP MASTER
+  do i = 1, n
+    accu3 = accu3 + tmp_accu3(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+** End 
+
+#+BEGIN_SRC f90
+  !$OMP END PARALLEL
+
+  d2N_omp = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
+
+  deallocate(tmp_wtg, tmp_accu1, tmp_accu2, tmp_accu3)
+
+end function
+#+END_SRC
+
+* Funtion of the norm ||x||^2
+
+==============================
+ Compute the value of ||x||^2
+==============================
+
+This function compute the value of ||x(lambda)||^2
+
+#+BEGIN_SRC f90
+function fN_omp(n,e_val,w,v_grad,lambda)
+
+  use omp_lib
+
+  implicit none
+#+END_SRC
+
+** Variables
+
+#+BEGIN_SRC f90
+
+  !====
+  ! in
+  !====
+  integer, intent(in) :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
+  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! lambda : double precision, lagrange multiplier for the trust region
+ 
+  !===========
+  ! functions
+  !===========
+  double precision :: fN_omp
+  double precision :: ddot
+  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! ddot : double precision Blas function, dot product
+ 
+  !==========
+  ! internal
+  !==========
+  double precision, allocatable :: tmp_wtg(:), tmp_fN(:)
+  double precision :: wtg
+  integer :: i,j
+  ! tmp_wtg : double precision temporary array
+  ! tmp_fN : double precision temporary array
+  ! wtg   : double precision, w_i^T.v_grad
+  ! i,j ; integer, indexes
+#+END_SRC
+
+** Allocation and OMP
+
+#+BEGIN_SRC f90
+  allocate(tmp_wtg(n), tmp_fN(n))
+
+  call omp_set_max_active_levels(1)
+
+  ! OMP 
+  !$OMP PARALLEL                              &
+      !$OMP PRIVATE(i,j,wtg)                  &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, &
+      !$OMP tmp_fN, tmp_wtg, fN_omp)          &
+      !$OMP DEFAULT(NONE)
+#+END_SRC
+
+** Initialization
+#+BEGIN_SRC f90
+  ! Initialization
+  !$OMP MASTER
+  fN_omp = 0d0
+  !$OMP END MASTER
+
+  !$OMP DO
+  do i = 1, n
+    tmp_fN(i) = 0d0
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    tmp_wtg(i) = 0d0
+  enddo
+  !$OMP END DO
+#+END_SRC
+
+** Calculation
+#+BEGIN_SRC f90
+  !$OMP DO
+  do i = 1, n
+    do j = 1, n
+      tmp_wtg(i) = tmp_wtg(i) +  w(j,i) * v_grad(j)
+    enddo
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do i = 1, n
+    if (e_val(i)>1d-6) then
+      tmp_fN(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**2
+    endif
+  enddo
+  !$OMP END DO
+  
+  !$OMP MASTER
+  do i = 1, n
+    fN_omp = fN_omp + tmp_fN(i)
+  enddo
+  !$OMP END MASTER
+#+END_SRC
+
+** Deallocation, end OMP, end
+
+#+BEGIN_SRC f90
+  !$OMP END PARALLEL
+
+  deallocate(tmp_wtg, tmp_fN)
+
+end function
+#+END_SRC
+

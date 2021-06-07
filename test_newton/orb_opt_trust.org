@@ -34,7 +34,7 @@ end
    - compute the new MOs
    - diagonalize the hamiltonian
    - compute rho, the quality of the model. While the quality is not good,
-     the orbital rotation is cancelled and the a smaller Newton step is
+     the orbital rotations are cancelled and the a smaller Newton step is
      computed. If there is a good agreement, the step is accepted and the
      algorithm compute a new Newton step's.
 

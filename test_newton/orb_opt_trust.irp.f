@@ -135,6 +135,10 @@ subroutine run_orb_opt_trust
       call save_wavefunction_unsorted
 
       call rho_model(prev_energy,e_model,rho)
+     
+      if (nb_iter == 0) then
+        nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+      endif
 
       if (rho >= 0.1d0) then
         cancel_step = .False.
@@ -154,8 +158,8 @@ subroutine run_orb_opt_trust
       print*, 'nb_cancel_tot :', nb_cancel_tot
      
       ! exit  
-      if (nb_diag >= 40) then
-        print*,'nb_diag >= 40 : end'
+      if (nb_diag >= 100) then
+        print*,'nb_diag >= 100 : end'
         return
       endif
 

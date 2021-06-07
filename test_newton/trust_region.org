@@ -16,15 +16,15 @@ since we add a criterion to cancel the step if the energy increases
 References :
 Nocedal & Wright, Numerical Optimization, chapter 4 (1999)
 
-The step of the Newton method's is :
+The step of the Newton's method is :
 \begin{equation}
 x^{k+1} = - (H^{k})^{-1} g^{k}
 \end{equation}
 
 And we want that $$||x^{k+1}|| \leq \Delta^{k+1}$$ <=> $$(x^{k+1})^T
-x^{k+1} (\Delta^{k+1})^2$$
+x^{k+1} \leq (\Delta^{k+1})^2$$
 Where : 
-$$x^{k+1}$$ is the newton step for the k+1-th iteration (vector of size n)
+$$x^{k+1}$$ is the Newton step for the k+1-th iteration (vector of size n)
 $$H^{k}$$ is the hessian at the k-th iteration (n by n matrix)
 $$g^{k}$$ is the gradient at the k-th iteration (vecor of size n)
 $$\Delta^{k+1}$$ is the trust radius for the k+1-th iteration
@@ -37,12 +37,12 @@ $$ E(x^{k+1}) =  E + (g^{k})^T x^{k+1} + \frac{1}{2}
 
 With the constraint it becomes :
 \begin{equation}
-\mathcal{L}(x^k,\lambda) = E + (g^{k})^T x^{k+1}  + \frac{1}{2} (x^{k+1})^T H^[k} (x^{k+1}) 
+\mathcal{L}(x^{k+1},\lambda) = E + (g^{k})^T x^{k+1}  + \frac{1}{2} (x^{k+1})^T H^[k} (x^{k+1}) 
 + \frac{1}{2} \lambda ((x^{k+1})^T x^{k+1} - \Delta^2)
 \end{equation}
 Where :
 $$\lambda$$ is the Lagrange multiplier
-$$E$$ is the energy at the k_th iteration
+$$E$$ is the energy at the k-th iteration
 
 To solve this equation, we search a stationary point where the first
 derivative of $\mathcal{L}$ with respect to $x$ becomes 0, ie.
@@ -78,9 +78,9 @@ We have to solve this previous equation to find this $x^*$ in the
 trust region.
 
 Now this problem is just a one dimension problem because we can
-express $x^*$ as a function of $\lambda$ :
+express $x^{k+1}$ as a function of $\lambda$ :
 \begin{equation}
-x^*(\lambda) = - (H^k + I \lambda)^{-1} g^k
+x^{k+1}(\lambda) = - (H^k + I \lambda)^{-1} g^k
 \end{equation}
 
 To simplify the next part we will remove the indexes (k, k+1). 
@@ -101,32 +101,33 @@ Now we use the fact that :
 H + I \lambda = W (h+ I \lambda) W^T
 \end{equation}
 
-By doing so we can express $x^*$ as a function of $\lambda$
+By doing so we can express $x^{k+1}$ as a function of $\lambda$
 \begin{equation}
-x(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+x^{k+1}(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
 \end{equation}
-With $\lambda \neq h_i$
+With $\lambda \neq - h_i$
 
 An interesting thing in our case is the norm of $$x$$, because we want
 $$||x^{k+1}|| = \Delta^{k+1}$$. So we have :
 
 \begin{equation}
-||x(\lambda)||^2 = \sum_{i=1}^n \frac{(w_i^T g)^2}{(h_i + \lambda)^2}
+||x^{k+1}(\lambda)||^2 = \sum_{i=1}^n \frac{(w_i^T g)^2}{(h_i + \lambda)^2}
 \end{equation}
+So the $||x^{k+1}(\lambda)||^2$ is just a function of $\lambda$
 
 If we study the properties of this function we see that : 
 \begin{equation}
-\lim_{\lambda\to\infty} ||x(\lambda)|| = 0
+\lim_{\lambda\to\infty} ||x^{k+1}(\lambda)|| = 0
 \end{equation}
 
 And : 
 \begin{equation}
-\lim_{\lambda\to -h_i} ||(\lambda)x|| = + \infty
+\lim_{\lambda\to -h_i} ||x^{k+1}(\lambda)|| = + \infty
 \end{equation}
 
-So $||x(\lambda)||$ is continuous, strictly decreasing function on the
-interval $\lambda \in ]-h_i;\infty[$. Thus, there is one \lambda that
-gives $||x(\lambda)|| = \Delta$, consequently there is one solution.
+So $||x^{k+1}(\lambda)||$ is continuous, strictly decreasing function on the
+interval $\lambda \in ]-h_i;\infty[$. Thus, there is one $\lambda$ that
+gives $||x^{k+1}(\lambda)|| = \Delta^{k+1}$, consequently there is one solution.
 
 To find the solution, we can write :
 \begin{equation}
@@ -153,20 +154,21 @@ first and second derivative of $(||x(\lambda)||^2 - \Delta^2)^2$ with
 respect to $x$. This will give the optimal $\lambda$ to compute the
 solution $x^*$ :
 \begin{equation}
-x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+x^* = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
 \end{equation}
 
 This solution $x^*$ is our step to go from the k-th to the k+1-th
 iteration, $x^{*k+1}$.
 
 In the case where $||x^{k+1}|| \leq \Delta$, the solution is the
-unconstraint solution, $\lambda = 0$
+unconstraint solution, $\lambda = 0$. It is not necessary to apply a
+constraint since we already have $||x^{k+1}|| \leq \Delta$.
 
 So after computing $||x^{k+1}||$ there are 2 options :
 if  $||x^{k+1}|| \leq \Delta$ then we put $\lambda = 0$
 else we search the optimal $\lambda$.
 
-With $\lambda$ we compute the step $x^*(\lambda)$. The result is a
+With $\lambda$ we compute the step $x^*$. The result is a
 vector.
 
 After that, we take this vector x and do the transformation in an
@@ -332,7 +334,7 @@ We search the solution of $(||x||^2 - \Delta^2)^2 =0$
 
 *** Calculation of the step x
 
-We compue x in function of lambda using its formula :
+We compute x in function of lambda using its formula :
 \begin{equation}
 x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
 \end{equation}

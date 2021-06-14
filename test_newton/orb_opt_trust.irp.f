@@ -167,7 +167,7 @@ subroutine run_orb_opt_trust
 
     nb_iter = nb_iter + 1
    
-    if (nb_diag >= 40 .or. ABS(max_elem) <= 1d-5) then
+    if (nb_diag >= 100 .or. ABS(max_elem) <= 1d-5) then
       converged = .True.
     endif
 

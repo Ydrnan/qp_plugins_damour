@@ -1,27 +1,37 @@
 * Newton's method to find the optimal lambda
 
-===============================================
- Compute the lambda value for the trust region
-===============================================
+*===============================================*
+ *Compute the lambda value for the trust region*
+*===============================================*
 
 This subroutine use the Newton's method in order to find the optimal
 lambda (to have the step in the trust region). So we just search the
-minimum of $||x(\lambda)||^2 - \Delta^2$ for $\lambda \in
+minimum of $||\textbf{x}_{(k+1)}(\lambda)||^2 - \Delta^2$ for $\lambda \in
 ]-h_1;+\infty[$. $h_1$ is the smallest eigenvalue and $h_1 < 0$. So to
 avoid numerical problems (cf. trust_region) we start the algorithm at
 $\lambda=0$.
 
 By the way, we already know the value of the function
-$||x(\lambda)||^2 - \Delta^2$ for the optimal lambda (0). 
+$||\textbf{x}_{(k+1)}(\lambda)||^2 - \Delta^2$ for the optimal lambda (0). 
 
-The Newton's method is :
-
-x^{k+1} = x^{k} - (H^{k})^{-1} g^{k}
-
-Not the same x... It's just the general formula
+The Newton's method to find the optimal $\lambda$ is :
+\begin{equation}
+\lambda_{(k+1)} = \lambda_{(k)} - H_{(k)}^{-1} g_{(k)}
+\end{equation}
 
 H : the hessian <=> second derivative with respect to lambda
 g : the gradient <=> first derivative with respect to lambda
+
+The first and second derivatives are :
+\begin{equation}
+\frac{\partial }{\partial \lambda} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left(\sum_{i=1}^n \frac{-2(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
+\end{equation}
+\begin{equation}
+\frac{\partial^2 }{\partial \lambda^2} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
+\end{equation}
 
 #+BEGIN_SRC f90
 subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
@@ -51,12 +61,12 @@ subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
   !==========
   ! Internal
   !==========
-  double precision :: d_N,d2_N,f_N
+  double precision :: d1_N,d2_N,f_N
   double precision :: t1,t2,t3
   integer          :: i
-  ! d_N      : double precision, value of dN
-  ! d2_N     : double precision, value of d2N
-  ! f_N      : double precision, value of fN
+  ! d1_N      : double precision, value of d1_norm_trust_region
+  ! d2_N     : double precision, value of d2_norm_trust_region
+  ! f_N      : double precision, value of f_norm_trust_region
   ! t1,t2,t3 : double precision, t3 = t2 - t1, time to search the optimal
   !            lambda value
   ! i        : integer, index
@@ -64,10 +74,12 @@ subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
   !===========
   ! Functions
   !===========
-  double precision :: dN,dN_omp, d2N, d2N_omp, fN, fN_omp
-  ! dN  : double precision function, first derivative with respect to lambda of ||p||^2 - Delta 
-  ! d2N : double precision function, second derivative with respect to lambda of ||p||^2 - Delta 
-  ! fN  : double precision function, value of ||p||^2
+  double precision :: d1_norm_trust_region,d1_norm_trust_region_omp
+  double precision :: d2_norm_trust_region, d2_norm_trust_region_omp
+  double precision :: f_norm_trust_region, f_norm_trust_region_omp
+  ! d1_norm_trust_region  : double precision function, first derivative with respect to lambda of ||x||^2 - Delta 
+  ! d2_norm_trust_region : double precision function, second derivative with respect to lambda of ||x||^2 - Delta 
+  ! f_norm_trust_region : double precision function, value of ||x||^2
 #+END_SRC
 
 ** Calculations 
@@ -97,16 +109,16 @@ is not a good idea. A better way to check the value is to compute
      do i = 1, 10000
 
        ! No OMP
-       f_N = fN(n,e_val,w,v_grad,lambda)
-       d_N = dN(n,e_val,w,v_grad,lambda,delta)
-       d2_N = d2N(n,e_val,w,v_grad,lambda,delta)
-       write(10,'(100(F10.5))') lambda, f_N, d_N, d2_N
+       f_N = f_norm_trust_region(n,e_val,w,v_grad,lambda)
+       d1_N = d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+       d2_N = d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+       write(10,'(100(F10.5))') lambda, f_N, d1_N, d2_N
 
        ! OMP
-       f_N = fN_omp(n,e_val,w,v_grad,lambda)
-       d_N = dN_omp(n,e_val,w,v_grad,lambda,delta)
-       d2_N = d2N_omp(n,e_val,w,v_grad,lambda,delta)
-       write(10,'(100(F10.5))') lambda, f_N, d_N, d2_N, '(OMP)'
+       f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
+       d1_N = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+       d2_N = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+       write(10,'(100(F10.5))') lambda, f_N, d1_N, d2_N, '(OMP)'
 
        lambda = lambda + 0.0001
      enddo
@@ -129,15 +141,16 @@ is not a good idea. A better way to check the value is to compute
   i = 1
   f_N = 0d0 ! to enter in the loop ...
 
+  ! Newton method
   do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
-    d_N = dN_omp(n,e_val,w,v_grad,lambda,delta)
-    d2_N = d2N_omp(n,e_val,w,v_grad,lambda,delta)
-    lambda = lambda - (1d0/ABS(d2_N))*d_N
-    f_N = fN_omp(n,e_val,w,v_grad,lambda)
+    d1_N = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! first derivative
+    d2_N = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! second derivative
+    lambda = lambda - (1d0/ABS(d2_N))*d1_N ! New lambda
+    f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda) ! Value of the norm
     
     ! Display
     if (debug) then
-      print*, i, d_N, lambda, f_N, ABS(1d0-f_N/delta**2)
+      print*, i, d1_N, lambda, f_N, ABS(1d0-f_N/delta**2)
     endif  
 
     i = i+1
@@ -161,23 +174,23 @@ is not a good idea. A better way to check the value is to compute
 end subroutine
 #+END_SRC
 
-* First derivative of (||x||^2 - Delta^2)^2
+* OMP : First derivative of (||x||^2 - Delta^2)^2
 
-===================================================================
- Function to compute the first derivative of (||x||^2 - Delta^2)^2
-===================================================================
+*===================================================================*
+ *Function to compute the first derivative of (||x||^2 - Delta^2)^2*
+*===================================================================*
 
 This function compute the first derivative of (||x||^2 - Delta^2)^2
 with respect to lambda.
 
 \begin{equation}
-\frac{\partial }{\partial \lambda} (||x(\lambda)||^2 - \Delta^2)^2 
-= 2 \left(\sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3} \right)
-\left( - \Delta^2 + \sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2} \right)
+\frac{\partial }{\partial \lambda} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left(\sum_{i=1}^n \frac{-2(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
 \end{equation}
 
 #+BEGIN_SRC f90
-function dN_omp(n,e_val,w,v_grad,lambda,delta)
+function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   use omp_lib
 
@@ -217,9 +230,9 @@ function dN_omp(n,e_val,w,v_grad,lambda,delta)
   !===========
   ! Functions
   !===========
-  double precision :: dN_omp
+  double precision :: d1_norm_trust_region_omp
   double precision :: ddot
-  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! d1_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
   ! ddot : double precision Blas function, dot product
 #+END_SRC  
 
@@ -330,29 +343,28 @@ function dN_omp(n,e_val,w,v_grad,lambda,delta)
 
   accu2 = accu2 - delta**2 
 
-  dN_omp = 2d0 * accu1 * accu2
+  d1_norm_trust_region_omp = 2d0 * accu1 * accu2
 
   deallocate(tmp_accu1, tmp_accu2, tmp_wtg)
 
 end function
 #+END_SRC
 
-* Second derivative of (||x||^2 - Delta^2)^2
+* OMP : Second derivative of (||x||^2 - Delta^2)^2
 
-====================================================================
- Function to compute the second derivative of (||x||^2 - Delta^2)^2
-====================================================================
+*====================================================================*
+ *Function to compute the second derivative of (||x||^2 - Delta^2)^2*
+*====================================================================*
 
 This function compute the second derivative of (||x||^2 - Delta^2)^2
 with respect to lambda.
-
 \begin{equation}
-\frac{\partial^2 }{\partial \lambda^2} (||x(\lambda)||^2 - \Delta^2)^2 
-= 2 \left[ \left( \sum_{i=1}^n 6 \frac{(w_i^T g_k)^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{w_i^T g_k)^2}{(h_i + \lambda)^3} \right) + \left( \sum_{i=1}^n -2 \frac{(w_i^T g_k)^2}{(h_i + \lambda)^3} \right)^2 \right]
+\frac{\partial^2 }{\partial \lambda^2} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
 #+BEGIN_SRC f90
-function d2N_omp(n,e_val,w,v_grad,lambda,delta)
+function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   
   use omp_lib
 
@@ -381,9 +393,9 @@ function d2N_omp(n,e_val,w,v_grad,lambda,delta)
   !===========
   ! Functions
   !===========
-  double precision :: d2N_omp
+  double precision :: d2_norm_trust_region_omp
   double precision :: ddot
-  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! d2_norm_trust_region_omp   : double precision function, second derivative with respect to lambda of ||x||^2 - Delta^2
   ! ddot : double precision Blas function, dot product 
 
   !==========
@@ -447,7 +459,9 @@ function d2N_omp(n,e_val,w,v_grad,lambda,delta)
 #+END_SRC
  
 ** Part 1
-
+\begin{equation}
+\left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right)
+\end{equation}
 #+BEGIN_SRC f90
   ! Part 1
   !$OMP DO
@@ -473,9 +487,11 @@ function d2N_omp(n,e_val,w,v_grad,lambda,delta)
   !$OMP END MASTER
 #+END_SRC
 
-  
 ** Part 2
-
+\begin{equation}
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T
+\textbf{g})^2}{(h_i + \lambda)^2} \right)
+\end{equation}
 #+BEGIN_SRC f90
   !$OMP DO
   do i = 1, n
@@ -493,7 +509,9 @@ function d2N_omp(n,e_val,w,v_grad,lambda,delta)
 #+END_SRC
 
 ** Part 3
-
+\begin{equation}
+\left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
+\end{equation}
 #+BEGIN_SRC f90
   !$OMP DO
   do i = 1, n
@@ -515,23 +533,26 @@ function d2N_omp(n,e_val,w,v_grad,lambda,delta)
 #+BEGIN_SRC f90
   !$OMP END PARALLEL
 
-  d2N_omp = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
+  d2_norm_trust_region_omp = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
 
   deallocate(tmp_wtg, tmp_accu1, tmp_accu2, tmp_accu3)
 
 end function
 #+END_SRC
 
-* Funtion of the norm ||x||^2
+* OMP : Function value of ||x||^2
 
-==============================
- Compute the value of ||x||^2
-==============================
+*==============================*
+ *Compute the value of ||x||^2*
+*==============================*
 
 This function compute the value of ||x(lambda)||^2
 
+\begin{equation}
+||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
+\end{equation}
 #+BEGIN_SRC f90
-function fN_omp(n,e_val,w,v_grad,lambda)
+function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
   use omp_lib
 
@@ -559,9 +580,9 @@ function fN_omp(n,e_val,w,v_grad,lambda)
   !===========
   ! functions
   !===========
-  double precision :: fN_omp
+  double precision :: f_norm_trust_region_omp
   double precision :: ddot
-  ! dN   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! f_norm_trust_region_omp  : double precision function, value of ||x||^2 - Delta
   ! ddot : double precision Blas function, dot product
  
   !==========
@@ -587,7 +608,7 @@ function fN_omp(n,e_val,w,v_grad,lambda)
   !$OMP PARALLEL                              &
       !$OMP PRIVATE(i,j,wtg)                  &
       !$OMP SHARED(n,lambda,v_grad, w, e_val, &
-      !$OMP tmp_fN, tmp_wtg, fN_omp)          &
+      !$OMP tmp_fN, tmp_wtg, f_norm_trust_region_omp)          &
       !$OMP DEFAULT(NONE)
 #+END_SRC
 
@@ -595,7 +616,7 @@ function fN_omp(n,e_val,w,v_grad,lambda)
 #+BEGIN_SRC f90
   ! Initialization
   !$OMP MASTER
-  fN_omp = 0d0
+  f_norm_trust_region_omp = 0d0
   !$OMP END MASTER
 
   !$OMP DO
@@ -631,7 +652,7 @@ function fN_omp(n,e_val,w,v_grad,lambda)
   
   !$OMP MASTER
   do i = 1, n
-    fN_omp = fN_omp + tmp_fN(i)
+    f_norm_trust_region_omp =  f_norm_trust_region_omp + tmp_fN(i)
   enddo
   !$OMP END MASTER
 #+END_SRC
@@ -646,3 +667,286 @@ function fN_omp(n,e_val,w,v_grad,lambda)
 end function
 #+END_SRC
 
+* First derivative of (||x||^2 - Delta^2)^2
+Version without omp
+
+*=============================================================*
+ *Function to compute the first derivative of ||x||^2 - Delta*
+*=============================================================*
+
+This function compute the first derivative of (||x||^2 - Delta^2)^2
+with respect to lambda.
+
+\begin{equation}
+\frac{\partial }{\partial \lambda} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left(\sum_{i=1}^n \frac{-2(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
+\end{equation}
+
+#+BEGIN_SRC f90
+function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+
+  implicit none
+#+END_SRC
+
+** Variables
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in)          :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+  double precision, intent(in) :: delta
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
+  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! lambda : double precision, lagrange multiplier for the trust region
+  ! delta  : double precision, trust radius 
+
+ !==========
+  ! Internal
+  !==========
+  double precision :: wtg,accu1,accu2
+  integer          :: i,j
+  ! wtg   : double precision, w_i^T.v_grad
+  ! accu1 : double precision, temporary variable
+  ! accu2 : double precision, temporary variable 
+  ! i     : integer, index
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: d1_norm_trust_region
+  double precision :: ddot
+  ! d1_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
+  ! ddot : double precision Blas function, dot product
+#+END_SRC  
+
+** Calculations
+*** Initialization
+#+BEGIN_SRC f90
+  accu1 = 0d0
+  accu2 = 0d0
+#+END_SRC
+
+*** Part 1
+\begin{equation}
+\sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3}
+\end{equation}
+#+BEGIN_SRC f90
+  do i = 1, n
+    wtg = 0d0
+    do j = 1, n
+      wtg = wtg + w(j,i) * v_grad(j)
+    enddo
+    !wtg = ddot(n,w(:,i),1,v_grad,1)
+    if (e_val(i)>1e-6) then
+    accu1 = accu1 - 2d0 * wtg**2 / (e_val(i) + lambda)**3
+    endif
+  enddo
+#+END_SRC
+
+*** Part 2
+\begin{equation}
+\sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2}
+\end{equation}
+#+BEGIN_SRC f90
+  do i = 1, n
+    wtg = 0d0
+    do j = 1, n
+      wtg = wtg + w(j,i) * v_grad(j)
+    enddo
+    !wtg = ddot(n,w(:,i),1,v_grad,1)
+    if (e_val(i)>1e-6) then
+    accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
+    endif
+  endd
+#+END_SRC
+
+*** End
+#+BEGIN_SRC f90
+  accu2 = accu2 - delta**2
+
+  d1_norm_trust_region = 2d0 * accu1 * accu2
+
+end function
+#+END_SRC
+
+* Second derivative of (||x||^2 - Delta^2)^2
+Version without OMP
+
+*==============================================================*
+ *Function to compute the second derivative of ||x||^2 - Delta*
+*==============================================================*
+
+\begin{equation}
+\frac{\partial^2 }{\partial \lambda^2} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
+= 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
+\end{equation}
+
+#+BEGIN_SRC f90
+function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+
+  implicit none
+#+END_SRC
+
+** Variables
+#+BEGIN_SRC f90
+  !====
+  ! in
+  !====
+  integer, intent(in) :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+  double precision, intent(in) :: delta
+  ! n      : integer, n = mo_num*(mo_num-1)/2
+  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
+  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
+  ! v_grad : double precision vector of size n containing the gradient
+  ! lambda : double precision, lagrange multiplier for the trust region
+  ! delta  : double precision, trust radius
+
+  !===========
+  ! Functions
+  !===========
+  double precision :: d2_norm_trust_region
+  double precision :: ddot
+  ! d2_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta^2
+  ! ddot : double precision Blas function, dot product 
+
+  !==========
+  ! Internal
+  !==========
+  double precision :: wtg,accu1,accu2,accu3
+  integer :: i, j
+  ! wtg   : double precision, w_i^T.v_grad
+  ! accu1 : double precision, temporary variable
+  ! accu2 : double precision, temporary variable 
+  ! accu3 : double precision, temporary variable
+  ! i     : integer, index
+#+END_SRC
+
+** Calculations
+*** Initialization
+#+BEGIN_SRC f90
+  accu1 = 0d0
+  accu2 = 0d0
+  accu3 = 0d0
+#+END_SRC
+
+*** Part 1
+\begin{equation}
+\left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right)
+\end{equation}
+#+BEGIN_SRC f90
+  do i = 1, n
+    if (e_val(i)>1d-6) then
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu1 = accu1 + 6d0 * wtg**2 / (e_val(i) + lambda)**4
+    endif
+  enddo
+#+END_SRC
+
+*** Part 2
+\begin{equation}
+\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T
+\textbf{g})^2}{(h_i + \lambda)^2} \right)
+\end{equation}
+#+BEGIN_SRC f90
+  do i = 1, n
+    if (e_val(i)>1d-6) then
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
+    endif
+  enddo
+#+END_SRC
+
+*** Part 3
+\begin{equation}
+\left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
+\end{equation}
+#+BEGIN_SRC f90
+  do i = 1, n
+    if (e_val(i)>1d-6) then
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
+      accu3 = accu3 -2d0* wtg**2 / (e_val(i) + lambda)**3
+    endif
+  enddo
+#+END_SRC
+
+*** End 
+#+BEGIN_SRC f90 
+  d2_norm_trust_region = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
+
+end function
+#+END_SRC
+
+* Function value of ||x||^2
+Version without OMP
+
+*==============================*
+ *Compute the value of ||x||^2*
+*==============================*
+
+This function compute the value of ||x(lambda)||^2
+
+\begin{equation}
+||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
+\end{equation}
+#+BEGIN_SRC f90
+function f_norm_trust_region(n,e_val,w,v_grad,lambda)
+
+  implicit none
+#+END_SRC
+
+** Variables
+#+BEGIN_SRC f90
+  integer, intent(in) :: n
+  double precision, intent(in) :: e_val(n)
+  double precision, intent(in) :: w(n,n)
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: lambda
+
+  double precision :: f_norm_trust_region
+  double precision :: ddot
+
+  double precision :: wtg
+  integer :: i,j
+#+END_SRC
+
+** Calculation
+#+BEGIN_SRC f90
+  ! Initialization
+  f_norm_trust_region = 0d0
+
+  do i = 1, n
+    if (e_val(i)>1d-6) then
+      wtg = 0d0
+      do j = 1, n
+        wtg = wtg + w(j,i) * v_grad(j)
+      enddo
+      !wtg = ddot(n,w(:,i),1,v_grad,1)
+      f_norm_trust_region = f_norm_trust_region + wtg**2 / (e_val(i) + lambda)**2
+    endif
+  enddo
+
+end function
+#+END_SRC

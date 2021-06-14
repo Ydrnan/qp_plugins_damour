@@ -18,161 +18,158 @@ Nocedal & Wright, Numerical Optimization, chapter 4 (1999)
 
 The step of the Newton's method is :
 \begin{equation}
-x^{k+1} = - (H^{k})^{-1} g^{k}
+\textbf{x}_{(k+1)} = - \textbf{H}_{(k)}^{-1} \ \textbf{g}_{(k)}
 \end{equation}
 
-And we want that $$||x^{k+1}|| \leq \Delta^{k+1}$$ <=> $$(x^{k+1})^T
-x^{k+1} \leq (\Delta^{k+1})^2$$
+And we want that $$||\textbf{x}_{(k+1)}|| \leq \Delta_{(k+1)}$$ <=> $$\textbf{x}_{(k+1)}^T
+\textbf{x}_{(k+1)} \leq \Delta_{(k+1)}^2$$
 Where : 
-$$x^{k+1}$$ is the Newton step for the k+1-th iteration (vector of size n)
-$$H^{k}$$ is the hessian at the k-th iteration (n by n matrix)
-$$g^{k}$$ is the gradient at the k-th iteration (vecor of size n)
-$$\Delta^{k+1}$$ is the trust radius for the k+1-th iteration
+$$\textbf{x}_{(k+1)}$$ is the Newton step for the k+1-th iteration (vector of size n)
+$$\textbf{H}_{(k)}$$ is the hessian at the k-th iteration (n by n matrix)
+$$\textbf{g}_{(k)}$$ is the gradient at the k-th iteration (vecor of size n)
+$$\Delta_{(k+1)}$$ is the trust radius for the (k+1)-th iteration
 
-To do that, we have to put a constraint on $$x^{k+1}$$ with a Lagrange
+For simplicity we will remove the index $_{(k)}$ and $_{(k+1)}$
+
+To do that, we have to put a constraint on $\textbf{x}$ with a Lagrange
 mutiplier.
 The Taylor development of the energy at the 2nd order is :
-$$ E(x^{k+1}) =  E + (g^{k})^T x^{k+1} + \frac{1}{2}
-(x^{k+1})^T H^{k} x^{k+1} $$
+$$ E(\textbf{x}) =  E +\textbf{g}^T \textbf{x} + \frac{1}{2}
+\textbf{x}^T \textbf{H} \textbf{x} $$
 
 With the constraint it becomes :
 \begin{equation}
-\mathcal{L}(x^{k+1},\lambda) = E + (g^{k})^T x^{k+1}  + \frac{1}{2} (x^{k+1})^T H^[k} (x^{k+1}) 
-+ \frac{1}{2} \lambda ((x^{k+1})^T x^{k+1} - \Delta^2)
+\mathcal{L}(\textbf{x},\lambda) = E + \textbf{g}^T \textbf{x}  + \frac{1}{2} \textbf{x}^T \textbf{H} \textbf{x} 
++ \frac{1}{2} \lambda (\textbf{x}^T\textbf{x} - \Delta^2)
 \end{equation}
 Where :
 $$\lambda$$ is the Lagrange multiplier
 $$E$$ is the energy at the k-th iteration
 
 To solve this equation, we search a stationary point where the first
-derivative of $\mathcal{L}$ with respect to $x$ becomes 0, ie.
+derivative of $\mathcal{L}$ with respect to $\textbf{x}$ becomes 0, i.e.
 \begin{equation}
-\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}=0
+\frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}=0
 \end{equation}
+Th derivative is :
 \begin{equation}
-\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}
-= g^k + H^k x + \lambda x 
+\frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}
+= \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} 
 \end{equation}
-Noting $x^*$ the solution :
+We search $\textbf{x}$ such as :
 \begin{equation}
-\frac{\partial \mathcal{L}(x,\lambda)}{\partial x}
-= g^k + H^k x^* + \lambda x^* = 0
+\frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}
+= \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} = 0
 \end{equation}
 We can rewrite that as :
 \begin{equation}
- g^k + H^k x^* + \lambda x^* =  g^k + (H^k + I \lambda) x^*=0
+ \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} =  \textbf{g} + (\textbf{H} +\textbf{I} \lambda) \textbf{x}=0
 \end{equation}
-Where $I$ is the identity matrix.
+Where $\textbf{I}$ is the identity matrix.
 By doing so, the solution is :
 \begin{equation}
-(H^k + I \lambda)x^*= - g^k
+(\textbf{H} +\textbf{I} \lambda)\textbf{x}= -\textbf{g}
 \end{equation}
 \begin{equation}
-x^*= - (H^k + I \lambda)^{-1} g^k
+\textbf{x}= - (\textbf{H} + \textbf{I} \lambda)^{-1} \textbf{g}
 \end{equation}
-With $x^*T x^* = \Delta^2$.
+With $\textbf{x}^T \textbf{x} = \Delta^2$
 
-So $x^*$ is the Newton step $x^{k+1}$ in the trust region.
-
-We have to solve this previous equation to find this $x^*$ in the
+We have to solve this previous equation to find this $\textbf{x}$ in the
 trust region.
 
 Now this problem is just a one dimension problem because we can
-express $x^{k+1}$ as a function of $\lambda$ :
+express $\textbf{x}$ as a function of $\lambda$ :
 \begin{equation}
-x^{k+1}(\lambda) = - (H^k + I \lambda)^{-1} g^k
+\textbf{x}(\lambda) = - (\textbf{H} + \textbf{I} \lambda)^{-1} \textbf{g}
 \end{equation}
 
-To simplify the next part we will remove the indexes (k, k+1). 
 To do that, we start from the fact that the hessian is
 diagonalizable. So we have :
 
 \begin{equation}
-H = W h W^T
+\textbf{H} = \textbf{W} \textbf{h} \textbf{W}^T
 \end{equation}
 
 With :
-$$H$$, the hessian matrix
-$$W$$, the matrix containing the eigenvectors 
-$$h$$, the matrix containing the eigenvalues in ascending order
+$$\textbf{H}$$, the hessian matrix
+$$\textbf{W}$$, the matrix containing the eigenvectors 
+$$\textbf{h}$$, the matrix containing the eigenvalues in ascending order
 
 Now we use the fact that :
 \begin{equation}
-H + I \lambda = W (h+ I \lambda) W^T
+\textbf{H} + \textbf{I} \lambda = \textbf{W} (\textbf{h} +\textbf{I} \lambda) \textbf{W}^T
 \end{equation}
 
-By doing so we can express $x^{k+1}$ as a function of $\lambda$
+By doing so we can express $\textbf{x}$ as a function of $\lambda$
 \begin{equation}
-x^{k+1}(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+\textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \textbf{g}}{h_i + \lambda} \textbf{w}_i
 \end{equation}
 With $\lambda \neq - h_i$
 
-An interesting thing in our case is the norm of $$x$$, because we want
-$$||x^{k+1}|| = \Delta^{k+1}$$. So we have :
+An interesting thing in our case is the norm of $$\textbf{x}$$, because we want
+$$||\textbf{x}|| = \Delta$$. So we have :
 
 \begin{equation}
-||x^{k+1}(\lambda)||^2 = \sum_{i=1}^n \frac{(w_i^T g)^2}{(h_i + \lambda)^2}
+||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
 \end{equation}
-So the $||x^{k+1}(\lambda)||^2$ is just a function of $\lambda$
+So the $||\textbf{x}(\lambda)||^2$ is just a function of $\lambda$
 
 If we study the properties of this function we see that : 
 \begin{equation}
-\lim_{\lambda\to\infty} ||x^{k+1}(\lambda)|| = 0
+\lim_{\lambda\to\infty} ||\textbf{x}(\lambda)|| = 0
 \end{equation}
 
 And : 
 \begin{equation}
-\lim_{\lambda\to -h_i} ||x^{k+1}(\lambda)|| = + \infty
+\lim_{\lambda\to -h_i} ||\textbf{x}(\lambda)|| = + \infty
 \end{equation}
 
-So $||x^{k+1}(\lambda)||$ is continuous, strictly decreasing function on the
+So $||\textbf{x}(\lambda)||$ is continuous, strictly decreasing function on the
 interval $\lambda \in ]-h_i;\infty[$. Thus, there is one $\lambda$ that
-gives $||x^{k+1}(\lambda)|| = \Delta^{k+1}$, consequently there is one solution.
+gives $||\textbf{x}(\lambda)|| = \Delta$, consequently there is one solution.
 
 To find the solution, we can write :
 \begin{equation}
-||x(\lambda)|| = \Delta
+||\textbf{x}(\lambda)|| = \Delta
 \end{equation}
 \begin{equation}
-||x(\lambda)|| - \Delta = 0
+||\textbf{x}(\lambda)|| - \Delta = 0
 \end{equation}
 
-The previous equation is strictly decreasing on $]-h_i;\infty[$ and
-becomes null for the optimal lambda. So by taking the square of this
+We take the square of this
 equation :
 \begin{equation}
-(||x(\lambda)|| - \Delta)^2 = 0
+(||\textbf{x}(\lambda)|| - \Delta)^2 = 0
 \end{equation}
 Now we have a function with one minimum for the optimal $\lambda$.
-Since we have the formula of $||x(\lambda)||^2$, we solve :
+Since we have the formula of $||\textbf{x}(\lambda)||^2$, we solve :
 \begin{equation}
-(||x(\lambda)||^2 - \Delta^2)^2 = 0
+(||\textbf{x}(\lambda)||^2 - \Delta^2)^2 = 0
 \end{equation}
 
 To do that, we just use the Newton's method with "trust_newton" using
-first and second derivative of $(||x(\lambda)||^2 - \Delta^2)^2$ with
-respect to $x$. This will give the optimal $\lambda$ to compute the
-solution $x^*$ :
+first and second derivative of $(||\textbf{x}(\lambda)||^2 - \Delta^2)^2$ with
+respect to $\textbf{x}$. This will give the optimal $\lambda$ to compute the
+solution $\textbf{x}$ with the formula seen previously :
 \begin{equation}
-x^* = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
+\textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \textbf{g}}{h_i + \lambda} \textbf{w}_i
 \end{equation}
 
-This solution $x^*$ is our step to go from the k-th to the k+1-th
-iteration, $x^{*k+1}$.
+The solution $\textbf{x}(\lambda)$ with the optimal $\lambda$ is our
+step to go from the $_{(k)}$ -th to the $$_{(k+1)}$$-th iteration,$\textbf{x}^*$.
 
-In the case where $||x^{k+1}|| \leq \Delta$, the solution is the
+In the case where $||\textbf{x}|| \leq \Delta$, the solution is the
 unconstraint solution, $\lambda = 0$. It is not necessary to apply a
-constraint since we already have $||x^{k+1}|| \leq \Delta$.
+constraint since we already have $||\textbf{x}|| \leq \Delta$.
 
-So after computing $||x^{k+1}||$ there are 2 options :
-if  $||x^{k+1}|| \leq \Delta$ then we put $\lambda = 0$
-else we search the optimal $\lambda$.
+So, to summarize, after computing $||\textbf{x}||$ there are 2 options :
+if  $||\textbf{x}|| \leq \Delta then we put $\lambda = 0$
+else we search the optimal $\lambda$. With $\lambda$ we compute the step $\textbf{x}^*$.
 
-With $\lambda$ we compute the step $x^*$. The result is a
-vector.
-
-After that, we take this vector x and do the transformation in an
-antisymmetric matrix m_x.
+After that, we take this vector $\textbf{x}^*$, called x, and we do the transformation to an
+antisymmetric matrix $$\textbf{X}$$, called m_x. This matrix $\textbf{X}$ will be
+used to compute a rotation matrix $\textbf{R}=exp(\textbf{X})$ in "rotation_matrix"
 
 
 #+BEGIN_SRC f90

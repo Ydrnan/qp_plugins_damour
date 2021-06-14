@@ -1,7 +1,7 @@
 * Rho
 
 =============================================================================
- Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_modele)
+ Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_model)
 =============================================================================
 
 Rho represents the agreement between the model (predicted energy by

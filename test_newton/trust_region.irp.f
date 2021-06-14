@@ -97,7 +97,7 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   lambda =0d0
 
   ! Norm^2 of p
-  print*,'||p||^2 :'
+  print*,'||x||^2 :'
   norm_x = fN(n,e_val,W,v_grad,0d0)
   print*, norm_x
 

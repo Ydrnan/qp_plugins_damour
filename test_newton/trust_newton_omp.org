@@ -33,8 +33,8 @@ The first and second derivatives are :
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
-#+BEGIN_SRC f90
-subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
 
   include 'constants.h'
 
@@ -43,7 +43,7 @@ subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
 
 ** Variables
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !====
   ! in
   !====
@@ -83,7 +83,7 @@ subroutine trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
 #+END_SRC
 
 ** Calculations 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
  if (debug) then
     print*,'Enter in trust_newton'
   endif
@@ -101,7 +101,7 @@ The values can be very large so, doing the difference of the results
 is not a good idea. A better way to check the value is to compute 
 1 -f1/f2, where f1 and f2 are the functions which have to be compared.  
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Debug
   if (debug) then
      open(unit=10,file='debug_trust_region.dat')
@@ -128,7 +128,7 @@ is not a good idea. A better way to check the value is to compute
 
 ** Newton's method
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Newton's method to find the optimal lambda for the trust region
   CALL wall_time(t1)
 
@@ -166,7 +166,7 @@ is not a good idea. A better way to check the value is to compute
 
 ** End
 
-#+BEGIN_SRC f90 
+#+BEGIN_SRC f90  :comments org :tangle org_trust_newton.irp.f
   if (debug) then
     print*,'Leave trust_newton'
   endif
@@ -189,7 +189,7 @@ with respect to lambda.
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   use omp_lib
@@ -199,7 +199,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   
 ** Variables
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !====
   ! in
   !====
@@ -237,7 +237,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 #+END_SRC  
 
 ** Allocation and OMP
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   allocate(tmp_accu1(n), tmp_accu2(n), tmp_wtg(n))
 
   call omp_set_max_active_levels(1)
@@ -252,7 +252,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** Initialization
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   !$OMP MASTER
   accu1 = 0d0
@@ -286,7 +286,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3}
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Part 1
   !$OMP DO
   do i = 1, n
@@ -317,7 +317,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2}
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Part2
   !$OMP DO
   do i = 1, n
@@ -336,7 +336,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** End 
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP END PARALLEL
 
   call omp_set_max_active_levels(4)
@@ -363,7 +363,7 @@ with respect to lambda.
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   
   use omp_lib
@@ -373,7 +373,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** Variables
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !====
   ! in
   !====
@@ -413,7 +413,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** Allocation and OMP
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   allocate(tmp_wtg(n), tmp_accu1(n), tmp_accu2(n), tmp_accu3(n))
 
   call omp_set_max_active_levels(1)
@@ -428,7 +428,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
  
 ** Initialization
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   !$OMP MASTER
   accu1 = 0d0
@@ -462,7 +462,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \begin{equation}
 \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right)
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Part 1
   !$OMP DO
   do i = 1, n
@@ -492,7 +492,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T
 \textbf{g})^2}{(h_i + \lambda)^2} \right)
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP DO
   do i = 1, n
     if (e_val(i)>1e-6) then
@@ -512,7 +512,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \begin{equation}
 \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP DO
   do i = 1, n
     if (e_val(i)>1e-6) then
@@ -530,7 +530,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** End 
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP END PARALLEL
 
   d2_norm_trust_region_omp = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
@@ -551,7 +551,7 @@ This function compute the value of ||x(lambda)||^2
 \begin{equation}
 ||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
   use omp_lib
@@ -561,7 +561,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
 ** Variables
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 
   !====
   ! in
@@ -599,7 +599,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
 ** Allocation and OMP
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   allocate(tmp_wtg(n), tmp_fN(n))
 
   call omp_set_max_active_levels(1)
@@ -613,7 +613,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 #+END_SRC
 
 ** Initialization
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   !$OMP MASTER
   f_norm_trust_region_omp = 0d0
@@ -633,7 +633,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 #+END_SRC
 
 ** Calculation
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP DO
   do i = 1, n
     do j = 1, n
@@ -659,7 +659,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
 ** Deallocation, end OMP, end
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP END PARALLEL
 
   deallocate(tmp_wtg, tmp_fN)
@@ -683,14 +683,14 @@ with respect to lambda.
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   implicit none
 #+END_SRC
 
 ** Variables
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !====
   ! in
   !====
@@ -728,7 +728,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
 ** Calculations
 *** Initialization
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   accu1 = 0d0
   accu2 = 0d0
 #+END_SRC
@@ -737,7 +737,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 \begin{equation}
 \sum_{i=1}^n \frac{-2(w_i^T g_k)^2}{(h_i + \lambda)^3}
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   do i = 1, n
     wtg = 0d0
     do j = 1, n
@@ -745,7 +745,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
     enddo
     !wtg = ddot(n,w(:,i),1,v_grad,1)
     if (e_val(i)>1e-6) then
-    accu1 = accu1 - 2d0 * wtg**2 / (e_val(i) + lambda)**3
+      accu1 = accu1 - 2d0 * wtg**2 / (e_val(i) + lambda)**3
     endif
   enddo
 #+END_SRC
@@ -753,8 +753,8 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 *** Part 2
 \begin{equation}
 \sum_{i=1}^n \frac{(w_i^T g_k)^2}{(h_i+ \lambda)^2}
-\end{equation}
-#+BEGIN_SRC f90
+\end{equation} 
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   do i = 1, n
     wtg = 0d0
     do j = 1, n
@@ -762,13 +762,13 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
     enddo
     !wtg = ddot(n,w(:,i),1,v_grad,1)
     if (e_val(i)>1e-6) then
-    accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
+      accu2 = accu2 + wtg**2 / (e_val(i) + lambda)**2
     endif
-  endd
+  enddo
 #+END_SRC
 
 *** End
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   accu2 = accu2 - delta**2
 
   d1_norm_trust_region = 2d0 * accu1 * accu2
@@ -788,14 +788,14 @@ Version without OMP
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   implicit none
 #+END_SRC
 
 ** Variables
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !====
   ! in
   !====
@@ -834,7 +834,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
 ** Calculations
 *** Initialization
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   accu1 = 0d0
   accu2 = 0d0
   accu3 = 0d0
@@ -844,7 +844,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 \begin{equation}
 \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right)
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   do i = 1, n
     if (e_val(i)>1d-6) then
       wtg = 0d0
@@ -862,7 +862,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T
 \textbf{g})^2}{(h_i + \lambda)^2} \right)
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   do i = 1, n
     if (e_val(i)>1d-6) then
       wtg = 0d0
@@ -879,7 +879,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 \begin{equation}
 \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   do i = 1, n
     if (e_val(i)>1d-6) then
       wtg = 0d0
@@ -893,7 +893,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 #+END_SRC
 
 *** End 
-#+BEGIN_SRC f90 
+#+BEGIN_SRC f90  :comments org :tangle org_trust_newton.irp.f
   d2_norm_trust_region = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
 
 end function
@@ -911,14 +911,14 @@ This function compute the value of ||x(lambda)||^2
 \begin{equation}
 ||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
 \end{equation}
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function f_norm_trust_region(n,e_val,w,v_grad,lambda)
 
   implicit none
 #+END_SRC
 
 ** Variables
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
@@ -933,7 +933,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
 #+END_SRC
 
 ** Calculation
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   f_norm_trust_region = 0d0
 

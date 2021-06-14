@@ -172,15 +172,15 @@ antisymmetric matrix $$\textbf{X}$$, called m_x. This matrix $\textbf{X}$ will b
 used to compute a rotation matrix $\textbf{R}=exp(\textbf{X})$ in "rotation_matrix"
 
 
-#+BEGIN_SRC f90
-subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+subroutine org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   include 'constants.h'
 
   implicit none
 #+END_SRC
 
 ** Variables
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   !====
   ! in
   !====
@@ -240,7 +240,7 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 #+END_SRC
 
 ** Allocation
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   allocate(diff(n))
   allocate(Hm1(n,n),Hm1g(n))
 #+END_SRC
@@ -250,7 +250,7 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
 The norm of the step size will be useful for the trust region
 
-#+BEGIN_SRC f90                                                                                                                                                                                                     
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
   print*,''
   print*,'==========================='
   print*,'---Enter in trust_region---'
@@ -276,7 +276,7 @@ At the first iteration (nb_iter=0) we initialize the trust region with
 the norm of the step generate by the Newton's method ($x^1 =
 (H^0)^{-1} g^0$, we compute this norm using fN)
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! trust radius
   if (nb_iter == 0) then
     trust_radius = norm2_x 
@@ -291,7 +291,7 @@ In function of rho (which represents the agreement between the model
 and the reality, cf. rho_model) the trust region evolves. We update
 delta such as :
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Modification of the trust radius in function of rho
   if (rho >= 0.75d0) then
     delta = 2d0 * delta
@@ -313,7 +313,7 @@ delta such as :
 
 We search the solution of $(||x||^2 - \Delta^2)^2 =0$
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! En donnant delta, on cherche (||x||^2 - delta^2)^2 = 0
   ! et non (||x||^2 - delta)^2 = 0
 
@@ -321,7 +321,7 @@ We search the solution of $(||x||^2 - \Delta^2)^2 =0$
   if (trust_radius < norm2_x ) then
     ! Constraint solution
     print*,'Computation of the optimal lambda for the next step...'
-    call trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
   else
     ! Unconstraint solution, lambda = 0
     print*,'Step in the trust region, no lambda optimization'
@@ -336,7 +336,7 @@ We compute x in function of lambda using its formula :
 x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
 \end{equation}
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Initialisation
   x = 0d0
 
@@ -366,7 +366,7 @@ x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
 x is a vector of size n, so it can be write as a mo_num by mo_num
 antisymmetric matrix m_x.
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
   do j = 1, mo_num
@@ -404,11 +404,11 @@ our case.
 Don't put debug = .True. in constants.h, the output will be a
 nightmare, just add "!" before the if/endif. 
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Debug
   if (debug) then
-  integer :: nb_error
-  double precision :: max_error
+    integer :: nb_error
+    double precision :: max_error
 
     print*,'x'
     write(*,'(100(F10.5))') x(:)
@@ -433,7 +433,7 @@ nightmare, just add "!" before the if/endif.
       if (ABS(x(i)) > 1e-12) then
         print*,i, diff(i)
         nb_error = nb_error + 1
-        if ((ABS(x(i)) > max_error) then
+        if (ABS(x(i)) > max_error) then
           max_error =  x(i)
         endif
       endif
@@ -447,7 +447,7 @@ nightmare, just add "!" before the if/endif.
 
 *** Deallocation, end
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   deallocate(Hm1,Hm1g)
 
   if (debug) then

@@ -53,7 +53,7 @@ kind (p,q,q,p). We will also use a 1D temporary array to store the
 terms of the kind (p,p,p,p) due to the kronoecker delta.
 
 #+BEGIN_SRC f90 :comments org :tangle org_diagonal_hessian.irp.f
-subroutine diag_hess(n,H, h_tmpr)
+subroutine org_diag_hess(n,H, h_tmpr)
  
   use omp_lib
   

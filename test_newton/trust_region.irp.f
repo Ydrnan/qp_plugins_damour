@@ -187,6 +187,8 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
   ! Debug
   if (debug) then
+    integer :: nb_error
+    double precision :: max_error
 
     print*,'x'
     write(*,'(100(F10.5))') x(:)
@@ -199,17 +201,26 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
     print*,'vector Hm1.g :'
     write(*,'(100(F10.5))') Hm1g(:)
-    !print*, gHm1
 
     ! Calculation of the error
     diff = x - Hm1g
 
+    nb_error = 0
+    max_error = 0d0
+   
     print*,'diff'
     do i = 1, n
       if (ABS(x(i)) > 1e-12) then
         print*,i, diff(i)
+        nb_error = nb_error + 1
+        if (ABS(x(i)) > max_error) then
+          max_error =  x(i)
+        endif
       endif
     enddo
+
+    print*, 'Number of errors :', nb_error
+    print*, 'Max error :', max_error    
 
   endif
 

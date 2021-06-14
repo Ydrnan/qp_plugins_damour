@@ -44,7 +44,7 @@ J. Chem. Phys. 141, 244104 (2014); https://doi.org/10.1063/1.4904384
 Thomas M. Henderson, Ireneusz W. Bulik, Tamar Stein, and Gustavo E. Scuseria
 
 #+BEGIN_SRC f90 :comments org :tangle org_gradient.irp.f
-subroutine gradient(n,v_grad,max_elem)
+subroutine org_gradient(n,v_grad,max_elem)
   use omp_lib
   include 'constants.h'
 

@@ -12,10 +12,10 @@ number of determinants.
 * Main program : orb_opt_trust
 
 #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f 
-program orb_opt_trust
+program org_orb_opt_trust
   read_wf = .True. ! must be True for the orbital optimization !!!
   TOUCH read_wf
-  call run_orb_opt_trust
+  call org_run_orb_opt_trust
 end
 #+END_SRC
 
@@ -43,7 +43,7 @@ end
    diagonalization.  
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-subroutine run_orb_opt_trust
+subroutine org_run_orb_opt_trust
   implicit none
    #+END_SRC
 
@@ -200,13 +200,13 @@ subroutine run_orb_opt_trust
      !print *, 'CI energy : ', ci_energy
 
      ! Gradient
-     call gradient(n,v_grad,max_elem)
+     call org_gradient(n,v_grad,max_elem)
 
      ! Hessian
      if (method == 1) then
-        call hess(n,H,h_f) !h_f -> debug
+        call org_hess(n,H,h_f) !h_f -> debug
      else
-        call diag_hess(n,H,h_f) !h_f -> debug
+        call org_diag_hess(n,H,h_f) !h_f -> debug
      endif
 
      ! Diagonalization of the hessian
@@ -221,10 +221,10 @@ subroutine run_orb_opt_trust
      do while ( cancel_step )
 
         ! Step size in the trust region
-        call trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+        call org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
         ! Estimation of the energy after the rotation (application of the Newton step's)
-        call trust_e_model(n,v_grad,H,x,prev_energy,e_model)
+        call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 
         ! Calculation of the rotation matrix
         call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
@@ -239,7 +239,7 @@ subroutine run_orb_opt_trust
         call save_wavefunction_unsorted
 
         ! Calculation of rho
-        call rho_model(prev_energy,e_model,rho)
+        call org_rho_model(prev_energy,e_model,rho)
 
         if (rho >= 0.1d0) then
            ! exit

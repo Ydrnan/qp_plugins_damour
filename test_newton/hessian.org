@@ -41,7 +41,7 @@ J. Chem. Phys. 141, 244104 (2014); https://doi.org/10.1063/1.4904384
 Thomas M. Henderson, Ireneusz W. Bulik, Tamar Stein, and Gustavo E. Scuseria
 
 #+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
-subroutine hess(n,H,h_tmpr)
+subroutine org_hess(n,H,h_tmpr)
   use omp_lib
   include 'constants.h' 
 

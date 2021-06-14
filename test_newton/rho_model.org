@@ -21,8 +21,8 @@ If $\rho \approx 1$, the agreement is good, contrary to $\rho \approx
 actual step. We have to cancel this last step and use a smaller trust
 region.
 
-#+BEGIN_SRC f90
-subroutine rho_model(prev_energy,e_model,rho)
+#+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
+subroutine org_rho_model(prev_energy,e_model,rho)
 
   include 'constants.h'
 
@@ -31,7 +31,7 @@ subroutine rho_model(prev_energy,e_model,rho)
 
 ** Variables
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
 !====
   ! in
   !====
@@ -64,7 +64,7 @@ With :
 $E_i$ energy of state i
 $w_i$ weight of state i
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
   !if (debug) then
     print*,''
     print*,'---Enter in rho_model---'
@@ -93,7 +93,7 @@ If we cancel the last step (k+1), the previous energy (k) doesn't
 change !
 If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
   rho = (prev_energy - energy) / (prev_energy - e_model)
 
   print*, 'previous energy, prev_energy :', prev_energy
@@ -116,7 +116,7 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
 #+END_SRC
 
 ** End 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90  :comments org :tangle org_rho_model.irp.f
   !if (debug) then
     print*,'---Leave rho_model---'
     print*,''

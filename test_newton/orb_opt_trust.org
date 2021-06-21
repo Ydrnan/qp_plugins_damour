@@ -210,7 +210,7 @@ subroutine org_run_orb_opt_trust
      endif
 
      ! Diagonalization of the hessian
-     call diagonalization_hessian(n,H,e_val,w)
+     call org_diagonalization_hessian(n,H,e_val,w)
 
      cancel_step = .True.
      nb_cancel = 0
@@ -227,10 +227,10 @@ subroutine org_run_orb_opt_trust
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 
         ! Calculation of the rotation matrix
-        call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+        call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
 
         ! Calculation of the new MOs
-        call apply_mo_rotation(R,prev_mos,new_mos)
+        call org_apply_mo_rotation_omp(R,prev_mos,new_mos)
 
         ! Update and diagonalization of the hamiltonian
         call clear_mo_map
@@ -278,7 +278,7 @@ subroutine org_run_orb_opt_trust
   enddo
     #+END_SRC
     
-*** Deallocation, end
+** Deallocation, end
 
     #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   deallocate(v_grad,H,m_x,R,x,e_val,w)

@@ -1,0 +1,82 @@
+* Diagonalization of the hessian
+
+Just a ma trix diagonalization using Lapack
+
+#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+subroutine org_diagonalization_hessian(n,H,e_val,w)
+
+  include 'constants.h'
+
+  implicit none
+#+END_SRC
+
+** Variables
+#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  !====
+  ! in
+  !====
+
+  integer, intent(in) :: n
+  double precision, intent(in) :: H(n,n)
+
+  !=====
+  ! out
+  !=====
+
+  double precision, intent(out) :: e_val(n), w(n,n)
+
+  !==========
+  ! internal
+  !==========
+
+  double precision, allocatable :: work(:,:)
+  integer                       :: info,lwork!, nb_iter
+  integer                       :: i
+  integer                       :: nb_negative_vp
+#+END_SRC
+
+** Allocation
+#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  ! For Lapack
+  lwork=3*n-1
+
+  allocate(work(lwork,n))
+#+END_SRC
+
+** Calculation
+#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  ! Copy the hessian matrix, the eigenvectors will be store in W
+  W=H
+
+  ! Diagonalization of the hessian
+  call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
+
+  if (info /= 0) then
+      print*, 'Error diagonalization : trust_region'
+      call ABORT
+  endif
+
+  if (debug) then
+    print *, 'vp Hess:'
+    write(*,'(100(F10.5))')  real(e_val(:))
+  endif
+
+  ! Number of negative eigenvalues
+  nb_negative_vp = 0
+  do i = 1, n
+    if (e_val(i) < -1d-12) then
+      nb_negative_vp = nb_negative_vp + 1
+      print*,'e_val < 0 :', e_val(i)
+    endif
+  enddo
+  print*,'Number of negative eigenvalues :', nb_negative_vp
+
+#+END_SRC
+
+** Deallocation, end
+#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  deallocate(work)
+
+end subroutine
+#+END_SRC
+

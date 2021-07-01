@@ -1,0 +1,94 @@
+* Apply MO rotation
+Subroutine to apply the rotation matrix to the coefficients of the
+MOs.
+
+!=================================================================
+! Compute the new MOs with the previous MOs and a rotation matrix
+!=================================================================
+
+#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+subroutine org_apply_mo_rotation(R,prev_mos)
+  
+  include 'constants.h'
+
+  implicit none
+#+END_SRC
+
+** Variables
+Provided:
+| mo_num                 | integer          | number of MOs           |
+| ao_num                 | integer          | number of AOs           |
+| mo_coef(ao_num,mo_num) | double precision | coefficients of the MOs |
+
+Intent in:
+| R(mo_num,mo_num) | double precision | rotation matrix |
+
+Intent out:
+| prev_mos(ao_num,mo_num) | double precision | MOs before the rotation |
+
+Internal:
+| new_mos(ao_num,mo_num) | double precision | MOs after the rotation |
+| i,j                    | integer          | indexes                      |
+#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+  !====
+  ! In
+  !====
+  double precision, intent(in)  :: R(mo_num,mo_num)
+
+  !=====
+  ! out 
+  !=====
+  double precision, intent(out) :: prev_mos(ao_num,mo_num)
+  
+  !==========
+  ! internal
+  !==========
+  double precision, allocatable  :: new_mos(:,:)
+  integer                       :: i,j
+
+allocate(new_mos(ao_num,mo_num))
+#+END_SRC 
+ 
+** Calculation
+#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+  if (debug) then
+    print*,'Enter in apply_mo_rotation'
+  endif
+
+  ! Product of old MOs (mo_coef) by Rotation matrix (R) 
+
+  call dgemm('N','T',ao_num,mo_num,mo_num,1d0,mo_coef,size(mo_coef,1),R,size(R,1),0d0,new_mos,size(new_mos,1))
+#+END_SRC
+
+** Storage
+#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+  print*,'Save MOs...'
+  
+  prev_mos = mo_coef
+  mo_coef = new_mos
+
+  if (debug) then  
+    print*,'New mo_coef : '
+    do i=1,mo_num
+      write(*,'(100(F10.5))') mo_coef(i,:)
+    enddo
+  endif
+
+  ! Save the new MOs and change the label
+  mo_label = 'MCSCF'
+  call save_mos
+  call ezfio_set_determinants_mo_label(mo_label)
+  
+  print*,'Done, MOs saved'
+#+END_SRC
+
+** End
+#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+  deallocate(new_mos)
+
+  if (debug) then
+    print*,'Leave apply_mo_rotation'
+  endif
+
+end subroutine
+#+END_SRC

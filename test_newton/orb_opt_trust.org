@@ -230,7 +230,7 @@ subroutine org_run_orb_opt_trust
         call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
 
         ! Calculation of the new MOs
-        call org_apply_mo_rotation_omp(R,prev_mos,new_mos)
+        call org_apply_mo_rotation(R,prev_mos)!,new_mos)
 
         ! Update and diagonalization of the hamiltonian
         call clear_mo_map

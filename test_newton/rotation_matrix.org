@@ -91,8 +91,6 @@ Functions:
   double precision, allocatable :: part_1(:,:),part_1a(:,:)
   double precision, allocatable :: part_2(:,:),part_2a(:,:),part_2b(:,:),part_2c(:,:)
   double precision, allocatable :: RR_t(:,:)
-  double precision, allocatable :: WW_t(:,:) ! pour test
-  double precision, dimension(1:2,1:2) :: rot_2 ! test
   integer :: i,j
   integer :: info2, lwork ! for dsyev
   double precision :: pi, t1,t2
@@ -109,7 +107,7 @@ Functions:
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   allocate(B(n,n))
   allocate(m_diag(n,n),cos_tau(n,n),sin_tau(n,n),tau_m1(n,n))
-  allocate(W(n,n),WW_t(n,n))
+  allocate(W(n,n))
   allocate(part_1(n,n),part_1a(n,n))
   allocate(part_2(n,n),part_2a(n,n),part_2b(n,n),part_2c(n,n))
   allocate(RR_t(n,n))
@@ -373,8 +371,7 @@ $R.R^T=R^T.R=\textbf{1}$
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   deallocate(B)
   deallocate(m_diag,cos_tau,sin_tau,tau_m1)
-  deallocate(v_cos_tau,v_sin_tau,v_taum1)
-  deallocate(W,WW_t)
+  deallocate(W)
   deallocate(part_1,part_1a)
   deallocate(part_2,part_2a,part_2b,part_2c)
   deallocate(RR_t)

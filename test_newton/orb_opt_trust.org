@@ -241,6 +241,10 @@ subroutine org_run_orb_opt_trust
         ! Calculation of rho
         call org_rho_model(prev_energy,e_model,rho)
 
+        if (nb_iter == 0) then
+          nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+        endif
+
         if (rho >= 0.1d0) then
            ! exit
            cancel_step = .False.

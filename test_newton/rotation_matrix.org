@@ -29,35 +29,65 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 #+END_SRC
        
 ** Variables
+
+Input:
+| A(n,n) | double precision | antisymmetric matrix                                            |
+| n      | integer          | number of columns of the A matrix                               |
+| LDA    | integer          | specifies the leading dimension of A, must be at least max(1,n) |
+| LDR    | integer          | specifies the leading dimension of R, must be at least max(1,n) |
+
+
+Output:
+| R(n,n) | double precision | Rotation matrix                                      |
+| info   | integer          | if info = 0, the execution is successful             |
+|        |                  | if info = k, the k-th parameter has an illegal value |
+|        |                  | if info = -k, the algorithm failed                   |
+
+Internal:
+| B(n,n)        | double precision | B = A.A                                                       |
+| work(lwork,n) | double precision | work matrix for dysev, dimension max(1,lwork)                 |
+| lwork         | integer          | dimension of the syev work array >= max(1, 3n-1)              |
+| W(n,n)        | double precision | eigenvectors of B                                             |
+| e_val(n)      | double precision | eigenvalues of B                                              |
+| m_diag(n,n)   | double precision | diagonal matrix with the eigenvalues of B                     |
+| cos_tau(n,n)  | double precision | diagonal matrix with cos(tau) values                          |
+| sin_tau(n,n)  | double precision | diagonal matrix with sin cos(tau) values                      |
+| tau_m1(n,n)   | double precision | diagonal matrix with (tau)^-1 values                          |
+| part_1(n,n)   | double precision | matrix W.cos_tau.W^t                                          |
+| part_1a(n,n)  | double precision | matrix cos_tau.W^t                                            |
+| part_2(n,n)   | double precision | matrix W.tau_m1.sin_tau.W^t.A                                 |
+| part_2a(n,n)  | double precision | matrix W^t.A                                                  |
+| part_2b(n,n)  | double precision | matrix sin_tau.W^t.A                                          |
+| part_2c(n,n)  | double precision | matrix tau_m1.sin_tau.W^t.A                                   |
+| RR_t(n,n)     | double precision | R.R^t must be equal to the identity<=> R.R^t-1=0 <=> norm = 0 |
+| norm          | integer          | norm of R.R^t-1, must be equal to 0                           |
+| i,j           | integer          | indexes                                                       |
+
+Functions:
+| dnrm2  | double precision | Lapack function, compute the norm of a matrix |
+| disnan | logical          | Lapack function, check if an element is NaN   |
+
+
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   !====
   ! in
   !====
-  integer, intent(in)           :: n,LDA,LDR
-  ! n   : integer, number of columns of the A matrix
-  ! LDA : integer, specifies the leading dimension of A, must be at least max(1,n)
-  ! LDR : integer, specifies the leading dimension of R, must be at least max(1,n)
+  integer, intent(in)          :: n,LDA,LDR
+  double precision, intent(in) :: A(LDA,n)
 
   !=====
   ! out
   !=====
-  double precision, intent(out) :: A(LDA,n), R(LDR,n)
+  double precision, intent(out) :: R(LDR,n)
   integer, intent(out)          :: info
-  ! A    : n by n antisymmetric double precision matrix
-  ! R    : n by n rotation double precision matrix
-  ! info : integer :
-          ! if info = 0, the execution is successful
-          ! if info = k, the k-th parameter has an illegal value
-          ! if info = -k, the algorithm failed
 
   !==========
   ! internal
   !==========
-  double precision, allocatable :: B(:,:) ! initial matrix A, B=A.A
-  double precision, allocatable :: work(:,:) ! work matrix for dsyev
-  double precision, allocatable :: W(:,:), e_val(:)!,W_t(:,:) ! Eigenvectors and eigenvalues
+  double precision, allocatable :: B(:,:) 
+  double precision, allocatable :: work(:,:) 
+  double precision, allocatable :: W(:,:), e_val(:)
   double precision, allocatable :: m_diag(:,:),cos_tau(:,:),sin_tau(:,:),tau_m1(:,:)
-  double precision, allocatable :: v_cos_tau(:), v_sin_tau(:), v_taum1(:)
   double precision, allocatable :: part_1(:,:),part_1a(:,:)
   double precision, allocatable :: part_2(:,:),part_2a(:,:),part_2b(:,:),part_2c(:,:)
   double precision, allocatable :: RR_t(:,:)
@@ -68,39 +98,17 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision :: pi, t1,t2
   double precision :: norm, norm_2
 
-  ! B       : n by n symmetric double precision matrix, B=A.A
-  ! lwork   : integer, dimension of the syev work array >= max(1, 3n-1)
-  ! work    : double precision matrix for syev, dimension max(1,lwork)
-  ! W       : n by n double precision matrix with the eigenvectors of B diagonalization
-  !
-  ! e_val   : n, double precision vector with the eigenvalues of B diagonalization
-  ! m_diag  : n by n double precision diagonal matrix of B diagonalization
-  ! cos_tau : n by n double precision diagonal matrix with cos(tau) values
-  ! sin_tau : n by n double precision diagonal matrix with sin(tau) values
-  ! tau_m1  : n by n double precision diagonal matrix with 1/tau values
-  ! part_1  : n by n double precision matrix, W.cos_tau.W^t
-  ! part_1a : n by n double precision matrix, cos_tau.W^t
-  ! part_2  : n by n double precision matrix, W.tau_m1.sin_tau.W^t.A
-  ! part_2a : n by n double precision matrix, W^t.A
-  ! part_2b : n by n double precision matrix, sin_tau.W^t.A
-  ! part_2c : n by n double precision matrix, tau_m1.sin_tau.W^t.A
-  ! RR_t    : n by n double precision matrix, R.R^t must be equal to the identity
-  !           if R is a rotation matrix <=> R.R^t-1=0 <=> norm = 0
-  ! norm    : integer, norm of R.R^t-1, must be equal to 0
-  ! i,j     : integer, first and second indices to turn on the matrix elements
-
+  !==========
   ! function
+  !==========
   double precision :: dnrm2
   logical :: disnan
-  ! dnrm2 : (Lapack) double precision function, compute the norm of a matrix
-  ! disnan : (Lapack) check if an element is NaN
 #+END_SRC
 
 ** Allocation
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   allocate(B(n,n))
   allocate(m_diag(n,n),cos_tau(n,n),sin_tau(n,n),tau_m1(n,n))
-  allocate(v_cos_tau(n),v_sin_tau(n),v_taum1(n))
   allocate(W(n,n),WW_t(n,n))
   allocate(part_1(n,n),part_1a(n,n))
   allocate(part_2(n,n),part_2a(n,n),part_2b(n,n),part_2c(n,n))
@@ -142,7 +150,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   ! Matrix elements of A must by non-NaN
   do j=1,n
     do i=1,n
-      if (disnan(a(i,j))) then
+      if (disnan(A(i,j))) then
         info=1
         print*, 'dm_rotation : invalid parameter 1'
         print*, 'NaN element in A matrix'
@@ -157,28 +165,17 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 *** B=A.A
 - Calculation of the matrix $\textbf{B} = \textbf{A}^2$
 - Diagonalization of $\textbf{B}$ 
+W, the eigenvectors
+e_val, the eigenvalues
 
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  !==============
   ! Compute B=A.A
 
   call dgemm('N','N',n,n,n,1d0,A,size(A,1),A,size(A,1),0d0,B,size(B,1))
 
-  ! Debug, display the B=A.A
-  if (debug) then
-
-    print*,'B=A.A'
-    do i=1,n
-      print*, B(i,:)
-    enddo
-
-  endif
-
-  !============================================================
   ! Copy B in W, diagonalization will put the eigenvectors in W
   W=B
 
-  !=====================
   ! Diagonalization of B
   ! Eigenvalues -> e_val
   ! Eigenvectors -> W
@@ -199,54 +196,15 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   else
     print*, "Diagonalization : Failed to converge"
   endif
-
-  ! Debug
-  if (debug) then
-
-    print*, 'Eigenvalues'
-    print*, e_val(:)
-    print*, 'Eigenvectors'
-    do i=1,n
-      print*, W(i,:)
-    enddo
-
-  endif
-
-  ! Debug
-  ! W.W^t-1 =? 0
-  if (debug) then
-
-    print*,'W.W^t-1 =? 0'
-    do j=1,n
-      do i=1,n
-        if (i==j) then
-          WW_t(i,j)=1d0
-        else
-          WW_t(i,j)=0d0
-        endif
-      enddo
-    enddo
-    
-    call dgemm('N','T',n,n,n,1d0,W,size(W,1),W,size(W,1),-1d0,WW_t,size(WW_t,1))
-    norm = dnrm2(n*n,WW_t,1) / (dble(n)**2)
-    print*, 'norm = ', norm
-
-    print*, 'W.W^t'
-    do i=1,n
-      print*,WW_t(i,:)
-    enddo
-
-  endif
 #+END_SRC
    
 *** Tau^-1, cos(tau), sin(tau)
-
+$$\tau = \sqrt{-x}$$
 - Calculation of $\cos(\tau)$  $\Leftrightarrow$ $\cos(\sqrt{-x})$
 - Calculation of $\sin(\tau)$  $\Leftrightarrow$ $\sin(\sqrt{-x})$
 - Calculation of $\tau^{-1}$ $\Leftrightarrow$ $(\sqrt{-x})^{-1}$
 These matrices are diagonals
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  ! ======================
   ! Diagonal matrix m_diag
 
   do j=1,n
@@ -262,12 +220,7 @@ These matrices are diagonals
     m_diag(i,i)= e_val(i)
   enddo
 
-  !=================================================
-  ! eigenvalues = -tau^2 => tau = -sqrt(eignevalues)
-  ! We need the diagonal matrix cos_tau and sin_tau, such as :
-  ! if i==j then cos_tau(i,j)=cos(tau(i)) else 0d0
-  ! if i==j then sin_tau(i,j)=sin(tau(i)) else 0d0
-
+  ! cos_tau
   do j=1,n
     do i=1,n
       if (i==j) then
@@ -278,10 +231,7 @@ These matrices are diagonals
     enddo
   enddo
 
-  do i=1,n
-    v_cos_tau(i)=dcos(dsqrt(e_val(i)))
-  enddo
-
+  ! sin_tau
   do j=1,n
     do i=1,n
       if (i==j) then
@@ -292,13 +242,8 @@ These matrices are diagonals
     enddo
   enddo
 
-  do i=1,n
-    v_sin_tau(i)=dsin(dsqrt(e_val(i)))
-  enddo
-
   ! Debug, display the cos_tau and sin_tau matrix
   if (debug) then
-
     print*, 'cos_tau'
     do i=1,n
       print*, cos_tau(i,:)
@@ -307,10 +252,8 @@ These matrices are diagonals
     do i=1,n
       print*, sin_tau(i,:)
     enddo
-
   endif
 
-  !=======
   ! tau^-1
   do j=1,n
     do i=1,n
@@ -324,12 +267,10 @@ These matrices are diagonals
 
   !Debug, display tau^-1
   if (debug) then
-
     print*, 'tau^-1'
     do i=1,n
       print*,tau_m1(i,:)
     enddo
-
   endif
 #+END_SRC
 
@@ -344,36 +285,37 @@ These matrices are diagonals
 \textbf{Part2}= \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
 \end{align*}
 
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  !============================================================
-  ! We now have to compute W.cos_tau.W^t+W.tau_m1.sin_tau.W^t.A
-  ! First part_1=dgemm(W, dgemm(cos_tau, W^t))
-  ! part_1a = dgemm(cos_tau, W^t)
-  ! part_1 = dgemm(W, part_1a)
-  ! And part_2=dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
-  ! part_2a = dgemm(W^t, A)
-  ! part_2b = dgemm(sin_tau, part_2a)
-  ! part_2c = dgemm(tau_m1, part_2b)
-  ! part_2 = dgemm(W, part_2c)
-  ! Rotation matrix R = part_1+part_2
+First:
+part_1 = dgemm(W, dgemm(cos_tau, W^t))
+part_1a = dgemm(cos_tau, W^t)
+part_1 = dgemm(W, part_1a)
+And:
+part_2=dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
+part_2a = dgemm(W^t, A)
+part_2b = dgemm(sin_tau, part_2a)
+part_2c = dgemm(tau_m1, part_2b)
+part_2 = dgemm(W, part_2c)
+Finally:
+Rotation matrix, R = part_1+part_2
 
+If $R$ is a rotation matrix:
+$R.R^T=R^T.R=\textbf{1}$
+#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+  ! part_1
   call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
   call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_1a,size(part_1a,1),0d0,part_1,size(part_1,1))
-
+  
+  ! part_2
   call dgemm('T','N',n,n,n,1d0,W,size(W,1),A,size(A,1),0d0,part_2a,size(part_2a,1))
   call dgemm('N','N',n,n,n,1d0,sin_tau,size(sin_tau,1),part_2a,size(part_2a,1),0d0,part_2b,size(part_2b,1))
   call dgemm('N','N',n,n,n,1d0,tau_m1,size(tau_m1,1),part_2b,size(part_2b,1),0d0,part_2c,size(part_2c,1))
   call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_2c,size(part_2c,1),0d0,part_2,size(part_2,1))
 
-  !=========================
-  ! n by n rotation matrix R
+  ! Rotation matrix R
   R = part_1 + part_2
 
-  !=============
   ! Matrix check
   ! R.R^t and R^t.R must be equal to identity matrix
-  ! On ne fait la vérification que sur R.R^t
-
   do j=1,n
     do i=1,n
       if (i==j) then
@@ -429,7 +371,6 @@ These matrices are diagonals
 
 ** Deallocation, end
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-
   deallocate(B)
   deallocate(m_diag,cos_tau,sin_tau,tau_m1)
   deallocate(v_cos_tau,v_sin_tau,v_taum1)

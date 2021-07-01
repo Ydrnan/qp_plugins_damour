@@ -9,8 +9,8 @@ program debug_rotation_matrix
   ! Variables
   !===========
 
-  double precision, allocatable :: grad(:,:),R(:,:),R1(:,:)
-  double precision, allocatable :: H(:,:),H1(:,:),h_f(:,:,:,:)
+  double precision, allocatable :: R(:,:),R2(:,:)
+  double precision, allocatable :: H(:,:),h_f(:,:,:,:)
   double precision, allocatable :: v_grad(:),m_x(:,:),x(:),W(:,:),e_val(:)
   integer                       :: info,method
   integer                       :: n
@@ -56,7 +56,7 @@ program debug_rotation_matrix
   ! Allocation
   !============
 
-  allocate(v_grad(n),R(mo_num,mo_num),R1(mo_num,mo_num))
+  allocate(v_grad(n),R(mo_num,mo_num),R2(mo_num,mo_num))
   allocate(H(n,n),m_x(mo_num,mo_num),x(n))
   allocate(h_f(mo_num,mo_num,mo_num,mo_num))
   allocate(W(n,n),e_val(n))
@@ -90,9 +90,9 @@ program debug_rotation_matrix
   ! Rotation matrix
   call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info) 
 
-  call rotation_matrix_omp(m_x,mo_num,R1,mo_num,mo_num,info)
+  call org_rotation_matrix(m_x,mo_num,R2,mo_num,mo_num,info)
 
-  R = R1 - R
+  R = R2 - R
   
   nb_error = 0
   max_error = 0d0
@@ -115,7 +115,7 @@ program debug_rotation_matrix
   print*,'Nb error', nb_error
   print*,'max_error', max_error
 
-  deallocate(v_grad,H,m_x,x,R,R1)
+  deallocate(v_grad,H,m_x,x,R,R2)
   deallocate(h_f)
   deallocate(W)
   deallocate(e_val)

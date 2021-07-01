@@ -9,8 +9,7 @@ subroutine vec_to_mat_index(i,p,q)
   ! the vector index i
   !
   ! Vector -> lower diagonal matrix
-  ! For upper diagonal matrix you must change the
-  ! indexes p <-> q
+  ! => p > q
   !==================================================
 
   !===========
@@ -38,7 +37,7 @@ subroutine vec_to_mat_index(i,p,q)
   !==============
 
   if (debug) then
-    print*,'Enter in in_mat_vec_index'
+    print*,'Enter in vec_to_mat_index'
   endif
   
   da = 0.5d0*(1+ sqrt(1d0+8d0*DBLE(i)))
@@ -55,6 +54,6 @@ subroutine vec_to_mat_index(i,p,q)
   q = i - b 
 
   if (debug) then
-    print*,'Leaves in_mat_vec_index'
+    print*,'Leave vec_to_mat_index'
   endif
 end subroutine

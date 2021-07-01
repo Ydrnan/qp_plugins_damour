@@ -9,7 +9,7 @@ program debug_hessian
   ! Variables
   !===========
 
-  double precision, allocatable :: H(:,:),H1(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
+  double precision, allocatable :: H(:,:),H2(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
   integer                       :: method
   integer                       :: n
   integer                       :: i,j,k,l
@@ -34,7 +34,7 @@ program debug_hessian
   ! Allocation
   !============
  
-  allocate(H(n,n),H1(n,n))  
+  allocate(H(n,n),H2(n,n))  
   allocate(h_f(mo_num,mo_num,mo_num,mo_num),h_f2(mo_num,mo_num,mo_num,mo_num))
 
   !=============
@@ -47,10 +47,10 @@ program debug_hessian
 
     print*,'Use the full hessian matrix'
     call first_hess(n,H,h_f)
-    call hess(n,H1,h_f2)
+    call hess(n,H2,h_f2)
 
     h_f = h_f - h_f2
-    H = H - H1
+    H = H - H2
     max_error = 0d0
     nb_error = 0    
     threshold = 1d-12
@@ -97,7 +97,7 @@ program debug_hessian
 
     print*, 'Use the diagonal hessian matrix'
     call first_diag_hess(n,H,h_f)
-    call diag_hess(n,H1,h_f2)
+    call diag_hess(n,H2,h_f2)
     
     h_f = h_f - h_f2
     max_error = 0d0
@@ -125,7 +125,7 @@ program debug_hessian
       enddo
     enddo
 
-    h=H-H1
+    h=H-H2
   
     max_error_H = 0d0
     nb_error_H = 0
@@ -160,6 +160,6 @@ program debug_hessian
   print*,'Nb error_H :', nb_error_H
   print*,'Max error_H :', max_error_H
  
-  deallocate(H,H1,h_f,h_f2)
+  deallocate(H,H2,h_f,h_f2)
 
 end program

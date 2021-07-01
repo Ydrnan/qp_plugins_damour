@@ -36,7 +36,6 @@ Input:
 | LDA    | integer          | specifies the leading dimension of A, must be at least max(1,n) |
 | LDR    | integer          | specifies the leading dimension of R, must be at least max(1,n) |
 
-
 Output:
 | R(n,n) | double precision | Rotation matrix                                      |
 | info   | integer          | if info = 0, the execution is successful             |
@@ -69,21 +68,15 @@ Functions:
 
 
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  !====
   ! in
-  !====
-  integer, intent(in)          :: n,LDA,LDR
-  double precision, intent(in) :: A(LDA,n)
+  integer, intent(in)           :: n,LDA,LDR
+  double precision, intent(in)  :: A(LDA,n)
 
-  !=====
   ! out
-  !=====
   double precision, intent(out) :: R(LDR,n)
   integer, intent(out)          :: info
 
-  !==========
   ! internal
-  !==========
   double precision, allocatable :: B(:,:) 
   double precision, allocatable :: work(:,:) 
   double precision, allocatable :: W(:,:), e_val(:)
@@ -91,23 +84,20 @@ Functions:
   double precision, allocatable :: part_1(:,:),part_1a(:,:)
   double precision, allocatable :: part_2(:,:),part_2a(:,:),part_2b(:,:),part_2c(:,:)
   double precision, allocatable :: RR_t(:,:)
-  integer :: i,j
-  integer :: info2, lwork ! for dsyev
-  double precision :: pi, t1,t2
-  double precision :: norm, norm_2
+  integer                       :: i,j
+  integer                       :: info2, lwork ! for dsyev
+  double precision              :: norm
 
-  !==========
   ! function
-  !==========
-  double precision :: dnrm2
-  logical :: disnan
+  double precision              :: dnrm2
+  logical                       :: disnan
 #+END_SRC
 
 ** Allocation
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   allocate(B(n,n))
   allocate(m_diag(n,n),cos_tau(n,n),sin_tau(n,n),tau_m1(n,n))
-  allocate(W(n,n))
+  allocate(W(n,n),e_val(n))
   allocate(part_1(n,n),part_1a(n,n))
   allocate(part_2(n,n),part_2a(n,n),part_2b(n,n),part_2c(n,n))
   allocate(RR_t(n,n))
@@ -178,7 +168,7 @@ e_val, the eigenvalues
   ! Eigenvalues -> e_val
   ! Eigenvectors -> W
   lwork=3*n-1
-  allocate(work(lwork,n),e_val(n))
+  allocate(work(lwork,n))
 
   print*,'Starting diagonalization ...'
 
@@ -204,7 +194,6 @@ $$\tau = \sqrt{-x}$$
 These matrices are diagonals
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   ! Diagonal matrix m_diag
-
   do j=1,n
     if (e_val(j) >= 0.d0) then
       e_val(j) = 0.d0
@@ -274,13 +263,13 @@ These matrices are diagonals
 
 *** Rotation matrix 
 \begin{align*}
-\textbf{R}= \textbf{W} \cos(\tau) \textbf{W}^{\dagger} + \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
+\textbf{R} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger} + \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
 \end{align*}
 \begin{align*}
-\textbf{Part1}= \textbf{W} \cos(\tau) \textbf{W}^{\dagger}
+\textbf{Part1} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger}
 \end{align*}
 \begin{align*}
-\textbf{Part2}= \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
+\textbf{Part2} = \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
 \end{align*}
 
 First:
@@ -288,7 +277,7 @@ part_1 = dgemm(W, dgemm(cos_tau, W^t))
 part_1a = dgemm(cos_tau, W^t)
 part_1 = dgemm(W, part_1a)
 And:
-part_2=dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
+part_2= dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
 part_2a = dgemm(W^t, A)
 part_2b = dgemm(sin_tau, part_2a)
 part_2c = dgemm(tau_m1, part_2b)
@@ -340,10 +329,6 @@ $R.R^T=R^T.R=\textbf{1}$
 
 *** Post conditions
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  !=================
-  ! Post-conditions
-  !=================
-
   ! Matrix elements of R must by non-NaN
   do j=1,n
     do i=1,LDR
@@ -355,10 +340,7 @@ $R.R^T=R^T.R=\textbf{1}$
     enddo
   enddo
 
-  !=========
   ! Display
-  !=========
-
   if (debug) then
     print*,'Rotation matrix :'
     do i=1,mo_num
@@ -371,7 +353,7 @@ $R.R^T=R^T.R=\textbf{1}$
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   deallocate(B)
   deallocate(m_diag,cos_tau,sin_tau,tau_m1)
-  deallocate(W)
+  deallocate(W,e_val)
   deallocate(part_1,part_1a)
   deallocate(part_2,part_2a,part_2b,part_2c)
   deallocate(RR_t)

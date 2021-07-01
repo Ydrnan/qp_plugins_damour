@@ -91,7 +91,7 @@ subroutine run_orb_opt
   
       call vec_to_mat(v_grad,size(v_grad,1),grad,size(grad,1),info)  
       
-      call matrix_antisym(grad,mo_num,mo_num,info)
+      !call matrix_antisym(grad,mo_num,mo_num,info)
       
       call rotation_matrix(grad,mo_num,R,mo_num,mo_num,info)
   

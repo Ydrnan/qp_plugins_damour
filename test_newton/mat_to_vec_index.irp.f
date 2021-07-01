@@ -9,8 +9,7 @@ subroutine mat_to_vec_index(p,q,i)
   ! the indexes p,q of a matrix element
   !
   ! Lower diagonal matrix -> vector
-  ! For upper diagonal matrix, you muste change 
-  ! the indexes i <-> j
+  ! => p > q
   !==============================================
 
   !===========

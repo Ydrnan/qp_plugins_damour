@@ -255,7 +255,7 @@ These matrices are diagonals
   ! tau^-1
   do j=1,n
     do i=1,n
-      if ((i==j).and.(e_val(i) > 1d-6)) then
+      if ((i==j).and.(e_val(i) > 0d0)) then
         tau_m1(i,j)=1d0/(dsqrt(e_val(i)))
       else
         tau_m1(i,j)=0d0

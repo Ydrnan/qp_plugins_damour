@@ -33,56 +33,64 @@ The first and second derivatives are :
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
+Provided:
+| mo_num | integer | number of MOs |
+
+Input:
+ | n         | integer          | mo_num*(mo_num-1)/2         |
+ | e_val(n)  | double precision | eigenvalues of the hessian  |
+ | W(n,n)    | double precision | eigenvectors of the hessian |
+ | v_grad(n) | double precision | gradient                    |
+ | delta     | double precision | delta for the trust region  |
+
+Output:
+| lambda | double precision | Lagrange multiplier to constrain the norm of the size of the Newton step |
+|        |                  | lambda > 0                                                           |
+
+Internal:
+| d1_N     | double precision | value of d1_norm_trust_region |
+| d2_N     | double precision | value of d2_norm_trust_region |
+| f_N      | double precision | value of f_norm_trust_region  |
+| t1,t2,t3 | double precision | wall time                     |
+| i        | integer          | index                         |
+
+Function:
+| d1_norm_trust_region | double precision | first derivative with respect to lambda of  norm(x)^2 - Delta^2 |
+| d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2 |
+| f_norm_trust_region  | double precision | value of norm(x)^2                                              |
+
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
 
   include 'constants.h'
 
   implicit none
-#+END_SRC
-
-** Variables
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  !====
+  
+  ! Variables
+  
   ! in
-  !====
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: delta 
 
-  !=====
   ! out
-  !=====
   double precision, intent(out) :: lambda
 
-  !==========
   ! Internal
-  !==========
   double precision :: d1_N,d2_N,f_N
   double precision :: t1,t2,t3
   integer          :: i
-  ! d1_N      : double precision, value of d1_norm_trust_region
-  ! d2_N     : double precision, value of d2_norm_trust_region
-  ! f_N      : double precision, value of f_norm_trust_region
-  ! t1,t2,t3 : double precision, t3 = t2 - t1, time to search the optimal
-  !            lambda value
-  ! i        : integer, index
 
-  !===========
   ! Functions
-  !===========
   double precision :: d1_norm_trust_region,d1_norm_trust_region_omp
   double precision :: d2_norm_trust_region, d2_norm_trust_region_omp
   double precision :: f_norm_trust_region, f_norm_trust_region_omp
-  ! d1_norm_trust_region  : double precision function, first derivative with respect to lambda of ||x||^2 - Delta 
-  ! d2_norm_trust_region : double precision function, second derivative with respect to lambda of ||x||^2 - Delta 
-  ! f_norm_trust_region : double precision function, value of ||x||^2
 #+END_SRC
 
-** Calculations 
+Resolution with the Newton method:
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
  if (debug) then
     print*,'Enter in trust_newton'
@@ -90,49 +98,11 @@ subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
 
   ! Initialization
   lambda = 0d0
-#+END_SRC
 
-** Debug, OMP vs no OMP
-Just to compare the results of the OMP vs no OMP functions.
-In addition, you can plot these file using 1:2 to see the evolution of
-fN in function of lambda.
-
-The values can be very large so, doing the difference of the results
-is not a good idea. A better way to check the value is to compute 
-1 -f1/f2, where f1 and f2 are the functions which have to be compared.  
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Debug
-  if (debug) then
-     open(unit=10,file='debug_trust_region.dat')
-     write(10,*) 'lambda, f_N, d_N, d2_N'
-     do i = 1, 10000
-
-       ! No OMP
-       f_N = f_norm_trust_region(n,e_val,w,v_grad,lambda)
-       d1_N = d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
-       d2_N = d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
-       write(10,'(100(F10.5))') lambda, f_N, d1_N, d2_N
-
-       ! OMP
-       f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
-       d1_N = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
-       d2_N = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
-       write(10,'(100(F10.5))') lambda, f_N, d1_N, d2_N, '(OMP)'
-
-       lambda = lambda + 0.0001
-     enddo
-     close(10)
-  endif
-#+END_SRC
-
-** Newton's method
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Newton's method to find the optimal lambda for the trust region
   CALL wall_time(t1)
 
-  ! Diŝplay
+  ! Debug
   if (debug) then
       print*, 'Iteration   First derivative   lambda    ||x||^2'
   endif
@@ -141,14 +111,14 @@ is not a good idea. A better way to check the value is to compute
   i = 1
   f_N = 0d0 ! to enter in the loop ...
 
-  ! Newton method
+  ! Newton's method
   do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
     d1_N = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! first derivative
     d2_N = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! second derivative
     lambda = lambda - (1d0/ABS(d2_N))*d1_N ! New lambda
     f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda) ! Value of the norm
     
-    ! Display
+    ! Debug
     if (debug) then
       print*, i, d1_N, lambda, f_N, ABS(1d0-f_N/delta**2)
     endif  
@@ -158,15 +128,13 @@ is not a good idea. A better way to check the value is to compute
 
   CALL wall_time(t2)
 
+  ! Time
   t3 = t2 - t1
   print*,'Time to search the optimal lambda :', t3
   print*,'Number of iterations :', i
   print*,'Error on the trust region :', 1d0-f_N/delta**2
-#+END_SRC 
-
-** End
-
-#+BEGIN_SRC f90  :comments org :tangle org_trust_newton.irp.f
+  
+  ! Debug
   if (debug) then
     print*,'Leave trust_newton'
   endif
@@ -189,76 +157,71 @@ with respect to lambda.
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
 \end{equation}
 
+Provided:
+| mo_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| accu1      | double precision | first sum of the formula           |
+| accu2      | double precision | second sum of the formula          |
+| tmp_accu1  | double precision | temporary array for the first sum  |
+| tmp_accu2  | double precision | temporary array for the second sum |
+| tmp_wtg(n) | double precision | temporary array for W^t.v_grad     |
+| i,j        | integer          | indexes                            |
+
+Function:
+| d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   use omp_lib
 
   implicit none
-#+END_SRC
-  
-** Variables
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  !====
   ! in
-  !====
-  integer, intent(in)          :: n
-  double precision, intent(in) :: e_val(n)
-  double precision, intent(in) :: w(n,n)
-  double precision, intent(in) :: v_grad(n)
-  double precision, intent(in) :: lambda
-  double precision, intent(in) :: delta
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
-  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! lambda : double precision, lagrange multiplier for the trust region
-  ! delta  : double precision, trust radius 
+  integer, intent(in)           :: n
+  double precision, intent(in)  :: e_val(n)
+  double precision, intent(in)  :: w(n,n)
+  double precision, intent(in)  :: v_grad(n)
+  double precision, intent(in)  :: lambda
+  double precision, intent(in)  :: delta
    
-  !==========
   ! Internal
-  !==========
-  double precision :: wtg,accu1,accu2, accu12, accu22
-  integer          :: i,j
+  double precision              :: wtg,accu1,accu2
+  integer                       :: i,j
   double precision, allocatable :: tmp_accu1(:), tmp_accu2(:), tmp_wtg(:)
-  ! wtg   : double precision, w_i^T.v_grad
-  ! accu1 : double precision, temporary variable
-  ! accu2 : double precision, temporary variable 
-  ! i     : integer, index
 
-  !===========
   ! Functions
-  !===========
-  double precision :: d1_norm_trust_region_omp
-  double precision :: ddot
-  ! d1_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
-  ! ddot : double precision Blas function, dot product
-#+END_SRC  
+  double precision              :: d1_norm_trust_region_omp
 
-** Allocation and OMP
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+  ! Allocation
   allocate(tmp_accu1(n), tmp_accu2(n), tmp_wtg(n))
 
+  ! OMP
   call omp_set_max_active_levels(1)
 
   ! OMP 
   !$OMP PARALLEL                                                      &
-      !$OMP PRIVATE(i,j,wtg)                                          &
+      !$OMP PRIVATE(i,j)                                          &
       !$OMP SHARED(n,lambda,v_grad, w, e_val,                         &
-      !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1,accu2,accu12,accu22) &
+      !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1,accu2) &
       !$OMP DEFAULT(NONE)
 #+END_SRC
 
 ** Initialization
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Initialization
   !$OMP MASTER
   accu1 = 0d0
   accu2 = 0d0
-  accu12 = 0d0
-  accu22 = 0d0
   !$OMP END MASTER
 
   !$OMP DO
@@ -287,7 +250,6 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \end{equation}
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Part 1
   !$OMP DO
   do i = 1, n
     do j = 1, n
@@ -318,7 +280,6 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \end{equation}
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Part2
   !$OMP DO
   do i = 1, n
     if (e_val(i)>1e-6) then
@@ -341,9 +302,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   call omp_set_max_active_levels(4)
 
-  accu2 = accu2 - delta**2 
-
-  d1_norm_trust_region_omp = 2d0 * accu1 * accu2
+  d1_norm_trust_region_omp = 2d0 * accu1 * (accu2 - delta**2)
 
   deallocate(tmp_accu1, tmp_accu2, tmp_wtg)
 
@@ -363,64 +322,64 @@ with respect to lambda.
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
+Provided:
+| m_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| accu1      | double precision | first sum of the formula           |
+| accu2      | double precision | second sum of the formula          |
+| accu3      | double precision | third sum of the formula           |
+| tmp_accu1  | double precision | temporary array for the first sum  |
+| tmp_accu2  | double precision | temporary array for the second sum |
+| tmp_accu2  | double precision | temporary array for the third sum  |
+| tmp_wtg(n) | double precision | temporary array for W^t.v_grad     |
+| i,j        | integer          | indexes                            |
+
+Function:
+| d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2 |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   
   use omp_lib
 
   implicit none
-#+END_SRC
 
-** Variables
+  ! Variables
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  !====
   ! in
-  !====
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
-  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! lambda : double precision, lagrange multiplier for the trust region
-  ! delta  : double precision, trust radius
 
-  !===========
   ! Functions
-  !===========
   double precision :: d2_norm_trust_region_omp
   double precision :: ddot
-  ! d2_norm_trust_region_omp   : double precision function, second derivative with respect to lambda of ||x||^2 - Delta^2
-  ! ddot : double precision Blas function, dot product 
 
-  !==========
   ! Internal
-  !==========
   double precision :: wtg,accu1,accu2,accu3
   double precision, allocatable :: tmp_wtg(:), tmp_accu1(:), tmp_accu2(:), tmp_accu3(:)
   integer :: i, j
-  ! wtg   : double precision, w_i^T.v_grad
-  ! accu1 : double precision, temporary variable
-  ! accu2 : double precision, temporary variable 
-  ! accu3 : double precision, temporary variable
-  ! i     : integer, index
-#+END_SRC
-
-** Allocation and OMP
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+  
+  ! Allocation
   allocate(tmp_wtg(n), tmp_accu1(n), tmp_accu2(n), tmp_accu3(n))
 
   call omp_set_max_active_levels(1)
 
   ! OMP 
   !$OMP PARALLEL                                                     &
-      !$OMP PRIVATE(i,j,wtg)                                         &
+      !$OMP PRIVATE(i,j)                                         &
       !$OMP SHARED(n,lambda,v_grad, w, e_val, &
       !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg, accu1,accu2,accu3)&
       !$OMP DEFAULT(NONE)
@@ -429,7 +388,6 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 ** Initialization
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Initialization
   !$OMP MASTER
   accu1 = 0d0
   accu2 = 0d0
@@ -463,7 +421,6 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right)
 \end{equation}
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  ! Part 1
   !$OMP DO
   do i = 1, n
     do j = 1, n
@@ -489,7 +446,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
 ** Part 2
 \begin{equation}
-\left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T
+\left( \sum_{i=1}^n \frac{(\textbf{w}_i^T
 \textbf{g})^2}{(h_i + \lambda)^2} \right)
 \end{equation}
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
@@ -551,62 +508,54 @@ This function compute the value of ||x(lambda)||^2
 \begin{equation}
 ||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
 \end{equation}
+
+Provided:
+| m_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| tmp_wtg(n) | double precision | temporary array for W^T.v_grad   |
+| tmp_fN     | double precision | temporary array for the function |
+| i,j        | integer          | indexes                          |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
   use omp_lib
 
   implicit none
-#+END_SRC
 
-** Variables
+  ! Variables
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-
-  !====
   ! in
-  !====
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
-  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! lambda : double precision, lagrange multiplier for the trust region
  
-  !===========
   ! functions
-  !===========
   double precision :: f_norm_trust_region_omp
-  double precision :: ddot
-  ! f_norm_trust_region_omp  : double precision function, value of ||x||^2 - Delta
-  ! ddot : double precision Blas function, dot product
  
-  !==========
   ! internal
-  !==========
   double precision, allocatable :: tmp_wtg(:), tmp_fN(:)
-  double precision :: wtg
   integer :: i,j
-  ! tmp_wtg : double precision temporary array
-  ! tmp_fN : double precision temporary array
-  ! wtg   : double precision, w_i^T.v_grad
-  ! i,j ; integer, indexes
-#+END_SRC
 
-** Allocation and OMP
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+  ! Allocation
   allocate(tmp_wtg(n), tmp_fN(n))
 
   call omp_set_max_active_levels(1)
 
   ! OMP 
   !$OMP PARALLEL                              &
-      !$OMP PRIVATE(i,j,wtg)                  &
+      !$OMP PRIVATE(i,j)                  &
       !$OMP SHARED(n,lambda,v_grad, w, e_val, &
       !$OMP tmp_fN, tmp_wtg, f_norm_trust_region_omp)          &
       !$OMP DEFAULT(NONE)
@@ -655,11 +604,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
     f_norm_trust_region_omp =  f_norm_trust_region_omp + tmp_fN(i)
   enddo
   !$OMP END MASTER
-#+END_SRC
 
-** Deallocation, end OMP, end
-
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   !$OMP END PARALLEL
 
   deallocate(tmp_wtg, tmp_fN)
@@ -683,47 +628,49 @@ with respect to lambda.
 \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i+ \lambda)^2} \right)
 \end{equation}
 
+Provided:
+| m_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| accu1 | double precision | first sum of the formula               |
+| accu2 | double precision | second sum of the formula              |
+| wtg   | double precision | temporary variable to store W^T.v_grad |
+| i,j   | integer          | indexes                                |
+
+Function:
+| d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
+| ddot                 | double precision | blas dot product                                               |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   implicit none
-#+END_SRC
 
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  !====
+  ! Variables
+  
   ! in
-  !====
   integer, intent(in)          :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
-  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! lambda : double precision, lagrange multiplier for the trust region
-  ! delta  : double precision, trust radius 
 
- !==========
   ! Internal
-  !==========
   double precision :: wtg,accu1,accu2
   integer          :: i,j
-  ! wtg   : double precision, w_i^T.v_grad
-  ! accu1 : double precision, temporary variable
-  ! accu2 : double precision, temporary variable 
-  ! i     : integer, index
 
-  !===========
   ! Functions
-  !===========
   double precision :: d1_norm_trust_region
   double precision :: ddot
-  ! d1_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta
-  ! ddot : double precision Blas function, dot product
 #+END_SRC  
 
 ** Calculations
@@ -769,9 +716,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
 *** End
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  accu2 = accu2 - delta**2
-
-  d1_norm_trust_region = 2d0 * accu1 * accu2
+  d1_norm_trust_region = 2d0 * accu1 * (accu2 - delta**2)
 
 end function
 #+END_SRC
@@ -788,48 +733,50 @@ Version without OMP
 = 2 \left[ \left( \sum_{i=1}^n 6 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^4} \right) \left( - \Delta^2 + \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \right) + \left( \sum_{i=1}^n -2 \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^3} \right)^2 \right]
 \end{equation}
 
+Provided:
+| m_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| accu1 | double precision | first sum of the formula               |
+| accu2 | double precision | second sum of the formula              |
+| accu3 | double precision | third sum of the formula                |
+| wtg   | double precision | temporary variable to store W^T.v_grad |
+| i,j   | integer          | indexes                                |
+
+Function:
+| d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2       |
+| ddot                 | double precision | blas dot product                                               |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   implicit none
-#+END_SRC
 
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  !====
+  ! Variables
+
   ! in
-  !====
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! e_val  : double precision vector of size n containing the eignevalues of the hessian
-  ! w      : n by n double precision matrix containing the eigenvectors of the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! lambda : double precision, lagrange multiplier for the trust region
-  ! delta  : double precision, trust radius
 
-  !===========
   ! Functions
-  !===========
   double precision :: d2_norm_trust_region
   double precision :: ddot
-  ! d2_norm_trust_region   : double precision function, first derivative with respect to lambda of ||x||^2 - Delta^2
-  ! ddot : double precision Blas function, dot product 
 
-  !==========
   ! Internal
-  !==========
   double precision :: wtg,accu1,accu2,accu3
   integer :: i, j
-  ! wtg   : double precision, w_i^T.v_grad
-  ! accu1 : double precision, temporary variable
-  ! accu2 : double precision, temporary variable 
-  ! accu3 : double precision, temporary variable
-  ! i     : integer, index
 #+END_SRC
 
 ** Calculations
@@ -911,23 +858,46 @@ This function compute the value of ||x(lambda)||^2
 \begin{equation}
 ||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
 \end{equation}
+
+Provided:
+| m_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2         |
+| e_val(n)  | double precision | eigenvalues of the hessian  |
+| W(n,n)    | double precision | eigenvectors of the hessian |
+| v_grad(n) | double precision | gradient                    |
+| lambda    | double precision | Lagrange multiplier         |
+| delta     | double precision | Delta of the trust region   |
+
+Internal:
+| wtg   | double precision | temporary variable to store W^T.v_grad |
+| i,j   | integer          | indexes                                |
+
+Function:
+| f_norm_trust_region | double precision | value of norm(x)^2 |
+| ddot                | double precision | blas dot product   |
+
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
 function f_norm_trust_region(n,e_val,w,v_grad,lambda)
 
   implicit none
-#+END_SRC
 
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+  ! Variables
+
+  ! in
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
 
+  ! function
   double precision :: f_norm_trust_region
   double precision :: ddot
 
+  ! internal
   double precision :: wtg
   integer :: i,j
 #+END_SRC

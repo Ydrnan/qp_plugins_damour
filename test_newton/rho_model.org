@@ -1,8 +1,6 @@
 * Rho
 
-=============================================================================
- Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_model)
-=============================================================================
+*Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_model)*
 
 Rho represents the agreement between the model (predicted energy by
 the Taylor expansion at the 2nd order) and the real energy :
@@ -21,38 +19,43 @@ If $\rho \approx 1$, the agreement is good, contrary to $\rho \approx
 actual step. We have to cancel this last step and use a smaller trust
 region.
 
+Provided:
+| N_states                       | integer          | number of states     |
+| ci_energy(N_states)            | double precision | CI energies          |
+| state_average_weight(N_states) | double precision | weight of the states |
+
+Input:
+| prev_energy | double precision | previous energy (energy before the rotation) |
+| e_model     | double precision | predicted energy after the rotation          |
+
+Output:
+| rho         | double precision | the agreement between the model and the real energy |
+| prev_energy | double precision | if rho >= 0.1 the actual energy becomes the previous energy |
+|             |                  | else hte previous energy doesn't change                     |
+
+Internal:
+| energy | double precision | energy (real)  after the rotation |
+| i      | integer          | index                             |
+
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
 subroutine org_rho_model(prev_energy,e_model,rho)
 
   include 'constants.h'
 
   implicit none
-#+END_SRC  
+   
+  ! Variables
 
-** Variables
-
-#+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-!====
   ! in
-  !====
   double precision, intent(inout)  :: prev_energy
   double precision, intent(in)  :: e_model
-  ! nb_iter : integer, number of iteration
-  ! prev_energy : double precision, energy of the previous step
-  ! e_model     : double precision, predicted energy for the actual step
 
-  !=====
   ! out
-  !=====
   double precision, intent(out) :: rho
-  ! rho : double precision, representing the quality of the model
 
-  !==========
   ! Internal
-  !==========
   double precision :: energy
   integer :: i
-  ! energy      : double precision, energy of the actual step
 #+END_SRC
 
 ** State average energy

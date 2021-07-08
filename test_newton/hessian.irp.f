@@ -157,8 +157,8 @@ subroutine hess(n,H,h_tmpr)
   !            do u = 1, mo_num
 
   !              hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-  !                mo_one_e_integrals(u,p) * one_e_dm_mo_alpha(u,s) &
-  !              + mo_one_e_integrals(s,u) * one_e_dm_mo_alpha(p,u))
+  !                mo_one_e_integrals(u,p) * one_e_dm_mo(u,s) &
+  !              + mo_one_e_integrals(s,u) * one_e_dm_mo(p,u))
 
   !            enddo
   !          endif

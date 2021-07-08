@@ -1,6 +1,5 @@
 * Diagonal hessian
 
-** Introduction
 The hessian of the CI energy with respects to the orbital rotation is :
 (C-c C-x C-l)
 
@@ -52,6 +51,48 @@ elements. One for the terms (p,q,p,q) and an other for the terms of
 kind (p,q,q,p). We will also use a 1D temporary array to store the
 terms of the kind (p,p,p,p) due to the kronoecker delta.
 
+*Compute the diagonal hessian of energy with respects to orbital
+rotations*
+By diagonal hessian we mean, diagonal elements of the hessian
+
+Provided:
+| mo_num                            | integer          | number of MOs                         |
+| mo_one_e_integrals(mo_num,mo_num) | double precision | mono-electronic integrals             |
+| one_e_dm_mo(mo_num,mo_num)        | double precision | one e- density matrix (state average) |
+| two_e_dm_mo(mo_num,mo_num,mo_num) | double precision | two e- density matrix (state average) |
+
+Input:
+| n | integer | mo_num*(mo_num-1)/2 |
+
+Output:
+| H(n,n)                              | double precision | Hessian matrix                                   |
+| h_tmpr(mo_num,mo_num,mo_num,mo_num) | double precision | Complete hessian matrix before the tranformation |
+|                                     |                  | in n by n matrix                                 |
+
+Internal:
+| hessian(mo_num,mo_num,mo_num,mo_num)      | double precision | temporary array containing the hessian before                      |
+|                                           |                  | the permutations                                                   |
+| p, q, r, s                                | integer          | indexes of the hessian elements                                    |
+| t, u, v                                   | integer          | indexes for the sums                                               |
+| pq, rs                                    | integer          | indexes for the transformation of the hessian                      |
+|                                           |                  | (4D -> 2D)                                                         |
+| t1,t2,t3                                  | double precision | time to compute the hessian                                        |
+| t4,t5,t6                                  | double precision | time to compute the differ  each element                           |
+| tmp_bi_int_3(mo_num,mo_num,mo_num)        | double precision | 3 indexes temporary array for the bielectronic integrals (private) |
+| tmp_bi_int_3_shared(mo_num,mo_num,mo_num) | double precision | 3 indexes temporary array for the bielectronic integrals (shared)  |
+| tmp_2rdm_3(mo_num,mo_num,mo_num)          | double precision | 3 indexes temporary array for the 2 body density matrix (private)  |
+| tmp_2rdm_3_shared(mo_num,mo_num,mo_num)   | double precision | 3 indexes temporary array for the 2 body density matrix (shared)   |
+| tmp_accu(mo_num,mo_num)                   | double precision | temporary array (private)                                          |
+| tmp_accu_shared(mo_num,mo_num)            | double precision | temporary array (shared)                                           |
+| tmp_accu_1(mo_num)                        | double precision | temporary array (private)                                          |
+| tmp_accu_1_shared(mo_num)                 | double precision | temporary array (shared)                                           |
+| tmp_h_pppp(mo_num)                        | double precision | matrix containing the hessien elements hessian(p,p,p,p)            |
+| tmp_h_pqpq(mo_num,mo_num)                 | double precision | matrix containing the hessien elements hessian(p,q,p,q)            |
+| tmp_h_pqqp(mo_num,mo_num)                 | double precision | matrix containing the hessien elements hessian(p,q,q,p)            |
+
+Function:
+| get_two_e_integral | double precision | bi-electronic integrals |
+
 #+BEGIN_SRC f90 :comments org :tangle org_diagonal_hessian.irp.f
 subroutine org_diag_hess(n,H, h_tmpr)
  
@@ -60,95 +101,32 @@ subroutine org_diag_hess(n,H, h_tmpr)
   include 'constants.h' 
 
   implicit none
-#+END_SRC
 
-===========================================================================
- Compute the diagonal hessian of energy with respects to orbital rotations
-===========================================================================
-  
-By diagonal hessian we mean, diagonal elements of the hessian  
+  ! Variables
 
-** Variables
-
-#+BEGIN_SRC f90 :comments org :tangle org_diagonal_hessian.irp.f
-  !====
   ! in
-  !====
   integer, intent(in)           :: n 
-  ! n        : integer, n = mo_num*(mo_num-1)/2
  
-  !=====
   ! out
-  !=====
   double precision, intent(out) :: H(n,n),  h_tmpr(mo_num,mo_num,mo_num,mo_num)
-  ! H        : n by n double precision matrix containing the 2D hessian
   
-  !==========
   ! internal
-  !==========
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
   integer                       :: p,q
   integer                       :: r,s,t,u,v
   integer                       :: pq,rs
   integer                       :: istate
   double precision              :: t1,t2,t3,t4,t5,t6
-  ! hessian  : mo_num 4D double precision matrix containing the hessian before the permutations
-  ! h_tmpr   : mo_num 4D double precision matrix containing the hessian after the permutations
-  ! p,q,r,s  : integer, indexes of the 4D hessian matrix
-  ! t,u,v    : integer, indexes to compute hessian elements
-  ! pq,rs    : integer, indexes for the conversion from 4D to 2D hessian matrix
-  ! istate   : integer, electronic state
-  ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the hessian 
-  ! t4,t5,t6 : double precision, t6 = t5 - t4, time to compute each term
-
-  !===========
-  ! temporary
-  !===========
-
   double precision, allocatable :: tmp_bi_int_3(:,:,:),tmp_bi_int_3_shared(:,:,:)
   double precision, allocatable :: tmp_2rdm_3(:,:,:),tmp_2rdm_3_shared(:,:,:)
   double precision, allocatable :: tmp_accu(:,:)
   double precision, allocatable :: tmp_accu_shared(:,:), tmp_accu_1_shared(:)
-  ! tmp_bi_int_2 : mo_num 2D double precision matrix containing the bi electronic integrals
-  !                with 2 fix indexes
-  ! tmp_bi_int_3 : mo_num 3D double precision matrix containing the bi electronic integrals
-  !                with 1 fix index
-  ! tmp_2rdm_2   : mo_num 2D double precision matrix containing the 2 body reduce density
-  !                matrix with 2 fix indexes
-  ! tmp_2rdm_3   : mo_num 3D double precision matrix containing the 2 body reduce density
-  !                matrix with 1 fix index
-  ! tmp_accu     : mo_num 2D double precision matrix temporary matrix
-  ! tmp_accu_1   : mo_num 1D double precision matrix temporary matrix
-  ! tmp_accu_shared : mo_num 2D double precision matrix temporary matrix
-  ! tmp_accu_1_shared : mo_num 1D double precision matrix temporary matrix
-  
   double precision, allocatable :: tmp_h_pppp(:), tmp_h_pqpq(:,:), tmp_h_pqqp(:,:)
-  ! tmp_h_pppp : mo_num 1D double precision matrix containing the hessien elements hessian(p,p,p,p)
-  ! tmp_h_pqpq : mo_num 2D double precision matrix containing the hessien elements hessian(p,q,p,q)
-  ! tmp_h_pqqp : mo_num 2D double precision matrix containing the hessien elements hessian(p,q,q,p)
-  
-
-  !double precision, allocatable :: one_e_rdm_mo_y(:,:)
-  ! one_e_rdm_mo_y : mo_num 2D double precision matrix containing the one e density matrix,
-  !                  compute as the sum of one_e_dm_mo_alpha and one_e_dm_mo_beta
  
   ! Function
   double precision :: get_two_e_integral
-  ! get_two_e_integral : double precision function, two e integrals
-   
-  ! Provided :
-  ! mo_one_e_integrals : mono e- integrals
-  ! get_two_e_integral : two e- integrals
-  ! one_e_dm_mo_alpha, one_e_dm_mo_beta : one body density matrix
-  ! two_e_dm_mo : two body density matrix
-#+END_SRC
- 
-** Allocation and OMP
 
-#+BEGIN_SRC f90 :comments org :tangle org_diagonal_hessian.irp.f
-  !=============================
   ! Allocation of shared arrays
-  !=============================
 
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
@@ -156,9 +134,6 @@ By diagonal hessian we mean, diagonal elements of the hessian
   allocate(tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
   allocate(tmp_accu_1_shared(mo_num),tmp_accu_shared(mo_num,mo_num))
 
-  !=============
-  ! Calculation
-  !=============
 
   print*,'Use the diagonal hessian'
 
@@ -166,25 +141,21 @@ By diagonal hessian we mean, diagonal elements of the hessian
     print*,'Enter in diag_hess'
   endif
 
-  !=====
   ! OMP
-  !=====
 
   call omp_set_max_active_levels(1)
 
-  !$OMP PARALLEL                                                     &
-      !$OMP PRIVATE(                                                 &
-      !$OMP   p,q,r,s, tmp_accu,                         &
-      !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                       &
+  !$OMP PARALLEL                                                               &
+      !$OMP PRIVATE(                                                           &
+      !$OMP   p,q,r,s, tmp_accu,                                               &
+      !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                                 &
       !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
-      !$OMP  mo_num,n, mo_one_e_integrals, one_e_dm_mo,    &
-      !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,      &
+      !$OMP  mo_num,n, mo_one_e_integrals, one_e_dm_mo,                        &
+      !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,           &
       !$OMP  tmp_accu_1_shared,two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6) &
       !$OMP DEFAULT(NONE)
 
-  !==================================
   ! Allocation of the private arrays
-  !==================================
 
   allocate(tmp_2rdm_3(mo_num,mo_num,mo_num),tmp_bi_int_3(mo_num,mo_num,mo_num))
   allocate(tmp_accu(mo_num,mo_num))
@@ -192,10 +163,6 @@ By diagonal hessian we mean, diagonal elements of the hessian
 
 ** Initialization of the arrays
 #+BEGIN_SRC f90 :comments org :tangle org_diagonal_hessian.irp.f 
-  !================
-  ! Initialization
-  !================
-
   !$OMP DO
   do s = 1,mo_num
     do r = 1, mo_num
@@ -268,9 +235,7 @@ enddo
 
 With optimization :
 
-++++++++++++++++++++++++++++++
- Part 1 : p=r and q=s and q=r
-++++++++++++++++++++++++++++++
+*Part 1 : p=r and q=s and q=r*
 
  hessian(p,q,r,s) -> hessian(p,p,p,p)
 
@@ -312,9 +277,7 @@ With optimization :
   !$OMP END DO
 #+END_SRC
   
-++++++++++++++++++++++++++++++
- Part 2 : q=r and p=s and q=r
-++++++++++++++++++++++++++++++
+*Part 2 : q=r and p=s and q=r*
 
  hessian(p,q,r,s) -> hessian(p,q,q,p)
    
@@ -392,9 +355,7 @@ do p = 1, mo_num
   enddo
 enddo
 
-++++++++++++++++++++++++++++++
- Part 1 : p=r and q=s and p=s
-++++++++++++++++++++++++++++++
+*Part 1 : p=r and q=s and p=s*
 
  hessian(p,q,r,s) -> hessian(p,p,p,p)
 
@@ -438,9 +399,7 @@ enddo
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++++++++++
- Part 2 : q=r and p=s and p=s
-++++++++++++++++++++++++++++++
+*Part 2 : q=r and p=s and p=s*
 
  hessian(p,q,r,s) -> hessian(p,q,q,p)
 
@@ -516,9 +475,7 @@ enddo
  
 With optimization :
 
-++++++++++++++++++++++
- Part 1 : p=r and q=s
-++++++++++++++++++++++
+*Part 1 : p=r and q=s*
 
 hessian(p,q,r,s) -> hessian(p,q,p,q)
 
@@ -547,9 +504,7 @@ hessian(p,q,r,s) -> hessian(p,q,p,q)
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++
- Part 2 : q=r and p=s
-++++++++++++++++++++++
+*Part 2 : q=r and p=s*
 
 hessian(p,q,r,s) -> hessian(p,q,p,q)
  
@@ -617,9 +572,7 @@ enddo
 
 With optimization :
 
-++++++++++++++++++++++++++++++
- Part 1 : p=r and q=s and q=r
-++++++++++++++++++++++++++++++
+*Part 1 : p=r and q=s and q=r*
 
  hessian(p,q,r,s) -> hessian(p,p,p,p)
  
@@ -695,9 +648,7 @@ accesses.
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++++++++++
- Part 2 : q=r and p=s and q=r
-++++++++++++++++++++++++++++++
+*Part 2 : q=r and p=s and q=r*
 
  hessian(p,q,r,s) -> hessian(p,q,q,p)
  
@@ -814,9 +765,7 @@ enddo
 
 With optimization : 
 
-++++++++++++++++++++++++++++++
- Part 1 : p=r and q=s and p=s
-++++++++++++++++++++++++++++++
+*Part 1 : p=r and q=s and p=s*
 
  hessian(p,q,r,s) -> hessian(p,p,p,p)
 
@@ -892,9 +841,7 @@ accesses.
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++++++++++ 
- Part 2 : q=r and p=s and p=s
-++++++++++++++++++++++++++++++
+*Part 2 : q=r and p=s and p=s*
 
  hessian(p,q,r,s) -> hessian(p,q,q,p)
 
@@ -1008,9 +955,7 @@ enddo
 
 With optimization
   
-++++++++++++++++++++++
- Part 1 : p=r and q=s
-++++++++++++++++++++++
+*Part 1 : p=r and q=s*
   
  hessian(p,q,r,s) -> hessian(p,q,p,q)
  
@@ -1069,9 +1014,7 @@ $$c_{p,q} = \sum_{uv} a_{p,uv} b_{uv,q}$$
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++
- Part 2 : q=r and p=s
-++++++++++++++++++++++
+*Part 2 : q=r and p=s*
   
  hessian(p,q,r,s) -> hessian(p,q,q,p)
  
@@ -1173,9 +1116,7 @@ enddo
 
 With optimization :
 
-++++++++++++++++++++++
- Part 1 : p=r and q=s
-++++++++++++++++++++++
+*Part 1 : p=r and q=s*
 
  hessian(p,q,r,s) -> hessian(p,q,p,q)
 
@@ -1333,9 +1274,7 @@ memory accesses.
   !$OMP END DO
 #+END_SRC
 
-++++++++++++++++++++++
- Part 2 : q=r and p=s
-++++++++++++++++++++++
+*Part 2 : q=r and p=s*
 
  hessian(p,q,r,s) -> hessian(p,q,p,q)
 
@@ -1568,10 +1507,6 @@ with p<q and r<s
   deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
   deallocate(tmp_accu_1_shared, tmp_accu_shared) 
  
-  !,h_tmpr)
-  ! h_tmpr is intent out in order to debug the subroutine
-  ! It's why we don't deallocate it
-
   if (debug) then
     print*,'Leave diag_hess'
   endif

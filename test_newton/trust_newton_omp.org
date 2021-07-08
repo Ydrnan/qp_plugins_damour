@@ -1,8 +1,6 @@
 * Newton's method to find the optimal lambda
 
-*===============================================*
- *Compute the lambda value for the trust region*
-*===============================================*
+*Compute the lambda value for the trust region*
 
 This subroutine use the Newton's method in order to find the optimal
 lambda (to have the step in the trust region). So we just search the
@@ -144,9 +142,7 @@ end subroutine
 
 * OMP : First derivative of (||x||^2 - Delta^2)^2
 
-*===================================================================*
- *Function to compute the first derivative of (||x||^2 - Delta^2)^2*
-*===================================================================*
+*Function to compute the first derivative of (||x||^2 - Delta^2)^2*
 
 This function compute the first derivative of (||x||^2 - Delta^2)^2
 with respect to lambda.
@@ -311,9 +307,7 @@ end function
 
 * OMP : Second derivative of (||x||^2 - Delta^2)^2
 
-*====================================================================*
- *Function to compute the second derivative of (||x||^2 - Delta^2)^2*
-*====================================================================*
+*Function to compute the second derivative of (||x||^2 - Delta^2)^2*
 
 This function compute the second derivative of (||x||^2 - Delta^2)^2
 with respect to lambda.
@@ -499,9 +493,7 @@ end function
 
 * OMP : Function value of ||x||^2
 
-*==============================*
- *Compute the value of ||x||^2*
-*==============================*
+*Compute the value of ||x||^2*
 
 This function compute the value of ||x(lambda)||^2
 
@@ -615,9 +607,7 @@ end function
 * First derivative of (||x||^2 - Delta^2)^2
 Version without omp
 
-*=============================================================*
- *Function to compute the first derivative of ||x||^2 - Delta*
-*=============================================================*
+*Function to compute the first derivative of ||x||^2 - Delta*
 
 This function compute the first derivative of (||x||^2 - Delta^2)^2
 with respect to lambda.
@@ -724,9 +714,7 @@ end function
 * Second derivative of (||x||^2 - Delta^2)^2
 Version without OMP
 
-*==============================================================*
- *Function to compute the second derivative of ||x||^2 - Delta*
-*==============================================================*
+*Function to compute the second derivative of ||x||^2 - Delta*
 
 \begin{equation}
 \frac{\partial^2 }{\partial \lambda^2} (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 
@@ -849,9 +837,7 @@ end function
 * Function value of ||x||^2
 Version without OMP
 
-*==============================*
- *Compute the value of ||x||^2*
-*==============================*
+*Compute the value of ||x||^2*
 
 This function compute the value of ||x(lambda)||^2
 

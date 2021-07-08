@@ -1,6 +1,21 @@
 * Diagonalization of the hessian
 
-Just a ma trix diagonalization using Lapack
+Just a matrix diagonalization using Lapack
+
+Input:
+| n      | integer          | mo_num*(mo_num-1)/2 |
+| H(n,n) | double precision | hessian             |
+
+Output:
+| e_val(n) | double precision | eigenvalues of the hessian  |
+| w(n,n)   | double precision | eigenvectors of the hessian |
+
+Internal:
+| nb_negative_nv | integer          | number of negative eigenvalues                  |
+| lwork          | integer          | for Lapack                                      |
+| work(lwork,n)  | double precision | temporary array for Lapack                      |
+| info           | integer          | if 0 -> ok, else problem in the diagonalization |
+| i              | integer          | index                                           |
 
 #+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
 subroutine org_diagonalization_hessian(n,H,e_val,w)
@@ -8,43 +23,30 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
   include 'constants.h'
 
   implicit none
-#+END_SRC
 
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
-  !====
+  ! Variables
+
   ! in
-  !====
-
   integer, intent(in) :: n
   double precision, intent(in) :: H(n,n)
 
-  !=====
   ! out
-  !=====
-
   double precision, intent(out) :: e_val(n), w(n,n)
 
-  !==========
   ! internal
-  !==========
-
   double precision, allocatable :: work(:,:)
-  integer                       :: info,lwork!, nb_iter
+  integer                       :: info,lwork
   integer                       :: i
   integer                       :: nb_negative_vp
-#+END_SRC
 
-** Allocation
-#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  ! Allocation
   ! For Lapack
   lwork=3*n-1
 
   allocate(work(lwork,n))
-#+END_SRC
 
-** Calculation
-#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  ! Calculation
+
   ! Copy the hessian matrix, the eigenvectors will be store in W
   W=H
 
@@ -71,10 +73,7 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
   enddo
   print*,'Number of negative eigenvalues :', nb_negative_vp
 
-#+END_SRC
-
-** Deallocation, end
-#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
+  ! Deallocation
   deallocate(work)
 
 end subroutine

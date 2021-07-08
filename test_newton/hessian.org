@@ -40,69 +40,69 @@ Seniority-based coupled cluster theory
 J. Chem. Phys. 141, 244104 (2014); https://doi.org/10.1063/1.4904384
 Thomas M. Henderson, Ireneusz W. Bulik, Tamar Stein, and Gustavo E. Scuseria
 
+*Compute the hessian of energy with respects to orbital rotations*
+
+Provided:
+| mo_num                            | integer          | number of MOs                         |
+| mo_one_e_integrals(mo_num,mo_num) | double precision | mono-electronic integrals             |
+| one_e_dm_mo(mo_num,mo_num)        | double precision | one e- density matrix (state average) |
+| two_e_dm_mo(mo_num,mo_num,mo_num) | double precision | two e- density matrix (state average) |
+
+Input:
+| n | integer | mo_num*(mo_num-1)/2 |
+
+Output:
+| H(n,n)                              | double precision | Hessian matrix                                   |
+| h_tmpr(mo_num,mo_num,mo_num,mo_num) | double precision | Complete hessian matrix before the tranformation |
+|                                     |                  | in n by n matrix                                 |
+
+Internal:
+| hessian(mo_num,mo_num,mo_num,mo_num) | double precision | temporary array containing the hessian before            |
+|                                      |                  | the permutations                                         |
+| p, q, r, s                           | integer          | indexes of the hessian elements                          |
+| t, u, v                              | integer          | indexes for the sums                                     |
+| pq, rs                               | integer          | indexes for the transformation of the hessian            |
+|                                      |                  | (4D -> 2D)                                               |
+| t1,t2,t3                             | double precision | t3 = t2 - t1, time to compute the hessian                |
+| t4,t5,t6                             | double precision | t6 = t5 - t4, time to compute each element               |
+| tmp_bi_int_3(mo_num,mo_num,mo_num)   | double precision | 3 indexes temporary array for the bielectronic integrals |
+| tmp_2rdm_3(mo_num,mo_num,mo_num)     | double precision | 3 indexes temporary array for the 2 body density matrix  |
+| ind_3(mo_num,mo_num,mo_num)          | double precision | 3 indexes temporary array for matrix multiplication      |
+| tmp_accu(mo_num,mo_num)              | double precision | temporary array                                          |
+| tmp_accu_sym(mo_num,mo_num)          | double precision | temporary array                                          |
+
+Function:
+| get_two_e_integral | double precision | bielectronic integrals |
+
 #+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
 subroutine org_hess(n,H,h_tmpr)
   use omp_lib
   include 'constants.h' 
 
   implicit none
-#+END_SRC
-
-==================================================================
- Compute the hessian of energy with respects to orbital rotations
-==================================================================
-
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
-  !====
-  ! in
-  !====
-  integer, intent(in)           :: n 
-  !n         : integer, n = mo_num*(mo_num-1)/2
   
-  !=====
+  ! Variables
+
+  ! in
+  integer, intent(in)           :: n 
+  
   ! out
-  !=====
   double precision, intent(out) :: H(n,n),h_tmpr(mo_num,mo_num,mo_num,mo_num)
-  ! H        : n by n double precision matrix containing the 2D hessian
  
-  !==========
   ! internal
-  !==========
   double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
   double precision, allocatable :: H_test(:,:)
   integer                       :: p,q
   integer                       :: r,s,t,u,v,k
   integer                       :: pq,rs
   double precision              :: t1,t2,t3,t4,t5,t6
-  ! hessian  : mo_num 4D double precision matrix containing the hessian before the permutations
-  ! h_tmpr   : mo_num 4D double precision matrix containing the hessian after the permutations
   ! H_test   : monum**2 by mo_num**2 double precision matrix to debug the H matrix
-  ! p,q,r,s  : integer, indexes of the 4D hessian matrix
-  ! t,u,v    : integer, indexes to compute hessian elements
-  ! pq,rs    : integer, indexes for the conversion from 4D to 2D hessian matrix
-  ! t1,t2,t3 : double precision, t3 = t2 - t1, time to compute the hessian 
-  ! t4,t5,t6 : double precision, t6 = t5 - t4, time to compute each element
 
   double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:), ind_3(:,:,:)
   double precision, allocatable :: tmp_accu(:,:), tmp_accu_sym(:,:)
-  ! tmp_bi_int_3 : mo_num 3D double precision matrix containinig the bi electronic
-  !                integrals with 1 fix index
-  ! tmp_2rdm_3   : mo_num 3D double precision matrix containinig the 2 body reduce
-  !                density matrix with 1 fix index
-  ! ind_3        : mo_num 3D double precision matrix, temporary matrix
-  ! tmp_accu     : mo_num 2D double precision matrix, temporary matrix
-  ! tmp_accu_sym : mo_num 2D double precision matrix, temporary matrix
 
   ! Function 
   double precision              :: get_two_e_integral
-  ! get_two_e_integral :  double precision function, two e integrals 
-
-  ! Provided :
-  ! mo_one_e_integrals : mono e- integrals
-  ! get_two_e_integral : two e- integrals
-  ! one_e_dm_mo : one body density matrix (state average)
-  ! two_e_dm_mo : two body density matrix (state average)
 #+END_SRC
  
 ** Allocation and OMP
@@ -186,8 +186,8 @@ do p = 1, mo_num
           do u = 1, mo_num
 
             hessian(p,q,r,s) = hessian(p,q,r,s) + 0.5d0 * (  &
-              mo_one_e_integrals(u,p) * one_e_dm_mo_alpha(u,s) &
-            + mo_one_e_integrals(s,u) * one_e_dm_mo_alpha(p,u))
+              mo_one_e_integrals(u,p) * one_e_dm_mo(u,s) &
+            + mo_one_e_integrals(s,u) * one_e_dm_mo(p,u))
 
           enddo
         endif

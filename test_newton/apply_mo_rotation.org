@@ -2,19 +2,10 @@
 Subroutine to apply the rotation matrix to the coefficients of the
 MOs.
 
-!=================================================================
-! Compute the new MOs with the previous MOs and a rotation matrix
-!=================================================================
+New MOs = Old MOs . Rotation matrix
 
-#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
-subroutine org_apply_mo_rotation(R,prev_mos)
-  
-  include 'constants.h'
+*Compute the new MOs with the previous MOs and a rotation matrix*
 
-  implicit none
-#+END_SRC
-
-** Variables
 Provided:
 | mo_num                 | integer          | number of MOs           |
 | ao_num                 | integer          | number of AOs           |
@@ -30,19 +21,21 @@ Internal:
 | new_mos(ao_num,mo_num) | double precision | MOs after the rotation |
 | i,j                    | integer          | indexes                      |
 #+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
-  !====
-  ! In
-  !====
+subroutine org_apply_mo_rotation(R,prev_mos)
+  
+  include 'constants.h'
+
+  implicit none
+
+  ! Variables
+
+  ! in
   double precision, intent(in)  :: R(mo_num,mo_num)
 
-  !=====
   ! out 
-  !=====
   double precision, intent(out) :: prev_mos(ao_num,mo_num)
   
-  !==========
   ! internal
-  !==========
   double precision, allocatable  :: new_mos(:,:)
   integer                       :: i,j
 

@@ -1,8 +1,6 @@
 * Rotation matrix
 
-*======================================================*
- *Build a rotation matrix from an antisymmetric matrix*
-*======================================================*
+*Build a rotation matrix from an antisymmetric matrix*
 
 Compute a rotation matrix $\textbf{R}$ from an antisymmetric matrix $$\textbf{A}$$ such as :
 $$
@@ -20,15 +18,6 @@ With :
 $\textbf{W}$ : eigenvectors of $\textbf{A}^2$
 $\tau$ : $\sqrt{-x}$
 $x$ : eigenvalues of $\textbf{A}^2$
-
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
-  implicit none
-
-  include 'constants.h'
-#+END_SRC
-       
-** Variables
 
 Input:
 | A(n,n) | double precision | antisymmetric matrix                                            |
@@ -68,6 +57,14 @@ Functions:
 
 
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
+
+  implicit none
+
+  include 'constants.h'
+
+  ! Variables
+
   ! in
   integer, intent(in)           :: n,LDA,LDR
   double precision, intent(in)  :: A(LDA,n)
@@ -91,10 +88,8 @@ Functions:
   ! function
   double precision              :: dnrm2
   logical                       :: disnan
-#+END_SRC
 
-** Allocation
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+  ! Allocation
   allocate(B(n,n))
   allocate(m_diag(n,n),cos_tau(n,n),sin_tau(n,n),tau_m1(n,n))
   allocate(W(n,n),e_val(n))

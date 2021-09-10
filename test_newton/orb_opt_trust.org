@@ -121,7 +121,7 @@ subroutine org_run_orb_opt_trust
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   ! Choice of the method
-  method = 1  ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 2  ! 1 -> full hessian, 2 -> diagonal hessian
 
   !Display the method
   print*, 'Method :', method

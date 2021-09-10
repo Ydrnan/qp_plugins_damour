@@ -11,7 +11,7 @@ So :
 \begin{align*}
 \textbf{R}=& \exp(\textbf{A}) \\
 =& \sum_k^{\infty} \frac{1}{k!}\textbf{A}^k \\
-=& \textbf{W} \cos(\tau) \textbf{W}^{\dagger} + \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
+=& \textbf{W} \cdot \cos(\tau) \cdot \textbf{W}^{\dagger} + \textbf{W} \cdot \tau^{-1} \cdot \sin(\tau) \cdot \textbf{W}^{\dagger} \cdot \textbf{A}
 \end{align*}
 
 With :
@@ -171,7 +171,7 @@ e_val, the eigenvalues
 
   deallocate(work)
 
-  if (info2==0) then
+  if (info2 == 0) then
     print*, 'Diagonalization : Done'
   elseif (info2 < 0) then
     print*, 'Diagonalization : error'
@@ -180,7 +180,7 @@ e_val, the eigenvalues
     print*, "Diagonalization : Failed to converge"
   endif
 #+END_SRC
-   
+
 *** Tau^-1, cos(tau), sin(tau)
 $$\tau = \sqrt{-x}$$
 - Calculation of $\cos(\tau)$  $\Leftrightarrow$ $\cos(\sqrt{-x})$

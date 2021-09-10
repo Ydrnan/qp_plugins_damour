@@ -1,254 +1,423 @@
 * Trust region
 
-=======================================================
- Compute the next step with the trust region algorithm
-=======================================================
+*Compute the next step with the trust region algorithm*
 
-The goal of the trust region is to restrict the step size of the
-Newton method's in a certain area around the actual position. In
-function of the agreement between the Taylor development of the energy
-and the real energy, the size of the trust region will be update at
-each iteration. By doing so, the step size are not too large and not
-too small. Normally, the size of the steps is optimal. In addition,
-since we add a criterion to cancel the step if the energy increases
-(more precisely if rho < 0.1), so it's impossible to diverge.
+The Newton method is an iterative method to find a minimum of a given
+function. It uses a Taylor series truncated at the second order of the
+targeted function and gives its minimizer. The minimizer is taken as
+the new position and the same thing is done. And by doing so
+iteratively the method find a minimum, a local or global one depending
+of the starting point and the convexity/nonconvexity of the targeted
+function.  
 
-References :
-Nocedal & Wright, Numerical Optimization, chapter 4 (1999)
+The goal of the trust region is to constrain the step size of the
+Newton method in a certain area around the actual position, where the 
+Taylor series is a good approximation of the targeted function. This
+area is called the "trust region".
 
-The step of the Newton's method is :
-\begin{equation}
-\textbf{x}_{(k+1)} = - \textbf{H}_{(k)}^{-1} \ \textbf{g}_{(k)}
-\end{equation}
+In addition, in function of the agreement between the Taylor
+development of the energy and the real energy, the size of the trust
+region will be updated at each iteration. By doing so, the step sizes
+are not too larges. In addition, since we add a criterion to cancel the
+step if the energy increases (more precisely if rho < 0.1), so it's
+impossible to diverge. \newline
 
-And we want that $$||\textbf{x}_{(k+1)}|| \leq \Delta_{(k+1)}$$ <=> $$\textbf{x}_{(k+1)}^T
-\textbf{x}_{(k+1)} \leq \Delta_{(k+1)}^2$$
-Where : 
-$$\textbf{x}_{(k+1)}$$ is the Newton step for the k+1-th iteration (vector of size n)
-$$\textbf{H}_{(k)}$$ is the hessian at the k-th iteration (n by n matrix)
-$$\textbf{g}_{(k)}$$ is the gradient at the k-th iteration (vecor of size n)
-$$\Delta_{(k+1)}$$ is the trust radius for the (k+1)-th iteration
+References: \newline
+Nocedal & Wright, Numerical Optimization, chapter 4 (1999), \newline
+https://link.springer.com/book/10.1007/978-0-387-40065-5, \newline
+ISBN: 978-0-387-40065-5 \newline
 
-For simplicity we will remove the index $_{(k)}$ and $_{(k+1)}$
+By using the first and the second derivatives, the Newton method gives
+a step:
+\begin{align*}
+  \textbf{x}_{(k+1)}^{\text{Newton}} = - \textbf{H}_{(k)}^{-1} \cdot 
+  \textbf{g}_{(k)}
+\end{align*}
+which leads to the minimizer of the Taylor series.
+!!! Warning: the Newton method gives the minimizer if and only if
+$\textbf{H}$ is positive definite, else it leads to a saddle point !!!
+But we want a step $\textbf{x}_{(k+1)}$ with a constraint on its (euclidian) norm:
+\begin{align*}
+  ||\textbf{x}_{(k+1)}|| \leq \Delta_{(k+1)}
+\end{align*}
+which is equivalent to 
+\begin{align*}
+  \textbf{x}_{(k+1)}^T \cdot \textbf{x}_{(k+1)} \leq \Delta_{(k+1)}^2
+\end{align*}
 
-To do that, we have to put a constraint on $\textbf{x}$ with a Lagrange
-mutiplier.
-The Taylor development of the energy at the 2nd order is :
-$$ E(\textbf{x}) =  E +\textbf{g}^T \textbf{x} + \frac{1}{2}
-\textbf{x}^T \textbf{H} \textbf{x} $$
+with: \newline
+$\textbf{x}_{(k+1)}$ is the step for the k+1-th iteration (vector of
+size n) \newline
+$\textbf{H}_{(k)}$ is the hessian at the k-th iteration (n by n
+matrix) \newline
+$\textbf{g}_{(k)}$ is the gradient at the k-th iteration (vector of
+size n) \newline
+$\Delta_{(k+1)}$ is the trust radius for the (k+1)-th iteration
+\newline
 
-With the constraint it becomes :
-\begin{equation}
-\mathcal{L}(\textbf{x},\lambda) = E + \textbf{g}^T \textbf{x}  + \frac{1}{2} \textbf{x}^T \textbf{H} \textbf{x} 
-+ \frac{1}{2} \lambda (\textbf{x}^T\textbf{x} - \Delta^2)
-\end{equation}
-Where :
-$$\lambda$$ is the Lagrange multiplier
-$$E$$ is the energy at the k-th iteration
+Thus we want to constrain the step size $\textbf{x}_{(k+1)}$ into a
+hypersphere of radius $\Delta_{(k+1)}$.\newline
+
+So, if $||\textbf{x}_{(k+1)}^{\text{Newton}}|| \leq \Delta_{(k)}$ and
+$\textbf{H}$ is positive definite, the
+solution is the step given by the Newton method
+$\textbf{x}_{(k+1)} = \textbf{x}_{(k+1)}^{\text{Newton}}$.
+Else we have to constrain the step size. For simplicity we will remove
+the index $_{(k)}$ and $_{(k+1)}$. To restict the step size, we have
+to put a constraint on $\textbf{x}$ with a Lagrange multiplier.
+Starting from the Taylor series of a function E (here, the energy)
+truncated at the 2nd order, we have:
+\begin{align*}
+  E(\textbf{x}) =  E +\textbf{g}^T \cdot \textbf{x} + \frac{1}{2}
+  \cdot \textbf{x}^T \cdot \textbf{H} \cdot \textbf{x} +
+  \mathcal{O}(\textbf{x}^2)
+\end{align*} 
+
+With the constraint on the norm of $\textbf{x}$ we can write the
+Lagrangian
+\begin{align*}
+  \mathcal{L}(\textbf{x},\lambda) = E + \textbf{g}^T \cdot \textbf{x}
+  + \frac{1}{2} \cdot \textbf{x}^T \cdot \textbf{H} \cdot \textbf{x} 
+  + \frac{1}{2} \lambda (\textbf{x}^T \cdot \textbf{x} - \Delta^2)
+\end{align*}
+Where: \newline
+$\lambda$ is the Lagrange multiplier \newline
+$E$ is the energy at the k-th iteration $\Leftrightarrow
+E(\textbf{x} = \textbf{0})$ \newline
 
 To solve this equation, we search a stationary point where the first
 derivative of $\mathcal{L}$ with respect to $\textbf{x}$ becomes 0, i.e.
-\begin{equation}
-\frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}=0
-\end{equation}
-Th derivative is :
-\begin{equation}
+\begin{align*}
+  \frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}=0
+\end{align*}
+
+The derivative is:
+\begin{align*}
+  \frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}
+  = \textbf{g} + \textbf{H} \cdot \textbf{x} + \lambda \cdot \textbf{x} 
+\end{align*}
+
+So, we search $\textbf{x}$ such as:
+\begin{align*}
 \frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}
-= \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} 
-\end{equation}
-We search $\textbf{x}$ such as :
-\begin{equation}
-\frac{\partial \mathcal{L}(\textbf{x},\lambda)}{\partial \textbf{x}}
-= \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} = 0
-\end{equation}
-We can rewrite that as :
-\begin{equation}
- \textbf{g} + \textbf{H} \textbf{x} + \lambda \textbf{x} =  \textbf{g} + (\textbf{H} +\textbf{I} \lambda) \textbf{x}=0
-\end{equation}
-Where $\textbf{I}$ is the identity matrix.
-By doing so, the solution is :
-\begin{equation}
-(\textbf{H} +\textbf{I} \lambda)\textbf{x}= -\textbf{g}
-\end{equation}
-\begin{equation}
-\textbf{x}= - (\textbf{H} + \textbf{I} \lambda)^{-1} \textbf{g}
-\end{equation}
-With $\textbf{x}^T \textbf{x} = \Delta^2$
+= \textbf{g} + \textbf{H} \cdot \textbf{x} + \lambda \cdot \textbf{x} = 0
+\end{align*}
+
+We can rewrite that as:
+\begin{align*}
+  \textbf{g} + \textbf{H} \cdot \textbf{x} + \lambda \cdot \textbf{x} 
+  = \textbf{g} + (\textbf{H} +\textbf{I} \lambda) \cdot \textbf{x} = 0
+\end{align*}
+with $\textbf{I}$ is the identity matrix. 
+
+By doing so, the solution is:
+\begin{align*}
+  (\textbf{H} +\textbf{I} \lambda) \cdot \textbf{x}= -\textbf{g}
+\end{align*}
+\begin{align*}
+  \textbf{x}= - (\textbf{H} + \textbf{I} \lambda)^{-1} \cdot \textbf{g}
+\end{align*}
+with $\textbf{x}^T \textbf{x} = \Delta^2$.
 
 We have to solve this previous equation to find this $\textbf{x}$ in the
-trust region.
+trust region, i.e. $||\textbf{x}|| = \Delta$. Now, this problem is
+just a one dimension problem because we can express $\textbf{x}$ as a
+function of $\lambda$: 
+\begin{align*}
+  \textbf{x}(\lambda) = - (\textbf{H} + \textbf{I} \lambda)^{-1} \cdot \textbf{g}
+\end{align*}
 
-Now this problem is just a one dimension problem because we can
-express $\textbf{x}$ as a function of $\lambda$ :
-\begin{equation}
-\textbf{x}(\lambda) = - (\textbf{H} + \textbf{I} \lambda)^{-1} \textbf{g}
-\end{equation}
+We start from the fact that the hessian is diagonalizable. So we have: 
+\begin{align*}
+  \textbf{H} = \textbf{W} \cdot \textbf{h} \cdot \textbf{W}^T
+\end{align*}
+with: \newline
+$\textbf{H}$, the hessian matrix \newline
+$\textbf{W}$, the matrix containing the eigenvectors \newline
+$\textbf{w}_i$, the i-th eigenvector, i.e. i-th column of $\textbf{W}$ \newline
+$\textbf{h}$, the matrix containing the eigenvalues in ascending order \newline
+$h_i$, the i-th eigenvalue in ascending order \newline
 
-To do that, we start from the fact that the hessian is
-diagonalizable. So we have :
-
-\begin{equation}
-\textbf{H} = \textbf{W} \textbf{h} \textbf{W}^T
-\end{equation}
-
-With :
-$$\textbf{H}$$, the hessian matrix
-$$\textbf{W}$$, the matrix containing the eigenvectors 
-$$\textbf{h}$$, the matrix containing the eigenvalues in ascending order
-
-Now we use the fact that :
-\begin{equation}
-\textbf{H} + \textbf{I} \lambda = \textbf{W} (\textbf{h} +\textbf{I} \lambda) \textbf{W}^T
-\end{equation}
+Now we use the fact that adding a constant on the diagonal just shifts
+the eigenvalues:
+\begin{align*}
+  \textbf{H} + \textbf{I} \lambda = \textbf{W} \cdot (\textbf{h} 
+  +\textbf{I} \lambda) \cdot \textbf{W}^T
+\end{align*}
 
 By doing so we can express $\textbf{x}$ as a function of $\lambda$
-\begin{equation}
-\textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \textbf{g}}{h_i + \lambda} \textbf{w}_i
-\end{equation}
-With $\lambda \neq - h_i$
+\begin{align*}
+  \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot 
+  \textbf{g}}{h_i + \lambda} \cdot \textbf{w}_i
+\end{align*}
+with $\lambda \neq - h_i$.
 
-An interesting thing in our case is the norm of $$\textbf{x}$$, because we want
-$$||\textbf{x}|| = \Delta$$. So we have :
+An interesting thing in our case is the norm of $\textbf{x}$,
+because we want $||\textbf{x}|| = \Delta$. Due to the orthogonality of
+the eigenvectors $\left\{\textbf{w} \right\} _{i=1}^n$ we have:
+\begin{align*}
+  ||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \cdot 
+  \textbf{g})^2}{(h_i + \lambda)^2}
+\end{align*}
 
-\begin{equation}
-||\textbf{x}(\lambda)||^2 = \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2}
-\end{equation}
-So the $||\textbf{x}(\lambda)||^2$ is just a function of $\lambda$
+So the $||\textbf{x}(\lambda)||^2$ is just a function of $\lambda$. 
+And if we study the properties of this function we see that: 
+\begin{align*}
+  \lim_{\lambda\to\infty} ||\textbf{x}(\lambda)|| = 0
+\end{align*}
+and if $\textbf{w}_i^T \cdot \textbf{g} \neq 0$: 
+\begin{align*}
+  \lim_{\lambda\to -h_i} ||\textbf{x}(\lambda)|| = + \infty
+\end{align*}
 
-If we study the properties of this function we see that : 
-\begin{equation}
-\lim_{\lambda\to\infty} ||\textbf{x}(\lambda)|| = 0
-\end{equation}
+From these limits and knowing that $h_1$ is the lowest eigenvalue, we
+can conclude that $||\textbf{x}(\lambda)||$ is a continuous and
+strictly decreasing function on the interval $\lambda \in
+(-h_1;\infty)$. Thus, there is one $\lambda$ in this interval which
+gives $||\textbf{x}(\lambda)|| = \Delta$, consequently there is one
+solution. 
 
-And : 
-\begin{equation}
-\lim_{\lambda\to -h_i} ||\textbf{x}(\lambda)|| = + \infty
-\end{equation}
+Since $\textbf{x} = - (\textbf{H} + \lambda \textbf{I})^{-1} \cdot
+\textbf{g}$ and we want to reduce the norm of $\textbf{x}$, clearly,
+$\lambda > 0$ ($\lambda = 0$ is the unconstraint solution). But the
+Newton method is only defined for a positive definite hessian matrix,
+so $(\textbf{H} + \textbf{I} \lambda)$ must be positive
+definite. Consequently, in the case where $\textbf{H}$ is not positive
+definite, to ensure the positive definiteness, $\lambda$ must be
+greater than $- h_1$.
+\begin{align*}
+  \lambda > 0 \quad \text{and} \quad \lambda \geq - h_1
+\end{align*} 
 
-So $||\textbf{x}(\lambda)||$ is continuous, strictly decreasing function on the
-interval $\lambda \in ]-h_i;\infty[$. Thus, there is one $\lambda$ that
-gives $||\textbf{x}(\lambda)|| = \Delta$, consequently there is one solution.
+From that there are four cases:
+- if $\textbf{H}$ is positive definite, $-h_1 < 0$, $\lambda \in (0,\infty)$
+- if $\textbf{H}$ is not positive definite and $\textbf{w}_1^T \cdot
+  \textbf{g} \neq 0$, $(\textbf{H} + \textbf{I}
+  \lambda)$ 
+  must be positve definite, $-h_1 > 0$, $\lambda \in (-h_1, \infty)$
+- if $\textbf{H}$ is not positive definite , $\textbf{w}_1^T \cdot
+  \textbf{g} = 0$ and $||\textbf{x}(-h_1)|| > \Delta$ by removing
+  $j=1$ in the sum, $(\textbf{H} + \textbf{I} \lambda)$ must be
+  positive definite, $-h_1 > 0$, $\lambda \in (-h_1, \infty$)
+- if $\textbf{H}$ is not positive definite , $\textbf{w}_1^T \cdot
+  \textbf{g} = 0$ and $||\textbf{x}(-h_1)|| \leq \Delta$ by removing
+  $j=1$ in the sum, $(\textbf{H} + \textbf{I} \lambda)$ must be
+  positive definite, $-h_1 > 0$, $\lambda = -h_1$). This case is
+  similar to the case where $\textbf{H}$ and $||\textbf{x}(\lambda =
+  0)|| \leq \Delta$.
 
-To find the solution, we can write :
-\begin{equation}
-||\textbf{x}(\lambda)|| = \Delta
-\end{equation}
-\begin{equation}
-||\textbf{x}(\lambda)|| - \Delta = 0
-\end{equation}
+Thus to find the solution, we can write: 
+\begin{align*}
+  ||\textbf{x}(\lambda)|| = \Delta
+\end{align*}
+\begin{align*}
+  ||\textbf{x}(\lambda)|| - \Delta = 0
+\end{align*}
 
-We take the square of this
-equation :
-\begin{equation}
-(||\textbf{x}(\lambda)|| - \Delta)^2 = 0
-\end{equation}
-Now we have a function with one minimum for the optimal $\lambda$.
-Since we have the formula of $||\textbf{x}(\lambda)||^2$, we solve :
-\begin{equation}
-(||\textbf{x}(\lambda)||^2 - \Delta^2)^2 = 0
-\end{equation}
+Taking the square of this equation
+\begin{align*}
+  (||\textbf{x}(\lambda)|| - \Delta)^2 = 0
+\end{align*}
+we have a function with one minimum for the optimal $\lambda$.
+Since we have the formula of $||\textbf{x}(\lambda)||^2$, we solve
+\begin{align*}
+  (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 = 0
+\end{align*}
 
-To do that, we just use the Newton's method with "trust_newton" using
-first and second derivative of $(||\textbf{x}(\lambda)||^2 - \Delta^2)^2$ with
-respect to $\textbf{x}$. This will give the optimal $\lambda$ to compute the
-solution $\textbf{x}$ with the formula seen previously :
-\begin{equation}
-\textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \textbf{g}}{h_i + \lambda} \textbf{w}_i
-\end{equation}
+But in practice, it is more effective to solve:
+\begin{align*}
+  (\frac{1}{||\textbf{x}(\lambda)||^2} - \frac{1}{\Delta^2})^2 = 0
+\end{align*}
+
+To do that, we just use the Newton method with "trust_newton" using
+first and second derivative of $(||\textbf{x}(\lambda)||^2 -
+\Delta^2)^2$ with respect to $\textbf{x}$.
+This will give the optimal $\lambda$ to compute the
+solution $\textbf{x}$ with the formula seen previously:
+\begin{align*}
+  \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot
+  \textbf{g}}{h_i + \lambda} \cdot \textbf{w}_i
+\end{align*}
 
 The solution $\textbf{x}(\lambda)$ with the optimal $\lambda$ is our
-step to go from the $_{(k)}$ -th to the $$_{(k+1)}$$-th iteration,$\textbf{x}^*$.
+step to go from the (k)-th to the (k+1)-th iteration, is noted $\textbf{x}^*$.
 
-In the case where $||\textbf{x}|| \leq \Delta$, the solution is the
-unconstraint solution, $\lambda = 0$. It is not necessary to apply a
-constraint since we already have $||\textbf{x}|| \leq \Delta$.
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+END_SRC
 
-So, to summarize, after computing $||\textbf{x}||$ there are 2 options :
-if  $||\textbf{x}|| \leq \Delta then we put $\lambda = 0$
-else we search the optimal $\lambda$. With $\lambda$ we compute the step $\textbf{x}^*$.
+** Evolution of the trust region
 
-After that, we take this vector $\textbf{x}^*$, called x, and we do the transformation to an
-antisymmetric matrix $$\textbf{X}$$, called m_x. This matrix $\textbf{X}$ will be
-used to compute a rotation matrix $\textbf{R}=exp(\textbf{X})$ in "rotation_matrix"
+We initialize the trust region at the first iteration using a radius
+\begin{align*}
+  \Delta = ||\textbf{x}(\lambda=0)||
+\end{align*}
 
+And for the next iteration the trust region will evolves depending of
+the agreement of the energy prediction based on the Taylor series
+truncated at the 2nd order and the real energy. If the Taylor series
+truncated at the 2nd order represents correctly the energy landscape
+the trust region will be extent else it will be reduced. In order to
+mesure this agreement we use the ratio rho cf. "rho_model" and
+"trust_e_model". From that we use the following values:
+- if $\rho \geq 0.75$, then $\Delta = 2 \Delta$,
+- if $0.5 \geq \rho < 0.75$, then $\Delta = \Delta$, 
+- if $0.25 \geq \rho < 0.5$, then $\Delta = 0.5 \Delta$, 
+- if $\rho < 0.25$, then $\Delta = 0.25 \Delta$.
+
+In addition, if $\rho < 0.1$ the iteration is cancelled, so it
+restarts with a smaller trust region until the energy decreases.
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+END_SRC
+
+** Summary
+
+To summarize, knowing the hessian (eigenvectors and eigenvalues), the
+gradient and the radius of the trust region we can compute the norm of
+the Newton step  
+\begin{align*}
+  ||\textbf{x}(\lambda = 0)||^2 = ||- \textbf{H}^{-1} \cdot \textbf{g}||^2 = \sum_{i=1}^n 
+  \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2}, \quad h_i \neq 0
+\end{align*}
+
+- if $h_1 \geq 0$, $||\textbf{x}(\lambda = 0)|| \leq \Delta$ and
+  $\textbf{x}(\lambda=0)$ is in the trust region and it is not
+  necessary to put a constraint on $\textbf{x}$, the solution is the
+  unconstrained one, $\textbf{x}^* = \textbf{x}(\lambda = 0)$.
+- else if $h_1 < 0$, $\textbf{w}_1^T \cdot \textbf{g} = 0$ and
+  $||\textbf{x}(\lambda = -h_1)|| \leq \Delta$ (by removing $j=1$ in
+  the sum), the solution is $\textbf{x}^* = \textbf{x}(\lambda =
+  -h_1)$, similarly to the previous case.
+- else if $h_1 < 0$ and $\textbf{w}_1^T \cdot \textbf{g} \neq 0$ we
+  have to search $\lambda \in (-h_1, \infty)$ such as
+  $\textbf{x}(\lambda) = \Delta$ by solving with the Newton method 
+  \begin{align*}
+    (||\textbf{x}(\lambda)||^2 - \Delta^2)^2 = 0
+  \end{align*}
+  or
+  \begin{align*}
+    (\frac{1}{||\textbf{x}(\lambda)||^2} - \frac{1}{\Delta^2})^2 = 0
+  \end{align*}
+  which is numerically more stable. And finally compute 
+  \begin{align*}
+    \textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot
+    \textbf{g}}{h_i + \lambda} \cdot \textbf{w}_i
+  \end{align*}
+- else if $h_1 \geq 0$ and $||\textbf{x}(\lambda = 0)|| > \Delta$ we
+  do exactly the same thing that the previous case but we search
+  $\lambda \in (0, \infty)$ 
+- else if $h_1 < 0$ and $\textbf{w}_1^T \cdot \textbf{g} = 0$ and
+  $||\textbf{x}(\lambda = -h_1)|| > \Delta$ (by removing $j=1$ in the
+  sum), again we do exactly the same thing that the previous case
+  searching $\lambda \in (-h_1, \infty)$.
+
+For the cases where $\textbf{w}_1^T \cdot \textbf{g} = 0$ it is not
+necessary in fact to remove the $j = 1$ in the sum since the term
+where $h_i - \lambda < 10^{-6}$ are not computed.
+
+After that, we take this vector $\textbf{x}^*$, called "x", and we do
+the transformation to an antisymmetric matrix $\textbf{X}$, called
+m_x. This matrix $\textbf{X}$ will be used to compute a rotation
+matrix $\textbf{R}= \exp(\textbf{X})$ in "rotation_matrix".
+
+NB: 
+Knowing $\lambda$, the computation of $\textbf{x}^*$ could be done using
+a matrix multiplication instead of using a sum. 
+\begin{align*}
+  \textbf{x}^* = - (\textbf{H} + \textbf{I} \lambda)^{-1} \cdot \textbf{g}
+\end{align*}
+\begin{align*}
+  \textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1}
+  \cdot \textbf{W}^T \cdot \textbf{g}
+\end{align*}
+
+An improvement can be done using a elleptical trust region.
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+END_SRC
+
+** Code
+
+Provided:
+| mo_num | integer | number of MOs |
+
+Input:
+| n         | integer          | mo_num*(mo_num-1)/2                             |
+| method    | integer          | 1 -> full hessian, 2 -> diagonal hessian        |
+| H(n, n)   | double precision | hessian                                         |
+| v_grad(n) | double precision | gradient                                        |
+| e_val(n)  | double precision | eigenvalues of the hessian                      |
+| W(n, n)   | double precision | eigenvectors of the hessian                     |
+| rho       | double precision | agreement between the model and the reality,    |
+|           |                  | represents the quality of the energy prediction |
+| nb_iter   | integer          | number of iteration                             |
+
+Input/Ouput:
+| delta | double precision | radius of the trust region |
+
+Output:
+| m_x(mo_num, mo_num) | double precision | matrix containing the step |
+| x(n)                | double precision | vector containing the step |
+
+Internal:
+| diff(n)              | double precision | debug                                        |
+| Hm1(mo_num, mo_num)  | double precision | debug                                        |
+| Hm1g(mo_num, mo_num) | double precision | debug                                        |
+| accu                 | double precision | temporary variable to compute the step       |
+| lambda               | double precision | lagrange multiplier                          |
+| trust_radius2        | double precision | square of the radius of the trust region     |
+| norm2_x              | double precision | norm^2 of the vector x                       |
+| norm2_g              | double precision | norm^2 of the vector containing the gradient |
+| wtg                  | double precision | scalar product w_1^T . g                     |
+| i, j, k              | integer          | indexes                                      |
+
+Function:
+| dnrm2                   | double precision | Blas function computing the norm       |
+| ddot                    | double precision | Blas function computing dot product    |
+| f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
 subroutine org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   include 'constants.h'
 
   implicit none
-#+END_SRC
 
-** Variables
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-  !====
+  ! Variables
+
   ! in
-  !====
   integer, intent(in)          :: n
-  integer, intent(in)          :: method ! pour la verif
+  integer, intent(in)          :: method ! debug
   double precision, intent(in) :: H(n,n), v_grad(n), rho
   integer, intent(in)  :: nb_iter
   double precision, intent(in) :: e_val(n), w(n,n)
-  ! n      : integer, n = mo_num*(mo_num-1)/2
-  ! method : integer, method used to compute the hessian
-  ! H      : n by n double precision matrix containing the hessian
-  ! v_grad : double precision vector of size n containing the gradient
-  ! rho    : double precision, represent the quality of the energy prediction
-  !          with respect to the reality
-  ! nb_iter : integer, number of iterations
-  ! e_val : double precision vector of size n containing the eigenvalues of the hessian H
-  ! w     : n by n double precision matrix containing the eigenvectors of the hessian H 
 
-  !=======
   ! inout
-  !=======
   double precision, intent(inout) :: delta
 
-  !=====
   ! out
-  !=====
   double precision, intent(out) :: m_x(mo_num,mo_num), x(n)
-  ! m_x : mo_num by mo_num double precision matrix containing the next step
-  ! x   : double precision vector of size n containing the next step
 
-  !==========
   ! Internal
-  !==========
   double precision, allocatable :: diff(:)
   double precision, allocatable :: Hm1(:,:), Hm1g(:)
-  double precision              :: accu, lambda, trust_radius
+  double precision              :: accu, lambda, trust_radius2
   double precision              :: norm2_x, norm2_g
+  double precision              :: wtg
   integer                       :: i,j,k
-  ! W            : double precision matrix containing the eigenvectors of the hessian matrix
-  ! Hm1g         : double precision vector of size n containing the next step (debug)
-  ! Hm1          : double precision matrix containing the inverse of the hessian matrix (debug)
-  ! accu         : double precision, temporary variable
-  ! lambda       : double precision, lagrange multiplier to put the trust region constraint
-  ! trust_radius : double precision, trust region radius = delta^2
-  ! norm2_x       : double precision, norm^2 of the vector x
-  ! norm2_g       : double precision, norm^2 of the gradient
-  ! i,j,k        : integer, indexes
 
-  !===========
   ! Functions
-  !===========
   double precision :: ddot, dnrm2
-  double precision :: fN
-  ! ddot  : double precision Blas function, dot product
-  ! dnrm2 : double precision Blas function, norm
-  ! fN    : double precision function, (function Norm -> fN), compute ||x||^2
-#+END_SRC
+  double precision :: f_norm_trust_region_omp
 
-** Allocation
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+  ! Allocation
   allocate(diff(n))
   allocate(Hm1(n,n),Hm1g(n))
 #+END_SRC
 
-** Calculations
+
 *** Initialization and norm
 
-The norm of the step size will be useful for the trust region
+The norm of the step size will be useful for the trust region algorithm
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
   print*,''
@@ -261,7 +430,7 @@ The norm of the step size will be useful for the trust region
 
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
-  norm2_x = fN(n,e_val,W,v_grad,0d0)
+  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0)
   print*, norm2_x
 
   ! Norm^2 of the gradient, ||v_grad||^2
@@ -272,24 +441,26 @@ The norm of the step size will be useful for the trust region
 
 *** Trust radius initialization
 
-At the first iteration (nb_iter=0) we initialize the trust region with
-the norm of the step generate by the Newton's method ($x^1 =
-(H^0)^{-1} g^0$, we compute this norm using fN)
+At the first iteration (nb_iter = 0) we initialize the trust region
+with the norm of the step generate by the Newton's method ($\textbf{x}_1 =
+(\textbf{H}_0)^{-1} \cdot \textbf{g}_0$,
+we compute this norm using f_norm_trust_region_omp) 
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! trust radius
   if (nb_iter == 0) then
-    trust_radius = norm2_x 
+    trust_radius2 = norm2_x 
 
     ! Compute delta, delta = sqrt(trust_radius)
-    delta = dsqrt(trust_radius)
+    delta = dsqrt(trust_radius2)
   endif
 #+END_SRC
 
 *** Modification of the trust radius
+
 In function of rho (which represents the agreement between the model
 and the reality, cf. rho_model) the trust region evolves. We update
-delta such as :
+delta such as:
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Modification of the trust radius in function of rho
@@ -304,37 +475,101 @@ delta such as :
   endif
  
   print*, 'Delta :', delta
-
-  trust_radius = delta**2
-  print*, 'trust_radius :', trust_radius
 #+END_SRC 
   
 *** Calculation of the optimal lambda
 
-We search the solution of $(||x||^2 - \Delta^2)^2 =0$
+We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
+- If $||\textbf{x}|| > \Delta$  or $h_1 < 0$ we have to add a constant
+  $\lambda > 0 \quad \text{and} \quad \lambda > -h_1$
+- If $||\textbf{x}|| \leq \Delta$ and $h_1 \geq 0$ the solution is the
+  unconstrained one, $\lambda = 0$
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-  ! En donnant delta, on cherche (||x||^2 - delta^2)^2 = 0
-  ! et non (||x||^2 - delta)^2 = 0
+  ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
+  ! and not (||x||^2 - delta)^2 = 0
 
-  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
-  if (trust_radius < norm2_x ) then
-    ! Constraint solution
-    print*,'Computation of the optimal lambda for the next step...'
-    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
-  else
-    ! Unconstraint solution, lambda = 0
-    print*,'Step in the trust region, no lambda optimization'
-    lambda = 0d0
+  ! Scalar product w_1^T . g 
+  wtg = 1d0
+  if (e_val(1) < -1d-12) then
+    wtg = 0d0
+    do i = 1, n
+      wtg = wtg + w(i,1) * v_grad(i)
+    enddo
+    print*, 'w_1^T.g =', wtg
+  endif 
+  
+  ! w_1^T . g = 0 ?
+  if (ABS(wtg) < 1d-6) then
+    norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad, - e_val(1))
+    print*, 'w_1^T.g < 10^-6, ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
   endif
+  
+  ! Research of lambda to solve ||x(lambda)|| = Delta  
+
+  ! H positive definite, ||x(lambda = 0)|| <= Delta
+  if (dsqrt(norm2_x) <= delta .and. e_val(1) >= -1d-12) then
+    ! Unconstraint solution, lambda = 0
+    print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
+    print*, 'lambda = 0, no lambda optimization'
+    lambda = 0d0
+
+  ! H positive definite, ||x(lambda = 0)|| > Delta
+  elseif (e_val(1) >= -1d-12) then
+    ! Constraint solution
+    print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
+    print*,'Computation of the optimal lambda...'
+    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+
+  ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
+  elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < 1d-6) then
+    ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
+    print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
+    print*, 'lambda = -e_val(1), no lambda optimization'
+    lambda = - e_val(1)
+
+  ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
+  ! H indefinite, w_1^T.g =/= 0
+  else
+    ! Constraint solution/ add lambda
+    if (ABS(wtg) < 1d-6) then
+      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
+    else
+      print*, 'H indefinite, w_1^T.g =/= 0'
+    endif
+    print*, 'Computation of the optimal lambda...'
+    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+  endif
+
+!  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
+!  if (delta < dsqrt(norm2_x) .or. e_val(1) < 0d0 ) then 
+!    ! Constraint solution
+!    print*,'Computation of the optimal lambda for the next step...'
+!    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda) 
+!  else
+!    ! Unconstraint solution, lambda = 0
+!    print*,'Step in the trust region, no lambda optimization, lambda = 0'
+!    lambda = 0d0
+!  endif
 #+END_SRC
 
 *** Calculation of the step x
 
+x refers to $\textbf{x}^*$
 We compute x in function of lambda using its formula :
-\begin{equation}
-x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
-\end{equation}
+\begin{align*}
+\textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot \textbf{g}}{h_i 
++ \lambda} \cdot \textbf{w}_i
+\end{align*}
+
+This part can be implemeted with matrix-vector multiplication, since
+$\textbf{x}^*$ is: 
+$\textbf{x}^* =(\textbf{H} + \lambda \textbf{1})^{-1} \cdot
+\textbf{g}$
+\begin{align*}
+\textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1} 
+\cdot \textbf{W}^T \cdot \textbf{g}
+\end{align*}
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Initialisation
@@ -356,15 +591,17 @@ x^*(\lambda) = - \sum_{i=1}^n \frac{w_i^T g}{h_i + \lambda} w_i
     endif
   enddo
 
-  ! In order to have the same thing that -H^{-1} g
-  ! Why ? Because we want -H^{-1} g and not +H^{-1} g
+  ! In order to have the same thing that -H^{-1} . g
+  ! It comes from the fact that we compute New Mos = old MOs . R^T
+  ! and not New Mos = old MOs . R. 
+  ! This error will be corrected
   x = -x
 #+END_SRC
 
 *** Transformation of x
 
 x is a vector of size n, so it can be write as a mo_num by mo_num
-antisymmetric matrix m_x.
+antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Step transformation vector -> matrix
@@ -375,7 +612,7 @@ antisymmetric matrix m_x.
         call mat_to_vec_index(i,j,k)
         m_x(i,j) = x(k)
       else
-        m_x(i,j)=0d0
+        m_x(i,j) = 0d0
       endif
     enddo
   enddo
@@ -407,8 +644,8 @@ nightmare, just add "!" before the if/endif.
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Debug
   if (debug) then
-    integer :: nb_error
-    double precision :: max_error
+    integer :: nb_error ! number of error
+    double precision :: max_error ! biggest error
 
     print*,'x'
     write(*,'(100(F10.5))') x(:)

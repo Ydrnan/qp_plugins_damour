@@ -1,9 +1,10 @@
 * Orbital optimization program
 
 This is an optimization program for molecular orbitals. It produces
-orbital rotations in order to lower the energy of the wave function. 
+orbital rotations in order to lower the energy of a truncated wave
+function.  
 This program just optimize the orbitals for a fixed number of
-determinants. This optimization process must be repeat for different
+determinants. This optimization process must be repeated for different
 number of determinants.
 
 #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
@@ -30,19 +31,21 @@ Optimization process :
    - compute the gradient
    - compute the hessian 
    - diagonalize the hessian
-   - compute the Newton step's in the trust region
+   - compute the step of the Newton method in the trust region
    - compute the predicted energy for the new MOs
    - compute the rotation matrix
    - compute the new MOs using the rotation matrix and the actual MOs
    - diagonalize the hamiltonian
    - compute rho, the quality of the model. While the quality is not good,
-     the orbital rotations are cancelled and the a smaller Newton step is
-     computed. If there is a good agreement, the step is accepted and the
-     algorithm compute a new Newton step's.
+     the orbital rotations are cancelled and the a smaller step is
+     computed. If there is a good agreement, the step is accepted and
+     the algorithm compute a new step.
 
-   The convergence criterion is the maximal value in the gradient. To
-   avoid problems, there is a limit in the number of hamiltonian
-   diagonalization.  
+   There are three convergence criteria:
+   - the maximal value in the gradient,
+   - the size of the trust region,
+   - And to avoid problems, there is a limit in the maximal number of
+     hamiltonian diagonalization.  
 
 Provided:
 | mo_num                         | integer          | number of MOs                  |
@@ -76,7 +79,7 @@ Variables:
 | cancel_step                     | logical          | if the step must be cancelled                      |
 | nb_iter                         | integer          | number of iterations (accepted)                    |
 | nb_diag                         | integer          | number of diagonalizations of the CI matrix        |
-| nb_cancel                       | integer          | number of cancelled step for the actual iteration  |
+| nb_cancel                       | integer          | number of cancelled steps for the actual iteration |
 | nb_cancel_tot                   | integer          | total number of cancel steps                       |
 | info                            | integer          | if 0 ok, else problem in the diagonalization of    |
 |                                 |                  | the hessian with the Lapack routine                |
@@ -108,7 +111,7 @@ subroutine org_run_orb_opt_trust
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
    #+END_SRC
-
+   
 ** Method
    There are two different methods : 
    - the "full" hessian, which uses all the elements of the hessian
@@ -118,7 +121,7 @@ subroutine org_run_orb_opt_trust
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   ! Choice of the method
-  method = 2  ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 1  ! 1 -> full hessian, 2 -> diagonal hessian
 
   !Display the method
   print*, 'Method :', method
@@ -127,12 +130,14 @@ subroutine org_run_orb_opt_trust
 ** Allocation
 
    n represents the number of pairs (p,q) with p<q.
-   Where p and q are general molecular orbitals
+   Where p and q are general molecular orbitals.
 
    In other words, the gradient is an antisymmetric matrix of size mo_num
    by mo_num. So we can summarize the matrix by the lower/upper triangle.
    And this triangle is composed of :
    $$(mo_{num}^2 - mo_{num})/2 = mo_{num}(mo_{num}-1)/2$$
+
+   Cf. mat_to_vec_index and vec_to_mat_index
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   ! Definition of n
@@ -153,7 +158,7 @@ subroutine org_run_orb_opt_trust
   converged = .False.
   cancel_step = .False.
   delta = 0d0
-  rho = 0.5d0 ! Must be 0.5 for the first step else delta will be changed
+  rho = 0.5d0 ! Must be 0.5 for the first step, else delta will be changed
   nb_iter = 0
   nb_cancel = 0
   nb_diag = 0
@@ -197,22 +202,24 @@ subroutine org_run_orb_opt_trust
       expansion at the 2nd order
 
     "rotation_matrix" takes mo_num, m_x and gives :
-    - R, the rotation matrix to compute the next MOs
+    - R, the rotation matrix to compute the next MOs (by multiplying
+      the MO coefficients by the rotation matrix)
 
     "apply_mo_rotation" takes R (and the MO coefficients) and gives :
     - prev_mos, the previous MOs <=> MOs before the rotation 
     - new_mos, the new MOs <=> MOs after the rotation
 
     "rho_model" takes prev_energy, e_model (and the actual energy) and gives :
-    - rho, which estimate the 'quality' of the model (taylor expansion)
+    - rho, which estimates the 'quality' of the model (Taylor expansion)
       compare to the real energy
 
     While rho < 0.1 the algorithm goes back to "trust_region" and delta
     will be reduced.
     If rho >= 0.1 the step is accepted and the algorithm goes back to
-    the camculation of the gradient.
+    the calculation of the gradient.
 
     #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+  ! Loop until the convergence of the optimization
   do while (.not.converged)
 
      print*,'*********************'
@@ -242,17 +249,17 @@ subroutine org_run_orb_opt_trust
      ! is done with a smaller delta
      do while ( cancel_step )
 
-        ! Step size in the trust region
+        ! Step in the trust region
         call org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
-        ! Estimation of the energy after the rotation (application of the Newton step's)
+        ! Estimation of the energy after the rotation
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 
         ! Calculation of the rotation matrix
         call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
 
         ! Calculation of the new MOs
-        call org_apply_mo_rotation(R,prev_mos)!,new_mos)
+        call org_apply_mo_rotation(R,prev_mos)
 
         ! Update and diagonalization of the hamiltonian
         call clear_mo_map
@@ -260,7 +267,7 @@ subroutine org_run_orb_opt_trust
         call diagonalize_ci
         call save_wavefunction_unsorted
 
-        ! Calculation of rho
+        ! Calculation of rho 
         call org_rho_model(prev_energy,e_model,rho)
 
         if (nb_iter == 0) then
@@ -268,12 +275,12 @@ subroutine org_run_orb_opt_trust
         endif
 
         if (rho >= 0.1d0) then
-           ! exit
+           ! exit, the step is accepted
            cancel_step = .False.
         else
            ! Cancellation of the previous rotation
            mo_coef = prev_mos ! previous MOs 
-           call save_mos
+           call save_mos ! save the MOs
 
            nb_cancel = nb_cancel + 1
            nb_cancel_tot = nb_cancel_tot + 1
@@ -281,7 +288,7 @@ subroutine org_run_orb_opt_trust
            print*, 'Step cancel : rho < 0.1'
            print*, '***********************'
         endif
-        nb_diag = nb_diag + 1
+        nb_diag = nb_diag + 1 
 
         print*, 'nb_diag :', nb_diag
         print*, 'nb_cancel :', nb_cancel
@@ -297,7 +304,7 @@ subroutine org_run_orb_opt_trust
 
      nb_iter = nb_iter + 1
 
-     if (nb_diag >= 100 .or. ABS(max_elem) <= 1d-5) then
+     if (nb_diag >= 100 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
         converged = .True.
      endif
 

@@ -54,7 +54,8 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
   call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
 
   if (info /= 0) then
-      print*, 'Error diagonalization : trust_region'
+      print*, 'Error diagonalization : diagonalization_hessian'
+      print*, 'info = ', info
       call ABORT
   endif
 

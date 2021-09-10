@@ -2,8 +2,7 @@
   
 *Compute the indexes p,q of a matrix element with the vector index i*
 
-Vector -> lower diagonal matrix
-=> p > q
+Vector (i) -> lower diagonal matrix (p,q), p > q
 
 If a matrix is antisymmetric it can be reshaped as a vector. And the
 vector can be reshaped as an antisymmetric matrix
@@ -28,7 +27,9 @@ Input:
 
 Ouput:
 | p,q | integer | corresponding indexes in the lower diagonal of a matrix |
-|     |         | p > q. p -> row, q -> column                          |
+|     |         | p > q,                                                  |
+|     |         | p -> row,                                               |
+|     |         | q -> column                                             |
 
 #+BEGIN_SRC f90 :comments org :tangle org_vec_to_mat_index.irp.f
 subroutine vec_to_mat_index(i,p,q)

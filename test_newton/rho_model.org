@@ -1,9 +1,10 @@
-* Rho
+* Agreement with the model: Rho
 
 *Compute the ratio : rho = (prev_energy - energy) / (prev_energy - e_model)*
 
-Rho represents the agreement between the model (predicted energy by
-the Taylor expansion at the 2nd order) and the real energy :
+Rho represents the agreement between the model (the predicted energy
+by the Taylor expansion truncated at the 2nd order) and the real
+energy : 
 
 \begin{equation}
 \rho^{k+1} = \frac{E^{k} - E^{k+1}}{E^{k} - m^{k+1}}
@@ -14,10 +15,15 @@ $E^{k+1}$ the energy at the actual iteration
 $m^{k+1}$ the predicted energy for the actual iteration
 (cf. trust_e_model)
 
-If $\rho \approx 1$, the agreement is good, contrary to $\rho \approx
-0$. If $\rho \leq 0$ the energy of the previous step is lower than the
-actual step. We have to cancel this last step and use a smaller trust
+If $\rho \approx 1$, the agreement is good, contrary to $\rho \approx 0$.
+If $\rho \leq 0$ the previous energy is lower than the actual 
+energy. We have to cancel the last step and use a smaller trust
 region.
+Here we cancel the last step if $\rho < 0.1$, because even if
+the energy decreases, the agreement is bad, i.e., the Taylor expansion
+truncated at the second order doesn't represent correctly the energy
+landscape. So it's better to cancel the step and restart with a
+smaller trust region.
 
 Provided:
 | N_states                       | integer          | number of states     |
@@ -29,13 +35,13 @@ Input:
 | e_model     | double precision | predicted energy after the rotation          |
 
 Output:
-| rho         | double precision | the agreement between the model and the real energy |
-| prev_energy | double precision | if rho >= 0.1 the actual energy becomes the previous energy |
-|             |                  | else hte previous energy doesn't change                     |
+| rho         | double precision | the agreement between the model (predicted) and the real energy |
+| prev_energy | double precision | if rho >= 0.1 the actual energy becomes the previous energy     |
+|             |                  | else the previous energy doesn't change                         |
 
 Internal:
-| energy | double precision | energy (real)  after the rotation |
-| i      | integer          | index                             |
+| energy | double precision | energy (real) after the rotation |
+| i      | integer          | index                            |
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
 subroutine org_rho_model(prev_energy,e_model,rho)
@@ -74,12 +80,11 @@ $w_i$ weight of state i
   !endif
 
   ! Energy of the actual step
-  !energy = sum(ci_energy(1:N_states) / dble(N_states))
-
   energy = 0d0
   do i = 1, N_states
     energy = energy + ci_energy(i) * state_average_weight(i)
   enddo
+
   energy = energy / DBLE(N_states)
 
   print*, 'ci_energy :', energy
@@ -93,7 +98,7 @@ $w_i$ weight of state i
 In function of $\rho$ th step can be accepted or cancelled.
 
 If we cancel the last step (k+1), the previous energy (k) doesn't
-change !
+change!
 If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
@@ -109,17 +114,14 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
   ! Modification of prev_energy in function of rho
   if (rho < 0.1) then
     ! the step is accepted  
-    print*, 'Rho < 0.1, the previous energy does not change'
+    print*, 'Rho < 0.1, the previous energy does not changed'
     print*, 'prev_energy :', prev_energy  
   else
     ! the step will is cancelled
     prev_energy = energy
     print*, 'Rho >= 0.1, energy -> prev_energy :', energy
   endif
-#+END_SRC
 
-** End 
-#+BEGIN_SRC f90  :comments org :tangle org_rho_model.irp.f
   !if (debug) then
     print*,'---Leave rho_model---'
     print*,''

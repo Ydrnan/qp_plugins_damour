@@ -3,8 +3,7 @@
 *Compute the index i of a vector element from the indexes p,q of a
 matrix element*
 
-Lower diagonal matrix -> vector
-=> p > q
+Lower diagonal matrix (p,q), p > q -> vector (i)
 
 If a matrix is antisymmetric it can be reshaped as a vector. And the
 vector can be reshaped as an antisymmetric matrix
@@ -26,7 +25,9 @@ vector can be reshaped as an antisymmetric matrix
 
 Input:
 | p,q | integer | indexes of a matrix element in the lower diagonal |
-|     |         | p > q. p -> row, q -> column                      |
+|     |         | p > q, q -> column                                |
+|     |         | p -> row,                                         |
+|     |         | q -> column                                       |
 
 Input:
 | i | integer | corresponding index in the vector |

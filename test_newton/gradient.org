@@ -67,7 +67,7 @@ Internal:
 | i                                  | integer           | index for the tranformation in a vector                   |
 | r, s, t                            | integer           | indexes dor the sums                                      |
 | t1, t2, t3                         | double precision  | t3 = t2 - t1, time to compute the gradient                |
-| t4, t5, t6                         | double precission | t6 = t5 - t4,       time to compute each element          |
+| t4, t5, t6                         | double precission | t6 = t5 - t4, time to compute each element                |
 | tmp_bi_int_3(mo_num,mo_num,mo_num) | double precision  | 3 indexes temporary array for the bi-electronic integrals |
 | tmp_2rdm_3(mo_num,mo_num,mo_num)   | double precision  | 3 indexes temporary array for the two e- density matrix   |
 | tmp_accu(mo_num,mo_num)            | double precision  | temporary array                                           |

@@ -1,5 +1,34 @@
 Doc
 
+Installation on QP2
+
+cd $QP_ROOT
+cd plugins
+git clone -b dev https://github.com/Ydrnan/qp_plugins_damour
+qp_plugins install test_newton
+cd qp_plugins_damour/test_newton
+./script_tangle_org_mode.sh
+cd $QP_ROOT
+ninja
+
+Now go to your working directory:
+- run scf calculation
+- frozen core ?
+- set the number of determinants 
+- set s2_eig true or false (false may be better)
+- run cipsi calculation
+
+To optimize the orbitals for this number of determinants:
+qp set determinants read_wf true
+qp set determinants mo_label MCSCF
+qp set mo_basis mo_label MCSCF
+qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write
+qp run org_orb_opt_trust > optimization.dat
+
+The ezfio now contains the optimized MOs
+
+!!! OBSOLETE, please don't read !!!
+
 Dev branch : only the orb_opt_trust.irp.f will work
 the other programs orb_opt... will failed (maybe at the compilation, if it 
 works they will give bad results)

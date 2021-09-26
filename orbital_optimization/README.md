@@ -28,6 +28,10 @@ qp run org_orb_opt_trust > optimization.dat
 
 The ezfio directory now contains the optimized MOs
 
+A script for a complete orbital optimization is available. 
+Just copy script_optimization.sh in the directory containing the 
+ezfio directory. Some modifications must be done to launch it.
+
 The number of interations for the optimization can be changed in
 orb_opt_trust.org. Don't forget to do
 ./TANGLE_org_mode.sh

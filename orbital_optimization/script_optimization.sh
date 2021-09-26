@@ -86,7 +86,7 @@ do
     echo "Evolution of the energy during the orbital optimization for" ${Ndet} "determinants" > ${DIR}/${FILE}_opt_energy_${Ndet}.dat
     grep "Energy of state    1" ${DIR}/${FILE}_opt_trash_${Ndet}.dat | awk '{print $6}' >> ${DIR}/${FILE}_opt_energy_${Ndet}.dat
 
-    qp run pt2 > ${DIR}/${FILE}_${Ndet}.pt2 # Calculation after the optimization
+    qp run pt2 > ${DIR}/${FILE}_${Ndet}.pt2.out # Calculation after the optimization
 
 	# Some informations from the new calculations
     grep "Summary at N_det = " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%10s\n", $5}' >> ${DIR}/${FILE}_n_det.dat

@@ -295,8 +295,8 @@ subroutine org_run_orb_opt_trust
         print*, 'nb_cancel_tot :', nb_cancel_tot
 
         ! exit  
-        if (nb_diag >= 100) then
-           print*,'nb_diag >= 100 : end'
+        if (nb_diag >= 50) then
+           print*,'nb_diag >= 50 : end'
            return
         endif
 
@@ -304,7 +304,7 @@ subroutine org_run_orb_opt_trust
 
      nb_iter = nb_iter + 1
 
-     if (nb_diag >= 100 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
+     if (nb_iter >= 20 .or. nb_diag >= 50 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
         converged = .True.
      endif
 

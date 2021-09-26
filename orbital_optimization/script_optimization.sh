@@ -93,8 +93,8 @@ do
     grep "# E   " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%15s\n", $3}' >> ${DIR}/${FILE}_energy.dat
     grep "# PT2   " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%15s %15s\n", $3, $4}' >> ${DIR}/${FILE}_pt2.dat
     grep "# rPT2   " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%15s %15s\n", $3, $4}' >> ${DIR}/${FILE}_rpt2.dat
-    grep "# E+PT2   " ${DIR}/${FILE}_${Ndet}.fci.out | tail -1 | awk '{printf "%15s\n", $3}' >> ${DIR}/${FILE}_e_p_pt2.dat
-    grep "# E+rPT2   " ${DIR}/${FILE}_${Ndet}.fci.out | tail -1 | awk '{printf "%15s\n", $3}' >> ${DIR}/${FILE}_e_p_rpt2.dat
+    grep "# E+PT2   " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%15s\n", $3}' >> ${DIR}/${FILE}_e_p_pt2.dat
+    grep "# E+rPT2   " ${DIR}/${FILE}_${Ndet}.pt2.out | tail -1 | awk '{printf "%15s\n", $3}' >> ${DIR}/${FILE}_e_p_rpt2.dat
 
 Ndet=$[${Ndet}*2] # Ndet = Ndet * 2
 done
@@ -143,8 +143,8 @@ grep "Summary at N_det = " ${DIR2}/${FILE2}.fci.out | awk '{printf "%10s\n", $5}
 grep "# E   " ${DIR2}/${FILE2}.fci.out | awk '{printf "%15s\n", $3}' >> ${DIR2}/${FILE2}_energy.dat
 grep "# PT2   " ${DIR2}/${FILE2}.fci.out | awk '{printf "%15s %15s\n", $3, $4}' >> ${DIR2}/${FILE2}_pt2.dat
 grep "# rPT2   " ${DIR2}/${FILE2}.fci.out | awk '{printf "%15s %15s\n", $3, $4}' >> ${DIR2}/${FILE2}_rpt2.dat
-grep "# E+PT2   " ${DIR2}/${FILE}_${Ndet}.fci | awk '{printf "%15s\n", $3}' >> ${DIR2}/${FILE2}_e_p_pt2.dat
-grep "# E+rPT2   " ${DIR2}/${FILE}_${Ndet}.fci | awk '{printf "%15s\n", $3}' >> ${DIR2}/${FILE2}_e_p_rpt2.dat
+grep "# E+PT2   " ${DIR2}/${FILE}_${Ndet}.fci.out | awk '{printf "%15s\n", $3}' >> ${DIR2}/${FILE2}_e_p_pt2.dat
+grep "# E+rPT2   " ${DIR2}/${FILE}_${Ndet}.fci.out | awk '{printf "%15s\n", $3}' >> ${DIR2}/${FILE2}_e_p_rpt2.dat
 
 # File containing the results
 paste ${DIR2}/${FILE2}_n_det.dat ${DIR2}/${FILE2}_energy.dat > ${DIR2}/${FILE2}_tmp1.dat

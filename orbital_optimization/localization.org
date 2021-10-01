@@ -1,0 +1,465 @@
+* Orbital localization
+
+Test localization with pairwise rotations
+
+#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+program localization
+
+  implicit none
+
+  ! Variables
+  double precision, allocatable :: m_theta(:,:), pre_rot(:,:), R(:,:), m_x(:,:)
+  double precision, allocatable :: new_mos(:,:)
+  double precision :: criterion
+  double precision :: theta_max
+  integer          :: i_theta_max, j_theta_max
+  integer          :: i,j,k
+  integer          :: mo_beg, mo_end
+  integer          :: n_occ
+  integer          :: info
+  double precision :: pi
+
+  ! Allocation
+  allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
+  allocate(new_mos(ao_num, mo_num), m_x(mo_num,mo_num))
+
+  pi = 3.1415926535897932
+  
+  if (mod(elec_num,2) == 0) then
+    n_occ = elec_num/2
+  else
+    n_occ = elec_num/2 + 1
+  endif
+
+  call compute_hf_energy()
+  print*,'HF', HF_energy
+
+  print*,'### Before pre rotation :'
+  call compute_criterion(criterion)
+  print*,'Criterion:', criterion
+
+  pre_rot = 0d0
+
+  print*, 'elec_num', elec_num
+  print*, 'core', n_core_orb
+  print*, 'occ', n_occ
+  print*, 'vir', mo_num - n_occ
+  print*, 'mo_num', mo_num
+
+  if (n_core_orb >= 2) then
+    do i = 1, n_core_orb
+      do j = 1, n_core_orb
+        if (i > j) then
+          pre_rot(i,j) = 0.1d0
+        elseif (i < j) then
+          pre_rot(i,j) = -0.1d0
+        else
+          pre_rot(i,j) = 0d0
+        endif
+      enddo
+    enddo
+  endif
+  
+  do i = n_core_orb + 1, n_occ
+    do j = n_core_orb + 1, n_occ
+      if (i > j) then
+        pre_rot(i,j) = 0.1d0
+      elseif (i < j) then
+        pre_rot(i,j) = -0.1d0
+      else
+        pre_rot(i,j) = 0d0
+      endif
+    enddo
+  enddo
+
+  do i = n_occ + 1, mo_num
+    do j = n_occ + 1, mo_num
+      if (i > j) then
+        pre_rot(i,j) = 0.1d0
+      elseif (i < j) then
+        pre_rot(i,j) = -0.1d0
+      else
+        pre_rot(i,j) = 0d0
+      endif
+    enddo
+  enddo
+
+  print*,'pre_rot:'
+  do i = 1, mo_num
+    write(*,'(100(F10.5))') pre_rot(i,:)
+  enddo
+
+  call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
+
+  print*,'pre Rotation matrix:'
+  do i = 1, mo_num
+    write(*,'(100(F10.5))') R(i,:)
+  enddo
+   
+  call apply_mo_rotation(R,mo_coef,new_mos)
+
+  call clear_mo_map
+  TOUCH mo_coef
+  call compute_hf_energy()
+  print*,'HF', HF_energy
+
+  print*,'### After pre rotation :'
+  call compute_criterion(criterion)
+  print*,'Criterion:', criterion
+
+  mo_beg = n_occ + 1
+  mo_end = mo_num
+  print*,'mo_beg:', mo_beg
+  print*,'mo_end:', mo_end
+
+theta_max = 1d0
+
+do while (ABS(theta_max) > 0.01d0)
+!do k = 1, 20
+
+  call compute_theta(m_theta)
+
+  print*,'m_theta:'
+  do i = 1, mo_num
+    write(*,'(100(E12.5))') m_theta(i,:)
+  enddo
+
+  call research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
+
+  print*,'i_theta_max:', i_theta_max
+  print*,'j_theta_max:', j_theta_max
+  print*,' theta_max:', theta_max
+
+  !print*,'mo_coef:'
+  !do i = 1, ao_num
+  !  write(*,'(100(F10.5))') mo_coef(i,:)
+  !enddo
+  
+  !call compute_gradient(mo_beg, mo_end, m_x)
+  !call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  !call apply_mo_rotation(R,mo_coef,new_mos)
+  !print*,'R:'
+  !do i = 1, mo_num
+  !  write(*,'(100(F10.5))') R(i,:)
+  !enddo
+
+  call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+
+  print*,'### After rotation:'
+  call compute_criterion(criterion)
+  print*,'Criterion:', criterion
+
+  !print*,'mo_coef:'
+  !do i = 1, ao_num
+  !  write(*,'(100(F10.5))') mo_coef(i,:)
+  !enddo
+
+  call clear_mo_map
+  TOUCH mo_coef 
+  call compute_hf_energy()
+  print*,'HF', HF_energy
+
+enddo
+
+end program  
+#+END_SRC
+
+$A_{12} = \langle 1 | r| 2 \rangle \langle 1 | r | 2 \rangle -
+\frac{1}{4} (\langle 1 | r | 1 \rangle - \langle 2 | r | 2 \rangle)
+(\langle 1 | r | 1 \rangle - \langle 2 | r | 2 \rangle)$
+
+$B_{12} = (\langle 1 | r | 1 \rangle - \langle 2 | r | 2 \rangle)
+\langle 1 | r| 2 \rangle$
+
+#+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
+subroutine compute_gradient(mo_beg, mo_end, m_x)
+
+  implicit none
+  
+  integer, intent(in) :: mo_beg, mo_end
+  double precision, intent(out) :: m_x(mo_num, mo_num)
+  double precision, allocatable :: gradient(:), hessian(:,:), x(:)
+  double precision, allocatable :: m_gradient(:,:), beta(:,:), gamma(:,:), H(:,:,:,:)
+  double precision :: accu
+  integer :: i,j,k,p,q,pq,r,s,rs,n
+
+  n = mo_num*(mo_num-1)/2
+
+  allocate(m_gradient(mo_num, mo_num))
+  allocate(beta(mo_num, mo_num), gamma(mo_num, mo_num), H(mo_num,mo_num,mo_num,mo_num))
+  allocate(hessian(n,n), x(n), gradient(n))
+
+  beta = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      beta(i,j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 *  mo_dipole_x(i,j)**2 &
+                 +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 *  mo_dipole_y(i,j)**2 &
+                 +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 *  mo_dipole_z(i,j)**2
+    enddo
+  enddo
+
+  gamma = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      gamma(i,j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                  +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                  +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+
+  m_gradient = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      m_gradient(i,j) = beta(i,j) * dsin(0d0) + gamma(i,j) * dcos(0d0) 
+    enddo
+  enddo
+
+  do k = 1, n
+    call vec_to_mat_index(k,i,j)
+    gradient(k) = m_gradient(i,j)
+  enddo 
+
+  H = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      H(i,j,i,j) = 4d0 * beta(i,j) * dcos(0d0) - 4d0 * gamma(i,j) * dsin(0d0)
+    enddo
+  enddo
+  
+  do rs = 1, n
+    call vec_to_mat_index(rs,r,s)
+    do pq = 1, n
+      call vec_to_mat_index(pq,p,q)
+      hessian(pq,rs) = H(p,q,r,s)   
+    enddo
+  enddo
+
+  accu = 0d0
+  do i = 1, n
+    if (hessian(i,i) < accu) then
+      accu = hessian(i,i)
+    endif
+  enddo
+  accu = accu - 1d-6
+
+  do i = 1, n
+    hessian(i,i) = hessian(i,i) - accu
+  enddo
+
+  x = 0d0
+  do i = 1, n 
+    if (ABS(hessian(i,i)) > 1d-6) then
+      x(i) = - 1d0/hessian(i,i) * gradient(i)
+    else
+      x(i) = 0d0
+    endif
+  enddo
+
+  m_x = 0d0
+  do j = mo_beg, mo_end
+    do i = mo_beg, mo_end
+      if (i>j) then
+        call mat_to_vec_index(i,j,k)
+        m_x(i,j) = x(k)
+      else
+        m_x(i,j) = 0d0
+      endif
+    enddo
+  enddo
+
+  do j = mo_beg, mo_end
+    do i = mo_beg, mo_end
+      if (i<j) then
+        m_x(i,j) = - m_x(j,i)
+      endif
+    enddo
+  enddo
+
+  print*,'hessian:'
+  do i = 1, n
+    write(*,'(100(E12.5))') hessian(i,:)
+  enddo
+
+  print*,'gradient:'
+  do i = 1, n
+    write(*,'(100(E12.5))') m_gradient(i,:)
+  enddo
+end subroutine
+
+subroutine compute_theta(m_theta)
+
+  implicit none
+  
+  integer :: i,j
+  double precision, intent(out) :: m_theta(mo_num, mo_num)
+
+  double precision, allocatable :: A12(:,:), B12(:,:)
+  double precision :: pi
+
+  pi = 3.1415926535897932
+
+  allocate(A12(mo_num, mo_num), B12(mo_num, mo_num))
+  
+  !A12
+  do j = 1, mo_num
+    do i = 1, mo_num
+      A12(i,j) = mo_dipole_x(i,j) * mo_dipole_x(i,j) &
+                 - 0.25d0 * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) * &
+                 (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                + &
+                mo_dipole_y(i,j) * mo_dipole_y(i,j) &
+                 - 0.25d0 * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) * &
+                 (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                + &
+                mo_dipole_z(i,j) * mo_dipole_z(i,j) &
+                 - 0.25d0 * (mo_dipole_z(i,i) - mo_dipole_z(j,j)) * &
+                 (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+
+  !print*,'A12:'
+  !do i = 1, mo_num
+  !  write(*,'(100(E12.5))') A12(i,:)
+  !enddo
+
+  ! B12
+  do j = 1, mo_num
+    do i = 1, mo_num
+      B12(i,j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j)) * mo_dipole_x(i,j) &
+                 + &
+                 (mo_dipole_y(i,i) - mo_dipole_y(j,j)) * mo_dipole_y(i,j) &
+                 + &
+                 (mo_dipole_z(i,i) - mo_dipole_z(j,j)) * mo_dipole_z(i,j)
+    enddo
+  enddo
+
+  !print*,'B12:'
+  !do i = 1, mo_num
+  !  write(*,'(100(E12.5))') B12(i,:)
+  !enddo
+
+  !print*,'@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
+  !print*,''
+  !do j = 1, mo_num
+  !  do i = 1, mo_num
+  !    print*, mo_dipole_x(i,i) , mo_dipole_x(j,j), mo_dipole_x(i,j)
+  !  enddo
+  !enddo
+ 
+  ! m_theta
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i == j) then
+        m_theta(i,j) = 0d0     !(-B12(i,j), A12(i,j)) ?? pourquoi j'avais mis le - ici ????
+      elseif (0.25d0 * atan2(B12(i,j), -A12(i,j)) >= 0d0) then
+        m_theta(i,j) =  0d0 * pi * 0.25d0 + 0.25d0 * atan2(B12(i,j), -A12(i,j))
+      else
+        m_theta(i,j) = - 0d0 *pi * 0.25d0 + 0.25d0 * atan2(B12(i,j), -A12(i,j))
+      endif
+    enddo
+  enddo
+
+end subroutine
+
+subroutine compute_criterion(criterion)
+
+  implicit none
+
+  double precision, intent(out) :: criterion
+  integer :: i
+
+  ! Criterion (= \sum_i <i|r|i>^2 )
+  criterion = 0d0
+  do i = 1, mo_num
+    criterion = criterion + mo_dipole_x(i,i)**2 + mo_dipole_y(i,i)**2 + mo_dipole_z(i,i)**2
+  enddo
+  criterion = - criterion
+
+end subroutine
+
+
+subroutine research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
+
+  implicit none
+
+  integer, intent(in) :: mo_beg, mo_end
+  double precision, intent(in) :: m_theta(mo_num, mo_num)
+  integer, intent(out) :: i_theta_max, j_theta_max
+  double precision, intent(out) :: theta_max
+  integer :: i,j
+  
+  ! research the max theta for the MOs between mo_beg and mo_end
+
+  theta_max = 0d0
+  do j = mo_beg, mo_end
+    do i = mo_beg, mo_end
+      if (ABS(theta_max) <= ABS(m_theta(i,j))) then
+        i_theta_max = i 
+        j_theta_max = j 
+        theta_max =  m_theta(i,j)
+      endif
+    enddo
+  enddo
+
+end subroutine
+
+subroutine apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+
+  implicit none
+
+  integer, intent(in) :: i_theta_max, j_theta_max
+  double precision, intent(in) :: theta_max
+  double precision, allocatable :: new_mos(:,:)
+  integer :: k
+
+  allocate(new_mos(ao_num, mo_num))
+
+  ! Rotation
+  new_mos = mo_coef
+
+  do k = 1, ao_num
+    new_mos(k, i_theta_max) = mo_coef(k, i_theta_max) * cos(theta_max) &
+                            + mo_coef(k, j_theta_max) * sin(theta_max)
+    new_mos(k, j_theta_max) = - mo_coef(k, i_theta_max) * sin(theta_max) &
+                            + mo_coef(k, j_theta_max) * cos(theta_max)
+  enddo
+
+  mo_coef = new_mos
+  call save_mos()
+  
+  call clear_mo_map
+  TOUCH mo_coef
+
+end subroutine
+
+subroutine compute_hf_energy()
+
+  implicit none
+
+  double precision :: energy, mo_two_e_integral
+  integer :: i,j,k,l
+
+  energy = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      energy = energy + mo_one_e_integrals(i,j) * one_e_dm_mo(i,j)
+    enddo
+  enddo
+
+  do l = 1, mo_num
+    do k = 1, mo_num
+      do j = 1, mo_num
+        do i = 1, mo_num
+          energy = energy +0.5d0 * mo_two_e_integral(i,j,k,l) * two_e_dm_mo(i,j,k,l)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  energy = energy + nuclear_repulsion
+
+  print*,'energy scf', energy
+
+end subroutine
+#+END_SRC
+

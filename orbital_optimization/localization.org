@@ -113,7 +113,7 @@ program localization
   print*,'mo_end:', mo_end
 
 theta_max = 1d0
-
+k=1
 do while (ABS(theta_max) > 0.01d0)
 !do k = 1, 20
 
@@ -135,19 +135,27 @@ do while (ABS(theta_max) > 0.01d0)
   !  write(*,'(100(F10.5))') mo_coef(i,:)
   !enddo
   
-  !call compute_gradient(mo_beg, mo_end, m_x)
-  !call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-  !call apply_mo_rotation(R,mo_coef,new_mos)
+  call compute_gradient(mo_beg, mo_end, m_x)
+ 
+  ! Test rotation de toutes les OMs concernées en même temps 
+  !do j = mo_beg, mo_end
+  !  do i = mo_beg, mo_end
+  !    m_x(i,j) = m_theta(i,j)
+  !  enddo
+  !enddo
+
+  call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call apply_mo_rotation(R,mo_coef,new_mos)
   !print*,'R:'
   !do i = 1, mo_num
   !  write(*,'(100(F10.5))') R(i,:)
   !enddo
 
-  call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+  !call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
 
   print*,'### After rotation:'
   call compute_criterion(criterion)
-  print*,'Criterion:', criterion
+  print*,'Criterion:', k, criterion, theta_max
 
   !print*,'mo_coef:'
   !do i = 1, ao_num
@@ -158,6 +166,8 @@ do while (ABS(theta_max) > 0.01d0)
   TOUCH mo_coef 
   call compute_hf_energy()
   print*,'HF', HF_energy
+  
+  k = k + 1
 
 enddo
 
@@ -249,11 +259,13 @@ subroutine compute_gradient(mo_beg, mo_end, m_x)
   x = 0d0
   do i = 1, n 
     if (ABS(hessian(i,i)) > 1d-6) then
-      x(i) = - 1d0/hessian(i,i) * gradient(i)
+      x(i) = - 1d0/hessian(i,i) * (-gradient(i))
     else
       x(i) = 0d0
     endif
   enddo
+
+  print*,'norm_grad', sum(gradient(:)**2)
 
   m_x = 0d0
   do j = mo_beg, mo_end

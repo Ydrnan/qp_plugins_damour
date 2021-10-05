@@ -83,7 +83,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision, allocatable :: RR_t(:,:)
   integer                       :: i,j
   integer                       :: info2, lwork ! for dsyev
-  double precision              :: norm
+  double precision              :: norm, max_elem, max_elem_A
 
   ! function
   double precision              :: dnrm2
@@ -141,6 +141,35 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
       endif
     enddo
   enddo
+
+  do i = 1, n
+    if (A(i,i) /= 0d0) then
+      print*, 'Rotation matrix: matrix is not antisymmetric'
+      print*, 'Non 0 element in the diagonal', i, A(i,i)
+      call ABORT
+    endif
+  enddo
+
+  do j = 1, n
+    do i = 1, n
+      if (A(i,j) /= -A(j,i)) then
+        print*, 'rotation matrix: matrix is not antisymmetric'
+        print*, 'A(i,j) /= - A(j,i):', i,j,A(i,j), A(j,i)
+        call ABORT 
+      endif
+    enddo
+  enddo
+
+  max_elem_A = 0d0
+  do j = 1, n
+    do i = 1, n
+      if (ABS(A(i,j)) > ABS(max_elem_A)) then
+        max_elem_A = A(i,j)
+      endif
+    enddo
+  enddo
+  print*,'max elem A:', max_elem_A
+
 #+END_SRC
 
 ** Calculations
@@ -179,6 +208,11 @@ e_val, the eigenvalues
   else
     print*, "Diagonalization : Failed to converge"
   endif
+
+  print*,'Eigenvalue of B=A.A for rotation matrix'
+  do i = 1,n
+    print*, e_val(i)
+  enddo
 #+END_SRC
 
 *** Tau^-1, cos(tau), sin(tau)
@@ -247,6 +281,31 @@ These matrices are diagonals
     enddo
   enddo
 
+  max_elem = 0d0
+  do i = 1, n
+    if (ABS(tau_m1(i,i)) > ABS(max_elem)) then
+      max_elem = tau_m1(i,i)
+    endif
+  enddo
+  print*,'max elem taum1:', max_elem
+
+  max_elem = 0d0
+  do i = 1, n
+    if (ABS(cos_tau(i,i)) > ABS(max_elem)) then
+      max_elem = cos_tau(i,i)
+    endif
+  enddo
+  print*,'max elem cos_tau:', max_elem
+
+  max_elem = 0d0
+  do i = 1, n
+    if (ABS(sin_tau(i,i)) > ABS(max_elem)) then
+      max_elem = sin_tau(i,i)
+    endif
+  enddo
+  print*,'max elem sin_tau:', max_elem
+
+
   !Debug, display tau^-1
   if (debug) then
     print*, 'tau^-1'
@@ -312,6 +371,30 @@ $R.R^T=R^T.R=\textbf{1}$
 
   norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
   print*, 'Rotation matrix check, norm R.R^T = ', norm
+
+  max_elem = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num 
+      if (ABS(RR_t(i,j)) > ABS(max_elem)) then
+        max_elem = RR_t(i,j)
+      endif
+    enddo
+  enddo
+
+  print*, 'Max error in R.R^T:', max_elem
+
+  max_elem = 0d0
+  do i = 1, mo_num
+    if (ABS(RR_t(i,i)) > ABS(max_elem)) then
+      max_elem = RR_t(i,i)
+    endif
+  enddo
+
+   print*, 'Max error on the diagonal in R.R^T:', max_elem
+   
+   print*, 'e_val(1):', e_val(1)
+
+   print*,'max elem A:', max_elem_A
 
   ! Debug
   if (debug) then

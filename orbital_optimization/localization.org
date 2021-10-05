@@ -8,22 +8,30 @@ program localization
   implicit none
 
   ! Variables
-  double precision, allocatable :: m_theta(:,:), pre_rot(:,:), R(:,:), m_x(:,:)
+  double precision, allocatable :: m_theta(:,:), pre_rot(:,:), R(:,:), m_x(:,:), m_x2(:,:), x(:)
   double precision, allocatable :: new_mos(:,:)
-  double precision :: criterion
+  double precision :: criterion, angle_pre_rot
   double precision :: theta_max
   integer          :: i_theta_max, j_theta_max
-  integer          :: i,j,k
+  integer          :: i,j,k,l,p
   integer          :: mo_beg, mo_end
   integer          :: n_occ
   integer          :: info
+  integer          :: n
+  double precision, allocatable :: v_grad(:), H(:,:)
+  double precision :: max_elem, t1, t2, t3
   double precision :: pi
+ 
+  n = mo_num*(mo_num-1)/2
 
   ! Allocation
+  allocate(v_grad(n), H(n,n), x(n))
   allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
-  allocate(new_mos(ao_num, mo_num), m_x(mo_num,mo_num))
+  allocate(new_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
 
   pi = 3.1415926535897932
+  
+  print*,'elec_num', elec_num
   
   if (mod(elec_num,2) == 0) then
     n_occ = elec_num/2
@@ -46,13 +54,15 @@ program localization
   print*, 'vir', mo_num - n_occ
   print*, 'mo_num', mo_num
 
+  angle_pre_rot = 1d-1
+
   if (n_core_orb >= 2) then
     do i = 1, n_core_orb
       do j = 1, n_core_orb
         if (i > j) then
-          pre_rot(i,j) = 0.1d0
+          pre_rot(i,j) = angle_pre_rot
         elseif (i < j) then
-          pre_rot(i,j) = -0.1d0
+          pre_rot(i,j) = - angle_pre_rot
         else
           pre_rot(i,j) = 0d0
         endif
@@ -63,9 +73,9 @@ program localization
   do i = n_core_orb + 1, n_occ
     do j = n_core_orb + 1, n_occ
       if (i > j) then
-        pre_rot(i,j) = 0.1d0
+        pre_rot(i,j) = angle_pre_rot
       elseif (i < j) then
-        pre_rot(i,j) = -0.1d0
+        pre_rot(i,j) = - angle_pre_rot
       else
         pre_rot(i,j) = 0d0
       endif
@@ -75,33 +85,22 @@ program localization
   do i = n_occ + 1, mo_num
     do j = n_occ + 1, mo_num
       if (i > j) then
-        pre_rot(i,j) = 0.1d0
+        pre_rot(i,j) = angle_pre_rot
       elseif (i < j) then
-        pre_rot(i,j) = -0.1d0
+        pre_rot(i,j) = - angle_pre_rot
       else
         pre_rot(i,j) = 0d0
       endif
     enddo
   enddo
 
-  print*,'pre_rot:'
-  do i = 1, mo_num
-    write(*,'(100(F10.5))') pre_rot(i,:)
-  enddo
-
-  call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
-
-  print*,'pre Rotation matrix:'
-  do i = 1, mo_num
-    write(*,'(100(F10.5))') R(i,:)
-  enddo
-   
+  call org_rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
   call apply_mo_rotation(R,mo_coef,new_mos)
 
-  call clear_mo_map
+  !call clear_mo_map
   TOUCH mo_coef
-  call compute_hf_energy()
-  print*,'HF', HF_energy
+  !call compute_hf_energy()
+  !print*,'HF', HF_energy
 
   print*,'### After pre rotation :'
   call compute_criterion(criterion)
@@ -109,67 +108,110 @@ program localization
 
   mo_beg = n_occ + 1
   mo_end = mo_num
-  print*,'mo_beg:', mo_beg
-  print*,'mo_end:', mo_end
+  !print*,'mo_beg:', mo_beg
+  !print*,'mo_end:', mo_end
 
-theta_max = 1d0
-k=1
-do while (ABS(theta_max) > 0.01d0)
-!do k = 1, 20
+  print*,'core', 1, n_core_orb
+  print*,'occ', n_core_orb, n_occ
+  print*,'vir', n_occ+1, mo_num
+
+do k = 1, 100
 
   call compute_theta(m_theta)
-
-  print*,'m_theta:'
-  do i = 1, mo_num
-    write(*,'(100(E12.5))') m_theta(i,:)
-  enddo
-
+!
+!  ! Test pair wise rotation
   call research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
-
+!
   print*,'i_theta_max:', i_theta_max
   print*,'j_theta_max:', j_theta_max
   print*,' theta_max:', theta_max
+!
+!  ! Pair wise rotation
+!  !call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+!
+!  !call compute_criterion(criterion)
+!  !print*,'Criterion:', criterion
+!
+!  m_x = 0d0
+!  x = 0d0
+!
+!  do l = 1, 3
+!    if (l==1 .and. n_core_orb >= 2) then
+!      mo_beg = 1
+!      mo_end = n_core_orb
+!    elseif (l<=2) then
+!      mo_beg = n_core_orb + 1
+!      mo_end = n_occ
+!    else
+!      mo_beg = n_occ + 1
+!      mo_end = mo_num
+!    endif
+!
+!    call research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
+!
+!    print*,'i_theta_max:', i_theta_max
+!    print*,'j_theta_max:', j_theta_max
+!    print*,' theta_max:', theta_max
+!
+!    do j = mo_beg, mo_end
+!      do i = mo_beg, mo_end
+!        m_x(i,j) = m_theta(i,j) * 0.1d0
+!      enddo
+!    enddo
+!  enddo
+!
+!  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!  call apply_mo_rotation(R,mo_coef,new_mos)
+!
+!  call compute_criterion(criterion)
+!  print*,'Criterion:', criterion
 
-  !print*,'mo_coef:'
-  !do i = 1, ao_num
-  !  write(*,'(100(F10.5))') mo_coef(i,:)
-  !enddo
-  
-  call compute_gradient(mo_beg, mo_end, m_x)
- 
-  ! Test rotation de toutes les OMs concernées en même temps 
-  !do j = mo_beg, mo_end
-  !  do i = mo_beg, mo_end
-  !    m_x(i,j) = m_theta(i,j)
-  !  enddo
-  !enddo
+  !!!!! Newton method's !!!!
+  mo_beg = n_occ+1
+  mo_end = mo_num
+  !call compute_gradient(mo_beg, mo_end, m_x)
 
-  call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-  call apply_mo_rotation(R,mo_coef,new_mos)
-  !print*,'R:'
   !do i = 1, mo_num
-  !  write(*,'(100(F10.5))') R(i,:)
+  !  write(*,'(100(E12.5))') m_x(i,:)
   !enddo
 
-  !call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+  call H_orb_loc(n, mo_beg, mo_end,H)
 
-  print*,'### After rotation:'
+  call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+  print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
+  call x_orb_loc(n, v_grad, H, m_x)
+
+  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call apply_mo_rotation(R,mo_coef,new_mos)
+
   call compute_criterion(criterion)
-  print*,'Criterion:', k, criterion, theta_max
+  print*,'Criterion:', mo_beg, mo_end, criterion
 
-  !print*,'mo_coef:'
-  !do i = 1, ao_num
-  !  write(*,'(100(F10.5))') mo_coef(i,:)
-  !enddo
+  TOUCH mo_coef 
+
+enddo
+
+!  do k = 1, 100
+!      mo_beg = n_core_orb+1
+!      mo_end = n_occ
+!      call H_orb_loc(n, mo_beg, mo_end, H)
+!
+!      call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+!      print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
+!      call x_orb_loc(n, v_grad, H, m_x)
+!      
+!      call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!      call apply_mo_rotation(R,mo_coef,new_mos)
+!      
+!      call compute_criterion(criterion)
+!      print*,'Criterion:', mo_beg, mo_end, criterion
+! 
+!  enddo
 
   call clear_mo_map
   TOUCH mo_coef 
   call compute_hf_energy()
   print*,'HF', HF_energy
-  
-  k = k + 1
-
-enddo
 
 end program  
 #+END_SRC
@@ -182,6 +224,244 @@ $B_{12} = (\langle 1 | r | 1 \rangle - \langle 2 | r | 2 \rangle)
 \langle 1 | r| 2 \rangle$
 
 #+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
+subroutine gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+  
+  implicit none
+  
+  integer, intent(in) :: n, mo_beg, mo_end
+  double precision, intent(out) :: v_grad(n), max_elem
+  double precision, allocatable :: m_grad(:,:)
+  integer :: i,j,k,l
+  double precision :: pi
+
+  pi = 3.1415926535897932
+  
+  ! Allocation
+  allocate(m_grad(mo_num, mo_num))
+ 
+  ! Calculation
+  m_grad = 0d0
+
+  do j = mo_beg, mo_end
+    do i = mo_beg, mo_end
+      m_grad(i,j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                  +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                  +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+
+  ! do j = 1, mo_num
+  !   do i = 1, mo_num
+  !
+  !    m_grad(i,j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+  !                +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+  !                +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+  !  enddo
+  !enddo
+
+  !m_grad = - m_grad ! A cause de la transposition de m**** dans la matrice de rotation que je n'ai toujours pas enlevé
+  
+  ! 2D -> 1D
+  do k = 1, n
+    call vec_to_mat_index(k,i,j)
+    v_grad(k) = m_grad(i,j) 
+  enddo
+
+  ! Maximum element in the gradient
+  max_elem = 0d0
+  do k = 1, n
+    if (ABS(v_grad(k)) > max_elem) then
+      max_elem = ABS(v_grad(k))
+    endif
+  enddo 
+
+  ! Deallocation
+  deallocate(m_grad)
+
+end subroutine
+
+subroutine H_orb_loc(n, mo_beg, mo_end, H)
+
+  implicit none
+
+  integer, intent(in) :: n, mo_beg, mo_end
+  double precision, intent(out) :: H(n,n)
+  double precision, allocatable :: H_4D(:,:,:,:), beta(:,:)
+  integer :: i,j,k,l,pq,p,q,rs,r,s
+  double precision :: max_elem
+
+  ! Allocation
+  allocate(H_4D(mo_num,mo_num,mo_num,mo_num), beta(mo_num,mo_num))
+  
+  ! Calculation
+  beta = 0d0
+  do j = mo_beg, mo_end
+    do i = mo_beg, mo_end
+      beta(i,j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 * mo_dipole_x(i,j)**2 &
+                 +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 * mo_dipole_y(i,j)**2 &
+                 +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 * mo_dipole_z(i,j)**2
+    enddo
+  enddo
+
+  H_4D = 0d0
+  do i = mo_beg, mo_end !1, mo_num
+    do j = mo_beg, mo_end !1, mo_num
+      H_4D(i,j,i,j) = 4d0 * beta(i,j)
+    enddo
+  enddo
+  
+  ! 4D -> 2D
+  do rs = 1, n
+    call vec_to_mat_index(rs,r,s)
+    do pq = 1, n
+      call vec_to_mat_index(pq,p,q)
+      H(pq,rs) = H_4D(p,q,r,s)   
+    enddo
+  enddo
+
+  max_elem = 0d0
+  do i = 1, n
+    if (H(i,i) < max_elem) then
+      max_elem = H(i,i)
+    endif
+  enddo
+  print*, 'Min elem H:', max_elem
+
+  max_elem = 0d0
+  do i = 1, n
+    if (H(i,i) > max_elem) then
+      max_elem = H(i,i)
+    endif
+  enddo
+  print*, 'Max elem H:', max_elem
+  
+  max_elem = 1d10
+  do i = 1, n
+    if (ABS(H(i,i)) < ABS(max_elem)) then
+      max_elem = H(i,i)
+    endif
+  enddo
+  print*, 'Near 0 elem H:', max_elem
+
+  ! Deallocation
+  deallocate(H_4D, beta)
+
+end subroutine
+
+subroutine x_orb_loc(n, v_grad, H, m_x)
+
+  implicit none
+
+  integer, intent(in) :: n
+  double precision, intent(in) :: v_grad(n)
+  double precision, intent(inout) :: H(n,n)
+  double precision, intent(out) :: m_x(mo_num, mo_num)
+  double precision, allocatable :: x(:)
+  double precision :: lambda , accu, max_elem
+  integer :: i,j,k, mo_beg, mo_end
+
+  ! Allocation
+  allocate(x(n))
+
+  ! Level shifted hessian
+  lambda = 0d0
+  do i = 1, n
+    if (H(i,i) < lambda) then
+      lambda = H(i,i)
+    endif
+  enddo
+
+  ! min element
+  if (lambda < 0d0) then
+    lambda = -lambda + 1d-6
+  endif  
+  
+  print*, 'lambda', lambda
+ 
+  x = 0d0
+  !do i = 1,n
+  !  if (ABS(H(i,i) > 1d-6)) then
+  !    x(i) = - 1d0/(H(i,i) + lambda) * (-v_grad(i))
+  !  endif
+  !enddo
+
+  do i = 1, n
+    if (ABS(H(i,i)) > 1d-6) then
+      x(i) = - 1d0/(ABS(H(i,i))+lambda) * (-v_grad(i)) 
+    endif
+  enddo
+
+  
+ 
+  ! 1D -> 2D
+  m_x = 0d0
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i>j) then
+        call mat_to_vec_index(i,j,k)
+        m_x(i,j) = x(k)
+      else
+        m_x(i,j) = 0d0
+      endif
+    enddo
+  enddo
+
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i<j) then
+        m_x(i,j) = - m_x(j,i)
+      endif
+    enddo
+  enddo
+
+
+!  !!!!!!!!!!!!!!!!!! Test
+!  accu = 0d0
+!  do i = 1, n
+!    if (H(i,i) < accu) then
+!      accu = H(i,i)
+!    endif
+!  enddo
+!  accu = accu - 1d-6
+!
+!  do i = 1, n
+!    H(i,i) = H(i,i) - accu
+!  enddo
+!
+!  x = 0d0
+!  do i = 1, n 
+!    if (ABS(H(i,i)) > 1d-6) then
+!      x(i) = - 1d0/(H(i,i)) * (-v_grad(i))
+!    else
+!      x(i) = 0d0
+!    endif
+!  enddo
+!
+!  m_x = 0d0
+!  do j = 1, mo_num 
+!    do i = 1, mo_num 
+!      if (i>j) then
+!        call mat_to_vec_index(i,j,k)
+!        m_x(i,j) = x(k)
+!      else
+!        m_x(i,j) = 0d0
+!      endif
+!    enddo
+!  enddo
+!
+!  do j = 1, mo_num 
+!    do i = 1, mo_num 
+!      if (i<j) then
+!        m_x(i,j) = - m_x(j,i)
+!      endif
+!    enddo
+!  enddo
+
+  ! Deallocation
+  deallocate(x)
+
+end subroutine
+
 subroutine compute_gradient(mo_beg, mo_end, m_x)
 
   implicit none
@@ -190,7 +470,7 @@ subroutine compute_gradient(mo_beg, mo_end, m_x)
   double precision, intent(out) :: m_x(mo_num, mo_num)
   double precision, allocatable :: gradient(:), hessian(:,:), x(:)
   double precision, allocatable :: m_gradient(:,:), beta(:,:), gamma(:,:), H(:,:,:,:)
-  double precision :: accu
+  double precision :: accu, max_elem
   integer :: i,j,k,p,q,pq,r,s,rs,n
 
   n = mo_num*(mo_num-1)/2
@@ -228,6 +508,18 @@ subroutine compute_gradient(mo_beg, mo_end, m_x)
     call vec_to_mat_index(k,i,j)
     gradient(k) = m_gradient(i,j)
   enddo 
+
+  do k = 1, n
+    call vec_to_mat_index(k,i,j)
+  enddo
+
+  max_elem = 0d0
+  do k = 1, n
+    if (ABS(gradient(k)) > max_elem) then
+      max_elem = ABS(gradient(k))
+    endif
+  enddo 
+  print*, "Max element in the gradient:", max_elem
 
   H = 0d0
   do j = 1, mo_num
@@ -287,15 +579,15 @@ subroutine compute_gradient(mo_beg, mo_end, m_x)
     enddo
   enddo
 
-  print*,'hessian:'
-  do i = 1, n
-    write(*,'(100(E12.5))') hessian(i,:)
-  enddo
+  !print*,'hessian:'
+  !do i = 1, n
+  !  write(*,'(100(E12.5))') hessian(i,:)
+  !enddo
 
-  print*,'gradient:'
-  do i = 1, n
-    write(*,'(100(E12.5))') m_gradient(i,:)
-  enddo
+  !print*,'gradient:'
+  !do i = 1, n
+  !  write(*,'(100(E12.5))') m_gradient(i,:)
+  !enddo
 end subroutine
 
 subroutine compute_theta(m_theta)
@@ -439,8 +731,8 @@ subroutine apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
   mo_coef = new_mos
   call save_mos()
   
-  call clear_mo_map
-  TOUCH mo_coef
+  !call clear_mo_map
+  !TOUCH mo_coef
 
 end subroutine
 

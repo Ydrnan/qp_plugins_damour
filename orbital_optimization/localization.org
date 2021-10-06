@@ -9,7 +9,7 @@ program localization
 
   ! Variables
   double precision, allocatable :: m_theta(:,:), pre_rot(:,:), R(:,:), m_x(:,:), m_x2(:,:), x(:)
-  double precision, allocatable :: new_mos(:,:)
+  double precision, allocatable :: prev_mos(:,:)
   double precision :: criterion, angle_pre_rot
   double precision :: theta_max
   integer          :: i_theta_max, j_theta_max
@@ -19,7 +19,7 @@ program localization
   integer          :: info
   integer          :: n
   double precision, allocatable :: v_grad(:), H(:,:)
-  double precision :: max_elem, t1, t2, t3
+  double precision :: max_elem, t1, t2, t3, t4, t5, t6
   double precision :: pi
  
   n = mo_num*(mo_num-1)/2
@@ -27,35 +27,30 @@ program localization
   ! Allocation
   allocate(v_grad(n), H(n,n), x(n))
   allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
-  allocate(new_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
+  allocate(prev_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
 
-  pi = 3.1415926535897932
+  pi = 3.1415926535897932d0
   
-  print*,'elec_num', elec_num
-  
-  if (mod(elec_num,2) == 0) then
-    n_occ = elec_num/2
-  else
-    n_occ = elec_num/2 + 1
-  endif
+  call nb_occ_om(n_occ)
 
-  call compute_hf_energy()
-  print*,'HF', HF_energy
+  print*, 'elec_num:', elec_num
+  print*, 'core:', n_core_orb
+  print*, 'occ:', n_occ
+  print*, 'vir:', mo_num - n_occ
+  print*, 'mo_num:', mo_num
 
-  print*,'### Before pre rotation :'
   call compute_criterion(criterion)
+  print*,'### Before pre rotation :'
+  print*,'HF', HF_energy
   print*,'Criterion:', criterion
 
+  ! Initialization
   pre_rot = 0d0
 
-  print*, 'elec_num', elec_num
-  print*, 'core', n_core_orb
-  print*, 'occ', n_occ
-  print*, 'vir', mo_num - n_occ
-  print*, 'mo_num', mo_num
-
+  ! Angle for the pre rotation
   angle_pre_rot = 1d-1
 
+  ! Pre rotation for core MOs
   if (n_core_orb >= 2) then
     do i = 1, n_core_orb
       do j = 1, n_core_orb
@@ -70,6 +65,7 @@ program localization
     enddo
   endif
   
+  ! Pre rotation for occ MOs
   do i = n_core_orb + 1, n_occ
     do j = n_core_orb + 1, n_occ
       if (i > j) then
@@ -82,6 +78,7 @@ program localization
     enddo
   enddo
 
+  ! Pre rotation for vir MOs
   do i = n_occ + 1, mo_num
     do j = n_occ + 1, mo_num
       if (i > j) then
@@ -95,20 +92,25 @@ program localization
   enddo
 
   call org_rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
-  call apply_mo_rotation(R,mo_coef,new_mos)
+  !call apply_mo_rotation(R,mo_coef,new_mos)
+  call org_apply_mo_rotation(R,prev_mos)
 
-  !call clear_mo_map
   TOUCH mo_coef
-  call compute_hf_energy()
-  print*,'HF', HF_energy
 
-  print*,'### After pre rotation :'
   call compute_criterion(criterion)
+  print*,'### After pre rotation :'
+  print*,'HF', HF_energy
   print*,'Criterion:', criterion
-  
-  print*,'core', 1, n_core_orb
-  print*,'occ', n_core_orb, n_occ
-  print*,'vir', n_occ+1, mo_num
+
+  print*,''
+  print*,'========================'
+  print*,'  Orbital localization'
+  print*,'========================'
+  print*,'' 
+    
+  print*,'core MOs:', 1, n_core_orb
+  print*,'occ MOs:', n_core_orb, n_occ
+  print*,'vir MOs:', n_occ+1, mo_num
 
 !  do k = 1, 100
 !     
@@ -159,6 +161,7 @@ program localization
 
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
   
+  ! Initialization
   not_converged = .TRUE.
   if (n_core_orb < 2) then
     not_core_converged = .FALSE.
@@ -170,47 +173,76 @@ program localization
 
 do l = 1, 3
   
-  if (l==1) then
+  if (l==1) then ! core
     not_converged = not_core_converged
     mo_beg = 1
     mo_end = n_core_orb
-  elseif (l==2) then
+  elseif (l==2) then !  occ
     not_converged = not_occ_converged
      mo_beg = n_core_orb + 1
     mo_end = n_occ
-  else
+  else ! vir
     not_converged = not_vir_converged
     mo_beg = n_occ + 1
     mo_end = mo_num
   endif
 
   k = 1
-  do while (not_converged .or. k >= 100)
+  do while (not_converged .and. k <= 100)
     
+    call wall_time(t4)
+    call wall_time(t1)
     call H_orb_loc(n, mo_beg, mo_end,H)
-    
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'H time', t3
+
+    call wall_time(t1)
     call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'g time', t3
     print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
-    call x_orb_loc(n, v_grad, H, m_x)
- 
+
+    call wall_time(t1)
+    call x_orb_loc(n, v_grad, H, m_x) 
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'x time', t3
+  
+    call wall_time(t1)
     call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-    call apply_mo_rotation(R,mo_coef,new_mos)
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'R time', t3
+
+    call wall_time(t1)
+    !call apply_mo_rotation(R,mo_coef,new_mos)
+    call org_apply_mo_rotation(R, prev_mos)
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'apply R time', t3
     
+    call wall_time(t1)
     call compute_criterion(criterion)
     print*,'Criterion:', mo_beg, mo_end, criterion
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, ' Crit time', t3
     
     TOUCH mo_coef
 
-    if (max_elem < 1d-6) then
+    if (ABS(max_elem) < 1d-6) then
       not_converged = .FALSE.
     endif
-    k = k+1   
+    k = k+1
+    call wall_time(t5)
+    t6 = t5 - t4
+    print*, 'One cycle time', t6
   enddo
 enddo
 
-  call clear_mo_map
   TOUCH mo_coef 
-  call compute_hf_energy()
   print*,'HF', HF_energy
 
 end program  
@@ -708,3 +740,18 @@ subroutine compute_hf_energy()
 end subroutine
 #+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+subroutine nb_occ_om(n_occ)
+  
+  implicit none
+  
+  integer, intent(out) :: n_occ ! number of occupied orbitals
+  
+  if (mod(elec_num,2) == 0) then
+    n_occ = elec_num/2
+  else
+    n_occ = elec_num/2 + 1
+  endif
+  
+end
+#+END_SRC

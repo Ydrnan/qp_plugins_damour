@@ -83,11 +83,13 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision, allocatable :: RR_t(:,:)
   integer                       :: i,j
   integer                       :: info2, lwork ! for dsyev
-  double precision              :: norm, max_elem, max_elem_A
+  double precision              :: norm, max_elem, max_elem_A, pi
 
   ! function
   double precision              :: dnrm2
   logical                       :: disnan
+
+  pi = 3.1415926535897932d0
 
   ! Allocation
   allocate(B(n,n))
@@ -131,8 +133,8 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   endif
 
   ! Matrix elements of A must by non-NaN
-  do j=1,n
-    do i=1,n
+  do j = 1, n
+    do i = 1, n
       if (disnan(A(i,j))) then
         info=1
         print*, 'dm_rotation : invalid parameter 1'
@@ -168,21 +170,25 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
       endif
     enddo
   enddo
-  print*,'max elem A:', max_elem_A
+  print*,'rotation matrix: max element in A', max_elem_A
+
+  if (ABS(max_elem) > 2 * pi) then
+     print*,'rotation matrix: WARNING ABS(max_elem_A) > 2 pi '
+  endif
 
 #+END_SRC
 
 ** Calculations
 
 *** B=A.A
-- Calculation of the matrix $\textbf{B} = \textbf{A}^2$
-- Diagonalization of $\textbf{B}$ 
-W, the eigenvectors
-e_val, the eigenvalues
+    - Calculation of the matrix $\textbf{B} = \textbf{A}^2$
+    - Diagonalization of $\textbf{B}$ 
+    W, the eigenvectors
+    e_val, the eigenvalues
 
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   ! Compute B=A.A
-
+  
   call dgemm('N','N',n,n,n,1d0,A,size(A,1),A,size(A,1),0d0,B,size(B,1))
 
   ! Copy B in W, diagonalization will put the eigenvectors in W
@@ -191,7 +197,7 @@ e_val, the eigenvalues
   ! Diagonalization of B
   ! Eigenvalues -> e_val
   ! Eigenvectors -> W
-  lwork=3*n-1
+  lwork = 3*n-1
   allocate(work(lwork,n))
 
   print*,'Starting diagonalization ...'
@@ -201,151 +207,129 @@ e_val, the eigenvalues
   deallocate(work)
 
   if (info2 == 0) then
-    print*, 'Diagonalization : Done'
+     print*, 'Diagonalization : Done'
   elseif (info2 < 0) then
-    print*, 'Diagonalization : error'
-    print*, 'Illegal value of the ', info2,'-th parameter'
+     print*, 'Diagonalization : error'
+     print*, 'Illegal value of the ', info2,'-th parameter'
   else
-    print*, "Diagonalization : Failed to converge"
+     print*, "Diagonalization : Failed to converge"
   endif
-
-  print*,'Eigenvalue of B=A.A for rotation matrix'
-  do i = 1,n
-    print*, e_val(i)
-  enddo
-#+END_SRC
+    #+END_SRC
 
 *** Tau^-1, cos(tau), sin(tau)
-$$\tau = \sqrt{-x}$$
-- Calculation of $\cos(\tau)$  $\Leftrightarrow$ $\cos(\sqrt{-x})$
-- Calculation of $\sin(\tau)$  $\Leftrightarrow$ $\sin(\sqrt{-x})$
-- Calculation of $\tau^{-1}$ $\Leftrightarrow$ $(\sqrt{-x})^{-1}$
-These matrices are diagonals
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    $$\tau = \sqrt{-x}$$
+    - Calculation of $\cos(\tau)$  $\Leftrightarrow$ $\cos(\sqrt{-x})$
+    - Calculation of $\sin(\tau)$  $\Leftrightarrow$ $\sin(\sqrt{-x})$
+    - Calculation of $\tau^{-1}$ $\Leftrightarrow$ $(\sqrt{-x})^{-1}$
+    These matrices are diagonals
+    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   ! Diagonal matrix m_diag
-  do j=1,n
-    if (e_val(j) >= 0.d0) then
-      e_val(j) = 0.d0
-    else
-      e_val(j) = -e_val(j)
-    endif
+  do j = 1, n
+     if (e_val(j) >= 0.d0) then
+        e_val(j) = 0.d0
+     else
+        e_val(j) = - e_val(j)
+     endif
   enddo
 
   m_diag = 0.d0
-  do i=1,n
-    m_diag(i,i)= e_val(i)
+  do i = 1, n
+     m_diag(i,i) = e_val(i)
   enddo
 
   ! cos_tau
-  do j=1,n
-    do i=1,n
-      if (i==j) then
-        cos_tau(i,j)=dcos(dsqrt(e_val(i)))
-      else
-        cos_tau(i,j)=0d0
-      endif
-    enddo
+  do j = 1, n
+     do i = 1, n
+        if (i==j) then
+           cos_tau(i,j) = dcos(dsqrt(e_val(i)))
+        else
+           cos_tau(i,j) = 0d0
+        endif
+     enddo
   enddo
 
   ! sin_tau
-  do j=1,n
-    do i=1,n
-      if (i==j) then
-        sin_tau(i,j)=dsin(dsqrt(e_val(i)))
-      else
-        sin_tau(i,j)=0d0
-      endif
-    enddo
+  do j = 1, n
+     do i = 1, n
+        if (i==j) then
+           sin_tau(i,j) = dsin(dsqrt(e_val(i)))
+        else
+           sin_tau(i,j) = 0d0
+        endif
+     enddo
   enddo
 
   ! Debug, display the cos_tau and sin_tau matrix
   if (debug) then
-    print*, 'cos_tau'
-    do i=1,n
-      print*, cos_tau(i,:)
-    enddo
-    print*, 'sin_tau'
-    do i=1,n
-      print*, sin_tau(i,:)
-    enddo
+     print*, 'cos_tau'
+     do i = 1, n
+        print*, cos_tau(i,:)
+     enddo
+     print*, 'sin_tau'
+     do i = 1, n
+        print*, sin_tau(i,:)
+     enddo
   endif
 
   ! tau^-1
-  do j=1,n
-    do i=1,n
-      if ((i==j).and.(e_val(i) > 0d0)) then
-        tau_m1(i,j)=1d0/(dsqrt(e_val(i)))
-      else
-        tau_m1(i,j)=0d0
-      endif
-    enddo
+  do j = 1, n
+     do i = 1, n
+        if ((i==j).and.(e_val(i) > 0d0)) then
+           tau_m1(i,j) = 1d0/(dsqrt(e_val(i)))
+        else
+           tau_m1(i,j) = 0d0
+        endif
+     enddo
   enddo
 
   max_elem = 0d0
   do i = 1, n
-    if (ABS(tau_m1(i,i)) > ABS(max_elem)) then
-      max_elem = tau_m1(i,i)
-    endif
+     if (ABS(tau_m1(i,i)) > ABS(max_elem)) then
+        max_elem = tau_m1(i,i)
+     endif
   enddo
-  print*,'max elem taum1:', max_elem
-
-  max_elem = 0d0
-  do i = 1, n
-    if (ABS(cos_tau(i,i)) > ABS(max_elem)) then
-      max_elem = cos_tau(i,i)
-    endif
-  enddo
-  print*,'max elem cos_tau:', max_elem
-
-  max_elem = 0d0
-  do i = 1, n
-    if (ABS(sin_tau(i,i)) > ABS(max_elem)) then
-      max_elem = sin_tau(i,i)
-    endif
-  enddo
-  print*,'max elem sin_tau:', max_elem
-
+  print*,'rotation matrix: max elem taum1:', max_elem
 
   !Debug, display tau^-1
   if (debug) then
-    print*, 'tau^-1'
-    do i=1,n
-      print*,tau_m1(i,:)
-    enddo
+     print*, 'tau^-1'
+     do i = 1, n
+        print*,tau_m1(i,:)
+     enddo
   endif
-#+END_SRC
+    #+END_SRC
 
 *** Rotation matrix 
-\begin{align*}
-\textbf{R} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger} + \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
-\end{align*}
-\begin{align*}
-\textbf{Part1} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger}
-\end{align*}
-\begin{align*}
-\textbf{Part2} = \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
-\end{align*}
+    \begin{align*}
+    \textbf{R} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger} + \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
+    \end{align*}
+    \begin{align*}
+    \textbf{Part1} = \textbf{W} \cos(\tau) \textbf{W}^{\dagger}
+    \end{align*}
+    \begin{align*}
+    \textbf{Part2} = \textbf{W} \tau^{-1} \sin(\tau) \textbf{W}^{\dagger} \textbf{A}
+    \end{align*}
 
-First:
-part_1 = dgemm(W, dgemm(cos_tau, W^t))
-part_1a = dgemm(cos_tau, W^t)
-part_1 = dgemm(W, part_1a)
-And:
-part_2= dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
-part_2a = dgemm(W^t, A)
-part_2b = dgemm(sin_tau, part_2a)
-part_2c = dgemm(tau_m1, part_2b)
-part_2 = dgemm(W, part_2c)
-Finally:
-Rotation matrix, R = part_1+part_2
+    First:
+    part_1 = dgemm(W, dgemm(cos_tau, W^t))
+    part_1a = dgemm(cos_tau, W^t)
+    part_1 = dgemm(W, part_1a)
+    And:
+    part_2= dgemm(W, dgemm(tau_m1, dgemm(sin_tau, dgemm(W^t, A))))
+    part_2a = dgemm(W^t, A)
+    part_2b = dgemm(sin_tau, part_2a)
+    part_2c = dgemm(tau_m1, part_2b)
+    part_2 = dgemm(W, part_2c)
+    Finally:
+    Rotation matrix, R = part_1+part_2
 
-If $R$ is a rotation matrix:
-$R.R^T=R^T.R=\textbf{1}$
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    If $R$ is a rotation matrix:
+    $R.R^T=R^T.R=\textbf{1}$
+    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   ! part_1
   call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
   call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_1a,size(part_1a,1),0d0,part_1,size(part_1,1))
-  
+
   ! part_2
   call dgemm('T','N',n,n,n,1d0,W,size(W,1),A,size(A,1),0d0,part_2a,size(part_2a,1))
   call dgemm('N','N',n,n,n,1d0,sin_tau,size(sin_tau,1),part_2a,size(part_2a,1),0d0,part_2b,size(part_2b,1))
@@ -357,78 +341,73 @@ $R.R^T=R^T.R=\textbf{1}$
 
   ! Matrix check
   ! R.R^t and R^t.R must be equal to identity matrix
-  do j=1,n
-    do i=1,n
-      if (i==j) then
-        RR_t(i,j)=1d0
-      else
-        RR_t(i,j)=0d0
-      endif
-    enddo
+  do j = 1, n
+     do i=1,n
+        if (i==j) then
+           RR_t(i,j) = 1d0
+        else
+           RR_t(i,j) = 0d0
+        endif
+     enddo
   enddo
 
   call dgemm('N','T',n,n,n,1d0,R,size(R,1),R,size(R,1),-1d0,RR_t,size(RR_t,1))
 
   norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
-  print*, 'Rotation matrix check, norm R.R^T = ', norm
-
-  max_elem = 0d0
-  do j = 1, mo_num
-    do i = 1, mo_num 
-      if (ABS(RR_t(i,j)) > ABS(max_elem)) then
-        max_elem = RR_t(i,j)
-      endif
-    enddo
-  enddo
-
-  print*, 'Max error in R.R^T:', max_elem
-
-  max_elem = 0d0
-  do i = 1, mo_num
-    if (ABS(RR_t(i,i)) > ABS(max_elem)) then
-      max_elem = RR_t(i,i)
-    endif
-  enddo
-
-   print*, 'Max error on the diagonal in R.R^T:', max_elem
-   
-   print*, 'e_val(1):', e_val(1)
-
-   print*,'max elem A:', max_elem_A
+  print*, 'Rotation matrix check, norm R.R^T = ', norm 
 
   ! Debug
   if (debug) then
-    print*, 'RR_t'
-    do i=1,n
-      print*, RR_t(i,:)
-    enddo
+     print*, 'RR_t'
+     do i = 1, n
+        print*, RR_t(i,:)
+     enddo
   endif
-#+END_SRC
+    #+END_SRC
 
 *** Post conditions
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+  ! Check if R.R^T=1
+  max_elem = 0d0
+  do j = 1, n
+     do i = 1, n 
+        if (ABS(RR_t(i,j)) > ABS(max_elem)) then
+           max_elem = RR_t(i,j)
+        endif
+     enddo
+  enddo
+
+  print*, 'Max error in R.R^T:', max_elem
+  print*, 'e_val(1):', e_val(1)
+  print*, 'e_val(n):', e_val(n)
+  print*, 'max elem A:', max_elem_A
+
+  if (ABS(max_elem) > 1d-12) then
+    print*, 'rotation matrix: WARNING: max error in R.R^T > 1d-12'
+  endif
+
   ! Matrix elements of R must by non-NaN
-  do j=1,n
-    do i=1,LDR
-      if (disnan(R(i,j))) then
-        info=666
-        print*, 'NaN in rotation matrix'
-        call ABORT
-      endif
-    enddo
+  do j = 1,n
+     do i = 1,LDR
+        if (disnan(R(i,j))) then
+           info = 666
+           print*, 'NaN in rotation matrix'
+           call ABORT
+        endif
+     enddo
   enddo
 
   ! Display
   if (debug) then
-    print*,'Rotation matrix :'
-    do i=1,mo_num
-      write(*,'(100(F10.5))') R(i,:)
-    enddo
+     print*,'Rotation matrix :'
+     do i = 1, n
+        write(*,'(100(F10.5))') R(i,:)
+     enddo
   endif
-#+END_SRC
+    #+END_SRC
 
 ** Deallocation, end
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
   deallocate(B)
   deallocate(m_diag,cos_tau,sin_tau,tau_m1)
   deallocate(W,e_val)
@@ -437,9 +416,9 @@ $R.R^T=R^T.R=\textbf{1}$
   deallocate(RR_t)
 
   if (debug) then
-    print*,'Leave rotation_matrix'
+     print*,'Leave rotation_matrix'
   endif
 
 end subroutine
-#+END_SRC
+   #+END_SRC
 

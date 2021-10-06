@@ -230,9 +230,13 @@ do l = 1, 3
     print*,'Criterion:', mo_beg, mo_end, criterion
     call wall_time(t2)
     t3 = t2 - t1
-    print*, ' Crit time', t3
-    
+    print*, 'Crit time', t3
+  
+    call wall_time(t1)  
     TOUCH mo_coef
+    call wall_time(t2)
+    t3 = t2 - t1
+    print*, 'touch time', t3
 
     if (ABS(max_elem) < 1d-6) then
       not_converged = .FALSE.

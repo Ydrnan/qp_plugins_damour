@@ -99,114 +99,114 @@ program localization
 
   !call clear_mo_map
   TOUCH mo_coef
-  !call compute_hf_energy()
-  !print*,'HF', HF_energy
+  call compute_hf_energy()
+  print*,'HF', HF_energy
 
   print*,'### After pre rotation :'
   call compute_criterion(criterion)
   print*,'Criterion:', criterion
-
-  mo_beg = n_occ + 1
-  mo_end = mo_num
-  !print*,'mo_beg:', mo_beg
-  !print*,'mo_end:', mo_end
-
+  
   print*,'core', 1, n_core_orb
   print*,'occ', n_core_orb, n_occ
   print*,'vir', n_occ+1, mo_num
 
-do k = 1, 100
-
-  call compute_theta(m_theta)
-!
-!  ! Test pair wise rotation
-  call research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
-!
-  print*,'i_theta_max:', i_theta_max
-  print*,'j_theta_max:', j_theta_max
-  print*,' theta_max:', theta_max
-!
-!  ! Pair wise rotation
-!  !call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
-!
-!  !call compute_criterion(criterion)
-!  !print*,'Criterion:', criterion
-!
-!  m_x = 0d0
-!  x = 0d0
-!
-!  do l = 1, 3
-!    if (l==1 .and. n_core_orb >= 2) then
-!      mo_beg = 1
-!      mo_end = n_core_orb
-!    elseif (l<=2) then
-!      mo_beg = n_core_orb + 1
-!      mo_end = n_occ
-!    else
-!      mo_beg = n_occ + 1
-!      mo_end = mo_num
-!    endif
-!
+!  do k = 1, 100
+!     
+!    call compute_theta(m_theta)
+!    !
+!    !  ! Test pair wise rotation
 !    call research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
-!
 !    print*,'i_theta_max:', i_theta_max
 !    print*,'j_theta_max:', j_theta_max
 !    print*,' theta_max:', theta_max
-!
-!    do j = mo_beg, mo_end
-!      do i = mo_beg, mo_end
-!        m_x(i,j) = m_theta(i,j) * 0.1d0
-!      enddo
-!    enddo
+!    !
+!    !  ! Pair wise rotation
+!    !  !call apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
+!    !
+!    !  m_x = 0d0
+!    !  x = 0d0
+!    !
+!    !  do j = mo_beg, mo_end
+!    !    do i = mo_beg, mo_end
+!    !      m_x(i,j) = m_theta(i,j) * 0.1d0
+!    !    enddo
+!    !  enddo
+!    !
+!    !  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!    !  call apply_mo_rotation(R,mo_coef,new_mos)
+!    !
+!    !  call compute_criterion(criterion)
+!    !  print*,'Criterion:', criterion
+!    
+!    !!!!! Newton method's !!!!
+!    mo_beg = n_occ+1
+!    mo_end = mo_num
+!    
+!    call H_orb_loc(n, mo_beg, mo_end,H)
+!    
+!    call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+!    print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
+!    call x_orb_loc(n, v_grad, H, m_x)
+!    
+!    call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!    call apply_mo_rotation(R,mo_coef,new_mos)
+!    
+!    call compute_criterion(criterion)
+!    print*,'Criterion:', mo_beg, mo_end, criterion
+!    
+!    TOUCH mo_coef 
 !  enddo
-!
-!  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-!  call apply_mo_rotation(R,mo_coef,new_mos)
-!
-!  call compute_criterion(criterion)
-!  print*,'Criterion:', criterion
 
-  !!!!! Newton method's !!!!
-  mo_beg = n_occ+1
-  mo_end = mo_num
-  !call compute_gradient(mo_beg, mo_end, m_x)
+  logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
+  
+  not_converged = .TRUE.
+  if (n_core_orb < 2) then
+    not_core_converged = .FALSE.
+  else 
+    not_core_converged = .TRUE.
+  endif
+  not_occ_converged = .TRUE.
+  not_vir_converged = .TRUE.
 
-  !do i = 1, mo_num
-  !  write(*,'(100(E12.5))') m_x(i,:)
-  !enddo
+do l = 1, 3
+  
+  if (l==1) then
+    not_converged = not_core_converged
+    mo_beg = 1
+    mo_end = n_core_orb
+  elseif (l==2) then
+    not_converged = not_occ_converged
+     mo_beg = n_core_orb + 1
+    mo_end = n_occ
+  else
+    not_converged = not_vir_converged
+    mo_beg = n_occ + 1
+    mo_end = mo_num
+  endif
 
-  call H_orb_loc(n, mo_beg, mo_end,H)
+  k = 1
+  do while (not_converged .or. k >= 100)
+    
+    call H_orb_loc(n, mo_beg, mo_end,H)
+    
+    call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+    print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
+    call x_orb_loc(n, v_grad, H, m_x)
+ 
+    call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+    call apply_mo_rotation(R,mo_coef,new_mos)
+    
+    call compute_criterion(criterion)
+    print*,'Criterion:', mo_beg, mo_end, criterion
+    
+    TOUCH mo_coef
 
-  call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
-  print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
-  call x_orb_loc(n, v_grad, H, m_x)
-
-  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-  call apply_mo_rotation(R,mo_coef,new_mos)
-
-  call compute_criterion(criterion)
-  print*,'Criterion:', mo_beg, mo_end, criterion
-
-  TOUCH mo_coef 
-
+    if (max_elem < 1d-6) then
+      not_converged = .FALSE.
+    endif
+    k = k+1   
+  enddo
 enddo
-
-!  do k = 1, 100
-!      mo_beg = n_core_orb+1
-!      mo_end = n_occ
-!      call H_orb_loc(n, mo_beg, mo_end, H)
-!
-!      call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
-!      print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
-!      call x_orb_loc(n, v_grad, H, m_x)
-!      
-!      call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-!      call apply_mo_rotation(R,mo_coef,new_mos)
-!      
-!      call compute_criterion(criterion)
-!      print*,'Criterion:', mo_beg, mo_end, criterion
-! 
-!  enddo
 
   call clear_mo_map
   TOUCH mo_coef 
@@ -249,15 +249,6 @@ subroutine gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
                   +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
     enddo
   enddo
-
-  ! do j = 1, mo_num
-  !   do i = 1, mo_num
-  !
-  !    m_grad(i,j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
-  !                +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
-  !                +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
-  !  enddo
-  !enddo
 
   !m_grad = - m_grad ! A cause de la transposition de m**** dans la matrice de rotation que je n'ai toujours pas enlevé
   
@@ -304,8 +295,8 @@ subroutine H_orb_loc(n, mo_beg, mo_end, H)
   enddo
 
   H_4D = 0d0
-  do i = mo_beg, mo_end !1, mo_num
-    do j = mo_beg, mo_end !1, mo_num
+  do i = mo_beg, mo_end 
+    do j = mo_beg, mo_end
       H_4D(i,j,i,j) = 4d0 * beta(i,j)
     enddo
   enddo
@@ -354,7 +345,7 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
 
   integer, intent(in) :: n
   double precision, intent(in) :: v_grad(n)
-  double precision, intent(inout) :: H(n,n)
+  double precision, intent(in) :: H(n,n)
   double precision, intent(out) :: m_x(mo_num, mo_num)
   double precision, allocatable :: x(:)
   double precision :: lambda , accu, max_elem
@@ -371,7 +362,7 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
     endif
   enddo
 
-  ! min element
+  ! min element in the hessian
   if (lambda < 0d0) then
     lambda = -lambda + 1d-6
   endif  
@@ -379,20 +370,13 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
   print*, 'lambda', lambda
  
   x = 0d0
-  !do i = 1,n
-  !  if (ABS(H(i,i) > 1d-6)) then
-  !    x(i) = - 1d0/(H(i,i) + lambda) * (-v_grad(i))
-  !  endif
-  !enddo
-
+  ! Good
   do i = 1, n
     if (ABS(H(i,i)) > 1d-6) then
       x(i) = - 1d0/(ABS(H(i,i))+lambda) * (-v_grad(i)) 
     endif
   enddo
-
   
- 
   ! 1D -> 2D
   m_x = 0d0
   do j = 1, mo_num
@@ -413,49 +397,6 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
       endif
     enddo
   enddo
-
-
-!  !!!!!!!!!!!!!!!!!! Test
-!  accu = 0d0
-!  do i = 1, n
-!    if (H(i,i) < accu) then
-!      accu = H(i,i)
-!    endif
-!  enddo
-!  accu = accu - 1d-6
-!
-!  do i = 1, n
-!    H(i,i) = H(i,i) - accu
-!  enddo
-!
-!  x = 0d0
-!  do i = 1, n 
-!    if (ABS(H(i,i)) > 1d-6) then
-!      x(i) = - 1d0/(H(i,i)) * (-v_grad(i))
-!    else
-!      x(i) = 0d0
-!    endif
-!  enddo
-!
-!  m_x = 0d0
-!  do j = 1, mo_num 
-!    do i = 1, mo_num 
-!      if (i>j) then
-!        call mat_to_vec_index(i,j,k)
-!        m_x(i,j) = x(k)
-!      else
-!        m_x(i,j) = 0d0
-!      endif
-!    enddo
-!  enddo
-!
-!  do j = 1, mo_num 
-!    do i = 1, mo_num 
-!      if (i<j) then
-!        m_x(i,j) = - m_x(j,i)
-!      endif
-!    enddo
-!  enddo
 
   ! Deallocation
   deallocate(x)

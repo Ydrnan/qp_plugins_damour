@@ -260,6 +260,7 @@ subroutine org_run_orb_opt_trust
 
         ! Calculation of the new MOs
         call org_apply_mo_rotation(R,prev_mos)
+        call save_mos()
 
         ! Update and diagonalization of the hamiltonian
         call clear_mo_map

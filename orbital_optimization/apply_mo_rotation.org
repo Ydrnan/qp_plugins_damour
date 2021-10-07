@@ -69,7 +69,7 @@ allocate(new_mos(ao_num,mo_num))
 
   ! Save the new MOs and change the label
   mo_label = 'MCSCF'
-  call save_mos
+  !call save_mos
   call ezfio_set_determinants_mo_label(mo_label)
   
   print*,'Done, MOs saved'

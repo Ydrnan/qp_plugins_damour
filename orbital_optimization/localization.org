@@ -17,15 +17,16 @@ program localization
   integer          :: mo_beg, mo_end
   integer          :: n_occ
   integer          :: info
-  integer          :: n
-  double precision, allocatable :: v_grad(:), H(:,:)
+  integer          :: n, tmp_n, tmp_size
+  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:)
   double precision :: max_elem, t1, t2, t3, t4, t5, t6
   double precision :: pi
  
   n = mo_num*(mo_num-1)/2
 
   ! Allocation
-  allocate(v_grad(n), H(n,n), x(n), spatial_extent(mo_num))
+  !allocate(v_grad(n), H(n,n), x(n))
+  allocate(spatial_extent(mo_num))
   allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
   allocate(prev_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
 
@@ -189,25 +190,35 @@ do l = 1, 3
     mo_end = mo_num
   endif
 
+  tmp_size = mo_end - mo_beg + 1
+  tmp_n = tmp_size * (tmp_size - 1)/2
+  
+  ! Allocation of tmp gradient and hessian
+  allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_size, tmp_size))
+
   k = 1
   do while (not_converged .and. k <= 100)
-    
+
     call wall_time(t4)
     call wall_time(t1)
-    call H_orb_loc(n, mo_beg, mo_end,H)
+    !call H_diag_orb_loc(n, mo_beg, mo_end,H)
+    call H_diag_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, H)
     call wall_time(t2)
     t3 = t2 - t1
     print*, 'H time', t3
 
     call wall_time(t1)
-    call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+    !call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+    call gradient_tmp_orb_loc(tmp_n, mo_beg, mo_end, v_grad, max_elem)
     call wall_time(t2)
     t3 = t2 - t1
     print*, 'g time', t3
     print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
 
     call wall_time(t1)
-    call x_orb_loc(n, v_grad, H, m_x) 
+    !call x_orb_loc(n, v_grad, H, m_x) 
+    call x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
+    call tmp_to_full(tmp_m_x, tmp_size, mo_beg, mo_end, m_x)
     call wall_time(t2)
     t3 = t2 - t1
     print*, 'x time', t3
@@ -233,7 +244,8 @@ do l = 1, 3
     print*, 'Crit time', t3
   
     call wall_time(t1)  
-    TOUCH mo_coef
+    SOFT_TOUCH mo_coef
+    PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
     call wall_time(t2)
     t3 = t2 - t1
     print*, 'touch time', t3
@@ -246,6 +258,9 @@ do l = 1, 3
     t6 = t5 - t4
     print*, 'One cycle time', t6
   enddo
+
+  deallocate(v_grad, H, tmp_m_x)
+  
 enddo
 
   TOUCH mo_coef 
@@ -313,6 +328,57 @@ subroutine gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
 
 end subroutine
 
+subroutine gradient_tmp_orb_loc(tmp_n, mo_beg, mo_end, v_grad, max_elem)
+  
+  implicit none
+  
+  integer, intent(in) :: tmp_n, mo_beg, mo_end
+  double precision, intent(out) :: v_grad(tmp_n), max_elem
+  double precision, allocatable :: m_grad(:,:)
+  integer :: i,j,k,tmp_i,tmp_j,tmp_k, tmp_size
+  double precision :: pi
+
+  pi = 3.1415926535897932
+  tmp_size = mo_end - mo_beg + 1 !size of the tmp array from mo_beg to mo_end
+  
+  ! Allocation
+  allocate(m_grad(tmp_size, tmp_size))
+ 
+  ! Calculation
+  do tmp_j = 1, tmp_size
+    call tmp_to_full_index(tmp_j,mo_beg,j)
+    !q = j + mo_beg - 1
+    do tmp_i = 1, tmp_size
+      call tmp_to_full_index(tmp_i,mo_beg,i)
+      !p = i + mo_beg - 1
+      m_grad(tmp_i,tmp_j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                  +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                  +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+  ! Peut être mis directement dans le vecteur de taille tmp_n
+
+  !m_grad = - m_grad ! A cause de la transposition de m**** dans l'applicationde la matrice de rotation que je n'ai toujours pas enlevé
+  
+  ! 2D -> 1D
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    v_grad(tmp_k) = m_grad(tmp_i,tmp_j) 
+  enddo
+
+  ! Maximum element in the gradient
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (ABS(v_grad(tmp_k)) > max_elem) then
+      max_elem = ABS(v_grad(tmp_k))
+    endif
+  enddo 
+
+  ! Deallocation
+  deallocate(m_grad)
+
+end subroutine
+
 subroutine H_orb_loc(n, mo_beg, mo_end, H)
 
   implicit none
@@ -337,8 +403,8 @@ subroutine H_orb_loc(n, mo_beg, mo_end, H)
   enddo
 
   H_4D = 0d0
-  do i = mo_beg, mo_end 
-    do j = mo_beg, mo_end
+  do j = mo_beg, mo_end 
+    do i = mo_beg, mo_end
       H_4D(i,j,i,j) = 4d0 * beta(i,j)
     enddo
   enddo
@@ -378,6 +444,66 @@ subroutine H_orb_loc(n, mo_beg, mo_end, H)
 
   ! Deallocation
   deallocate(H_4D, beta)
+
+end subroutine
+
+subroutine H_diag_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, H)
+
+  implicit none
+
+  integer, intent(in) :: tmp_n, mo_beg, mo_end
+  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, allocatable :: beta(:,:)
+  integer :: i,j,tmp_k,tmp_i, tmp_j, tmp_size
+  double precision :: max_elem
+    
+  ! Allocation
+  allocate(beta(tmp_size,tmp_size))
+  
+  ! Calculation
+  do tmp_j = 1, tmp_size
+    call tmp_to_full_index(tmp_j,mo_beg,j)
+    !j = tmp_j + mo_beg - 1
+    do tmp_i = 1, tmp_size
+      call tmp_to_full_index(tmp_i,mo_beg,i)
+      !i = tmp_i + mo_beg - 1
+      beta(tmp_i,tmp_j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 * mo_dipole_x(i,j)**2 &
+                         +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 * mo_dipole_y(i,j)**2 &
+                         +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 * mo_dipole_z(i,j)**2
+    enddo
+  enddo
+
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+  enddo
+  
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) < max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Min elem H:', max_elem
+
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) > max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Max elem H:', max_elem
+  
+  max_elem = 1d10
+  do tmp_k = 1, tmp_n
+    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Near 0 elem H:', max_elem
+
+  ! Deallocation
+  deallocate(beta)
 
 end subroutine
 
@@ -437,6 +563,64 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
       if (i<j) then
         m_x(i,j) = - m_x(j,i)
       endif
+    enddo
+  enddo
+
+  ! Deallocation
+  deallocate(x)
+
+end subroutine
+
+subroutine x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
+
+  implicit none
+
+  integer, intent(in) :: tmp_n, mo_beg, mo_end, tmp_size
+  double precision, intent(in) :: v_grad(tmp_n)
+  double precision, intent(in) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: tmp_m_x(tmp_size, tmp_size)
+  double precision, allocatable :: x(:)
+  double precision :: lambda , accu, max_elem
+  integer :: i,j,tmp_i,tmp_j,tmp_k
+
+  ! Allocation
+  allocate(x(tmp_n))
+
+  ! Level shifted hessian
+  lambda = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) < lambda) then
+      lambda = H(tmp_k,tmp_k)
+    endif
+  enddo
+
+  ! min element in the hessian
+  if (lambda < 0d0) then
+    lambda = -lambda + 1d-6
+  endif  
+  
+  print*, 'lambda', lambda
+ 
+  ! Good
+  do tmp_k = 1, tmp_n
+    if (ABS(H(tmp_k,tmp_k)) > 1d-6) then
+      x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
+    endif
+  enddo
+
+  ! 1D tmp -> 2D tmp 
+  tmp_m_x = 0d0
+  do tmp_j = 1, tmp_size - 1
+    do tmp_i = tmp_j + 1, tmp_size
+      call mat_to_vec_index(tmp_i,tmp_j,tmp_k)
+      tmp_m_x(tmp_i, tmp_j) = x(tmp_k)
+    enddo
+  enddo
+
+  ! Antisym, pourrait être mieux avec m_x - m_x^T ?
+  do tmp_i = 1, tmp_size - 1
+    do tmp_j = tmp_i + 1, tmp_size
+      tmp_m_x(tmp_i,tmp_j) = - tmp_m_x(tmp_j,tmp_i) 
     enddo
   enddo
 
@@ -859,4 +1043,59 @@ subroutine nb_occ_om(n_occ)
   endif
   
 end
+
+subroutine tmp_to_full_index(tmp_i,mo_beg,i)
+
+  implicit none
+  
+  ! For a square matrix M,m by m, we define a smaller square matrix T (=tmp) (mo_end - mo_beg + 1 by mo_end - mo_beg + 1)
+  ! which contains the elements between mo_beg,mo_beg and mo_end,mo_end
+  ! index i in T matrix corresponds to index p in M
+  ! index j in T matrix corresponds to index q in M 
+
+  integer, intent(in) :: tmp_i
+  integer, intent(in) :: mo_beg
+  integer, intent(out) :: i
+
+  i = tmp_i + mo_beg - 1
+
+end
+
+subroutine full_to_tmp_index(i,mo_beg,tmp_i)
+
+  implicit none
+  
+  ! For a square matrix M,m by m, we define a smaller square matrix T (=tmp) (mo_end - mo_beg + 1 by mo_end - mo_beg + 1)
+  ! which contains the elements between mo_beg,mo_beg and mo_end,mo_end
+  ! index tmp_i in T matrix corresponds to index i in M
+  ! index tmp_j in T matrix corresponds to index i in M 
+
+  integer, intent(in) :: i
+  integer, intent(in) :: mo_beg
+  integer, intent(out) :: tmp_i
+
+  tmp_i = i - mo_beg + 1
+
+end
+
+subroutine tmp_to_full(tmp_m_x, tmp_size, mo_beg, mo_end, m_x)
+
+  implicit none
+
+  integer, intent(in) :: tmp_size, mo_beg, mo_end
+  double precision, intent(in) :: tmp_m_x(tmp_size,tmp_size)
+  double precision, intent(out) :: m_x(mo_num,mo_num) 
+  integer :: i,j, tmp_i, tmp_j
+
+  m_x = 0d0
+  do j = mo_beg, mo_end
+    call full_to_tmp_index(j, mo_beg, tmp_j)
+    do i = mo_beg, mo_end
+       call full_to_tmp_index(i, mo_beg, tmp_i)
+       m_x(i,j) = tmp_m_x(tmp_i,tmp_j)
+    enddo
+  enddo
+
+end
+
 #+END_SRC

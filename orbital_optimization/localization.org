@@ -268,8 +268,6 @@ enddo
 
   call compute_spatial_extent(spatial_extent)
 
-  
-
 end program  
 #+END_SRC
 
@@ -852,6 +850,10 @@ subroutine compute_spatial_extent(spatial_extent)
     spatial_extent(i) = spatial_extent(i) + mo_spread_z(i,i) - mo_dipole_z(i,i)**2
   enddo
 
+  do i = 1, mo_num
+    spatial_extent(i) = dsqrt(spatial_extent(i))
+  enddo
+
   call nb_occ_om(n_occ)
 
   average_core = 0d0
@@ -998,35 +1000,36 @@ subroutine apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
 
 end subroutine
 
-subroutine compute_hf_energy()
-
-  implicit none
-
-  double precision :: energy, mo_two_e_integral
-  integer :: i,j,k,l
-
-  energy = 0d0
-  do j = 1, mo_num
-    do i = 1, mo_num
-      energy = energy + mo_one_e_integrals(i,j) * one_e_dm_mo(i,j)
-    enddo
-  enddo
-
-  do l = 1, mo_num
-    do k = 1, mo_num
-      do j = 1, mo_num
-        do i = 1, mo_num
-          energy = energy +0.5d0 * mo_two_e_integral(i,j,k,l) * two_e_dm_mo(i,j,k,l)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  energy = energy + nuclear_repulsion
-
-  print*,'energy scf', energy
-
-end subroutine
+! It works but it needs the four index integrals... => bad
+!subroutine compute_hf_energy()
+!
+!  implicit none
+!
+!  double precision :: energy, mo_two_e_integral
+!  integer :: i,j,k,l
+!
+!  energy = 0d0
+!  do j = 1, mo_num
+!    do i = 1, mo_num
+!      energy = energy + mo_one_e_integrals(i,j) * one_e_dm_mo(i,j)
+!    enddo
+!  enddo
+!
+!  do l = 1, mo_num
+!    do k = 1, mo_num
+!      do j = 1, mo_num
+!        do i = 1, mo_num
+!          energy = energy +0.5d0 * mo_two_e_integral(i,j,k,l) * two_e_dm_mo(i,j,k,l)
+!        enddo
+!      enddo
+!    enddo
+!  enddo
+!
+!  energy = energy + nuclear_repulsion
+!
+!  print*,'energy scf', energy
+!
+!end subroutine
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f

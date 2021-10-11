@@ -2,6 +2,281 @@
 
 Test localization with pairwise rotations
 
+Boys localization
+TODO:
+doc
+** Doc
+
+The program localizes the orbitals in function of their mo_class:
+- core MOs
+- inactive MOs
+- active MOs
+- virtual MOs
+- deleted MOs -> no orbital localization
+
+Core MOs are localized with core MOs, inactives MOs are localized with
+inactives MOs and so on. But deleted orbitals are not localized.
+
+WARNING: 
+- The user MUST SPECIFY THE MO CLASSES, otherwise the localization will be
+done for all the orbitals between them, so the occupied and virtual
+MOs will be combined together which is clearly not what we want to
+do. 
+- The mo class is not important (except "deleted") because it is not
+link to the kind of MOs for CASSCF or CIPSI. It is just a way to
+separate the MOs in order to localize them separetely, for example to
+separate the core MOs, the occupied MOs and the virtuals MOs.
+- The user MUST CHANGE THE MO CLASSES AFTER THE LOCALIZATION in order to
+have the right mo class for his next calculation...
+
+For more information on the mo classes:
+qp set_mo_class -h
+
+Foster-Boys localization:
+- cite Foster
+- cite Kleir 
+- cite Hoyvik
+- cite le papier des physiciens
+
+The Foster-Boys localization is a method to generate localized MOs
+(LMOs) by minimizing the Foster-Boys criterion:
+$$ C_{FB} = \sum_{i=1}^N \left[ < \phi_i | r^2 | \phi_i > - < \phi_i | r |
+\phi_i >^2 \right] $$.
+In fact it is equivalent to maximise
+$$ C_2 = \sum_{i>j, \ i=1}^N \left[  < \phi_i | r | \phi_i > -  <
+\phi_j | r | \phi_j > \left]^2$$ 
+or
+$$ C_3 = \sum_{i=1}^N \left[ < \phi_i | r | \phi_i > \right]^2.$$
+
+Where $\phi_i$ is an MO and $N$ the number of MOs,
+\begin{align*}
+< \phi_i | r^2 | \phi_i > &= < \phi_i | x^2 | \phi_i >  \\
+&+ < \phi_i | y^2 | \phi_i > \\
+&+ < \phi_i | z^2 | \phi_i >
+\end{align*}
+and
+\begin{align*}
+< \phi_i | r | \phi_i >^2 &= < \phi_i | x | \phi_i >^2  \\
+&+ < \phi_i | y | \phi_i >^2 \\
+&+ < \phi_i | z | \phi_i >^2
+\end{align*}
+
+ 
+Starting with a set of MOs $\left\{\phi_i\right\}_{i=1}^N$ and we
+are looking for a new set of MOs $\left\{\tilde{\phi}_i\right\}_{i=1}^N$ which
+minimizes the Foster-Boys criterion. This new set of MOs can be found
+by applying a unitary transformation $\textbf{R}$ s.t. $\textbf{R} \cdot
+\textbf{R}^T = \textbf{R}^T \cdot \textbf{R} = \textbf{I}$ on the
+coefficients of the MOs. The unitary transformation matrix or rotation
+matrix is obtained by exponentiating an antihermithian matrix
+$\textbf{X}$, the elements $\textbf{X}_{ij}$ correspond to the
+rotation angle between the MO i and the MO j. 
+In the case where two MOs ($\phi_p$,$\phi_q$) are combined between them at each iteration it
+is the Jacobi sweep method and the related rotation matrix is trivial:
+\begin{align*}
+\textbf{R}=
+\begin{pmatrix}
+\cos(\theta_{pq}) & \sin(\theta_{pq}) \\
+- \sin(\theta_{pq}) & \cos(\theta_{pq})
+\end{pmatrix}
+\end{align*}
+
+The application of $\textbf{R}$ on $\phi_p$ and $\phi_q$ leads to:
+\begin{align*}
+\tilde{\phi}_p &=  \phi_p \cos(\theta_{pq}) + \phi_q \sin(\theta_{pq}) \\
+\tilde{\phi}_q &= -\phi_p \sin(\theta_{pq}) + \phi_q \cos(\theta_{pq})
+\end{align*}
+
+Consequently, the criterion becomes
+
+\begin{align*}
+C_{FB} &= \sum_{i=1}^N \left[ < \phi_i | r^2 | \phi_i > 
+- < \phi_i | r | \phi_i >^2 \right] \\ 
+&- \left[ < \phi_{p}| r^2 | \phi_{p} > - < \phi_{p} | r |
+\phi_{p} >^2 +  < \phi_{q} | r^2 | \phi_{q}
+> - < \phi_{q} | r | \phi_{q} >^2 \right] \\
+&+ \left[ < \tilde{\phi}_p| r^2 | \tilde{\phi}_p > - < \tilde{\phi}_p | r |
+\tilde{\phi}_p >^2 +  < \tilde{\phi}_q | r^2 | \tilde{\phi}_q
+> - < \tilde{\phi}_q | r | \tilde{\phi}_q >^2 \right] 
+\end{align*}
+
+Noting 
+$$A_{ii} = < \phi_i | r^2 | \phi_i > $$
+$$B_{ii} = < \phi_i | r | \phi_i > $$
+$$\tilde{\phi_p} = \tilde{p} $$ 
+
+\begin{align*}
+C_{FB}(\theta) &= \sum_{i=1}^N \left[ A_{ii} - A_{jj} \right] \\ 
+&- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
+&+ \left[ < \tilde{p}| r^2 | \tilde{p} > - < \tilde{p} | r |
+\tilde{p} >^2 +  < \tilde{q} | r^2 | \phi_{\tilde{q}}
+> - < \tilde{q} | r | \tilde{q} >^2 \right] 
+\end{align*}
+
+From that we have
+\begin{align*}
+< \tilde{p}| r^2 | \tilde{p} > &= <  p \cos(\theta) + q \sin(\theta) | r^2 | p \cos(\theta) + q \sin(\theta) > \\
+&= \cos^2(\theta) A_{pp} + \sin^2(\theta) A_{qq} + 2 \sin(2 \theta) A_{pq}
+\end{align*}
+
+and 
+\begin{align*}
+< \tilde{q}| r^2 | \tilde{q} > &= <  -p \sin(\theta) + q \cos(\theta) | r^2 | -p \sin(\theta) + q \cos(\theta) > \\
+&= \sin^2(\theta) A_{pp} + \cos^2(\theta) A_{qq} - 2 \sin(2 \theta) A_{pq}
+\end{align*}
+
+which leads to
+\begin{align*}
+< \tilde{p}| r^2 | \tilde{p} > + < \tilde{q}| r^2 | \tilde{q} > =
+A_{pp} + A_{qq}.
+\end{align*}
+
+Clearly, these two terms do not depend of the rotation angle
+$\theta_{pq}$. For that reason the derivatives with respect to $\textbf{X}$ of $C_{FB}$ is the same
+that $-C_3$.
+
+And for the two other terms
+\begin{align*}
+< \tilde{p}| r | \tilde{p} >^2 &= <  p \cos(\theta) + q \sin(\theta) | r | p \cos(\theta) + q \sin(\theta) >^2 \\
+&= (\cos^2(\theta) B_{pp} + \sin^2(\theta) B_{qq} + 2 \sin(2 \theta) B_{pq})^2
+\end{align*}
+
+\begin{align*}
+< \tilde{q}| r | \tilde{q} >^2 &= <  -p \sin(\theta) + q \cos(\theta) | r | -p \sin(\theta) + q \cos(\theta) >^2 \\
+&= (\sin^2(\theta) B_{pp} + \cos^2(\theta) B_{qq} - 2 \sin(2 \theta) B_{pq})^2
+\end{align*}
+
+So we have
+\begin{align*}
+< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 &= (\cos^4(\theta) + \sin^4(\theta)) B_{pp}^2 \\
+&+ (\cos^4(\theta) + \sin^4(\theta)) B_{qq}^2 \\
+&+ (2 \cos^2(\theta)\sin(2 \theta) - 2 \sin^2(\theta)\sin(2 \theta)) B_{qq} B_{pq} \\
+&+ (2 \sin^2(\theta)\sin(2 \theta) - 2 \cos^2(\theta)\sin(2 \theta)) B_{pp} B_{pq} \\
+&+ 4 \cos^2(\theta) \sin^2(\theta) B_{pp} B_{qq} \\
+&+ 2 \sin^2(2 \theta) B_{pq}^2.
+\end{align*}
+
+Since:
+$$\cos^2(\theta) - \sin^2(\theta) = \cos(2 \theta) $$
+$$\sin(\theta) \cos(\theta) = \frac{1}{2} \sin(2 \theta) $$
+$$\sin^2(\theta) = \frac{1 - \cos(2 \theta)}{2}  $$
+It becomes
+\begin{align*}
+< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 &= (\cos^4(\theta) + \sin^4(\theta)) (B_{pp}^2 + B_{pp}^2) \\
+&+ \sin(4\theta) B_{pq} (-B_{pp} + B_{qq}) \\
+&+ \sin^2(2\theta) B_{pp} B_{qq} \\
+&+ 2 \sin^2(2\theta) B_{pq}^2
+\end{align*}
+
+And with
+$$ \cos^4(\theta) + \sin^4(\theta) = \frac{1}{4} (3 + \cos(4\theta))$$
+
+we have
+\begin{align*}
+< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 
+&= B_{pp}^2 + B_{qq}^2 -\frac{1}{4} [(1-\cos(4\theta) \beta + \sin(4\theta) \gamma].
+\end{align*}
+
+with
+$$ \beta = (B_{pp} - B_{qq})^2 - 4 B_{pq}^2 $$ 
+$$ \gamma = 4 B_{pq} (B_{pp} - B_{qq}) $$
+
+Consequently:
+\begin{align*}
+C_1(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\ 
+&- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
+&+ \left[  A_{pp} +  A_{qq} - B_{pp}^2 - B_{qq}^2
++ \frac{1}{4} [(1-\cos(4\theta) \beta + \sin(4\theta) \gamma] \right] \\
+&= C_1(\theta=0) + \frac{1}{4} [(1-\cos(4\theta)) \beta + \sin(4\theta) \gamma]
+\end{align*}
+
+The derivatives are:
+\begin{align*}
+\frac{\partial C_1(\theta)}{\partial \theta} = \beta \sin(4\theta) + \gamma \sin(4 \theta)
+\end{align*}
+
+\begin{align*}
+\frac{\partial^2 C_1(\theta)}{\partial \theta^2} = 4 \beta \cos(4\theta) - 4 \gamma \cos(4 \theta)
+\end{align*}
+
+Similarly:
+\begin{align*}
+C_3(\theta) &= \sum_{i=1}^N [B_{ii}^2] \\
+&- B_{pp}^2 - B_{qq}^2 \\
+&+ B_{pp}^2 + B_{qq}^2 - \frac{1}{4} [(1-\cos(4\theta) \beta + \sin(4\theta) \gamma] \\
+&= C_3(\theta=0) - \frac{1}{4} [(1-\cos(4\theta)) \beta + \sin(4\theta) \gamma]
+\end{align*}
+
+The derivatives are:
+\begin{align*}
+\frac{\partial C_3(\theta)}{\partial \theta} = - \beta \sin(4\theta) - \gamma \sin(4 \theta)
+\end{align*}
+
+\begin{align*}
+\frac{\partial^2 C_3(\theta)}{\partial \theta^2} = - 4 \beta \cos(4\theta) + 4 \gamma \cos(4 \theta)
+\end{align*}
+
+
+Locality of the orbitals:
+- cite Hoyvik
+As the Foster-Boys method tries to minimize the sum of the second
+moment MO spread, the locality of each MO can be expressed as the
+second moment of the MO spread. For the MO i, the locality criterion is
+\begin{align*}
+\sigma_i &= \sqrt{ <i|r^2|i> - <i|r|i>^2} \\
+&= \sqrt{ <i|x^2|i> - <i|x|i>^2 + <i|y^2|i> - <i|y|i>^2 + <i|z^2|i> - <i|z|i>^2}
+\end{align*} 
+
+Localization procedure:
+
+To do the localization we have compute the gradient and the
+diagonal hessian of the Foster-Boys criterion with respect to the MO
+rotations and we minimize it with the Newton method.
+Since we already have compute the first and second derivatives of the
+FB with respect to the MO rotations we have the analytical gradient
+and diagonal hessian. Hovik uses an other method in her algorithm and
+it seems to work very for big systems.
+
+TODO: add trust region
+
+In order to avoid the problem of starting on a saddle point, the
+localization procedure starts by giving a little kick in the MOs in
+order to break the symmetry and escape from a possible saddle point.
+
+In order to speed up the iteration we compute the gradient, the
+diagonal hessian and the step in temporary matrices of the size
+(number MOs in mo_class by number MOs in mo_class)
+
+** IDK
+
+Variables:
+
+NB: The indexes i and j refere to the positions of the elements in
+the "full space", i.e., the arrays containing elements for all the MOs,
+but the indexes tmp_i and tmp_j to the positions of the elements in
+the "reduced space/subspace", i.e., the arrays containing elements for
+a restricted number of MOs. 
+Example:
+The gradient for the localization of the core MOs can be expressed 
+as a vector of length mo_num*(mo_num-1)/2 with only
+n_core_orb*(n_core_orb-1)/2 non zero elements, so it is more relevant
+to use a vector of size n_core_orb*(n_core_orb-1)/2.
+So here the gradient is a vector of size
+tmp_list_size*(tmp_list_size)/2 where tmp_list_size is the number of
+MOs is the corresponding mo class.
+The same thing happened for the hessian, the matrix containing the
+step and the rotation matrix, which are tmp_list_size by tmp_list_size
+matrices. 
+
+TODO: improve the previous paragraph
+
+The dipoles are updated using the ao_to_mo subroutine without the
+restore_symmetry which is actually in N^4 but can be rewrite in N^2
+log(N^2).
+The bottleneck of the program is normally N^3 with the matrix
+multiplications/diagonalizations. The use of the full hessian can be
+an improvement but it will scale in N^4...  
+
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
 program localization
  call run_localization
@@ -17,14 +292,19 @@ subroutine run_localization
   double precision :: criterion, angle_pre_rot
   double precision :: theta_max
   integer          :: i_theta_max, j_theta_max
-  integer          :: i,j,k,l,p
+  integer          :: i,j,k,l,p, tmp_i, tmp_j, tmp_k
   integer          :: mo_beg, mo_end
   integer          :: n_occ
   integer          :: info
-  integer          :: n, tmp_n, tmp_size
+  integer          :: n, tmp_n, tmp_list_size
   double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:)
-  double precision :: max_elem, t1, t2, t3, t4, t5, t6
+  double precision :: max_elem, t1, t2, t3, t4, t5, t6, CC
   double precision :: pi
+  integer, allocatable :: tmp_list(:)
+
+  !=== Parameters ===
+  ! Convergence criterion
+  CC = 1d-6
 
   !restore_symm = .False.
   !SOFT_TOUCH restore_symm
@@ -41,19 +321,20 @@ subroutine run_localization
   
   call nb_occ_om(n_occ)
 
+  ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
 
   print*, 'elec_num:', elec_num
-  print*, 'core:', n_core_orb
-  print*, 'occ:', n_occ
-  print*, 'vir:', mo_num - n_occ
   print*, 'mo_num:', mo_num
 
   call compute_criterion(criterion)
-  print*,'### Before pre rotation :'
   print*,'HF', HF_energy
   print*,'Criterion:', criterion
+#+END_SRC
 
+** Pre rotation
+In order to give a little kick in the system
+#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
   ! Initialization
   pre_rot = 0d0
 
@@ -61,9 +342,11 @@ subroutine run_localization
   angle_pre_rot = 1d-1
 
   ! Pre rotation for core MOs
-  if (n_core_orb >= 2) then
-    do i = 1, n_core_orb
-      do j = 1, n_core_orb
+  if (dim_list_core_orb >= 2) then
+    do tmp_j = 1, dim_list_core_orb
+      j = list_core(tmp_j)
+      do tmp_i = 1, dim_list_core_orb
+        i = list_core(tmp_i)
         if (i > j) then
           pre_rot(i,j) = angle_pre_rot
         elseif (i < j) then
@@ -74,39 +357,110 @@ subroutine run_localization
       enddo
     enddo
   endif
-  
-  ! Pre rotation for occ MOs
-  do i = n_core_orb + 1, n_occ
-    do j = n_core_orb + 1, n_occ
-      if (i > j) then
-        pre_rot(i,j) = angle_pre_rot
-      elseif (i < j) then
-        pre_rot(i,j) = - angle_pre_rot
-      else
-        pre_rot(i,j) = 0d0
-      endif
-    enddo
-  enddo
 
-  ! Pre rotation for vir MOs
-  do i = n_occ + 1, mo_num
-    do j = n_occ + 1, mo_num
-      if (i > j) then
-        pre_rot(i,j) = angle_pre_rot
-      elseif (i < j) then
-        pre_rot(i,j) = - angle_pre_rot
-      else
-        pre_rot(i,j) = 0d0
-      endif
+!  ! Pre rotation for core MOs
+!  if (n_core_orb >= 2) then
+!    do i = 1, n_core_orb
+!      do j = 1, n_core_orb
+!        if (i > j) then
+!          pre_rot(i,j) = angle_pre_rot
+!        elseif (i < j) then
+!          pre_rot(i,j) = - angle_pre_rot
+!        else
+!          pre_rot(i,j) = 0d0
+!        endif
+!      enddo
+!    enddo
+!  endif
+  
+  ! Pre rotation for active MOs
+  if (dim_list_act_orb >= 2) then
+    do tmp_j = 1, dim_list_act_orb
+      j = list_act(tmp_j)
+      do tmp_i = 1, dim_list_act_orb
+        i = list_act(tmp_i)
+        if (i > j) then
+          pre_rot(i,j) = angle_pre_rot
+        elseif (i < j) then
+          pre_rot(i,j) = - angle_pre_rot
+        else
+          pre_rot(i,j) = 0d0
+        endif
+      enddo
     enddo
-  enddo
+  endif
+
+  ! Pre rotation for inactive MOs
+  if (dim_list_inact_orb >= 2) then
+    do tmp_j = 1, dim_list_inact_orb
+      j = list_inact(tmp_j)
+      do tmp_i = 1, dim_list_inact_orb
+        i = list_inact(tmp_i)
+        if (i > j) then
+          pre_rot(i,j) = angle_pre_rot
+        elseif (i < j) then
+          pre_rot(i,j) = - angle_pre_rot
+        else
+          pre_rot(i,j) = 0d0
+        endif
+      enddo
+    enddo
+  endif
+
+!  ! Pre rotation for occ MOs
+!  do i = n_core_orb + 1, n_occ
+!    do j = n_core_orb + 1, n_occ
+!      if (i > j) then
+!        pre_rot(i,j) = angle_pre_rot
+!      elseif (i < j) then
+!        pre_rot(i,j) = - angle_pre_rot
+!      else
+!        pre_rot(i,j) = 0d0
+!      endif
+!    enddo
+!  enddo
+
+  ! Pre rotation for virtual MOs
+  if (dim_list_virt_orb >= 2) then
+    do tmp_j = 1, dim_list_virt_orb
+      j = list_virt(tmp_j)
+      do tmp_i = 1, dim_list_virt_orb
+        i = list_virt(tmp_i)
+        if (i > j) then
+          pre_rot(i,j) = angle_pre_rot
+        elseif (i < j) then
+          pre_rot(i,j) = - angle_pre_rot
+        else
+          pre_rot(i,j) = 0d0
+        endif
+      enddo
+    enddo
+  endif
+
+!  ! Pre rotation for vir MOs
+!  do i = n_occ + 1, mo_num
+!    do j = n_occ + 1, mo_num
+!      if (i > j) then
+!        pre_rot(i,j) = angle_pre_rot
+!      elseif (i < j) then
+!        pre_rot(i,j) = - angle_pre_rot
+!      else
+!        pre_rot(i,j) = 0d0
+!      endif
+!    enddo
+!  enddo
+
+  ! Nothing for deleted ones
 
   call org_rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
   !call apply_mo_rotation(R,mo_coef,new_mos)
   call org_apply_mo_rotation(R,prev_mos)
 
   TOUCH mo_coef
+#+END_SRC
 
+** Loc
+#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
   call compute_criterion(criterion)
   print*,'### After pre rotation :'
   print*,'HF', HF_energy
@@ -118,10 +472,6 @@ subroutine run_localization
   print*,'========================'
   print*,'' 
     
-  print*,'core MOs:', 1, n_core_orb
-  print*,'occ MOs:', n_core_orb, n_occ
-  print*,'vir MOs:', n_occ+1, mo_num
-
 !  do k = 1, 100
 !     
 !    call compute_theta(m_theta)
@@ -170,141 +520,269 @@ subroutine run_localization
 !  enddo
 
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
+  logical :: not_act_converged, not_inact_converged, not_virt_converged
   
-  ! Initialization
+!  !Initialization
+!  not_converged = .TRUE.
+!  if (n_core_orb < 2) then
+!    not_core_converged = .FALSE.
+!  else 
+!    not_core_converged = .TRUE.
+!  endif
+!  not_occ_converged = .TRUE.
+!  not_vir_converged = .TRUE.
+
+  !Initialization
   not_converged = .TRUE.
-  if (n_core_orb < 2) then
-    not_core_converged = .FALSE.
-  else 
+
+  if (dim_list_core_orb >= 2) then
     not_core_converged = .TRUE.
+  else
+    not_core_converged = .FALSE. 
   endif
-  not_occ_converged = .TRUE.
-  not_vir_converged = .TRUE.
-
-do l = 1, 3
   
-  if (l==1) then ! core
-    not_converged = not_core_converged
-    mo_beg = 1
-    mo_end = n_core_orb
-  elseif (l==2) then !  occ
-    not_converged = not_occ_converged
-     mo_beg = n_core_orb + 1
-    mo_end = n_occ
-  else ! vir
-    not_converged = not_vir_converged
-    mo_beg = n_occ + 1
-    mo_end = mo_num
+  if (dim_list_act_orb >= 2) then
+    not_act_converged = .TRUE.
+  else
+    not_act_converged = .FALSE.
   endif
 
-  tmp_size = mo_end - mo_beg + 1
-  tmp_n = tmp_size * (tmp_size - 1)/2
-  
-  ! Allocation of tmp gradient and hessian
-  allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_size, tmp_size), tmp_R(tmp_size, tmp_size))
+  if (dim_list_inact_orb >= 2) then
+    not_inact_converged = .TRUE.
+  else
+    not_inact_converged = .FALSE.
+  endif
 
-  k = 1
-  do while (not_converged .and. k <= 100)
+  if (dim_list_virt_orb >= 2) then
+    not_virt_converged = .TRUE.
+  else
+    not_virt_converged = .FALSE.
+  endif
+ 
+  do l = 1, 4
 
-    call wall_time(t4)
-    call wall_time(t1)
-    !call H_diag_orb_loc(n, mo_beg, mo_end,H)
-    call H_diag_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, H)
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'H time', t3
-
-    call wall_time(t1)
-    !call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
-    call gradient_tmp_orb_loc(tmp_n, mo_beg, mo_end, v_grad, max_elem)
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'g time', t3
-    print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
-
-    call wall_time(t1)
-    !call x_orb_loc(n, v_grad, H, m_x) 
-    call x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
-    call tmp_to_full(tmp_m_x, tmp_size, mo_beg, mo_end, m_x)
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'x time', t3
-  
-    !call wall_time(t1)
-    !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-    !call wall_time(t2)
-    !t3 = t2 - t1
-    !print*, 'R time', t3
-    
-    call wall_time(t1)
-    call org_rotation_matrix(tmp_m_x,tmp_size,tmp_R,tmp_size,tmp_size,info)
-    call tmp_to_full(tmp_R, tmp_size, mo_beg, mo_end, R2)
-    ! 1 sur les elements diag sans rotation !!!!
-    if (mo_beg > 1) then 
-      do i = 1, mo_beg - 1
-        R2(i,i) = 1d0    
-      enddo
+    if (l==1) then ! core
+      not_converged = not_core_converged
+      tmp_list_size = dim_list_core_orb
+    elseif (l==2) then
+      not_converged = not_act_converged
+      tmp_list_size = dim_list_act_orb
+    elseif (l==3) then
+      not_converged = not_inact_converged
+      tmp_list_size = dim_list_inact_orb
+    else
+      not_converged = not_virt_converged
+      tmp_list_size = dim_list_virt_orb
     endif
-    if (mo_end < mo_num) then
-      do i = mo_end + 1, mo_num
-        R2(i,i) = 1d0  
-      enddo
+   
+    allocate(tmp_list(tmp_list_size))
+
+    if (l==1) then ! core
+      tmp_list = list_core
+    elseif (l==2) then
+      tmp_list = list_act
+    elseif (l==3) then
+      tmp_list = list_inact
+    else
+      tmp_list = list_virt
     endif
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'R2 time', t3
-
-    call wall_time(t1)
-    call org_apply_mo_rotation(R2, prev_mos)
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'apply R time', t3
-    
-    call wall_time(t1)
-    call compute_criterion(criterion)
-    print*,'Criterion:', mo_beg, mo_end, criterion
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'Crit time', t3
+   
+    tmp_n = tmp_list_size * (tmp_list_size - 1)/2
   
-    call wall_time(t1)  
-    !call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-    !call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-    !call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_x,ao_num,mo_dipole_x,mo_num)
-    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_y,ao_num,mo_dipole_y,mo_num)
-    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_z,ao_num,mo_dipole_z,mo_num)
+    ! Allocation of tmp gradient and hessian
+    allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size), tmp_R(tmp_list_size, tmp_list_size))
+  
+    k = 1
+    do while (not_converged .and. k <= 10000)
 
-    !SOFT_TOUCH mo_coef
-    !PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
-    call wall_time(t2)
-    t3 = t2 - t1
-    print*, 'update dipole time', t3
+      print*,'k:',k
+      ! Gradient
+      call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
+      print*, 'max elem in grad', tmp_list(1), tmp_list(tmp_list_size), max_elem
+      ! Diagonal hessian
+      call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
+      ! Step in the subspace
+      call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
+
+      ! tmp_m_x to m_x, subspace to full space
+      !m_x = 0d0
+      !do tmp_j = 1, tmp_list_size
+      !  j = tmp_list(tmp_j)
+      !  do tmp_i = 1, tmp_list_size
+      !    i = tmp_list(tmp_i)
+      !    m_x(i,j) = tmp_m_x(tmp_i, tmp_j)
+      !  enddo
+      !enddo
+ 
+      ! Rotation matrix 
+      !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+      call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+
+      ! tmp_R to R, subspace to full space
+      R = 0d0
+      do i = 1, mo_num
+        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+      enddo
+      do tmp_j = 1, tmp_list_size
+        j = tmp_list(tmp_j)
+        do tmp_i = 1, tmp_list_size
+          i = tmp_list(tmp_i)
+          R(i,j) = tmp_R(tmp_i,tmp_j)
+        enddo
+      enddo
+       
+      ! Application to the mo_coef
+      call org_apply_mo_rotation(R, prev_mos)   
+  
+      ! Update the dipoles
+      call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+      call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+      call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+  
+      ! Criterion
+      call compute_criterion(criterion)
+      print*,'Criterion:', k, criterion
 
     if (ABS(max_elem) < 1d-6) then
       not_converged = .FALSE.
     endif
-    k = k+1
 
-    call wall_time(t5)
-    t6 = t5 - t4
-    print*, 'One cycle time', t6
+    k = k+1 
+    enddo
 
+    ! Deallocation
+    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list)
+    
+    call save_mos()
+    TOUCH mo_coef 
+    print*,'HF', HF_energy
+    
   enddo
 
-  if (.not. (n_core_orb < 2 .and. l==1)) then
-     call wall_time(t1)
-     SOFT_TOUCH mo_coef
-     PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
-     call save_mos()
-     call wall_time(t2)
-     t3 = t2 - t1
-     print*, 'touch mo_coef', t3
-  endif
-
-  deallocate(v_grad, H, tmp_m_x, tmp_R)
-  
-enddo
+!do l = 1, 3
+!  
+!  if (l==1) then ! core
+!    not_converged = not_core_converged
+!    mo_beg = 1
+!    mo_end = n_core_orb
+!  elseif (l==2) then !  occ
+!    not_converged = not_occ_converged
+!     mo_beg = n_core_orb + 1
+!    mo_end = n_occ
+!  else ! vir
+!    not_converged = not_vir_converged
+!    mo_beg = n_occ + 1
+!    mo_end = mo_num
+!  endif
+!
+!  tmp_size = mo_end - mo_beg + 1
+!  tmp_n = tmp_size * (tmp_size - 1)/2
+!  
+!  ! Allocation of tmp gradient and hessian
+!  allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_size, tmp_size), tmp_R(tmp_size, tmp_size))
+!
+!  k = 1
+!  do while (not_converged .and. k <= 100)
+!
+!    call wall_time(t4)
+!    call wall_time(t1)
+!    !call H_diag_orb_loc(n, mo_beg, mo_end,H)
+!    call H_diag_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, H)
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'H time', t3
+!
+!    call wall_time(t1)
+!    !call gradient_orb_loc(n, mo_beg, mo_end, v_grad, max_elem)
+!    call gradient_tmp_orb_loc(tmp_n, mo_beg, mo_end, v_grad, max_elem)
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'g time', t3
+!    print*, 'Max element in gradient:', mo_beg, mo_end, max_elem
+!
+!    call wall_time(t1)
+!    !call x_orb_loc(n, v_grad, H, m_x) 
+!    call x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
+!    call tmp_to_full(tmp_m_x, tmp_size, mo_beg, mo_end, m_x)
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'x time', t3
+!  
+!    !call wall_time(t1)
+!    !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!    !call wall_time(t2)
+!    !t3 = t2 - t1
+!    !print*, 'R time', t3
+!    
+!    call wall_time(t1)
+!    call org_rotation_matrix(tmp_m_x,tmp_size,tmp_R,tmp_size,tmp_size,info)
+!    call tmp_to_full(tmp_R, tmp_size, mo_beg, mo_end, R2)
+!    ! 1 sur les elements diag sans rotation !!!!
+!    if (mo_beg > 1) then 
+!      do i = 1, mo_beg - 1
+!        R2(i,i) = 1d0    
+!      enddo
+!    endif
+!    if (mo_end < mo_num) then
+!      do i = mo_end + 1, mo_num
+!        R2(i,i) = 1d0  
+!      enddo
+!    endif
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'R2 time', t3
+!
+!    call wall_time(t1)
+!    call org_apply_mo_rotation(R2, prev_mos)
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'apply R time', t3
+!    
+!    call wall_time(t1)
+!    call compute_criterion(criterion)
+!    print*,'Criterion:', mo_beg, mo_end, criterion
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'Crit time', t3
+!  
+!    call wall_time(t1)  
+!    !call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+!    !call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+!    !call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+!    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_x,ao_num,mo_dipole_x,mo_num)
+!    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_y,ao_num,mo_dipole_y,mo_num)
+!    call ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,ao_dipole_z,ao_num,mo_dipole_z,mo_num)
+!
+!    !SOFT_TOUCH mo_coef
+!    !PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
+!    call wall_time(t2)
+!    t3 = t2 - t1
+!    print*, 'update dipole time', t3
+!
+!    if (ABS(max_elem) < 1d-6) then
+!      not_converged = .FALSE.
+!    endif
+!    k = k+1
+!
+!    call wall_time(t5)
+!    t6 = t5 - t4
+!    print*, 'One cycle time', t6
+!
+!  enddo
+!
+!  if (.not. (n_core_orb < 2 .and. l==1)) then
+!     call wall_time(t1)
+!     SOFT_TOUCH mo_coef
+!     PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
+!     call save_mos()
+!     call wall_time(t2)
+!     t3 = t2 - t1
+!     print*, 'touch mo_coef', t3
+!  endif
+!
+!  deallocate(v_grad, H, tmp_m_x, tmp_R)
+!  
+!enddo
 
   TOUCH mo_coef 
   print*,'HF', HF_energy
@@ -420,6 +898,54 @@ subroutine gradient_tmp_orb_loc(tmp_n, mo_beg, mo_end, v_grad, max_elem)
 
 end subroutine
 
+subroutine gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
+  
+  implicit none
+  
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
+  double precision, intent(out) :: v_grad(tmp_n), max_elem
+  double precision, allocatable :: m_grad(:,:)
+  integer :: i,j,k,tmp_i,tmp_j,tmp_k
+  double precision :: pi
+
+  pi = 3.1415926535897932
+  
+  ! Allocation
+  allocate(m_grad(tmp_list_size, tmp_list_size))
+ 
+  ! Calculation
+  do tmp_j = 1, tmp_list_size
+    j = tmp_list(tmp_j)
+    do tmp_i = 1, tmp_list_size
+      i = tmp_list(tmp_i)
+      m_grad(tmp_i,tmp_j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                  +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                  +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+  ! Peut être mis directement dans le vecteur de taille tmp_n
+
+  !m_grad = - m_grad ! A cause de la transposition de m**** dans l'application de la matrice de rotation que je n'ai toujours pas enlevé
+  
+  ! 2D -> 1D
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    v_grad(tmp_k) = m_grad(tmp_i,tmp_j) 
+  enddo
+
+  ! Maximum element in the gradient
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (ABS(v_grad(tmp_k)) > max_elem) then
+      max_elem = ABS(v_grad(tmp_k))
+    endif
+  enddo 
+
+  ! Deallocation
+  deallocate(m_grad)
+
+end subroutine
+
 subroutine H_orb_loc(n, mo_beg, mo_end, H)
 
   implicit none
@@ -508,6 +1034,64 @@ subroutine H_diag_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, H)
     do tmp_i = 1, tmp_size
       call tmp_to_full_index(tmp_i,mo_beg,i)
       !i = tmp_i + mo_beg - 1
+      beta(tmp_i,tmp_j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 * mo_dipole_x(i,j)**2 &
+                         +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 * mo_dipole_y(i,j)**2 &
+                         +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 * mo_dipole_z(i,j)**2
+    enddo
+  enddo
+
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+  enddo
+  
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) < max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Min elem H:', max_elem
+
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) > max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Max elem H:', max_elem
+  
+  max_elem = 1d10
+  do tmp_k = 1, tmp_n
+    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Near 0 elem H:', max_elem
+
+  ! Deallocation
+  deallocate(beta)
+
+end subroutine
+
+subroutine H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
+
+  implicit none
+
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
+  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, allocatable :: beta(:,:)
+  integer :: i,j,tmp_k,tmp_i, tmp_j
+  double precision :: max_elem
+    
+  ! Allocation
+  allocate(beta(tmp_list_size,tmp_list_size))
+  
+  ! Calculation
+  do tmp_j = 1, tmp_list_size
+    j = tmp_list(tmp_j)
+    do tmp_i = 1, tmp_list_size
+      i = tmp_list(tmp_i)
       beta(tmp_i,tmp_j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 * mo_dipole_x(i,j)**2 &
                          +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 * mo_dipole_y(i,j)**2 &
                          +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 * mo_dipole_z(i,j)**2
@@ -661,6 +1245,64 @@ subroutine x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
   ! Antisym, pourrait être mieux avec m_x - m_x^T ?
   do tmp_i = 1, tmp_size - 1
     do tmp_j = tmp_i + 1, tmp_size
+      tmp_m_x(tmp_i,tmp_j) = - tmp_m_x(tmp_j,tmp_i) 
+    enddo
+  enddo
+
+  ! Deallocation
+  deallocate(x)
+
+end subroutine
+
+subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
+
+  implicit none
+
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
+  double precision, intent(in) :: v_grad(tmp_n)
+  double precision, intent(in) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: tmp_m_x(tmp_list_size, tmp_list_size)
+  double precision, allocatable :: x(:)
+  double precision :: lambda , accu, max_elem
+  integer :: i,j,tmp_i,tmp_j,tmp_k
+
+  ! Allocation
+  allocate(x(tmp_n))
+
+  ! Level shifted hessian
+  lambda = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) < lambda) then
+      lambda = H(tmp_k,tmp_k)
+    endif
+  enddo
+
+  ! min element in the hessian
+  if (lambda < 0d0) then
+    lambda = -lambda + 1d-6
+  endif  
+  
+  print*, 'lambda', lambda
+ 
+  ! Good
+  do tmp_k = 1, tmp_n
+    if (ABS(H(tmp_k,tmp_k)) > 1d-6) then
+      x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
+    endif
+  enddo
+
+  ! 1D tmp -> 2D tmp 
+  tmp_m_x = 0d0
+  do tmp_j = 1, tmp_list_size - 1
+    do tmp_i = tmp_j + 1, tmp_list_size
+      call mat_to_vec_index(tmp_i,tmp_j,tmp_k)
+      tmp_m_x(tmp_i, tmp_j) = x(tmp_k)
+    enddo
+  enddo
+
+  ! Antisym, pourrait être mieux avec m_x - m_x^T ?
+  do tmp_i = 1, tmp_list_size - 1
+    do tmp_j = tmp_i + 1, tmp_list_size
       tmp_m_x(tmp_i,tmp_j) = - tmp_m_x(tmp_j,tmp_i) 
     enddo
   enddo

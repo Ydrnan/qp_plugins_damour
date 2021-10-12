@@ -39,30 +39,23 @@ subroutine org_apply_mo_rotation(R,prev_mos)
   double precision, allocatable  :: new_mos(:,:)
   integer                       :: i,j
 
-allocate(new_mos(ao_num,mo_num))
-#+END_SRC 
- 
-** Calculation
-#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
-  if (debug) then
-    print*,'Enter in apply_mo_rotation'
-  endif
+  print*,''
+  print*,'---apply_mo_rotation---'
+  
+  ! Allocation
+  allocate(new_mos(ao_num,mo_num))
+  
+  ! Calculation
 
   ! Product of old MOs (mo_coef) by Rotation matrix (R) 
-
   call dgemm('N','T',ao_num,mo_num,mo_num,1d0,mo_coef,size(mo_coef,1),R,size(R,1),0d0,new_mos,size(new_mos,1))
-#+END_SRC
 
-** Storage
-#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
-  print*,'Save MOs...'
-  
   prev_mos = mo_coef
   mo_coef = new_mos
 
   if (debug) then  
     print*,'New mo_coef : '
-    do i=1,mo_num
+    do i = 1, mo_num
       write(*,'(100(F10.5))') mo_coef(i,:)
     enddo
   endif
@@ -72,16 +65,12 @@ allocate(new_mos(ao_num,mo_num))
   !call save_mos
   call ezfio_set_determinants_mo_label(mo_label)
   
-  print*,'Done, MOs saved'
-#+END_SRC
+  !print*,'Done, MOs saved'
 
-** End
-#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
+  ! Deallocation, end
   deallocate(new_mos)
 
-  if (debug) then
-    print*,'Leave apply_mo_rotation'
-  endif
+  print*,'---End apply_mo_rotation---'
 
 end subroutine
 #+END_SRC

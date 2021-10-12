@@ -39,6 +39,9 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
   integer                       :: i
   integer                       :: nb_negative_vp
 
+  print*,''
+  print*,'---Diagonalization_hessian---'
+
   ! Allocation
   ! For Lapack
   lwork=3*n-1
@@ -67,15 +70,25 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
   ! Number of negative eigenvalues
   nb_negative_vp = 0
   do i = 1, n
-    if (e_val(i) < -1d-12) then
+    if (e_val(i) < 0d0) then
       nb_negative_vp = nb_negative_vp + 1
       print*,'e_val < 0 :', e_val(i)
     endif
   enddo
-  print*,'Number of negative eigenvalues :', nb_negative_vp
+  print*,'Number of negative eigenvalues:', nb_negative_vp
+
+  nb_negative_vp = 0
+  do i = 1, n
+    if (e_val(i) < -1d-12) then
+      nb_negative_vp = nb_negative_vp + 1
+    endif
+  enddo
+  print*,'Number of negative eigenvalues < 1d-12:', nb_negative_vp  
 
   ! Deallocation
   deallocate(work)
+
+  print*,'---End diagonalization_hessian---'
 
 end subroutine
 #+END_SRC

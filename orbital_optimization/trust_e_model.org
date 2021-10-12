@@ -30,6 +30,7 @@ Internal:
 
 Function:
 | ddot | double precision | dot product (Lapack) |
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_e_model.irp.f
 subroutine org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
    
@@ -56,8 +57,11 @@ subroutine org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
   !Function
   double precision              :: ddot
 
+  print*,''
+  print*,'---Trust_e_model---'
+
   ! Allocation
-allocate(part_2a(n))
+  allocate(part_2a(n))
 #+END_SRC
 
 ** Calculations
@@ -67,11 +71,6 @@ part_2a corresponds to the product H.x
 part_2 corresponds to the product 0.5*(x^T.H.x)
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_e_model.irp.f
-!  if (debug) then
-    print*,''
-    print*,'---Enter in trust_e_model---'
-!  endif
-
   ! Product v_grad.x
   part_1 = ddot(n,v_grad,1,x,1)
  
@@ -99,10 +98,8 @@ part_2 corresponds to the product 0.5*(x^T.H.x)
 
   deallocate(part_2a)
 
-  !if (debug) then
-    print*,'---Leave trust_e_model---'
-    print*,''
-  !endif 
+  print*,'---End trust_e_model---'
+  print*,''
  
 end subroutine 
 #+END_SRC 

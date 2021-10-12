@@ -338,46 +338,46 @@ An improvement can be done using a elleptical trust region.
 
 ** Code
 
-Provided:
-| mo_num | integer | number of MOs |
+   Provided:
+   | mo_num | integer | number of MOs |
 
-Input:
-| n         | integer          | mo_num*(mo_num-1)/2                             |
-| method    | integer          | 1 -> full hessian, 2 -> diagonal hessian        |
-| H(n, n)   | double precision | hessian                                         |
-| v_grad(n) | double precision | gradient                                        |
-| e_val(n)  | double precision | eigenvalues of the hessian                      |
-| W(n, n)   | double precision | eigenvectors of the hessian                     |
-| rho       | double precision | agreement between the model and the reality,    |
-|           |                  | represents the quality of the energy prediction |
-| nb_iter   | integer          | number of iteration                             |
+   Input:
+   | n         | integer          | mo_num*(mo_num-1)/2                             |
+   | method    | integer          | 1 -> full hessian, 2 -> diagonal hessian        |
+   | H(n, n)   | double precision | hessian                                         |
+   | v_grad(n) | double precision | gradient                                        |
+   | e_val(n)  | double precision | eigenvalues of the hessian                      |
+   | W(n, n)   | double precision | eigenvectors of the hessian                     |
+   | rho       | double precision | agreement between the model and the reality,    |
+   |           |                  | represents the quality of the energy prediction |
+   | nb_iter   | integer          | number of iteration                             |
 
-Input/Ouput:
-| delta | double precision | radius of the trust region |
+   Input/Ouput:
+   | delta | double precision | radius of the trust region |
 
-Output:
-| m_x(mo_num, mo_num) | double precision | matrix containing the step |
-| x(n)                | double precision | vector containing the step |
+   Output:
+   | m_x(mo_num, mo_num) | double precision | matrix containing the step |
+   | x(n)                | double precision | vector containing the step |
 
-Internal:
-| diff(n)              | double precision | debug                                        |
-| Hm1(mo_num, mo_num)  | double precision | debug                                        |
-| Hm1g(mo_num, mo_num) | double precision | debug                                        |
-| accu                 | double precision | temporary variable to compute the step       |
-| lambda               | double precision | lagrange multiplier                          |
-| trust_radius2        | double precision | square of the radius of the trust region     |
-| norm2_x              | double precision | norm^2 of the vector x                       |
-| norm2_g              | double precision | norm^2 of the vector containing the gradient |
-| wtg                  | double precision | scalar product w_1^T . g                     |
-| i, j, k              | integer          | indexes                                      |
+   Internal:
+   | diff(n)              | double precision | debug                                        |
+   | Hm1(mo_num, mo_num)  | double precision | debug                                        |
+   | Hm1g(mo_num, mo_num) | double precision | debug                                        |
+   | accu                 | double precision | temporary variable to compute the step       |
+   | lambda               | double precision | lagrange multiplier                          |
+   | trust_radius2        | double precision | square of the radius of the trust region     |
+   | norm2_x              | double precision | norm^2 of the vector x                       |
+   | norm2_g              | double precision | norm^2 of the vector containing the gradient |
+   | wtg                  | double precision | scalar product w_1^T . g                     |
+   | i, j, k              | integer          | indexes                                      |
 
-Function:
-| dnrm2                   | double precision | Blas function computing the norm       |
-| ddot                    | double precision | Blas function computing dot product    |
-| f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
+   Function:
+   | dnrm2                   | double precision | Blas function computing the norm       |
+   | ddot                    | double precision | Blas function computing dot product    |
+   | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-subroutine org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+   #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
   include 'constants.h'
 
   implicit none
@@ -390,6 +390,8 @@ subroutine org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, intent(in) :: H(n,n), v_grad(n), rho
   integer, intent(in)  :: nb_iter
   double precision, intent(in) :: e_val(n), w(n,n)
+  double precision, intent(in) :: thresh_eig
+
 
   ! inout
   double precision, intent(inout) :: delta
@@ -409,186 +411,190 @@ subroutine org_trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision :: ddot, dnrm2
   double precision :: f_norm_trust_region_omp
 
+  print*,''
+  print*,'=================='
+  print*,'---Trust_region---'
+  print*,'=================='
+
   ! Allocation
   allocate(diff(n))
   allocate(Hm1(n,n),Hm1g(n))
-#+END_SRC
+   #+END_SRC
 
 
 *** Initialization and norm
 
-The norm of the step size will be useful for the trust region algorithm
+    The norm of the step size will be useful for the trust region algorithm
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
-  print*,''
-  print*,'==========================='
-  print*,'---Enter in trust_region---'
-  print*,'==========================='
-
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
   ! Initialization of the Lagrange multiplier
   lambda = 0d0
 
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
-  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0)
+  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0,thresh_eig)
   print*, norm2_x
 
   ! Norm^2 of the gradient, ||v_grad||^2
   norm2_g = (dnrm2(n,v_grad,1))**2
   print*,'||grad||^2 :'
   print*, norm2_g
-#+END_SRC
+    #+END_SRC
 
 *** Trust radius initialization
 
-At the first iteration (nb_iter = 0) we initialize the trust region
-with the norm of the step generate by the Newton's method ($\textbf{x}_1 =
-(\textbf{H}_0)^{-1} \cdot \textbf{g}_0$,
-we compute this norm using f_norm_trust_region_omp) 
+    At the first iteration (nb_iter = 0) we initialize the trust region
+    with the norm of the step generate by the Newton's method ($\textbf{x}_1 =
+    (\textbf{H}_0)^{-1} \cdot \textbf{g}_0$,
+    we compute this norm using f_norm_trust_region_omp) 
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! trust radius
   if (nb_iter == 0) then
-    trust_radius2 = norm2_x 
+     trust_radius2 = norm2_x 
 
-    ! Compute delta, delta = sqrt(trust_radius)
-    delta = dsqrt(trust_radius2)
+     ! Compute delta, delta = sqrt(trust_radius)
+     delta = dsqrt(trust_radius2)
   endif
-#+END_SRC
+    #+END_SRC
 
 *** Modification of the trust radius
 
-In function of rho (which represents the agreement between the model
-and the reality, cf. rho_model) the trust region evolves. We update
-delta such as:
+    In function of rho (which represents the agreement between the model
+    and the reality, cf. rho_model) the trust region evolves. We update
+    delta such as:
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Modification of the trust radius in function of rho
   if (rho >= 0.75d0) then
-    delta = 2d0 * delta
+     delta = 2d0 * delta
   elseif (rho >= 0.5d0) then
-    delta = delta
+     delta = delta
   elseif (rho >= 0.25d0) then
-    delta = 0.5d0 * delta
+     delta = 0.5d0 * delta
   else
-    delta = 0.25d0 * delta
+     delta = 0.25d0 * delta
   endif
- 
+
   print*, 'Delta :', delta
-#+END_SRC 
+    #+END_SRC 
   
 *** Calculation of the optimal lambda
 
-We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
-- If $||\textbf{x}|| > \Delta$  or $h_1 < 0$ we have to add a constant
-  $\lambda > 0 \quad \text{and} \quad \lambda > -h_1$
-- If $||\textbf{x}|| \leq \Delta$ and $h_1 \geq 0$ the solution is the
-  unconstrained one, $\lambda = 0$
+    We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
+    - If $||\textbf{x}|| > \Delta$  or $h_1 < 0$ we have to add a constant
+      $\lambda > 0 \quad \text{and} \quad \lambda > -h_1$
+    - If $||\textbf{x}|| \leq \Delta$ and $h_1 \geq 0$ the solution is the
+      unconstrained one, $\lambda = 0$
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
   ! and not (||x||^2 - delta)^2 = 0
-
+  
   ! Scalar product w_1^T . g 
   wtg = 1d0
-  if (e_val(1) < -1d-12) then
-    wtg = 0d0
-    do i = 1, n
-      wtg = wtg + w(i,1) * v_grad(i)
-    enddo
-    print*, 'w_1^T.g =', wtg
-  endif 
-  
+  if (e_val(1) < 0d0) then
+     wtg = 0d0
+     do i = 1, n
+        wtg = wtg + w(i,1) * v_grad(i)
+     enddo
+     print*, 'e_val(1) = ', e_val(1)
+     print*, 'w_1^T.g =', wtg
+  endif
+
   ! w_1^T . g = 0 ?
   if (ABS(wtg) < 1d-6) then
-    norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad, - e_val(1))
-    print*, 'w_1^T.g < 10^-6, ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
+     norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad, - e_val(1), thresh_eig)
+     print*, 'w_1^T.g < 10^-6, ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
   endif
-  
+
   ! Research of lambda to solve ||x(lambda)|| = Delta  
 
   ! H positive definite, ||x(lambda = 0)|| <= Delta
-  if (dsqrt(norm2_x) <= delta .and. e_val(1) >= -1d-12) then
-    ! Unconstraint solution, lambda = 0
-    print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
-    print*, 'lambda = 0, no lambda optimization'
-    lambda = 0d0
+  if (dsqrt(norm2_x) <= delta .and. e_val(1) >= 0d0) then!-1d-12) then
+     ! Unconstraint solution, lambda = 0
+     print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
+     print*, 'lambda = 0, no lambda optimization'
+     lambda = 0d0
 
-  ! H positive definite, ||x(lambda = 0)|| > Delta
-  elseif (e_val(1) >= -1d-12) then
-    ! Constraint solution
-    print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
-    print*,'Computation of the optimal lambda...'
-    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+     ! H positive definite, ||x(lambda = 0)|| > Delta
+  elseif (e_val(1) >= 0d0) then!-1d-12) then
+     ! Constraint solution
+     print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
+     print*,'Computation of the optimal lambda...'
+     call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
+     print*, 'lambda:', lambda
 
-  ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
+     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
   elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < 1d-6) then
-    ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
-    print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
-    print*, 'lambda = -e_val(1), no lambda optimization'
-    lambda = - e_val(1)
+     ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
+     print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
+     print*, 'lambda = -e_val(1), no lambda optimization'
+     lambda = - e_val(1)
+     print*, 'lambda:', lambda
 
-  ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
-  ! H indefinite, w_1^T.g =/= 0
+     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
+     ! H indefinite, w_1^T.g =/= 0
   else
-    ! Constraint solution/ add lambda
-    if (ABS(wtg) < 1d-6) then
-      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
-    else
-      print*, 'H indefinite, w_1^T.g =/= 0'
-    endif
-    print*, 'Computation of the optimal lambda...'
-    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+     ! Constraint solution/ add lambda
+     if (ABS(wtg) < 1d-6) then
+        print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
+     else
+        print*, 'H indefinite, w_1^T.g =/= 0'
+     endif
+     print*, 'Computation of the optimal lambda...'
+     call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
+     print*, 'lambda:', lambda
   endif
 
-!  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
-!  if (delta < dsqrt(norm2_x) .or. e_val(1) < 0d0 ) then 
-!    ! Constraint solution
-!    print*,'Computation of the optimal lambda for the next step...'
-!    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda) 
-!  else
-!    ! Unconstraint solution, lambda = 0
-!    print*,'Step in the trust region, no lambda optimization, lambda = 0'
-!    lambda = 0d0
-!  endif
-#+END_SRC
+  !  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
+  !  if (delta < dsqrt(norm2_x) .or. e_val(1) < 0d0 ) then 
+  !    ! Constraint solution
+  !    print*,'Computation of the optimal lambda for the next step...'
+  !    call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda) 
+  !  else
+  !    ! Unconstraint solution, lambda = 0
+  !    print*,'Step in the trust region, no lambda optimization, lambda = 0'
+  !    lambda = 0d0
+  !  endif
+    #+END_SRC
 
 *** Calculation of the step x
 
-x refers to $\textbf{x}^*$
-We compute x in function of lambda using its formula :
-\begin{align*}
-\textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot \textbf{g}}{h_i 
-+ \lambda} \cdot \textbf{w}_i
-\end{align*}
+    x refers to $\textbf{x}^*$
+    We compute x in function of lambda using its formula :
+    \begin{align*}
+    \textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot \textbf{g}}{h_i 
+    + \lambda} \cdot \textbf{w}_i
+    \end{align*}
 
-This part can be implemeted with matrix-vector multiplication, since
-$\textbf{x}^*$ is: 
-$\textbf{x}^* =(\textbf{H} + \lambda \textbf{1})^{-1} \cdot
-\textbf{g}$
-\begin{align*}
-\textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1} 
-\cdot \textbf{W}^T \cdot \textbf{g}
-\end{align*}
+    This part can be implemeted with matrix-vector multiplication, since
+    $\textbf{x}^*$ is: 
+    $\textbf{x}^* =(\textbf{H} + \lambda \textbf{1})^{-1} \cdot
+    \textbf{g}$
+    \begin{align*}
+    \textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1} 
+    \cdot \textbf{W}^T \cdot \textbf{g}
+    \end{align*}
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Initialisation
   x = 0d0
 
   ! Calculation of the step x
   do i = 1, n
-    if (e_val(i) > 1d-4) then ! in order to avoid 1/0
-    ! eigenvalues must be > 0 !!!
-      accu = 0d0
-      do j = 1, n 
-        accu = accu + W(j,i) * v_grad(j)
-      enddo 
-      !accu = ddot(n,W(:,i),1,v_grad,1)
-      do j = 1, n
-        x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
-      enddo 
-      !x = x - accu * W(:,i) / (e_val(i) + lambda)
-    endif
+     if (e_val(i) + lambda > thresh_eig) then !1d-12) then ! in order to avoid 1/0
+        ! eigenvalues must be > 0 !!!
+        accu = 0d0
+        do j = 1, n 
+           accu = accu + W(j,i) * v_grad(j)
+        enddo
+        !accu = ddot(n,W(:,i),1,v_grad,1)
+        do j = 1, n
+           x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
+        enddo
+        !x = x - accu * W(:,i) / (e_val(i) + lambda)
+     endif
   enddo
 
   ! In order to have the same thing that -H^{-1} . g
@@ -596,104 +602,102 @@ $\textbf{x}^* =(\textbf{H} + \lambda \textbf{1})^{-1} \cdot
   ! and not New Mos = old MOs . R. 
   ! This error will be corrected
   x = -x
-#+END_SRC
+    #+END_SRC
 
 *** Transformation of x
 
-x is a vector of size n, so it can be write as a mo_num by mo_num
-antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
+    x is a vector of size n, so it can be write as a mo_num by mo_num
+    antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
   do j = 1, mo_num
-    do i = 1, mo_num
-      if (i>j) then
-        call mat_to_vec_index(i,j,k)
-        m_x(i,j) = x(k)
-      else
-        m_x(i,j) = 0d0
-      endif
-    enddo
+     do i = 1, mo_num
+        if (i>j) then
+           call mat_to_vec_index(i,j,k)
+           m_x(i,j) = x(k)
+        else
+           m_x(i,j) = 0d0
+        endif
+     enddo
   enddo
 
   ! Antisymmetrization of the previous matrix
   do j = 1, mo_num
-    do i = 1, mo_num
-      if (i<j) then
-        m_x(i,j) = - m_x(j,i)
-      endif
-    enddo
+     do i = 1, mo_num
+        if (i<j) then
+           m_x(i,j) = - m_x(j,i)
+        endif
+     enddo
   enddo
-#+END_SRC
+    #+END_SRC
 
 *** Debug
 
-The goal of this part is to compare the previous result (only if you
-force the use of lambda = 0 !!!) with the "standard method". Clearly,
-here we inverse the matrix in a way that only work for matrix with a
-good conditionning (cf. matrix_inversion).
+    The goal of this part is to compare the previous result (only if you
+    force the use of lambda = 0 !!!) with the "standard method". Clearly,
+    here we inverse the matrix in a way that only work for matrix with a
+    good conditionning (cf. matrix_inversion).
 
-For that reason, in some cases, little differences appear but I don't
-know which calculation is wrong... But don't worry, both work well in
-our case.
+    For that reason, in some cases, little differences appear but I don't
+    know which calculation is wrong... But don't worry, both work well in
+    our case.
 
-Don't put debug = .True. in constants.h, the output will be a
-nightmare, just add "!" before the if/endif. 
+    Don't put debug = .True. in constants.h, the output will be a
+    nightmare, just add "!" before the if/endif. 
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Debug
   if (debug) then
-    integer :: nb_error ! number of error
-    double precision :: max_error ! biggest error
+     integer :: nb_error ! number of error
+     double precision :: max_error ! biggest error
 
-    print*,'x'
-    write(*,'(100(F10.5))') x(:)
+     print*,'x'
+     write(*,'(100(F10.5))') x(:)
 
-    ! Verification
-    call matrix_inversion(method,n,H,Hm1)
+     ! Verification
+     call matrix_inversion(method,n,H,Hm1)
 
-    print*,''
-    call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)
+     print*,''
+     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)
 
-    print*,'vector Hm1.g :'
-    write(*,'(100(F10.5))') Hm1g(:)
+     print*,'vector Hm1.g :'
+     write(*,'(100(F10.5))') Hm1g(:)
 
-    ! Calculation of the error
-    diff = x - Hm1g
+     ! Calculation of the error
+     diff = x - Hm1g
 
-    nb_error = 0
-    max_error = 0d0
-   
-    print*,'diff'
-    do i = 1, n
-      if (ABS(x(i)) > 1e-12) then
-        print*,i, diff(i)
-        nb_error = nb_error + 1
-        if (ABS(x(i)) > max_error) then
-          max_error =  x(i)
+     nb_error = 0
+     max_error = 0d0
+
+     print*,'diff'
+     do i = 1, n
+        if (ABS(x(i)) > 1e-12) then
+           print*,i, diff(i)
+           nb_error = nb_error + 1
+           if (ABS(x(i)) > max_error) then
+              max_error =  x(i)
+           endif
         endif
-      endif
-    enddo
+     enddo
 
-    print*, 'Number of errors :', nb_error
-    print*, 'Max error :', max_error
+     print*, 'Number of errors :', nb_error
+     print*, 'Max error :', max_error
 
   endif
-#+END_SRC 
+    #+END_SRC 
 
 *** Deallocation, end
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   deallocate(Hm1,Hm1g)
 
-  if (debug) then
-    print*,'========================'
-    print*,'---Leave trust_region---'
-    print*,'========================'
-    print*,''
-  endif
+  print*,'======================'
+  print*,'---End trust_region---'
+  print*,'======================'
+  print*,''
 
-end
-#+END_SRC
+end program
+    #+END_SRC
  

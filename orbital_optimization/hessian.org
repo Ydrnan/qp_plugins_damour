@@ -103,25 +103,19 @@ subroutine org_hess(n,H,h_tmpr)
 
   ! Function 
   double precision              :: get_two_e_integral
-#+END_SRC
- 
-** Allocation and OMP
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
-allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
 
-  !=============
-  ! Calculation
-  !=============
-
+  print*,''
+  print*,'---hessian---'
   print*,'Use the full hessian'
 
-  if (debug) then
-    print*,'Enter in hessien.irp.f'
-  endif
+  ! Allocation of shared arrays
+  allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
 
-  call omp_set_max_active_levels(1)
+  ! Calculations
 
   ! OMP 
+  call omp_set_max_active_levels(1)
+
   !$OMP PARALLEL                                                     &
       !$OMP PRIVATE(                                                 &
       !$OMP   p,q,r,s, tmp_accu, tmp_accu_sym,                       &
@@ -1054,9 +1048,7 @@ with p<q and r<s
 ! h_tmpr is intent out in order to debug the subroutine
 ! It's why we don't deallocate it
 
-  if (debug) then
-    print*,'Leave hess'
-  endif
+  print*,'---End hessian---'
 
 end subroutine
 #+END_SRC

@@ -126,23 +126,18 @@ subroutine org_diag_hess(n,H, h_tmpr)
   ! Function
   double precision :: get_two_e_integral
 
-  ! Allocation of shared arrays
+  print*,''
+  print*,'--- diagonal hessian---'
+  print*,'Use the diagonal hessian'
 
+  ! Allocation of shared arrays
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
   allocate(tmp_2rdm_3_shared(mo_num,mo_num,mo_num))
   allocate(tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
   allocate(tmp_accu_1_shared(mo_num),tmp_accu_shared(mo_num,mo_num))
 
-
-  print*,'Use the diagonal hessian'
-
-  if (debug) then
-    print*,'Enter in diag_hess'
-  endif
-
   ! OMP
-
   call omp_set_max_active_levels(1)
 
   !$OMP PARALLEL                                                               &
@@ -156,7 +151,6 @@ subroutine org_diag_hess(n,H, h_tmpr)
       !$OMP DEFAULT(NONE)
 
   ! Allocation of the private arrays
-
   allocate(tmp_2rdm_3(mo_num,mo_num,mo_num),tmp_bi_int_3(mo_num,mo_num,mo_num))
   allocate(tmp_accu(mo_num,mo_num))
 #+END_SRC
@@ -1507,9 +1501,7 @@ with p<q and r<s
   deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
   deallocate(tmp_accu_1_shared, tmp_accu_shared) 
  
-  if (debug) then
-    print*,'Leave diag_hess'
-  endif
+  print*,'---diagonal_hessian'
 
 end subroutine
 #+END_SRC

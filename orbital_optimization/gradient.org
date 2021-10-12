@@ -103,11 +103,14 @@ subroutine org_gradient(n,v_grad,max_elem)
   ! Functions
   double precision :: get_two_e_integral, dnrm2
 
-  ! Allocation
+  
+  print*,''
+  print*,'---gradient---'
 
+  ! Allocation of shared arrays
   allocate(grad(mo_num,mo_num),A(mo_num,mo_num)) 
 
- ! Initialization omp
+  ! Initialization omp
   call omp_set_max_active_levels(1)
 
   !$OMP PARALLEL                                                 &
@@ -119,7 +122,6 @@ subroutine org_gradient(n,v_grad,max_elem)
       !$OMP DEFAULT(SHARED)
  
   ! Allocation of private arrays
-
   allocate(tmp_accu(mo_num,mo_num))
   allocate(tmp_bi_int_3(mo_num,mo_num,mo_num))
   allocate(tmp_2rdm_3(mo_num,mo_num,mo_num))
@@ -128,14 +130,6 @@ subroutine org_gradient(n,v_grad,max_elem)
 ** Calculation
 *** Initialization
 #+BEGIN_SRC f90 :comments org :tangle org_gradient.irp.f
-  ! Calculation
-
-  if (debug) then
-    print*,'Enter in gradient'
-  endif
-
-  ! Initialization
-
   !$OMP DO
   do q = 1, mo_num
     do p = 1,mo_num
@@ -334,7 +328,7 @@ convergence criterion of the Newton method.
     endif
   enddo
 
-  print*,'Max element in gardient :', max_elem  
+  print*,'Max element in the gradient :', max_elem  
 
   ! Debug, display the matrix containting the gradient elements
   if (debug) then
@@ -356,9 +350,7 @@ convergence criterion of the Newton method.
 #+BEGIN_SRC f90 :comments org :tangle org_gradient.irp.f
   deallocate(grad,A)
 
-  if (debug) then
-    print*,'Leave gradient'
-  endif
+  print*,'---End gradient---'
 
   end subroutine
 

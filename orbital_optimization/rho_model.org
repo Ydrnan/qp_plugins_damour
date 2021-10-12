@@ -62,6 +62,9 @@ subroutine org_rho_model(prev_energy,e_model,rho)
   ! Internal
   double precision :: energy
   integer :: i
+
+  print*,''
+  print*,'---Rho_model---'
 #+END_SRC
 
 ** State average energy
@@ -74,11 +77,6 @@ $E_i$ energy of state i
 $w_i$ weight of state i
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-  !if (debug) then
-    print*,''
-    print*,'---Enter in rho_model---'
-  !endif
-
   ! Energy of the actual step
   energy = 0d0
   do i = 1, N_states
@@ -122,10 +120,8 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
     print*, 'Rho >= 0.1, energy -> prev_energy :', energy
   endif
 
-  !if (debug) then
-    print*,'---Leave rho_model---'
-    print*,''
-  !endif
+  print*,'---End rho_model---'
+  print*,''
 
 end subroutine
 #+END_SRC

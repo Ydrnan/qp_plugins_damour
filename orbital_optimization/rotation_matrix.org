@@ -89,6 +89,9 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision              :: dnrm2
   logical                       :: disnan
 
+  print*,''
+  print*,'---rotation_matrix---'
+
   pi = 3.1415926535897932d0
 
   ! Allocation
@@ -102,10 +105,6 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
 ** Pre-conditions
 #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-  if (debug) then
-    print*,'Enter in rotation_matrix'
-  endif
-
   info=0
 
   ! Size of matrix A must be at least 1 by 1
@@ -274,7 +273,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   ! tau^-1
   do j = 1, n
      do i = 1, n
-        if ((i==j).and.(e_val(i) > 0d0)) then
+        if ((i==j).and.(e_val(i) > 1d-16)) then!0d0)) then !!! Convergence problem can come from here if the threshold is too big/small
            tau_m1(i,j) = 1d0/(dsqrt(e_val(i)))
         else
            tau_m1(i,j) = 0d0
@@ -415,9 +414,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   deallocate(part_2,part_2a,part_2b,part_2c)
   deallocate(RR_t)
 
-  if (debug) then
-     print*,'Leave rotation_matrix'
-  endif
+  print*,'---End rotation_matrix---'
 
 end subroutine
    #+END_SRC

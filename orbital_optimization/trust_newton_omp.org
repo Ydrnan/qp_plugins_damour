@@ -146,7 +146,7 @@ Function:
 
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
+subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,thresh_eig,lambda)
 
   include 'constants.h'
 
@@ -159,7 +159,8 @@ subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
   double precision, intent(inout) :: e_val(n)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
-  double precision, intent(in) :: delta 
+  double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig 
 
   ! out
   double precision, intent(out) :: lambda
@@ -186,23 +187,23 @@ subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,lambda)
   double precision :: d2_norm_inverse_trust_region
   double precision :: d1_norm_inverse_trust_region_omp
   double precision :: d2_norm_inverse_trust_region_omp
+
+  print*,''
+  print*,'---Trust_newton---'
+
+  ! Version
+  version = 2 ! 1 -> ||x||^2 - delta^2 = 0, 2 -> 1/||x||^2 - 1/delta^2 = 0
 #+END_SRC
 
 Resolution with the Newton method:
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-  if (debug) then
-    print*,'Enter in trust_newton'
-  endif
-
-  ! Version
-  version = 2
-
   ! Initialization
   epsilon = 1d-4
   lambda = MAX(0d0 + epsilon, -e_val(1) + epsilon)
   print*, 'e_val(1):', e_val(1)
   print*, 'Staring point, lambda =', lambda
   
+  ! w_1^T . g
   f_N = 0d0
   do i = 1, n
     f_N = f_N + w(i,1) * v_grad(i)
@@ -219,7 +220,7 @@ Resolution with the Newton method:
 
   ! Initialization  
   i = 1
-  f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda) ! Value of the ||x(lambda)||^2
+  f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig) ! Value of the ||x(lambda)||^2
   m = 0d0           ! predicted value of (||x||^2 - delta^2)^2
   prev_f_N = 0d0    ! previous value of ||x||^2
   prev_f_R = 0d0    ! previous value of (||x||^2 - delta^2)^2
@@ -231,8 +232,8 @@ Resolution with the Newton method:
   if (version == 1) then
     ! Version 1: Resolution of (||x(lambda)||^2 - delta^2)^2 = 0 
     
-    d_1 = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! first derivative of (||x(lambda)||^2 - delta^2)^2
-    d_2 = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! second derivative of (||x(lambda)||^2 - delta^2)^2
+    d_1 = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig) ! first derivative of (||x(lambda)||^2 - delta^2)^2
+    d_2 = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig) ! second derivative of (||x(lambda)||^2 - delta^2)^2
 
     alpha = ABS((1d0/ABS(d_2))*d_1)
 
@@ -245,8 +246,8 @@ Resolution with the Newton method:
       ! Update of f_N, f_R and the derivatives
       prev_f_N = f_N 
       prev_f_R = (prev_f_N - delta**2)**2
-      d_1 = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
-      d_2 = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+      d_1 = d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
+      d_2 = d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
       write(*,'(a,E12.5,a,E12.5)') ' 1st and 2nd derivative: ', d_1,', ', d_2  
 
       ! Newton's step
@@ -267,7 +268,7 @@ Resolution with the Newton method:
 
       ! Check if lambda is in (-h_1, \infty)
       if (lambda > -e_val(1)) then
-        f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda) ! new value of ||x(lambda)||^2
+        f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig) ! new value of ||x(lambda)||^2
         f_R = (f_N - delta**2)**2          ! new value of (||x(lambda)||^2 - delta^2)^2
         rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'Previous value of (||x(lambda)||^2 - delta^2)^2:', prev_f_R
@@ -310,8 +311,8 @@ Resolution with the Newton method:
   else 
     ! Version 2: Resolution of (1/||x(lambda)||^2 - 1/delta^2)^2 = 0
     
-    d_1 = d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
-    d_2 = d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+    d_1 = d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+    d_2 = d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
 
     alpha = ABS((1d0/ABS(d_2))*d_1)
 
@@ -324,8 +325,8 @@ Resolution with the Newton method:
       ! Update of f_N, f_R and the derivatives
       prev_f_N = f_N 
       prev_f_R = (1d0/prev_f_N - 1d0/delta**2)**2
-      d_1 = d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
-      d_2 = d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+      d_1 = d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
+      d_2 = d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
       write(*,'(a,E12.5,a,E12.5)') ' 1st and 2nd derivative: ', d_1,', ', d_2     
 
       ! Newton's step
@@ -346,7 +347,7 @@ Resolution with the Newton method:
 
       ! Check if lambda is in (-h_1, \infty)
       if (lambda > -e_val(1)) then
-        f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda) ! new value of ||x(lambda)||^2
+        f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig) ! new value of ||x(lambda)||^2
         f_R = (1d0/f_N - 1d0/delta**2)**2                      ! new value of (1/||x(lambda)||^2 - 1/delta^2)^2
         rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'Previous value of (1/||x(lambda)||^2 - 1/delta^2)^2:', prev_f_R
@@ -398,10 +399,7 @@ Resolution with the Newton method:
   print*,'Error on the trust region (||x||^2 - delta^2)^2) :', (f_N - delta**2)**2
   print*,'Error on the trust region (1/||x||^2 - 1/delta^2)^2)', (1d0/f_N - 1d0/delta**2)**2
  
-  ! Debug
-  if (debug) then
-    print*,'Leave trust_newton'
-  endif
+  print*,'---End trust_newton---'
 
 end subroutine
 #+END_SRC
@@ -447,7 +445,7 @@ Function:
 | d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   use omp_lib
 
@@ -460,6 +458,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in)  :: v_grad(n)
   double precision, intent(in)  :: lambda
   double precision, intent(in)  :: delta
+  double precision, intent(in)  :: thresh_eig
    
   ! Internal
   double precision              :: wtg,accu1,accu2
@@ -476,10 +475,10 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   call omp_set_max_active_levels(1)
 
   ! OMP 
-  !$OMP PARALLEL                                        &
-      !$OMP PRIVATE(i,j)                                &
-      !$OMP SHARED(n,lambda,v_grad, w, e_val,           &
-      !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1,accu2) &
+  !$OMP PARALLEL                                         &
+      !$OMP PRIVATE(i,j)                                 &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, thresh_eig,&
+      !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1,accu2)  &
       !$OMP DEFAULT(NONE)
 
   !$OMP MASTER
@@ -515,7 +514,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -529,7 +528,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu2(i) =  tmp_wtg(i)**2 / (e_val(i) + lambda)**3 
     endif
   enddo
@@ -594,7 +593,7 @@ Function:
 | d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2 |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   
   use omp_lib
 
@@ -609,6 +608,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Functions
   double precision :: d2_norm_trust_region_omp
@@ -625,11 +625,11 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   call omp_set_max_active_levels(1)
 
   ! OMP 
-  !$OMP PARALLEL                                      &
-      !$OMP PRIVATE(i,j)                              &
-      !$OMP SHARED(n,lambda,v_grad, w, e_val,         &
-      !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg, &
-      !$OMP accu1, accu2, accu3)                      &
+  !$OMP PARALLEL                                         &
+      !$OMP PRIVATE(i,j)                                 &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, thresh_eig,&
+      !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg,    &
+      !$OMP accu1, accu2, accu3)                         &
       !$OMP DEFAULT(NONE)
 
   ! Initialization
@@ -689,7 +689,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   ! accu2
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3
     endif
   enddo
@@ -704,7 +704,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -751,7 +751,7 @@ Internal:
 | i,j        | integer          | indexes                          |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
+function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
 
   use omp_lib
 
@@ -765,6 +765,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
+  double precision, intent(in) :: thresh_eig
  
   ! functions
   double precision :: f_norm_trust_region_omp
@@ -779,10 +780,10 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
   call omp_set_max_active_levels(1)
 
   ! OMP 
-  !$OMP PARALLEL                              &
-      !$OMP PRIVATE(i,j)                  &
-      !$OMP SHARED(n,lambda,v_grad, w, e_val, &
-      !$OMP tmp_fN, tmp_wtg, f_norm_trust_region_omp)          &
+  !$OMP PARALLEL                                         &
+      !$OMP PRIVATE(i,j)                                 &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, thresh_eig,&
+      !$OMP tmp_fN, tmp_wtg, f_norm_trust_region_omp)    &
       !$OMP DEFAULT(NONE)
 
   ! Initialization
@@ -815,7 +816,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
        tmp_fN(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**2
     endif
   enddo
@@ -875,7 +876,7 @@ Function:
 | ddot                 | double precision | blas dot product                                               |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   implicit none
 
@@ -888,6 +889,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Internal
   double precision :: wtg, accu1, accu2
@@ -903,7 +905,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   do i = 1, n
     wtg = 0d0
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -914,7 +916,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   do i = 1, n
     wtg = 0d0
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -967,7 +969,7 @@ Function:
 | ddot                 | double precision | blas dot product                                               |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
+function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   implicit none
 
@@ -980,6 +982,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Functions
   double precision :: d2_norm_trust_region
@@ -995,7 +998,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu3 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1006,7 +1009,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1017,7 +1020,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1027,7 +1030,6 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
     endif
   enddo
 
-  !d2_norm_trust_region = 2d0 * (accu1 * (- delta**2 + accu2) + accu3**2)
   d2_norm_trust_region = 2d0 * (accu3 * (- delta**2 + accu1) + accu2**2)
 
 end function
@@ -1065,7 +1067,7 @@ Function:
 
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function f_norm_trust_region(n,e_val,w,v_grad,lambda)
+function f_norm_trust_region(n,e_val,w,v_grad,lambda,thresh_eig)
 
   implicit none
 
@@ -1077,6 +1079,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
   double precision, intent(in) :: w(n,n)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
+  double precision, intent(in) :: thresh_eig
 
   ! function
   double precision :: f_norm_trust_region
@@ -1090,7 +1093,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
   f_norm_trust_region = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then    
+    if (e_val(i) + lambda > thresh_eig) then    
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1148,7 +1151,7 @@ Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   use omp_lib
 
@@ -1163,6 +1166,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Internal
   double precision :: wtg, accu1, accu2
@@ -1181,7 +1185,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   ! OMP 
   !$OMP PARALLEL                                         &
       !$OMP PRIVATE(i,j)                                 &
-      !$OMP SHARED(n,lambda,v_grad, w, e_val,            &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, thresh_eig,&
       !$OMP tmp_accu1, tmp_accu2, tmp_wtg, accu1, accu2) &
       !$OMP DEFAULT(NONE)
   
@@ -1226,7 +1230,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1248,7 +1252,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1279,15 +1283,13 @@ Version with OMP
 This function computes the value of (1/||x(lambda)||^2 - 1/Delta^2)^2
 
 \begin{align*}
-  \frac{\partial}{\partial \lambda} (1/||\textbf{x}(\lambda)||^2 - 1/\Delta^2)^2 
-  &= 4 \frac{\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^3}}
-       {(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^3} 
-     - \frac{4}{\Delta^2} \frac{\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^3)}}
-       {(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^2} \\
-  &= 4 \sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^3}
-       \left( \frac{1}{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^3}
-      - \frac{1}{\Delta^2 (\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^2} \right)
+  \frac{\partial^2}{\partial \lambda^2} (1/||\textbf{x}(\lambda)||^2 - 1/\Delta^2)^2 
+  &= 4 \left[ \frac{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^3)})^2}{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^4} 
+  - 3 \frac{\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^4}}{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^3} \right] \\
+  &- \frac{4}{\Delta^2} \left[ \frac{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^3)})^2}{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^3}
+  - 3 \frac{\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^4}}{(\sum_i \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^2} \right]
 \end{align*}
+
 
 \begin{align*}
 \text{accu1} &= \sum_{i=1}^n \frac{(\textbf{w}_i^T \textbf{g})^2}{(h_i + \lambda)^2} \\
@@ -1317,7 +1319,7 @@ Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
+function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   use omp_lib
 
@@ -1332,6 +1334,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Internal
   double precision :: wtg, accu1, accu2, accu3
@@ -1348,11 +1351,11 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
   call omp_set_max_active_levels(1)
 
   ! OMP 
-  !$OMP PARALLEL                                      &
-      !$OMP PRIVATE(i,j)                              &
-      !$OMP SHARED(n,lambda,v_grad, w, e_val,         &
-      !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg, &
-      !$OMP accu1, accu2, accu3)                      &
+  !$OMP PARALLEL                                         &
+      !$OMP PRIVATE(i,j)                                 &
+      !$OMP SHARED(n,lambda,v_grad, w, e_val, thresh_eig,&
+      !$OMP tmp_accu1, tmp_accu2, tmp_accu3, tmp_wtg,    &
+      !$OMP accu1, accu2, accu3)                         &
       !$OMP DEFAULT(NONE)
   
   !$OMP MASTER
@@ -1395,7 +1398,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1409,7 +1412,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1423,7 +1426,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -1485,7 +1488,7 @@ Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
+function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   implicit none
 
@@ -1498,6 +1501,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Internal
   double precision :: wtg, accu1, accu2
@@ -1510,7 +1514,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu2 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1520,7 +1524,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
   
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1574,7 +1578,7 @@ Function:
 | d2_norm_inverse_trust_region | double precision | value of the first derivative |
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
+function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   implicit none
 
@@ -1587,6 +1591,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: v_grad(n)
   double precision, intent(in) :: lambda
   double precision, intent(in) :: delta
+  double precision, intent(in) :: thresh_eig
 
   ! Internal
   double precision :: wtg, accu1, accu2, accu3
@@ -1600,7 +1605,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu3 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1610,7 +1615,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
   
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1620,7 +1625,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1d-12) then
+    if (e_val(i) + lambda > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)

@@ -258,7 +258,7 @@ subroutine org_run_orb_opt_trust
      do while ( cancel_step )
 
         ! Step in the trust region
-        call org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
+        call org_trust_region(n,mo_num,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
 
         ! Estimation of the energy after the rotation
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)

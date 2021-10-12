@@ -70,6 +70,8 @@ part_1 corresponds to the product g.x
 part_2a corresponds to the product H.x
 part_2 corresponds to the product 0.5*(x^T.H.x)
 
+TODO: remove the dot products
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_e_model.irp.f
   ! Product v_grad.x
   part_1 = ddot(n,v_grad,1,x,1)

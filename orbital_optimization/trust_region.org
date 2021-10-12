@@ -377,7 +377,7 @@ An improvement can be done using a elleptical trust region.
    | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
+subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
   include 'constants.h'
 
   implicit none
@@ -385,7 +385,7 @@ subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m
   ! Variables
 
   ! in
-  integer, intent(in)          :: n
+  integer, intent(in)          :: n,m
   integer, intent(in)          :: method ! debug
   double precision, intent(in) :: H(n,n), v_grad(n), rho
   integer, intent(in)  :: nb_iter
@@ -397,7 +397,7 @@ subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m
   double precision, intent(inout) :: delta
 
   ! out
-  double precision, intent(out) :: m_x(mo_num,mo_num), x(n)
+  double precision, intent(out) :: m_x(m,m), x(n)
 
   ! Internal
   double precision, allocatable :: diff(:)
@@ -612,8 +612,8 @@ subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m
     #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
-  do j = 1, mo_num
-     do i = 1, mo_num
+  do j = 1, m
+     do i = 1, m
         if (i>j) then
            call mat_to_vec_index(i,j,k)
            m_x(i,j) = x(k)
@@ -624,8 +624,8 @@ subroutine org_trust_region(n,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m
   enddo
 
   ! Antisymmetrization of the previous matrix
-  do j = 1, mo_num
-     do i = 1, mo_num
+  do j = 1, m
+     do i = 1, m
         if (i<j) then
            m_x(i,j) = - m_x(j,i)
         endif

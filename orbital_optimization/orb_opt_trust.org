@@ -108,7 +108,7 @@ subroutine org_run_orb_opt_trust
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: prev_energy, e_model, energy
   double precision :: t1, t2, t3
-  double precision :: thresh_eig
+  double precision :: thresh_eig, thresh_rho
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
    #+END_SRC
@@ -167,6 +167,7 @@ subroutine org_run_orb_opt_trust
   nb_cancel_tot = 0
 
   thresh_eig = 1d-12 ! threshold for e_val(i) + lambda in the trust region
+  thresh_rho = 0.1d0 ! threshold for the step cancellation, if rho >= thresh_rho -> step accepted, else step rejected
 
   ! Initialization of the CI energy
   call diagonalize_ci
@@ -288,14 +289,15 @@ subroutine org_run_orb_opt_trust
         print*, 'ci_energy :', energy
 
         ! Calculation of rho 
-        call org_rho_model(prev_energy,energy,e_model,rho)
+        call org_rho_model(prev_energy,energy,e_model,thresh_rho,rho)
+        print*, 'debug rho', rho, thresh_rho
 
         ! TODO mettre ça dans uen subroutine
         if (nb_iter == 0) then
           nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
         endif
 
-        if (rho >= 0.1d0) then
+        if (rho >= thresh_rho) then !0.1d0) then
            ! exit, the step is accepted
            cancel_step = .False.
         else
@@ -306,7 +308,7 @@ subroutine org_run_orb_opt_trust
            nb_cancel = nb_cancel + 1
            nb_cancel_tot = nb_cancel_tot + 1
            print*, '***********************'
-           print*, 'Step cancel : rho < 0.1'
+           print*, 'Step cancel : rho <', thresh_rho
            print*, '***********************'
         endif
         nb_diag = nb_diag + 1 

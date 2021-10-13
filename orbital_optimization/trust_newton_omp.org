@@ -179,6 +179,8 @@ subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,thresh_eig,lambda)
   double precision :: alpha
   integer          :: version
 
+  double precision :: thresh_cc, thresh_rho_2
+
   ! Functions
   double precision :: d1_norm_trust_region,d1_norm_trust_region_omp
   double precision :: d2_norm_trust_region, d2_norm_trust_region_omp
@@ -190,9 +192,11 @@ subroutine org_trust_newton_omp(n,e_val,w,v_grad,delta,thresh_eig,lambda)
 
   print*,''
   print*,'---Trust_newton---'
+  print*,''
 
   ! Version
   version = 2 ! 1 -> ||x||^2 - delta^2 = 0, 2 -> 1/||x||^2 - 1/delta^2 = 0
+  ! Version 2 is normally better
 #+END_SRC
 
 Resolution with the Newton method:
@@ -203,6 +207,13 @@ Resolution with the Newton method:
   print*, 'e_val(1):', e_val(1)
   print*, 'Staring point, lambda =', lambda
   
+  thresh_cc = 1d-6 ! Threshold for the research of the optimal lambda
+  ! Leaves the loop when ABS(1d0-||x||^2/delta^2) > thresh_cc
+  thresh_rho_2 = 0.1d0 ! Threshold to cancel the step in the research
+  ! of the optimal lambda, the step is cancelled if rho_2 < thresh_rho_2
+  print*,'Threshold for the CC:', thresh_cc
+  print*,'Threshold for rho_2:',thresh_rho_2  
+
   ! w_1^T . g
   f_N = 0d0
   do i = 1, n
@@ -238,7 +249,7 @@ Resolution with the Newton method:
     alpha = ABS((1d0/ABS(d_2))*d_1)
 
     ! Newton's method
-    do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
+    do while (i <= 100 .and. ABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
       print*,'--------------------------------------'
       print*,'Research of lambda, iteration:', i
       print*,'--------------------------------------'
@@ -264,16 +275,27 @@ Resolution with the Newton method:
 
       ! Update of lambda
       prev_lambda = lambda
-      lambda = prev_lambda + y 
+      lambda = prev_lambda + y
+      print*,'prev lambda:', prev_lambda
+      print*,'new lambda:', lambda
 
       ! Check if lambda is in (-h_1, \infty)
-      if (lambda > -e_val(1)) then
+      if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
         f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig) ! new value of ||x(lambda)||^2
         f_R = (f_N - delta**2)**2          ! new value of (||x(lambda)||^2 - delta^2)^2
-        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'Previous value of (||x(lambda)||^2 - delta^2)^2:', prev_f_R
         print*,'Actual value of (||x(lambda)||^2 - delta^2)^2:', f_R
         print*,'Predicted value of (||x(lambda)||^2 - delta^2)^2:', m
+        print*,'previous - actual:', prev_f_R - f_R
+        print*,'previous - model:', prev_f_R - m
+
+        if (ABS(prev_f_R - m) < 1d-12) then
+          print*,''
+          print*,'WARNING: ABS(previous - model) < 1d12, rho will tend toward infinity'
+          print*,''
+        endif        
+
+        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'rho_2:', rho_2               
       else
         rho_2 = 0d0 ! in order to reduce the size of the trust region, alpha, until lambda is in (-h_1, \infty)
@@ -293,10 +315,10 @@ Resolution with the Newton method:
       write(*,'(a,E12.5)'), ' New trust length alpha: ', alpha
 
       ! cancellaion of the step if rho < 0.1
-      if (rho_2 < 0.1d0) then
+      if (rho_2 < thresh_rho_2) then !0.1d0) then
         lambda = prev_lambda
         f_N = prev_f_N
-        print*,'Rho_2 < 0.1, cancellation of the step: lambda = prev_lambda'
+        print*,'Rho_2 <', thresh_rho_2,', cancellation of the step: lambda = prev_lambda'
       endif
 
       print*,''
@@ -317,7 +339,7 @@ Resolution with the Newton method:
     alpha = ABS((1d0/ABS(d_2))*d_1)
 
     ! Newton's method
-    do while (i <= 100 .and. ABS(1d0-f_N/delta**2)>1d-6)
+    do while (i <= 100 .and. ABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
       print*,'--------------------------------------'
       print*,'Research of lambda, iteration:', i
       print*,'--------------------------------------'
@@ -344,15 +366,26 @@ Resolution with the Newton method:
       ! Update of lambda
       prev_lambda = lambda
       lambda = prev_lambda + y 
+      print*,'prev lambda:', prev_lambda
+      print*,'new lambda:', lambda
 
       ! Check if lambda is in (-h_1, \infty)
-      if (lambda > -e_val(1)) then
+      if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then  ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
         f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig) ! new value of ||x(lambda)||^2
         f_R = (1d0/f_N - 1d0/delta**2)**2                      ! new value of (1/||x(lambda)||^2 - 1/delta^2)^2
-        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'Previous value of (1/||x(lambda)||^2 - 1/delta^2)^2:', prev_f_R
         print*,'Actual value of (1/||x(lambda)||^2 - 1/delta^2)^2:', f_R
         print*,'Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2:', m
+        print*,'previous - actual:', prev_f_R - f_R
+        print*,'previous - model:', prev_f_R - m
+
+        if (ABS(prev_f_R - m) < 1d-12) then
+          print*,''
+          print*,'WARNING: ABS(previous - model) < 1d12, rho will tend toward infinity'
+          print*,''
+        endif
+
+        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
         print*,'rho_2:', rho_2               
       else
         rho_2 = 0d0 ! in order to reduce the size of the trust region, alpha, until lambda is in (-h_1, \infty)
@@ -372,10 +405,10 @@ Resolution with the Newton method:
       write(*,'(a,E12.5)'), ' New trust length alpha: ', alpha
 
       ! cancellaion of the step if rho < 0.1
-      if (rho_2 < 0.1d0) then
+      if (rho_2 < thresh_rho_2) then!0.1d0) then
         lambda = prev_lambda
         f_N = prev_f_N
-        print*,'Rho_2 < 0.1, cancellation of the step: lambda = prev_lambda'
+        print*,'Rho_2 <', thresh_rho_2,', cancellation of the step: lambda = prev_lambda'
       endif
 
       print*,''
@@ -405,8 +438,10 @@ Resolution with the Newton method:
   print*,'Error on the trust region (1d0-f_N/delta**2) (Convergence criterion) :', 1d0-f_N/delta**2
   print*,'Error on the trust region (||x||^2 - delta^2)^2) :', (f_N - delta**2)**2
   print*,'Error on the trust region (1/||x||^2 - 1/delta^2)^2)', (1d0/f_N - 1d0/delta**2)**2
- 
+
+  print*,'' 
   print*,'---End trust_newton---'
+  print*,''
 
 end subroutine
 #+END_SRC

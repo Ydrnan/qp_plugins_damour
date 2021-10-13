@@ -110,7 +110,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   ! Size of matrix A must be at least 1 by 1
   if (n<1) then
     info = 3
-    print*, 'dm_rotation : invalid parameter 5'
+    print*, 'WARNING: invalid parameter 5'
     print*, 'n<1'
     return
   endif
@@ -118,7 +118,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   ! Leading dimension of A must be >= n
   if (LDA < n) then
     info = 25
-    print*, 'dm_rotation : invalid parameter 2 or 5'
+    print*, 'WARNING: invalid parameter 2 or 5'
     print*, 'LDA < n'
     return
   endif
@@ -126,7 +126,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   ! Leading dimension of A must be >= n
   if (LDR < n) then
     info = 4
-    print*, 'dm_rotation : invalid parameter 4'
+    print*, 'WARNING: invalid parameter 4'
     print*, 'LDR < n'
     return
   endif
@@ -136,7 +136,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
     do i = 1, n
       if (disnan(A(i,j))) then
         info=1
-        print*, 'dm_rotation : invalid parameter 1'
+        print*, 'WARNING: invalid parameter 1'
         print*, 'NaN element in A matrix'
         return
       endif
@@ -145,8 +145,8 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
   do i = 1, n
     if (A(i,i) /= 0d0) then
-      print*, 'Rotation matrix: matrix is not antisymmetric'
-      print*, 'Non 0 element in the diagonal', i, A(i,i)
+      print*, 'WARNING: matrix A is not antisymmetric'
+      print*, 'Non 0 element on the diagonal', i, A(i,i)
       call ABORT
     endif
   enddo
@@ -154,7 +154,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   do j = 1, n
     do i = 1, n
       if (A(i,j) /= -A(j,i)) then
-        print*, 'rotation matrix: matrix is not antisymmetric'
+        print*, 'WANRING: matrix A is not antisymmetric'
         print*, 'A(i,j) /= - A(j,i):', i,j,A(i,j), A(j,i)
         call ABORT 
       endif
@@ -169,10 +169,12 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
       endif
     enddo
   enddo
-  print*,'rotation matrix: max element in A', max_elem_A
+  print*,'max element in A', max_elem_A
 
   if (ABS(max_elem_A) > 2 * pi) then
-     print*,'rotation matrix: WARNING ABS(max_elem_A) > 2 pi '
+     print*,''
+     print*,'WARNING: ABS(max_elem_A) > 2 pi '
+     print*,''
   endif
 
 #+END_SRC
@@ -208,10 +210,10 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   if (info2 == 0) then
      print*, 'Diagonalization : Done'
   elseif (info2 < 0) then
-     print*, 'Diagonalization : error'
+     print*, 'WARNING: error in the diagonalization'
      print*, 'Illegal value of the ', info2,'-th parameter'
   else
-     print*, "Diagonalization : Failed to converge"
+     print*, "WARNING: Diagonalization failed to converge"
   endif
     #+END_SRC
 
@@ -287,7 +289,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
         max_elem = tau_m1(i,i)
      endif
   enddo
-  print*,'rotation matrix: max elem taum1:', max_elem
+  print*,'max elem tau^-1:', max_elem
 
   !Debug, display tau^-1
   if (debug) then
@@ -379,10 +381,10 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   print*, 'Max error in R.R^T:', max_elem
   print*, 'e_val(1):', e_val(1)
   print*, 'e_val(n):', e_val(n)
-  print*, 'max elem A:', max_elem_A
+  print*, 'max elem in A:', max_elem_A
 
   if (ABS(max_elem) > 1d-12) then
-    print*, 'rotation matrix: WARNING: max error in R.R^T > 1d-12'
+    print*, 'WARNING: max error in R.R^T > 1d-12'
   endif
 
   ! Matrix elements of R must by non-NaN

@@ -432,7 +432,13 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
 
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
-  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0,thresh_eig)
+  norm2_x = f_norm_trust_region_omp(n,ABS(e_val),W,v_grad,0d0,thresh_eig)
+  ! Can be done with e_val and not ABS(e_val), it will give the same result
+  ! EXCEPT if you replace the condition in the calculation of the norm ABS(e_val(i) + lambda) >  thresh_eig
+  ! by e_val(i) + lambda > thresh_eig which will give some shit
+  ! 
+  ! We just use this norm for the nb_iter = 0 in order to initialize the trust radius delta
+  ! We don't care about the sign of the eigenvalue we just want the size of the step in a normal Newton-Raphson algorithm
   print*, norm2_x
 
   ! Norm^2 of the gradient, ||v_grad||^2
@@ -523,7 +529,6 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
      print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
      print*,'Computation of the optimal lambda...'
      call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
-     print*, 'lambda:', lambda
 
      ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
   elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < 1d-6) then
@@ -531,7 +536,6 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
      print*, 'lambda = -e_val(1), no lambda optimization'
      lambda = - e_val(1)
-     print*, 'lambda:', lambda
 
      ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
      ! H indefinite, w_1^T.g =/= 0
@@ -544,8 +548,14 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
      endif
      print*, 'Computation of the optimal lambda...'
      call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
-     print*, 'lambda:', lambda
   endif
+
+  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,lambda,thresh_eig)
+  print*,''
+  print*,'Summary after the trust region:'
+  print*,'lambda:', lambda
+  print*,'||x||:', dsqrt(norm2_x)
+  print*,'delta:', delta
 
   !  ! Newton method to find lambda such as: ||x(lambda)|| = Delta
   !  if (delta < dsqrt(norm2_x) .or. e_val(1) < 0d0 ) then 

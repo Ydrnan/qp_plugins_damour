@@ -297,10 +297,12 @@ subroutine run_localization
   integer          :: n_occ
   integer          :: info
   integer          :: n, tmp_n, tmp_list_size
-  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:)
+  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:), tmp_x(:), e_val(:), W(:,:)
   double precision :: max_elem, t1, t2, t3, t4, t5, t6, CC
   double precision :: pi
   integer, allocatable :: tmp_list(:)
+  double precision :: prev_criterion, rho, delta, thresh_eig, criterion_model
+  integer ::  nb_iter
 
   !=== Parameters ===
   ! Convergence criterion
@@ -521,7 +523,8 @@ In order to give a little kick in the system
 
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
-  
+  logical :: use_trust_region
+  double precision :: ddot,  f_norm_trust_region_omp
 !  !Initialization
 !  not_converged = .TRUE.
 !  if (n_core_orb < 2) then
@@ -534,6 +537,7 @@ In order to give a little kick in the system
 
   !Initialization
   not_converged = .TRUE.
+  use_trust_region = .FALSE.
 
   if (dim_list_core_orb >= 2) then
     not_core_converged = .TRUE.
@@ -591,7 +595,19 @@ In order to give a little kick in the system
   
     ! Allocation of tmp gradient and hessian
     allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size), tmp_R(tmp_list_size, tmp_list_size))
-  
+    allocate(tmp_x(tmp_n), e_val(tmp_n), W(tmp_n,tmp_n))
+
+    ! Initialization for trust region
+    delta = 0d0
+    rho = 0.5d0
+    thresh_eig = 1d-12
+    nb_iter = 1 !############################### TEST ####################################
+    ! pour choisir le delta et empêcher qu'il soit trop grand
+    delta = 1
+    call compute_criterion(prev_criterion)
+    print*,'prev_criterion', prev_criterion
+
+    print*,'l',l 
     k = 1
     do while (not_converged .and. k <= 10000)
 
@@ -601,8 +617,36 @@ In order to give a little kick in the system
       print*, 'max elem in grad', tmp_list(1), tmp_list(tmp_list_size), max_elem
       ! Diagonal hessian
       call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
-      ! Step in the subspace
-      call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
+      
+      ! Without trust region
+      if (.not. use_trust_region) then
+        ! Step in the subspace
+        call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
+      endif
+
+      !print*,'g'
+      !print*,v_grad(:)
+      !print*,'x'
+      !print*,tmp_x(:)
+      !print*,'H'
+      !do i = 1, tmp_n
+      !  print*,H(i,:)
+      !enddo
+
+      ! With trust region, but no step cancellation for the moment
+      if (use_trust_region) then
+        ! Diagonalization of the hessian
+        call org_diagonalization_hessian(tmp_n,H,e_val,w)
+        e_val = ABS(e_val)
+        call org_trust_region(tmp_n,tmp_list_size,1,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
+      endif
+
+      !print*,'X'
+      !print*,tmp_x(:)
+      !print*,'M_X'
+      !do i = 1, tmp_list_size
+      !  print*,tmp_m_x(i,:)
+      !enddo
 
       ! tmp_m_x to m_x, subspace to full space
       !m_x = 0d0
@@ -613,10 +657,17 @@ In order to give a little kick in the system
       !    m_x(i,j) = tmp_m_x(tmp_i, tmp_j)
       !  enddo
       !enddo
+
+      !####################################### 
+      !tmp_x = 0.001d0 * tmp_x
+      !tmp_m_x = 0.001d0 * tmp_m_x
  
       ! Rotation matrix 
       !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
       call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+
+      ! Estimation of the energy after the rotation
+      call org_trust_e_model(tmp_n,v_grad,H,tmp_x,prev_criterion,criterion_model)
 
       ! tmp_R to R, subspace to full space
       R = 0d0
@@ -642,6 +693,29 @@ In order to give a little kick in the system
       ! Criterion
       call compute_criterion(criterion)
       print*,'Criterion:', k, criterion
+     
+      !prev_criterion = criterion
+
+      ! Calculation of rho 
+      call org_rho_model(prev_criterion, criterion,criterion_model,rho)
+      print*,'rho',rho
+      prev_criterion = criterion
+
+      !if (nb_iter == 0) then
+      !    nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+      !  endif
+
+      !  if (rho >= 0.1d0) then
+      !     ! exit, the step is accepted
+      !     !cancel_step = .False.
+      !  else
+      !     ! Cancellation of the previous rotation
+      !     mo_coef = prev_mos ! previous MOs 
+!
+!           print*, '***********************'
+!           print*, 'Step cancel : rho < 0.1'
+!           print*, '***********************'
+!        endif
 
     if (ABS(max_elem) < 1d-6) then
       not_converged = .FALSE.
@@ -651,7 +725,7 @@ In order to give a little kick in the system
     enddo
 
     ! Deallocation
-    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list)
+    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x,e_val,W)
     
     call save_mos()
     TOUCH mo_coef 
@@ -1098,6 +1172,7 @@ subroutine H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
     enddo
   enddo
 
+  H = 0d0
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
     H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
@@ -1254,20 +1329,20 @@ subroutine x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
 
 end subroutine
 
-subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
+subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
 
   implicit none
 
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
   double precision, intent(in) :: v_grad(tmp_n)
   double precision, intent(in) :: H(tmp_n, tmp_n)
-  double precision, intent(out) :: tmp_m_x(tmp_list_size, tmp_list_size)
-  double precision, allocatable :: x(:)
+  double precision, intent(out) :: tmp_m_x(tmp_list_size, tmp_list_size), tmp_x(tmp_list_size)
+  !double precision, allocatable :: x(:)
   double precision :: lambda , accu, max_elem
   integer :: i,j,tmp_i,tmp_j,tmp_k
 
   ! Allocation
-  allocate(x(tmp_n))
+  !allocate(x(tmp_n))
 
   ! Level shifted hessian
   lambda = 0d0
@@ -1287,7 +1362,8 @@ subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
   ! Good
   do tmp_k = 1, tmp_n
     if (ABS(H(tmp_k,tmp_k)) > 1d-6) then
-      x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
+       tmp_x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k))
+      !x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
     endif
   enddo
 
@@ -1296,7 +1372,7 @@ subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
   do tmp_j = 1, tmp_list_size - 1
     do tmp_i = tmp_j + 1, tmp_list_size
       call mat_to_vec_index(tmp_i,tmp_j,tmp_k)
-      tmp_m_x(tmp_i, tmp_j) = x(tmp_k)
+      tmp_m_x(tmp_i, tmp_j) = tmp_x(tmp_k)!x(tmp_k)
     enddo
   enddo
 
@@ -1308,7 +1384,7 @@ subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H, tmp_m_x)
   enddo
 
   ! Deallocation
-  deallocate(x)
+  !deallocate(x)
 
 end subroutine
 

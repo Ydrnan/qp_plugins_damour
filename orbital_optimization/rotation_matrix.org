@@ -171,7 +171,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   enddo
   print*,'rotation matrix: max element in A', max_elem_A
 
-  if (ABS(max_elem) > 2 * pi) then
+  if (ABS(max_elem_A) > 2 * pi) then
      print*,'rotation matrix: WARNING ABS(max_elem_A) > 2 pi '
   endif
 

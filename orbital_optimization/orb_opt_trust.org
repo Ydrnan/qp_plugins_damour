@@ -106,7 +106,7 @@ subroutine org_run_orb_opt_trust
   double precision              :: max_elem, delta, rho
   logical :: converged, cancel_step, absolute_eig
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
-  double precision :: prev_energy, e_model
+  double precision :: prev_energy, e_model, energy
   double precision :: t1, t2, t3
   double precision :: thresh_eig
 
@@ -276,9 +276,21 @@ subroutine org_run_orb_opt_trust
         call diagonalize_ci
         call save_wavefunction_unsorted
 
-        ! Calculation of rho 
-        call org_rho_model(prev_energy,e_model,rho)
+        ! TODO mettre ca dans une subroutine
+        ! Energy of the actual step
+        energy = 0d0
+        do i = 1, N_states
+          energy = energy + ci_energy(i) * state_average_weight(i)
+        enddo
+        
+        energy = energy / DBLE(N_states)
+        
+        print*, 'ci_energy :', energy
 
+        ! Calculation of rho 
+        call org_rho_model(prev_energy,energy,e_model,rho)
+
+        ! TODO mettre ça dans uen subroutine
         if (nb_iter == 0) then
           nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
         endif

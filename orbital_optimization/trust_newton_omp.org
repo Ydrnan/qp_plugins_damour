@@ -390,6 +390,13 @@ Resolution with the Newton method:
 
   CALL wall_time(t2)
 
+  if (i > 100) then
+    print*,''
+    print*,'WARNING: i > 100 for the trust Newton'
+    print*,'The research of the optimal lambda has failed'
+    print*,''
+  endif
+
   ! Time
   t3 = t2 - t1
   print*,'Time to search the optimal lambda :', t3
@@ -514,7 +521,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -528,7 +535,7 @@ function d1_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu2(i) =  tmp_wtg(i)**2 / (e_val(i) + lambda)**3 
     endif
   enddo
@@ -689,7 +696,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   ! accu2
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3
     endif
   enddo
@@ -704,7 +711,7 @@ function d2_norm_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -816,7 +823,7 @@ function f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
        tmp_fN(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**2
     endif
   enddo
@@ -905,7 +912,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   do i = 1, n
     wtg = 0d0
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -916,7 +923,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
 
   do i = 1, n
     wtg = 0d0
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -1093,7 +1100,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda,thresh_eig)
   f_norm_trust_region = 0d0
 
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then    
+    if (ABS(e_val(i) + lambda) > thresh_eig) then    
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1230,7 +1237,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_e
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1252,7 +1259,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_e
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1398,7 +1405,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_e
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1412,7 +1419,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_e
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1426,7 +1433,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,w,v_grad,lambda,delta,thresh_e
 
   !$OMP DO
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -1514,7 +1521,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   accu2 = 0d0
 
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1524,7 +1531,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   enddo
   
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1605,7 +1612,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   accu3 = 0d0
 
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1615,7 +1622,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   enddo
   
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1625,7 +1632,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta,thresh_eig)
   enddo
 
   do i = 1, n
-    if (e_val(i) + lambda > thresh_eig) then
+    if (ABS(e_val(i) + lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)

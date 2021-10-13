@@ -44,7 +44,7 @@ Internal:
 | i      | integer          | index                            |
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-subroutine org_rho_model(prev_energy,e_model,rho)
+subroutine org_rho_model(prev_energy, energy,e_model,rho)
 
   include 'constants.h'
 
@@ -54,13 +54,13 @@ subroutine org_rho_model(prev_energy,e_model,rho)
 
   ! in
   double precision, intent(inout)  :: prev_energy
-  double precision, intent(in)  :: e_model
+  double precision, intent(in)  :: e_model, energy
 
   ! out
   double precision, intent(out) :: rho
 
   ! Internal
-  double precision :: energy
+  !double precision :: energy
   integer :: i
 
   print*,''
@@ -77,15 +77,15 @@ $E_i$ energy of state i
 $w_i$ weight of state i
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-  ! Energy of the actual step
-  energy = 0d0
-  do i = 1, N_states
-    energy = energy + ci_energy(i) * state_average_weight(i)
-  enddo
-
-  energy = energy / DBLE(N_states)
-
-  print*, 'ci_energy :', energy
+!  ! Energy of the actual step
+!  energy = 0d0
+!  do i = 1, N_states
+!    energy = energy + ci_energy(i) * state_average_weight(i)
+!  enddo
+!
+!  energy = energy / DBLE(N_states)
+!
+!  print*, 'ci_energy :', energy
 #+END_SRC
 
 ** Rho
@@ -100,6 +100,12 @@ change!
 If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
+  if (ABS(prev_energy - e_model) < 1d-12) then
+    print*,'WARNING: prev_energy - e_model < 1d-12'
+    print*,'=> rho will tend toward infinity'
+    print*,'Check you convergence criterion !'
+  endif
+
   rho = (prev_energy - energy) / (prev_energy - e_model)
 
   print*, 'previous energy, prev_energy :', prev_energy

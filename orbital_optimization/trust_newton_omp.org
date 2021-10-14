@@ -210,13 +210,23 @@ Resolution with the Newton method:
   print*,'Initial lambda =', lambda
   f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
   print*,'||x(lambda)||=', dsqrt(f_N),'delta=',delta 
-  do while (f_N > delta**2)
+  if (f_N > delta**2) then
+    do while (f_N > delta**2)
 
-    lambda = lambda * 2d0
-    f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
-    print*, 'lambda', lambda, '||x||^2', f_N, 'delta', delta
+      lambda = lambda * 2d0
+      f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
+      print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
 
-  enddo
+    enddo
+  else
+     do while (f_N < delta**2)
+
+      lambda = lambda * 0.5d0
+      f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
+      print*, 'lambda', lambda, '||x||^2', dsqrt(f_N), 'delta', delta
+
+    enddo
+  endif
   print*,'End of the pre researh of lambda'
 
   print*, 'e_val(1):', e_val(1)

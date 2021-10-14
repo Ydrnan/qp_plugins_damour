@@ -602,9 +602,7 @@ In order to give a little kick in the system
     delta = 0d0
     rho = 0.5d0
     thresh_eig = 1d-12
-    nb_iter = 0 ! 1 !############################### TEST ####################################
-    ! pour choisir le delta et empêcher qu'il soit trop grand
-    delta = dsqrt(DBLE(tmp_n)) * 1d-3 
+    nb_iter = 0 
     call compute_criterion(prev_criterion)
     print*,'prev_criterion', prev_criterion
 
@@ -612,11 +610,16 @@ In order to give a little kick in the system
     k = 1
     do while (not_converged .and. k <= 10000)
 
-      print*,'k:',k
+      print*,''
+      print*,'============='
+      print*,'Iteration:', l, k
+      print*,'============='
+      print*,''
+      
       call wall_time(t1)
       ! Gradient
       call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
-      print*, 'max elem in grad', tmp_list(1), tmp_list(tmp_list_size), max_elem
+      print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
       ! Diagonal hessian
       call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
       
@@ -715,6 +718,16 @@ In order to give a little kick in the system
 
     if (ABS(max_elem) < 1d-6) then
       not_converged = .FALSE.
+    endif
+
+    ! tmp to stop algorithm when when the diff is too small and avoid some problems
+    if (ABS(prev_criterion - criterion_model) < 1d-12) then
+       not_converged = .FALSE.
+       print*,''
+       print*,'####################################################' 
+       print*,'(ABS(prev_criterion - criterion_model) < 1d-12, exit'
+       print*,'####################################################'
+       print*,''
     endif
 
     k = k+1 

@@ -204,6 +204,21 @@ Resolution with the Newton method:
   ! Initialization
   epsilon = 1d-4
   lambda = MAX(0d0 + epsilon, -e_val(1) + epsilon)
+  
+  ! Pre research of lambda to start near the optimal lambda
+  print*, 'Pre research of lambda:'
+  print*,'Initial lambda =', lambda
+  f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
+  print*,'||x(lambda)||=', dsqrt(f_N),'delta=',delta 
+  do while (f_N > delta**2)
+
+    lambda = lambda * 2d0
+    f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
+    print*, 'lambda', lambda, '||x||^2', f_N, 'delta', delta
+
+  enddo
+  print*,'End of the pre researh of lambda'
+
   print*, 'e_val(1):', e_val(1)
   print*, 'Staring point, lambda =', lambda
   
@@ -214,7 +229,7 @@ Resolution with the Newton method:
   print*,'Threshold for the CC:', thresh_cc
   print*,'Threshold for rho_2:',thresh_rho_2  
 
-  ! w_1^T . g
+  ! w_1^T . g, f_N as a tmp variable
   f_N = 0d0
   do i = 1, n
     f_N = f_N + w(i,1) * v_grad(i)
@@ -268,7 +283,7 @@ Resolution with the Newton method:
       if (ABS(y) > alpha) then
         y = alpha * (y/ABS(y)) ! preservation of the sign of y
       endif
-      write(*,'(a,E12.5)'), ' Step length: ', y
+      write(*,'(a,E12.5)') ' Step length: ', y
 
       ! Predicted value of (||x(lambda)||^2 - delta^2)^2, Taylor series
       m = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
@@ -312,7 +327,7 @@ Resolution with the Newton method:
       else 
         alpha = 0.25d0 * alpha
       endif
-      write(*,'(a,E12.5)'), ' New trust length alpha: ', alpha
+      write(*,'(a,E12.5)') ' New trust length alpha: ', alpha
 
       ! cancellaion of the step if rho < 0.1
       if (rho_2 < thresh_rho_2) then !0.1d0) then
@@ -358,7 +373,7 @@ Resolution with the Newton method:
       if (ABS(y) > alpha) then
         y = alpha * (y/ABS(y)) ! preservation of the sign of y
       endif
-      write(*,'(a,E12.5)'), ' Step length: ', y
+      write(*,'(a,E12.5)') ' Step length: ', y
 
       ! Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2, Taylor series
       m = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
@@ -402,7 +417,7 @@ Resolution with the Newton method:
       else 
         alpha = 0.25d0 * alpha
       endif
-      write(*,'(a,E12.5)'), ' New trust length alpha: ', alpha
+      write(*,'(a,E12.5)') ' New trust length alpha: ', alpha
 
       ! cancellaion of the step if rho < 0.1
       if (rho_2 < thresh_rho_2) then!0.1d0) then

@@ -98,6 +98,11 @@ TODO: remove the dot products
 
   ! Writing the predicted energy
   print*, 'Predicted energy after the rotation : ', e_model
+  print*, 'Previous energy - predicted energy:', prev_energy - e_model
+  
+  if (DABS(prev_energy - e_model) < 1d-12 ) then 
+    print*,'WARNING: ABS(prev_energy - e_model) < 1d-12'
+  endif
 
   deallocate(part_2a)
 

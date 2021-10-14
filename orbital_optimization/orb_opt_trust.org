@@ -264,6 +264,14 @@ subroutine org_run_orb_opt_trust
         ! Estimation of the energy after the rotation
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 
+        !  tmp bourrin
+        if (DABS(prev_energy - e_model) < 1d-12) then
+          print*,'#########################################'
+          print*,'DABS(prev_energy - e_model) < 1d-12, exit'
+          print*,'#########################################'
+          return 
+        endif
+
         ! Calculation of the rotation matrix
         call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
 
@@ -290,7 +298,6 @@ subroutine org_run_orb_opt_trust
 
         ! Calculation of rho 
         call org_rho_model(prev_energy,energy,e_model,thresh_rho,rho)
-        print*, 'debug rho', rho, thresh_rho
 
         ! TODO mettre ça dans uen subroutine
         if (nb_iter == 0) then
@@ -322,7 +329,7 @@ subroutine org_run_orb_opt_trust
            print*,'nb_diag >= 50 : end'
            return
         endif
-
+  
      enddo
 
      nb_iter = nb_iter + 1

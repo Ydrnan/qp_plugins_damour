@@ -212,25 +212,40 @@ Resolution with the Newton method:
   print*,'||x(lambda)||=', dsqrt(f_N),'delta=',delta 
   i = 1
   if (f_N > delta**2) then
+    print*,'Increasing lambda...'
     do while (f_N > delta**2 .and. i <= 20)
 
+      prev_f_N = f_N
       lambda = lambda * 2d0
       f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
       print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
+      
+      if (prev_f_N < f_N) then
+        print*,'Error: prev_f_N < f_N, exit'
+        lambda = lambda * 0.5d0
+        i = 21
+      endif
 
       i = i + 1
     enddo
   else
+     print*,'Reducing lambda...'
      do while (f_N < delta**2 .and. i <= 20)
 
       lambda = lambda * 0.5d0
       f_N = f_norm_trust_region_omp(n,e_val,w,v_grad,lambda,thresh_eig)
-      print*, 'lambda', lambda, '||x||^2', dsqrt(f_N), 'delta', delta
+      print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
+
+      if (prev_f_N > f_N) then
+        print*,'Error: prev_f_N > f_N, exit'
+        lambda = lambda * 0.5d0
+        i = 21
+      endif
 
       i = i + 1
     enddo
   endif
-  print*,'End of the pre researh of lambda'
+  print*,'End of the pre research of lambda'
 
   print*, 'e_val(1):', e_val(1)
   print*, 'Staring point, lambda =', lambda

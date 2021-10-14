@@ -432,7 +432,7 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
 
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
-  norm2_x = f_norm_trust_region_omp(n,ABS(e_val),W,v_grad,0d0,thresh_eig)
+  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0,thresh_eig)
   ! Can be done with e_val and not ABS(e_val), it will give the same result
   ! EXCEPT if you replace the condition in the calculation of the norm ABS(e_val(i) + lambda) >  thresh_eig
   ! by e_val(i) + lambda > thresh_eig which will give some shit
@@ -520,6 +520,7 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
   if (dsqrt(norm2_x) <= delta .and. e_val(1) >= 0d0) then!-1d-12) then
      ! Unconstraint solution, lambda = 0
      print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
+     print*, '||x(0)||=', dsqrt(norm2_x)
      print*, 'lambda = 0, no lambda optimization'
      lambda = 0d0
 
@@ -527,6 +528,7 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
   elseif (e_val(1) >= 0d0) then!-1d-12) then
      ! Constraint solution
      print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
+     print*, '||x(0)||=', dsqrt(norm2_x) 
      print*,'Computation of the optimal lambda...'
      call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
 

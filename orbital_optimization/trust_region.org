@@ -402,7 +402,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, allocatable :: Hm1(:,:), Hm1g(:)
   double precision              :: accu, lambda, trust_radius2
   double precision              :: norm2_x, norm2_g
-  double precision              :: wtg
+  double precision, allocatable :: tmp_wtg(:)
   integer                       :: i,j,k
 
   ! Functions
@@ -417,6 +417,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! Allocation
   allocate(diff(n))
   allocate(Hm1(n,n),Hm1g(n))
+  allocate(tmp_wtg(n))
    #+END_SRC
 
 
@@ -428,9 +429,17 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! Initialization of the Lagrange multiplier
   lambda = 0d0
 
+  ! List of w^T.g, avoid the recomputation
+  tmp_wtg = 0d0
+  do j = 1, n
+    do i = 1, n
+      tmp_wtg(j) = tmp_wtg(j) + w(i,j) * v_grad(i)
+    enddo
+  enddo
+
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
-  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,0d0,thresh_eig)
+  norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,0d0)
   ! Can be done with e_val and not ABS(e_val), it will give the same result
   ! EXCEPT if you replace the condition in the calculation of the norm ABS(e_val(i) + lambda) >  thresh_eig
   ! by e_val(i) + lambda > thresh_eig which will give some shit
@@ -498,25 +507,49 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! ########### TODO ##################
   ! Liste des w^t.g nuls pour l'algo d'évitement des points selles
   ! et les calculs de normes et dérivées dans ce cas
-  ! Liste des w^t.g = 0 pour éviter le 1/0 lorsqu'on active pas l'évitement
-  ! des points selles
-  ! Pouvoir choisir le nombre de dérivées secondes négatives voulu
- 
 
+  double precision :: delta_save, beta
+  integer :: n_neg_eval
+
+  if (.False.) then !avoid_saddle) then
+    i = 1
+    ! Number of negative eigenvalues
+    do while (e_val(i) < 0d0)
+      i = i + 1
+    enddo
+    n_neg_eval = i - 1
+    delta_save = delta ! save
+    ! Reduction of delta
+    delta = delta * DBLE((n-n_neg_eval)/n)
+    beta = delta_save - delta
+
+    ! Remove the terms where e_val < 0 and w^T.g is small
+    do i = 1, n_neg_eval 
+      if (DABS(tmp_wtg(i)) < thresh_wtg2) then
+        tmp_wtg(i) = 0d0
+      endif
+    enddo
+  endif
+ 
   ! Scalar product w_1^T . g 
-  wtg = 1d0
+!#  wtg = 1d0
+!#  if (e_val(1) < 0d0) then
+!#     wtg = 0d0
+!#     do i = 1, n
+!#        wtg = wtg + w(i,1) * v_grad(i)
+!#     enddo
+!#     print*, 'e_val(1) = ', e_val(1)
+!#     print*, 'w_1^T.g =', wtg
+!#  endif
+
   if (e_val(1) < 0d0) then
-     wtg = 0d0
-     do i = 1, n
-        wtg = wtg + w(i,1) * v_grad(i)
-     enddo
      print*, 'e_val(1) = ', e_val(1)
-     print*, 'w_1^T.g =', wtg
+     print*, 'w_1^T.g =', tmp_wtg(1)
   endif
 
   ! w_1^T . g = 0 ?
-  if (ABS(wtg) < thresh_wtg) then
-     norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad, - e_val(1), thresh_eig)
+  if (DABS(tmp_wtg(1)) < thresh_wtg) then
+     norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg, - e_val(1))
      print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
   endif
 
@@ -536,10 +569,10 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
      print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
      print*, '||x(0)||=', dsqrt(norm2_x) 
      print*,'Computation of the optimal lambda...'
-     call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+     call org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
 
      ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
-  elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < thresh_wtg) then
+  elseif (dsqrt(norm2_x) <= delta .and. DABS(tmp_wtg(1)) < thresh_wtg) then
      ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
      print*, 'lambda = -e_val(1), no lambda optimization'
@@ -549,16 +582,16 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
      ! H indefinite, w_1^T.g =/= 0
   else
      ! Constraint solution/ add lambda
-     if (ABS(wtg) < 1d-6) then
+     if (DABS(tmp_wtg(1)) < thresh_wtg) then
         print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
      else
         print*, 'H indefinite, w_1^T.g =/= 0'
      endif
      print*, 'Computation of the optimal lambda...'
-     call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
+     call org_trust_newton_omp(n,e_val,tmp_wtg,delta)
   endif
 
-  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,lambda)
+  norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
   print*,''
   print*,'Summary after the trust region:'
   print*,'lambda:', lambda
@@ -711,7 +744,7 @@ TODO: Delete
 *** Deallocation, end
 
     #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-  deallocate(Hm1,Hm1g)
+  deallocate(diff,Hm1,Hm1g,tmp_wtg)
 
   print*,'======================'
   print*,'---End trust_region---'

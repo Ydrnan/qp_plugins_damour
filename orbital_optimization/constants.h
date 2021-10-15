@@ -14,6 +14,7 @@
        double precision, parameter :: thresh_cc = 1d-6
        integer, parameter :: nb_it_max_lambda = 100
        double precision, parameter :: thresh_wtg = 1d-6
+	   double precision, parameter :: thresh_wtg2 = 1d-6
        logical, parameter :: absolute_eig = .True.
        
        ! thresh_rho: threshold for the step cancellation

@@ -91,6 +91,8 @@ Variables:
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
 subroutine org_run_orb_opt_trust
 
+  include 'constants.h'
+
   implicit none
 
   ! Variables
@@ -100,15 +102,15 @@ subroutine org_run_orb_opt_trust
   double precision, allocatable :: v_grad(:),m_x(:,:),x(:)
   double precision, allocatable :: e_val(:), w(:,:)
   double precision, allocatable :: prev_mos(:,:),new_mos(:,:)
-  integer                       :: info,method
+  integer                       :: info
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: max_elem, delta, rho
-  logical :: converged, cancel_step, absolute_eig
+  logical :: converged, cancel_step
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: prev_energy, e_model, energy
   double precision :: t1, t2, t3
-  double precision :: thresh_eig, thresh_rho
+  !double precision :: thresh_eig!, thresh_rho
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
    #+END_SRC
@@ -121,11 +123,13 @@ subroutine org_run_orb_opt_trust
      hessian, called "diag_hess" in "diagonal_hessian.irp.f"
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-  ! Choice of the method
-  method = 1  ! 1 -> full hessian, 2 -> diagonal hessian
-  absolute_eig = .TRUE. ! .TRUE. -> e_val(i) = ABS(e_val(i)), .FALSE.-> e_val(i) = e_val(i)
   !Display the method
   print*, 'Method :', method
+  if (method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
+    print*, 'Full hessian'
+  else 
+    print*,'Diagonal hessian'
+  endif
   print*, 'Absolute value of the hessian:', absolute_eig
    #+END_SRC
 
@@ -166,8 +170,8 @@ subroutine org_run_orb_opt_trust
   nb_diag = 0
   nb_cancel_tot = 0
 
-  thresh_eig = 1d-12 ! threshold for e_val(i) + lambda in the trust region
-  thresh_rho = 0.1d0 ! threshold for the step cancellation, if rho >= thresh_rho -> step accepted, else step rejected
+  !thresh_eig = 1d-12 ! threshold for e_val(i) + lambda in the trust region
+  !thresh_rho = 0.1d0 ! threshold for the step cancellation, if rho >= thresh_rho -> step accepted, else step rejected
 
   ! Initialization of the CI energy
   call diagonalize_ci
@@ -259,7 +263,7 @@ subroutine org_run_orb_opt_trust
      do while ( cancel_step )
 
         ! Step in the trust region
-        call org_trust_region(n,mo_num,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
+        call org_trust_region(n,mo_num,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
         ! Estimation of the energy after the rotation
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
@@ -297,7 +301,7 @@ subroutine org_run_orb_opt_trust
         print*, 'ci_energy :', energy
 
         ! Calculation of rho 
-        call org_rho_model(prev_energy,energy,e_model,thresh_rho,rho)
+        call org_rho_model(prev_energy,energy,e_model,rho)
 
         ! TODO mettre ça dans uen subroutine
         if (nb_iter == 0) then

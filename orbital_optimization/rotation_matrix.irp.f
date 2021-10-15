@@ -40,7 +40,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info)
         double precision, dimension(1:2,1:2) :: rot_2 ! test
         integer :: i,j
         integer :: info2, lwork ! for dsyev
-        double precision :: pi, t1,t2
+        double precision :: t1,t2
         double precision :: norm, norm_2
 
         ! B       : n by n symmetric double precision matrix, B=A.A

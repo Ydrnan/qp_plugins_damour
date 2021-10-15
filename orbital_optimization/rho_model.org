@@ -44,7 +44,7 @@ Internal:
 | i      | integer          | index                            |
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-subroutine org_rho_model(prev_energy, energy,e_model, thresh_rho,rho)
+subroutine org_rho_model(prev_energy, energy,e_model,rho)
 
   include 'constants.h'
 
@@ -54,7 +54,7 @@ subroutine org_rho_model(prev_energy, energy,e_model, thresh_rho,rho)
 
   ! in
   double precision, intent(inout)  :: prev_energy
-  double precision, intent(in)  :: e_model, energy, thresh_rho
+  double precision, intent(in)  :: e_model, energy
 
   ! out
   double precision, intent(out) :: rho

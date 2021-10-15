@@ -284,6 +284,8 @@ end
 
 subroutine run_localization
 
+  include 'constants.h'
+
   implicit none
 
   ! Variables
@@ -298,15 +300,10 @@ subroutine run_localization
   integer          :: info
   integer          :: n, tmp_n, tmp_list_size
   double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:), tmp_x(:), e_val(:), W(:,:)
-  double precision :: max_elem, t1, t2, t3, t4, t5, t6, CC
-  double precision :: pi
+  double precision :: max_elem, t1, t2, t3, t4, t5, t6
   integer, allocatable :: tmp_list(:)
-  double precision :: prev_criterion, rho, delta, thresh_eig, criterion_model
+  double precision :: prev_criterion, rho, delta, criterion_model
   integer ::  nb_iter
-
-  !=== Parameters ===
-  ! Convergence criterion
-  CC = 1d-6
 
   !restore_symm = .False.
   !SOFT_TOUCH restore_symm
@@ -319,8 +316,6 @@ subroutine run_localization
   allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
   allocate(prev_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
 
-  pi = 3.1415926535897932d0
-  
   call nb_occ_om(n_occ)
 
   ! Locality before the localization
@@ -524,7 +519,6 @@ In order to give a little kick in the system
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step
-  double precision :: thresh_rho
 !  !Initialization
 !  not_converged = .TRUE.
 !  if (n_core_orb < 2) then
@@ -538,7 +532,6 @@ In order to give a little kick in the system
   !Initialization
   not_converged = .TRUE.
   use_trust_region = .TRUE. !.FALSE.
-  thresh_rho = 0.1d0
 
   if (dim_list_core_orb >= 2) then
     not_core_converged = .TRUE.
@@ -601,7 +594,6 @@ In order to give a little kick in the system
     ! Initialization for trust region
     delta = 0d0
     rho = 0.5d0
-    thresh_eig = 1d-12
     nb_iter = 0 
     call compute_criterion(prev_criterion)
     print*,'prev_criterion', prev_criterion
@@ -621,7 +613,6 @@ In order to give a little kick in the system
       !### Initialization ###
       nb_iter = 0
       rho = 0.5d0
-      thresh_rho = 0.1d0
       !not_converged = .True.
 
       ! ### TODO ###
@@ -693,7 +684,7 @@ In order to give a little kick in the system
           print*,'Criterion:', nb_iter, criterion
 
           ! Criterion -> step accepted or rejected 
-          call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
+          call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
           ! ### TODO ###
           !if (cancel_step) then
           ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
@@ -743,7 +734,7 @@ In order to give a little kick in the system
 !#        ! Diagonalization of the hessian
 !#        call org_diagonalization_hessian(tmp_n,H,e_val,w)
 !#        e_val = ABS(e_val)
-!#        call org_trust_region(tmp_n,tmp_list_size,1,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
+!#        call org_trust_region(tmp_n,tmp_list_size,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
 !#      endif
 !#
 !#      ! tmp_m_x to m_x, subspace to full space

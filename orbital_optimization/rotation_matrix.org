@@ -83,7 +83,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision, allocatable :: RR_t(:,:)
   integer                       :: i,j
   integer                       :: info2, lwork ! for dsyev
-  double precision              :: norm, max_elem, max_elem_A, pi
+  double precision              :: norm, max_elem, max_elem_A
 
   ! function
   double precision              :: dnrm2
@@ -91,8 +91,6 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
   print*,''
   print*,'---rotation_matrix---'
-
-  pi = 3.1415926535897932d0
 
   ! Allocation
   allocate(B(n,n))

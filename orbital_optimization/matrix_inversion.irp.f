@@ -1,4 +1,4 @@
-subroutine matrix_inversion(method,n,H,Hm1)
+subroutine matrix_inversion(n,H,Hm1)
   
   include 'constants.h'
  
@@ -15,7 +15,6 @@ subroutine matrix_inversion(method,n,H,Hm1)
   !====
   ! in
   !====
-  integer, intent(in)           :: method
   integer, intent(in)           :: n
   double precision, intent(in)  :: H(n,n)
   ! method   : integer, full hessian -> 1, or diagonal hessain -> 2

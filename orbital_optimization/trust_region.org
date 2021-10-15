@@ -377,7 +377,8 @@ An improvement can be done using a elleptical trust region.
    | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
+subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+
   include 'constants.h'
 
   implicit none
@@ -386,12 +387,9 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
 
   ! in
   integer, intent(in)          :: n,m
-  integer, intent(in)          :: method ! debug
   double precision, intent(in) :: H(n,n), v_grad(n), rho
   integer, intent(in)  :: nb_iter
   double precision, intent(in) :: e_val(n), w(n,n)
-  double precision, intent(in) :: thresh_eig
-
 
   ! inout
   double precision, intent(inout) :: delta
@@ -497,6 +495,14 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
   ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
   ! and not (||x||^2 - delta)^2 = 0
   
+  ! ########### TODO ##################
+  ! Liste des w^t.g nuls pour l'algo d'évitement des points selles
+  ! et les calculs de normes et dérivées dans ce cas
+  ! Liste des w^t.g = 0 pour éviter le 1/0 lorsqu'on active pas l'évitement
+  ! des points selles
+  ! Pouvoir choisir le nombre de dérivées secondes négatives voulu
+ 
+
   ! Scalar product w_1^T . g 
   wtg = 1d0
   if (e_val(1) < 0d0) then
@@ -509,9 +515,9 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
   endif
 
   ! w_1^T . g = 0 ?
-  if (ABS(wtg) < 1d-6) then
+  if (ABS(wtg) < thresh_wtg) then
      norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad, - e_val(1), thresh_eig)
-     print*, 'w_1^T.g < 10^-6, ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
+     print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
   endif
 
   ! Research of lambda to solve ||x(lambda)|| = Delta  
@@ -530,10 +536,10 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
      print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
      print*, '||x(0)||=', dsqrt(norm2_x) 
      print*,'Computation of the optimal lambda...'
-     call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
+     call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
 
      ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
-  elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < 1d-6) then
+  elseif (dsqrt(norm2_x) <= delta .and. ABS(wtg) < thresh_wtg) then
      ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
      print*, 'lambda = -e_val(1), no lambda optimization'
@@ -549,10 +555,10 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
         print*, 'H indefinite, w_1^T.g =/= 0'
      endif
      print*, 'Computation of the optimal lambda...'
-     call org_trust_newton_omp(n,e_val,W,v_grad,delta,thresh_eig,lambda)
+     call org_trust_newton_omp(n,e_val,W,v_grad,delta,lambda)
   endif
 
-  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,lambda,thresh_eig)
+  norm2_x = f_norm_trust_region_omp(n,e_val,W,v_grad,lambda)
   print*,''
   print*,'Summary after the trust region:'
   print*,'lambda:', lambda
@@ -646,6 +652,8 @@ subroutine org_trust_region(n,m,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x
     #+END_SRC
 
 *** Debug
+
+TODO: Delete
 
     The goal of this part is to compare the previous result (only if you
     force the use of lambda = 0 !!!) with the "standard method". Clearly,

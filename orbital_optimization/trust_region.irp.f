@@ -1,4 +1,4 @@
-subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+subroutine trust_region(n,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
   include 'constants.h'
 
@@ -16,7 +16,6 @@ subroutine trust_region(n,method,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! in
   !====
   integer, intent(in)          :: n
-  integer, intent(in)          :: method ! pour la verif
   double precision, intent(in) :: H(n,n), v_grad(n), rho
   integer, intent(in)  :: nb_iter
   double precision, intent(in) :: e_val(n), w(n,n)

@@ -224,121 +224,244 @@ subroutine org_run_orb_opt_trust
     the calculation of the gradient.
 
     #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-  ! Loop until the convergence of the optimization
-  do while (.not.converged)
+!#  ! Loop until the convergence of the optimization
+!#  do while (.not.converged)
+!#
+!#     print*,'*********************'
+!#     print*,'Iteration :', nb_iter
+!#     print*,'*********************'
+!#
+!#     !print *, 'CI energy : ', ci_energy
+!#
+!#     ! Gradient
+!#     call org_gradient(n,v_grad,max_elem)
+!#
+!#     ! Hessian
+!#     if (method == 1) then
+!#        call org_hess(n,H,h_f) !h_f -> debug
+!#     else
+!#        call org_diag_hess(n,H,h_f) !h_f -> debug
+!#     endif
+!#
+!#     ! Diagonalization of the hessian
+!#     call org_diagonalization_hessian(n,H,e_val,w)
+!#     
+!#     if (absolute_eig) then
+!#       e_val = ABS(e_val)
+!#     endif
+!#
+!#     cancel_step = .True.
+!#     nb_cancel = 0
+!#
+!#     ! Loop to ensure the diminution of the energy
+!#     ! Each time rho is too small or rho < 0, the trust region
+!#     ! is done with a smaller delta
+!#     do while ( cancel_step )
+!#
+!#        ! Step in the trust region
+!#        call org_trust_region(n,mo_num,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
+!#
+!#        ! Estimation of the energy after the rotation
+!#        call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
+!#
+!#        !  tmp bourrin
+!#        if (DABS(prev_energy - e_model) < 1d-12) then
+!#          print*,'#########################################'
+!#          print*,'DABS(prev_energy - e_model) < 1d-12, exit'
+!#          print*,'#########################################'
+!#          return 
+!#        endif
+!#
+!#        ! Calculation of the rotation matrix
+!#        call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!#
+!#        ! Calculation of the new MOs
+!#        call org_apply_mo_rotation(R,prev_mos)
+!#        call save_mos()
+!#
+!#        ! Update and diagonalization of the hamiltonian
+!#        call clear_mo_map
+!#        TOUCH mo_coef psi_det psi_coef
+!#        call diagonalize_ci
+!#        call save_wavefunction_unsorted
+!#
+!#        ! TODO mettre ca dans une subroutine
+!#        ! Energy of the actual step
+!#        energy = 0d0
+!#        do i = 1, N_states
+!#          energy = energy + ci_energy(i) * state_average_weight(i)
+!#        enddo
+!#        
+!#        energy = energy / DBLE(N_states)
+!#        
+!#        print*, 'ci_energy :', energy
+!#
+!#        ! Calculation of rho 
+!#        call org_rho_model(prev_energy,energy,e_model,thresh_rho,rho)
+!#
+!#        ! TODO mettre ça dans uen subroutine
+!#        if (nb_iter == 0) then
+!#          nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+!#        endif
+!#
+!#        if (rho >= thresh_rho) then !0.1d0) then
+!#           ! exit, the step is accepted
+!#           cancel_step = .False.
+!#        else
+!#           ! Cancellation of the previous rotation
+!#           mo_coef = prev_mos ! previous MOs 
+!#           call save_mos ! save the MOs
+!#
+!#           nb_cancel = nb_cancel + 1
+!#           nb_cancel_tot = nb_cancel_tot + 1
+!#           print*, '***********************'
+!#           print*, 'Step cancel : rho <', thresh_rho
+!#           print*, '***********************'
+!#        endif
+!#        nb_diag = nb_diag + 1 
+!#
+!#        print*, 'nb_diag :', nb_diag
+!#        print*, 'nb_cancel :', nb_cancel
+!#        print*, 'nb_cancel_tot :', nb_cancel_tot
+!#
+!#        ! exit  
+!#        if (nb_diag >= 50) then
+!#           print*,'nb_diag >= 50 : end'
+!#           return
+!#        endif
+!#  
+!#     enddo
+!#
+!#     nb_iter = nb_iter + 1
+!#
+!#     if (nb_iter >= 20 .or. nb_diag >= 50 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
+!#        converged = .True.
+!#     endif
+!#
+!#  enddo
 
-     print*,'*********************'
-     print*,'Iteration :', nb_iter
-     print*,'*********************'
-
-     !print *, 'CI energy : ', ci_energy
-
-     ! Gradient
-     call org_gradient(n,v_grad,max_elem)
-
-     ! Hessian
-     if (method == 1) then
-        call org_hess(n,H,h_f) !h_f -> debug
-     else
-        call org_diag_hess(n,H,h_f) !h_f -> debug
-     endif
-
-     ! Diagonalization of the hessian
-     call org_diagonalization_hessian(n,H,e_val,w)
-     
-     if (absolute_eig) then
-       e_val = ABS(e_val)
-     endif
-
-     cancel_step = .True.
-     nb_cancel = 0
-
-     ! Loop to ensure the diminution of the energy
-     ! Each time rho is too small or rho < 0, the trust region
-     ! is done with a smaller delta
-     do while ( cancel_step )
-
-        ! Step in the trust region
-        call org_trust_region(n,mo_num,method,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,x,m_x,delta)
-
-        ! Estimation of the energy after the rotation
-        call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
-
-        !  tmp bourrin
-        if (DABS(prev_energy - e_model) < 1d-12) then
-          print*,'#########################################'
-          print*,'DABS(prev_energy - e_model) < 1d-12, exit'
-          print*,'#########################################'
-          return 
-        endif
-
-        ! Calculation of the rotation matrix
-        call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-
-        ! Calculation of the new MOs
-        call org_apply_mo_rotation(R,prev_mos)
-        call save_mos()
-
-        ! Update and diagonalization of the hamiltonian
-        call clear_mo_map
-        TOUCH mo_coef psi_det psi_coef
-        call diagonalize_ci
-        call save_wavefunction_unsorted
-
-        ! TODO mettre ca dans une subroutine
-        ! Energy of the actual step
-        energy = 0d0
-        do i = 1, N_states
-          energy = energy + ci_energy(i) * state_average_weight(i)
-        enddo
-        
-        energy = energy / DBLE(N_states)
-        
-        print*, 'ci_energy :', energy
-
-        ! Calculation of rho 
-        call org_rho_model(prev_energy,energy,e_model,thresh_rho,rho)
-
-        ! TODO mettre ça dans uen subroutine
-        if (nb_iter == 0) then
-          nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
-        endif
-
-        if (rho >= thresh_rho) then !0.1d0) then
-           ! exit, the step is accepted
-           cancel_step = .False.
-        else
-           ! Cancellation of the previous rotation
-           mo_coef = prev_mos ! previous MOs 
-           call save_mos ! save the MOs
-
-           nb_cancel = nb_cancel + 1
-           nb_cancel_tot = nb_cancel_tot + 1
-           print*, '***********************'
-           print*, 'Step cancel : rho <', thresh_rho
-           print*, '***********************'
-        endif
-        nb_diag = nb_diag + 1 
-
-        print*, 'nb_diag :', nb_diag
-        print*, 'nb_cancel :', nb_cancel
-        print*, 'nb_cancel_tot :', nb_cancel_tot
-
-        ! exit  
-        if (nb_diag >= 50) then
-           print*,'nb_diag >= 50 : end'
-           return
-        endif
+!#################### TEST ##########################################
+!!!!!Test
+double precision :: prev_criterion, criterion, criterion_model
+logical :: not_converged, must_exit
+  !### Initialization ###
+  nb_iter = 0
+  rho = 0.5d0
+  thresh_rho = 0.1d0
+  not_converged = .True.
   
-     enddo
+  ! ### TODO ###
+  ! Compute the criterion before the loop
+  prev_criterion = prev_energy
 
-     nb_iter = nb_iter + 1
+  do while (not_converged)
+    ! ### TODO ## 
+    ! Call your gradient
+    ! Call you hessian
 
-     if (nb_iter >= 20 .or. nb_diag >= 50 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
-        converged = .True.
-     endif
+    ! Gradient
+    call org_gradient(n,v_grad,max_elem)
+    ! Hessian
+    if (method == 1) then
+       call org_hess(n,H,h_f) !h_f -> debug
+    else
+       call org_diag_hess(n,H,h_f) !h_f -> debug
+    endif
 
+    cancel_step = .True. ! To enter in the loop just after 
+    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+    do while (cancel_step)
+      ! Hessian,gradient,Criterion -> x 
+      call algo_trust1(n,mo_num,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit) 
+      if (must_exit) then
+        ! ### Message ###
+        ! if algo_trust1 sets must_exit on true for numerical reasons
+        print*,'algo_trust1 sends the message : Exit'
+        exit
+      endif
+      !### TODO ###  
+      ! Compute x -> m_x
+      ! Compute m_x -> R
+      ! Apply R and keep the previous MOs...
+      ! Update/touch 
+      ! Compute the new criterion/energy -> criterion
+
+      ! 1D tmp -> 2D tmp 
+      m_x = 0d0
+      do j = 1, mo_num - 1
+        do i = j + 1, mo_num
+          call mat_to_vec_index(i,j,k)
+          m_x(i, j) = x(k)
+        enddo
+      enddo
+    
+      ! Antisym
+      do i = 1, mo_num - 1
+        do j = i + 1, mo_num
+          m_x(i,j) = - m_x(j,i) 
+        enddo
+      enddo
+
+      call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+      call org_apply_mo_rotation(R, prev_mos)   
+
+      ! Update and diagonalization of the hamiltonian
+      call clear_mo_map
+      TOUCH mo_coef psi_det psi_coef
+      call diagonalize_ci
+      call save_wavefunction_unsorted
+
+      ! Energy of the actual step
+      energy = 0d0
+      do i = 1, N_states
+        energy = energy + ci_energy(i) * state_average_weight(i)
+      enddo
+      
+      energy = energy / DBLE(N_states)
+      
+      print*, 'ci_energy :', energy
+      criterion = energy
+
+      ! Criterion -> step accepted or rejected 
+      call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
+
+      ! ### TODO ###
+      !if (cancel_step) then
+      ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+      !endif
+
+      if (cancel_step) then
+        mo_coef = prev_mos
+      endif
+
+    enddo
+    call save_mos() !### depend of the time for 1 iteration
+    ! To exit the external loop if must_exti = .True.
+    if (must_exit) then
+      exit
+    endif 
+
+    ! Step accepted, nb iteration + 1
+    nb_iter = nb_iter + 1
+    ! ### TODO ###
+    !if (###Conditions###) then
+    ! no_converged = .False.
+    !endif
+    if (DABS(max_elem) < 1d-6) then
+      not_converged = .False.
+    endif
+    if (nb_iter > 20) then
+      not_converged = .False. 
+    endif
+    if (.not. not_converged) then
+      print*,'##################################'
+      print*,'Converged, end of the optimization'
+      print*,'##################################'
+    endif
   enddo
+
+  !!!!!!!!! END TEST !!!!!!!!!!!!!!!!!!!!!!!!!
+
     #+END_SRC
     
 ** Deallocation, end

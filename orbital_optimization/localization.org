@@ -523,7 +523,7 @@ In order to give a little kick in the system
 
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
-  logical :: use_trust_region
+  logical :: use_trust_region, must_exit, cancel_step
   double precision :: thresh_rho
 !  !Initialization
 !  not_converged = .TRUE.
@@ -607,131 +607,216 @@ In order to give a little kick in the system
     print*,'prev_criterion', prev_criterion
 
     print*,'l:',l 
-    k = 1
-    do while (not_converged .and. k <= 10000)
-
-      print*,''
-      print*,'============='
-      print*,'Iteration:', l, k
-      print*,'============='
-      print*,''
+!#    k = 1
+!#    do while (not_converged .and. k <= 10000)
+!#
+!#      print*,''
+!#      print*,'============='
+!#      print*,'Iteration:', l, k
+!#      print*,'============='
+!#      print*,''
       
-      call wall_time(t1)
-      ! Gradient
-      call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
-      print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
-      ! Diagonal hessian
-      call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
-      
-      ! Without trust region
-      if (.not. use_trust_region) then
-        ! Step in the subspace
-        call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
-      endif
 
-      ! With trust region, but no step cancellation for the moment
-      if (use_trust_region) then
-        ! Diagonalization of the hessian
-        call org_diagonalization_hessian(tmp_n,H,e_val,w)
-        e_val = ABS(e_val)
-        call org_trust_region(tmp_n,tmp_list_size,1,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
-      endif
+      !!!!!Test
+      !### Initialization ###
+      nb_iter = 0
+      rho = 0.5d0
+      thresh_rho = 0.1d0
+      !not_converged = .True.
 
-      ! tmp_m_x to m_x, subspace to full space
-      !m_x = 0d0
-      !do tmp_j = 1, tmp_list_size
-      !  j = tmp_list(tmp_j)
-      !  do tmp_i = 1, tmp_list_size
-      !    i = tmp_list(tmp_i)
-      !    m_x(i,j) = tmp_m_x(tmp_i, tmp_j)
-      !  enddo
-      !enddo
+      ! ### TODO ###
+      ! Compute the criterion before the loop
+      call compute_criterion(prev_criterion) 
 
-      !####################################### 
-      !tmp_x = 0.001d0 * tmp_x
-      !tmp_m_x = 0.001d0 * tmp_m_x
- 
-      ! Rotation matrix 
-      !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-      call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+      do while (not_converged)
+        ! ### TODO ## 
+        ! Call your gradient
+        ! Call you hessian
 
-      if (use_trust_region) then
-        ! Estimation of the energy after the rotation
-        call org_trust_e_model(tmp_n,v_grad,H,tmp_x,prev_criterion,criterion_model)
-      endif
+        call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
+        print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
+        ! Diagonal hessian
+        call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
 
-      ! tmp_R to R, subspace to full space
-      R = 0d0
-      do i = 1, mo_num
-        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-      enddo
-      do tmp_j = 1, tmp_list_size
-        j = tmp_list(tmp_j)
-        do tmp_i = 1, tmp_list_size
-          i = tmp_list(tmp_i)
-          R(i,j) = tmp_R(tmp_i,tmp_j)
+        cancel_step = .True. ! To enter in the loop just after 
+        ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+        do while (cancel_step)
+          ! Hessian,gradient,Criterion -> x 
+          call algo_trust1(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,tmp_m_x,must_exit) 
+          if (must_exit) then
+            exit
+          endif
+          !### TODO ###  
+          ! Compute x -> m_x
+          ! Compute m_x -> R
+          ! Apply R and keep the previous MOs...
+          ! Update/touch 
+          ! Compute the new criterion/energy -> criterion
+
+          call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+          ! tmp_R to R, subspace to full space
+          R = 0d0
+          do i = 1, mo_num
+            R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+          enddo
+          do tmp_j = 1, tmp_list_size
+            j = tmp_list(tmp_j)
+            do tmp_i = 1, tmp_list_size
+              i = tmp_list(tmp_i)
+              R(i,j) = tmp_R(tmp_i,tmp_j)
+            enddo
+          enddo
+          call org_apply_mo_rotation(R, prev_mos)   
+          call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+          call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+          call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+          call compute_criterion(criterion)
+          print*,'Criterion:', nb_iter, criterion
+
+          ! Criterion -> step accepted or rejected 
+          call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
+          ! ### TODO ###
+          !if (cancel_step) then
+          ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+          ! Update/touch
+          !endif
+
+          if (cancel_step) then
+            mo_coef = prev_mos
+            call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+            call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+            call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+          endif
         enddo
+        !call save_mos() !### depend of the time for 1 iteration
+        if (must_exit) then 
+          exit
+        endif
+        ! Step accepted, nb iteration + 1
+        nb_iter = nb_iter + 1
+        ! ### TODO ###
+        !if (###Conditions###) then
+        ! no_converged = .False.
+        !endif
+        if (DABS(max_elem) < 1d-6) then
+          not_converged = .False.
+        endif
       enddo
-       
-      ! Application to the mo_coef
-      call org_apply_mo_rotation(R, prev_mos)   
-  
-      ! Update the dipoles
-      call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-      call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-      call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-  
-      ! New criterion after rotation + update dipoles
-      call compute_criterion(criterion)
-      print*,'Criterion:', k, criterion
-     
-      if (use_trust_region) then
-        ! Calculation of rho 
-        call org_rho_model(prev_criterion, criterion,criterion_model,thresh_rho, rho)
-        !prev_criterion = criterion
 
-        if (nb_iter == 0) then
-            nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
-        endif
+      !!!!!!!!! END TEST !!!!!!!!!!!!!!!!!!!!!!!!!
 
-        if (rho >= thresh_rho) then !0.1d0) then
-           ! exit, the step is accepted
-           !cancel_step = .False.
-        else
-           ! Cancellation of the previous rotation
-           mo_coef = prev_mos ! previous MOs 
-           
-           ! Update the dipoles
-           call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-           call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-           call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-
-           print*, '***********************'
-           print*, 'Step cancel : rho < 0.1'
-           print*, '***********************'
-        endif
-      endif 
-      
-      call wall_time(t2)
-      t3 = t2 - t1
-      print*, 'Time for one iteration:', t3
-
-    if (ABS(max_elem) < 1d-6) then
-      not_converged = .FALSE.
-    endif
-
-    ! tmp to stop algorithm when when the diff is too small and avoid some problems
-    if (ABS(prev_criterion - criterion_model) < 1d-12) then
-       not_converged = .FALSE.
-       print*,''
-       print*,'####################################################' 
-       print*,'(ABS(prev_criterion - criterion_model) < 1d-12, exit'
-       print*,'####################################################'
-       print*,''
-    endif
-
-    k = k+1 
-    enddo
+!#      call wall_time(t1)
+!#      ! Gradient
+!#      call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
+!#      print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
+!#      ! Diagonal hessian
+!#      call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
+!#      
+!#      ! Without trust region
+!#      if (.not. use_trust_region) then
+!#        ! Step in the subspace
+!#        call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
+!#      endif
+!#
+!#      ! With trust region
+!#      if (use_trust_region) then
+!#        ! Diagonalization of the hessian
+!#        call org_diagonalization_hessian(tmp_n,H,e_val,w)
+!#        e_val = ABS(e_val)
+!#        call org_trust_region(tmp_n,tmp_list_size,1,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
+!#      endif
+!#
+!#      ! tmp_m_x to m_x, subspace to full space
+!#      !m_x = 0d0
+!#      !do tmp_j = 1, tmp_list_size
+!#      !  j = tmp_list(tmp_j)
+!#      !  do tmp_i = 1, tmp_list_size
+!#      !    i = tmp_list(tmp_i)
+!#      !    m_x(i,j) = tmp_m_x(tmp_i, tmp_j)
+!#      !  enddo
+!#      !enddo
+!#
+!#      ! Rotation matrix 
+!#      !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+!#      call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+!#
+!#!      if (use_trust_region) then
+!#!        ! Estimation of the energy after the rotation
+!#!        call org_trust_e_model(tmp_n,v_grad,H,tmp_x,prev_criterion,criterion_model)
+!#!      endif
+!#
+!#      ! tmp_R to R, subspace to full space
+!#      R = 0d0
+!#      do i = 1, mo_num
+!#        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+!#      enddo
+!#      do tmp_j = 1, tmp_list_size
+!#        j = tmp_list(tmp_j)
+!#        do tmp_i = 1, tmp_list_size
+!#          i = tmp_list(tmp_i)
+!#          R(i,j) = tmp_R(tmp_i,tmp_j)
+!#        enddo
+!#      enddo
+!#       
+!#      ! Application to the mo_coef
+!#      call org_apply_mo_rotation(R, prev_mos)   
+!#  
+!#      ! Update the dipoles
+!#      call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+!#      call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+!#      call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+!#  
+!#      ! New criterion after rotation + update dipoles
+!#      call compute_criterion(criterion)
+!#      print*,'Criterion:', k, criterion
+!#     
+!#      if (use_trust_region) then
+!#        ! Calculation of rho 
+!#        call org_rho_model(prev_criterion, criterion,criterion_model,thresh_rho, rho)
+!#        !prev_criterion = criterion
+!#
+!#        if (nb_iter == 0) then
+!#            nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+!#        endif
+!#
+!#        if (rho >= thresh_rho) then !0.1d0) then
+!#           ! exit, the step is accepted
+!#           !cancel_step = .False.
+!#        else
+!#           ! Cancellation of the previous rotation
+!#           mo_coef = prev_mos ! previous MOs 
+!#           
+!#           ! Update the dipoles
+!#           call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+!#           call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+!#           call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+!#
+!#           print*, '***********************'
+!#           print*, 'Step cancel : rho < 0.1'
+!#           print*, '***********************'
+!#        endif
+!#      endif 
+!#      
+!#      call wall_time(t2)
+!#      t3 = t2 - t1
+!#      print*, 'Time for one iteration:', t3
+!#
+!#      if (ABS(max_elem) < 1d-6) then
+!#        not_converged = .FALSE.
+!#      endif
+!#
+!#      ! tmp to stop algorithm when when the diff is too small and avoid some problems
+!#      if (ABS(prev_criterion - criterion_model) < 1d-12) then
+!#        not_converged = .FALSE.
+!#        print*,''
+!#        print*,'####################################################' 
+!#        print*,'(ABS(prev_criterion - criterion_model) < 1d-12, exit'
+!#        print*,'####################################################'
+!#        print*,''
+!#      endif
+!#  
+!#      k = k+1 
+!#    enddo
 
     ! Deallocation
     deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x,e_val,W)

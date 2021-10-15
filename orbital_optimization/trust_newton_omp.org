@@ -238,7 +238,14 @@ Resolution with the Newton method:
 
       if (prev_f_N > f_N) then
         print*,'Error: prev_f_N > f_N, exit'
-        lambda = lambda * 0.5d0
+        lambda = lambda * 2d0
+        i = 21
+      endif
+
+      ! To ensure that lambda is in > -e_val(1) if e_val(1) < 0
+      if (lambda < MAX(0d0,-e_val(1))) then
+        print*,'Error: lambda > MAX(0d0,-e_val(1), exit'
+        lambda = lambda * 2d0
         i = 21
       endif
 
@@ -334,7 +341,7 @@ Resolution with the Newton method:
 
         if (ABS(prev_f_R - m) < 1d-12) then
           print*,''
-          print*,'WARNING: ABS(previous - model) < 1d12, rho will tend toward infinity'
+          print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
           print*,''
         endif        
 
@@ -424,7 +431,7 @@ Resolution with the Newton method:
 
         if (ABS(prev_f_R - m) < 1d-12) then
           print*,''
-          print*,'WARNING: ABS(previous - model) < 1d12, rho will tend toward infinity'
+          print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
           print*,''
         endif
 

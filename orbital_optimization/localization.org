@@ -642,8 +642,11 @@ In order to give a little kick in the system
         ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
         do while (cancel_step)
           ! Hessian,gradient,Criterion -> x 
-          call algo_trust1(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,tmp_m_x,must_exit) 
+          call algo_trust1(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
           if (must_exit) then
+            ! ### Message ###
+            ! if algo_trust1 sets must_exit on true for numerical reasons
+            print*,'algo_trust1 sends the message : Exit'
             exit
           endif
           !### TODO ###  
@@ -652,6 +655,22 @@ In order to give a little kick in the system
           ! Apply R and keep the previous MOs...
           ! Update/touch 
           ! Compute the new criterion/energy -> criterion
+
+          ! 1D tmp -> 2D tmp 
+          tmp_m_x = 0d0
+          do tmp_j = 1, tmp_list_size - 1
+            do tmp_i = tmp_j + 1, tmp_list_size
+              call mat_to_vec_index(tmp_i,tmp_j,tmp_k)
+              tmp_m_x(tmp_i, tmp_j) = tmp_x(tmp_k)
+            enddo
+          enddo
+        
+          ! Antisym
+          do tmp_i = 1, tmp_list_size - 1
+            do tmp_j = tmp_i + 1, tmp_list_size
+              tmp_m_x(tmp_i,tmp_j) = - tmp_m_x(tmp_j,tmp_i) 
+            enddo
+          enddo
 
           call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
           ! tmp_R to R, subspace to full space

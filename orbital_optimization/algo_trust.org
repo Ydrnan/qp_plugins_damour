@@ -1,0 +1,85 @@
+* Algorithm of the trust region
+
+#+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
+subroutine algo_trust1(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+
+  implicit none
+
+  integer, intent(in) :: n,m, nb_iter
+  double precision, intent(in) :: H(n,n), v_grad(n)
+  double precision, intent(in) :: rho, prev_criterion
+  double precision, intent(out) :: criterion_model, x(n)!,m_x(m,m)
+  double precision, intent(inout) :: delta
+  logical, intent(out) :: must_exit
+
+  ! internal
+  double precision, allocatable :: W(:,:), e_val(:),m_x(:,:)
+  integer :: info
+  double precision ::  thresh_eig
+
+  thresh_eig = 1d-12
+
+  allocate(W(n,n), e_val(n), m_x(m,m))
+  
+  must_exit = .False.
+  
+  call org_diagonalization_hessian(n,H,e_val,w)
+  e_val=dabs(e_val)
+
+  call org_trust_region(n,m,1,nb_iter,thresh_eig,H,v_grad,rho,e_val,W,x,m_x,delta)
+  m_x = 0d0 ! Can't be used
+  !call org_rotation_matrix(m_x,m,R,m,m,info)
+  ! m_x et R dépende de l'ordre de remplissage....
+  
+  call org_trust_e_model(n,v_grad,H,x,prev_criterion,criterion_model)
+  ! exit if DABS(prev_criterion - criterion_model) < 1d-12
+  if (DABS(prev_criterion - criterion_model) < 1d-12) then
+    print*,''
+    print*,'#####################################################################'
+    print*,'DABS(prev_criterion - criterion_model) < 1d-12, stop the trust region'
+    print*,'######################################################################'
+    print*,''
+    must_exit = .True.
+  endif
+
+  ! Add after the the call to the subroutine a statement
+  ! "if (must_exit) then
+  !   exit
+  ! endif"
+  ! in order to exit the optimization loop
+
+  deallocate(W,e_val,m_x)
+
+end subroutine
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
+subroutine algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
+
+  implicit none
+ 
+  double precision, intent(in) :: prev_criterion, criterion, criterion_model, thresh_rho
+  logical, intent(out) :: cancel_step
+  double precision, intent(out) :: rho
+  integer, intent(inout) :: nb_iter
+
+  call org_rho_model(prev_criterion,criterion,criterion_model,thresh_rho,rho)
+  
+  if (nb_iter == 0) then
+    nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+  endif
+
+  ! If rho < thresh_rho -> give something in output to cancel the step
+  if (rho >= thresh_rho) then !0.1d0) then
+     ! The step is accepted
+     cancel_step = .False.
+  else
+     ! The step is rejected
+     cancel_step = .True.
+     print*, '***********************'
+     print*, 'Step cancel : rho <', thresh_rho
+     print*, '***********************'
+  endif
+  
+end subroutine
+#+END_SRC

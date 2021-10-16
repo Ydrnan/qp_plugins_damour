@@ -632,27 +632,35 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! Initialisation
   x = 0d0
 
-  ! Calculation of the step x
-  do i = 1, n
-     if (e_val(i) + lambda > thresh_eig) then !1d-12) then ! in order to avoid 1/0
-        ! eigenvalues must be > 0 !!!
-        accu = 0d0
-        do j = 1, n 
-           accu = accu + W(j,i) * v_grad(j)
-        enddo
-        !accu = ddot(n,W(:,i),1,v_grad,1)
-        do j = 1, n
-           x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
-        enddo
-        !x = x - accu * W(:,i) / (e_val(i) + lambda)
-     endif
+!#  ! Calculation of the step x
+!#  do i = 1, n
+!#     if (DABS(e_val(i) + lambda) > thresh_eig) then !1d-12) then ! in order to avoid 1/0
+!#        ! eigenvalues must be > 0 !!!
+!#        accu = 0d0
+!#        do j = 1, n 
+!#           accu = accu + W(j,i) * v_grad(j)
+!#        enddo
+!#        !accu = ddot(n,W(:,i),1,v_grad,1)
+!#        do j = 1, n
+!#           x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
+!#        enddo
+!#        !x = x - accu * W(:,i) / (e_val(i) + lambda)
+!#     endif
+!#  enddo
+
+  do i = 1, n 
+    if (DABS(e_val(i) + lambda) > thresh_eig) then
+      do j = 1, n
+        x(j) = x(j) - tmp_wtg(i) * W(j,i) / (e_val(i) + lambda)
+      enddo
+    endif
   enddo
 
   ! In order to have the same thing that -H^{-1} . g
   ! It comes from the fact that we compute New Mos = old MOs . R^T
   ! and not New Mos = old MOs . R. 
   ! This error will be corrected
-  x = -x
+!  x = -x
     #+END_SRC
 
 *** Transformation of x

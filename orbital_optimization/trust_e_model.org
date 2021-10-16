@@ -94,7 +94,7 @@ TODO: remove the dot products
   ! minus sign, there is a sign error somewhere in the program
   ! Comes from the transposed in the calculation of the new MOs
   ! It will be fixed soon 
-  e_model = prev_energy - part_1 - part_2
+  e_model = prev_energy + part_1 + part_2!- part_1 - part_2
 
   ! Writing the predicted energy
   print*, 'Predicted energy after the rotation : ', e_model

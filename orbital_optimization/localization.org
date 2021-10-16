@@ -1346,7 +1346,7 @@ subroutine x_orb_loc(n, v_grad, H, m_x)
   ! Good
   do i = 1, n
     if (ABS(H(i,i)) > 1d-6) then
-      x(i) = - 1d0/(ABS(H(i,i))+lambda) * (-v_grad(i)) 
+      x(i) = - 1d0/(ABS(H(i,i))+lambda) *  v_grad(i)!(-v_grad(i)) 
     endif
   enddo
   
@@ -1409,7 +1409,7 @@ subroutine x_tmp_orb_loc(tmp_n, tmp_size, mo_beg, mo_end, v_grad, H, tmp_m_x)
   ! Good
   do tmp_k = 1, tmp_n
     if (ABS(H(tmp_k,tmp_k)) > 1d-6) then
-      x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
+      x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * v_grad(tmp_k)!(-v_grad(tmp_k)) 
     endif
   enddo
 
@@ -1467,7 +1467,7 @@ subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp
   ! Good
   do tmp_k = 1, tmp_n
     if (ABS(H(tmp_k,tmp_k)) > 1d-6) then
-       tmp_x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k))
+       tmp_x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * v_grad(tmp_k)!(-v_grad(tmp_k))
       !x(tmp_k) = - 1d0/(ABS(H(tmp_k,tmp_k))+lambda) * (-v_grad(tmp_k)) 
     endif
   enddo

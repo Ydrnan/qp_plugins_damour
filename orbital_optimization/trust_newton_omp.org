@@ -199,7 +199,7 @@ Resolution with the Newton method:
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   epsilon = 1d-4
-  lambda = MAX(0d0 + epsilon, -e_val(1) + epsilon)
+  lambda = MAX(0d0+epsilon, -e_val(1) + epsilon)
   
   ! Pre research of lambda to start near the optimal lambda
   print*, 'Pre research of lambda:'
@@ -466,8 +466,10 @@ Resolution with the Newton method:
 
   if (i > nb_it_max_lambda) then
     print*,''
+    print*,'######################################################'
     print*,'WARNING: i >', nb_it_max_lambda,'for the trust Newton'
     print*,'The research of the optimal lambda has failed'
+    print*,'######################################################'
     print*,''
   endif
 
@@ -1106,7 +1108,7 @@ Function:
 
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-function f_norm_trust_region(n,e_val,w,v_grad,lambda)
+function f_norm_trust_region(n,e_val,tmp_wtg,lambda)
 
   include 'constants.h'
 
@@ -1117,8 +1119,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
   ! in
   integer, intent(in) :: n
   double precision, intent(in) :: e_val(n)
-  double precision, intent(in) :: w(n,n)
-  double precision, intent(in) :: v_grad(n)
+  double precision, intent(in) :: tmp_wtg(n)
   double precision, intent(in) :: lambda
   
   ! function
@@ -1126,7 +1127,6 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
   double precision :: ddot
 
   ! internal
-  double precision :: wtg
   integer :: i,j
 
   ! Initialization
@@ -1134,12 +1134,7 @@ function f_norm_trust_region(n,e_val,w,v_grad,lambda)
 
   do i = 1, n
     if (ABS(e_val(i) + lambda) > thresh_eig) then    
-      wtg = 0d0
-      do j = 1, n
-        wtg = wtg + w(j,i) * v_grad(j)
-      enddo
-      !wtg = ddot(n,w(:,i),1,v_grad,1)
-      f_norm_trust_region = f_norm_trust_region + wtg**2 / (e_val(i) + lambda)**2
+      f_norm_trust_region = f_norm_trust_region + tmp_wtg(i)**2 / (e_val(i) + lambda)**2
     endif
   enddo
 

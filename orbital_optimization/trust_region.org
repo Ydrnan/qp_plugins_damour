@@ -548,7 +548,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   endif
 
   ! w_1^T . g = 0 ?
-  if (DABS(tmp_wtg(1)) < thresh_wtg) then
+  if (DABS(tmp_wtg(1)) < thresh_wtg .and. (.not. absolute_eig)) then
      norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg, - e_val(1))
      print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
   endif

@@ -83,7 +83,7 @@ subroutine org_diagonalization_hessian(n,H,e_val,w)
       nb_negative_vp = nb_negative_vp + 1
     endif
   enddo
-  print*,'Number of negative eigenvalues < 1d-12:', nb_negative_vp  
+  print*,'Number of negative eigenvalues < -1d-12:', nb_negative_vp  
 
   ! Deallocation
   deallocate(work)

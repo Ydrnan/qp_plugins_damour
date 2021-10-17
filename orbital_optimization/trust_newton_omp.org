@@ -104,38 +104,39 @@ The first and second derivatives of $\tilde{f}(\lambda) = (1/||\textbf{x}(\lambd
    {(\sum_{i=1}^n \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^2} \right]
 \end{align*}
 
-
 Provided:
-| mo_num | integer | number of MOs |
+| thresh_rho_2          |   |   |
+| thresh_cc             |   |   |
+| nb_it_max_lambda      |   |   |
+| version_lambda_search |   |   |
 
 Input:
- | n         | integer          | mo_num*(mo_num-1)/2         |
- | e_val(n)  | double precision | eigenvalues of the hessian  |
- | W(n,n)    | double precision | eigenvectors of the hessian |
- | v_grad(n) | double precision | gradient                    |
- | delta     | double precision | delta for the trust region  |
+| n          | integer          | m*(m-1)/2                  |
+| e_val(n)   | double precision | eigenvalues of the hessian |
+| tmp_wtg(n) | double precision | w_i^T.v_grad(i)            |
+| delta      | double precision | delta for the trust region |
 
 Output:
 | lambda | double precision | Lagrange multiplier to constrain the norm of the size of the Newton step |
 |        |                  | lambda > 0                                                               |
 
 Internal:
-| d1_N        | double precision | value of d1_norm_trust_region                                |
-| d2_N        | double precision | value of d2_norm_trust_region                                |
-| f_N         | double precision | value of f_norm_trust_region                                 |
-| prev_f_N    | double precision | previous value of f_norm_trust_region                        |
-| f_R         | double precision | (norm(x)^2 - delta^2)^2 or (1/norm(x)^2 - 1/delta^2)^2       |
-| prev_f_R    | double precision | previous value of f_R                                        |
-| m           | double precision | predicted value of f_R from prev_f_R and y                   |
-| d_1         | double precision | value of the first derivative                                |
-| d_2         | double precision | value of the second derivative                               |
-| y           | double precision | Newton's step, y = -f''^-1 . f' = lambda - prev_lambda       |
-| prev_lambda | double precision | previous value of lambda                                     |
-| t1,t2,t3    | double precision | wall time                                                    |
-| i           | integer          | index                                                        |
-| epsilon     | double precision | little constant to avoid numerical problem                   |
-| rho_2       | double precision | (prev_f_R - f_R)/(prev_f_R - m), agreement between m and f_R |
-| version     | integer          | version of the root finding method                           |
+| d1_N        | double precision | value of d1_norm_trust_region                                        |
+| d2_N        | double precision | value of d2_norm_trust_region                                        |
+| f_N         | double precision | value of f_norm_trust_region                                         |
+| prev_f_N    | double precision | previous value of f_norm_trust_region                                |
+| f_R         | double precision | (norm(x)^2 - delta^2)^2 or (1/norm(x)^2 - 1/delta^2)^2               |
+| prev_f_R    | double precision | previous value of f_R                                                |
+| model       | double precision | predicted value of f_R from prev_f_R and y                           |
+| d_1         | double precision | value of the first derivative                                        |
+| d_2         | double precision | value of the second derivative                                       |
+| y           | double precision | Newton's step, y = -f''^-1 . f' = lambda - prev_lambda               |
+| prev_lambda | double precision | previous value of lambda                                             |
+| t1,t2,t3    | double precision | wall time                                                            |
+| i           | integer          | index                                                                |
+| epsilon     | double precision | little constant to avoid numerical problem                           |
+| rho_2       | double precision | (prev_f_R - f_R)/(prev_f_R - model), agreement between model and f_R |
+| version     | integer          | version of the root finding method                                   |
 
 Function:
 | d1_norm_trust_region         | double precision | first derivative with respect to lambda of  (norm(x)^2 - Delta^2)^2     |
@@ -166,7 +167,7 @@ subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
   ! Internal
   double precision :: d1_N, d2_N, f_N, prev_f_N
   double precision :: prev_f_R, f_R
-  double precision :: m
+  double precision :: model
   double precision :: d_1, d_2
   double precision :: t1,t2,t3
   integer          :: i
@@ -190,8 +191,15 @@ subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
   print*,'---Trust_newton---'
   print*,''
 
+  call wall_time(t1)
+
   ! Version
-  version = 2 ! 1 -> ||x||^2 - delta^2 = 0, 2 -> 1/||x||^2 - 1/delta^2 = 0
+  ! version_lambda_search ! 1 -> ||x||^2 - delta^2 = 0, 2 -> 1/||x||^2 - 1/delta^2 = 0
+  if (version_lambda_search == 1) then
+    print*, 'Research of the optimal lambda by solving ||x||^2 - delta^2 = 0'
+  else
+    print*, 'Research of the optimal lambda by solving 1/||x||^2 - 1/delta^2 = 0'
+  endif
   ! Version 2 is normally better
 #+END_SRC
 
@@ -217,7 +225,7 @@ Resolution with the Newton method:
       print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
       
       if (prev_f_N < f_N) then
-        print*,'Error: prev_f_N < f_N, exit'
+        print*,'WARNING, error: prev_f_N < f_N, exit'
         lambda = lambda * 0.5d0
         i = 21
       endif
@@ -233,14 +241,14 @@ Resolution with the Newton method:
       print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
 
       if (prev_f_N > f_N) then
-        print*,'Error: prev_f_N > f_N, exit'
+        print*,'WARNING, error: prev_f_N > f_N, exit'
         lambda = lambda * 2d0
         i = 21
       endif
 
       ! To ensure that lambda is in > -e_val(1) if e_val(1) < 0
       if (lambda < MAX(0d0,-e_val(1))) then
-        print*,'Error: lambda > MAX(0d0,-e_val(1), exit'
+        print*,'WARNING, error: lambda > MAX(0d0,-e_val(1), exit'
         lambda = lambda * 2d0
         i = 21
       endif
@@ -262,9 +270,6 @@ Resolution with the Newton method:
 
   print*, 'w_1^T . g =', tmp_wtg(1)
 
-  ! Newton's method to find the optimal lambda for the trust region
-  CALL wall_time(t1)
-
   ! Debug
   if (debug) then
       print*, 'Iteration    rho_2    lambda    delta  ||x||  |1-(||x||^2/delta^2)|'
@@ -273,7 +278,7 @@ Resolution with the Newton method:
   ! Initialization  
   i = 1
   f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda) ! Value of the ||x(lambda)||^2
-  m = 0d0           ! predicted value of (||x||^2 - delta^2)^2
+  model = 0d0           ! predicted value of (||x||^2 - delta^2)^2
   prev_f_N = 0d0    ! previous value of ||x||^2
   prev_f_R = 0d0    ! previous value of (||x||^2 - delta^2)^2
   f_R = 0d0         ! value of (||x||^2 - delta^2)^2
@@ -281,38 +286,52 @@ Resolution with the Newton method:
   y = 0d0           ! step size
   prev_lambda = 0d0 ! previous lambda
 
-  if (version == 1) then
+!  if (version_lambda_search == 1) then
     ! Version 1: Resolution of (||x(lambda)||^2 - delta^2)^2 = 0 
     
-    d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (||x(lambda)||^2 - delta^2)^2
-    d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (||x(lambda)||^2 - delta^2)^2
+    if (version_lambda_search == 1) then
+      d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (||x(lambda)||^2 - delta^2)^2
+      d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (||x(lambda)||^2 - delta^2)^2
+    else
+      d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+      d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+    endif
 
-    alpha = ABS((1d0/ABS(d_2))*d_1)
+    alpha = DABS((1d0/d_2)*d_1)
 
     ! Newton's method
-    do while (i <= 100 .and. ABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
+    do while (i <= 100 .and. DABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
       print*,'--------------------------------------'
       print*,'Research of lambda, iteration:', i
       print*,'--------------------------------------'
 
       ! Update of f_N, f_R and the derivatives
       prev_f_N = f_N 
-      prev_f_R = (prev_f_N - delta**2)**2
-      d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
-      d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
+      if (version_lambda_search == 1) then
+        prev_f_R = (prev_f_N - delta**2)**2
+        d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (||x(lambda)||^2 - delta^2)^2
+        d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (||x(lambda)||^2 - delta^2)^2
+      else
+        prev_f_R = (1d0/prev_f_N - 1d0/delta**2)**2
+        d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+        d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+      endif
+      !prev_f_R = (prev_f_N - delta**2)**2
+      !d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
+      !d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
       write(*,'(a,E12.5,a,E12.5)') ' 1st and 2nd derivative: ', d_1,', ', d_2  
 
       ! Newton's step
-      y = -(1d0/ABS(d_2))*d_1 
+      y = -(1d0/DABS(d_2))*d_1
 
       ! Constraint on y
-      if (ABS(y) > alpha) then
-        y = alpha * (y/ABS(y)) ! preservation of the sign of y
+      if (DABS(y) > alpha) then
+        y = alpha * (y/DABS(y)) ! preservation of the sign of y
       endif
       write(*,'(a,E12.5)') ' Step length: ', y
 
       ! Predicted value of (||x(lambda)||^2 - delta^2)^2, Taylor series
-      m = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
+      model = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
 
       ! Update of lambda
       prev_lambda = lambda
@@ -323,20 +342,32 @@ Resolution with the Newton method:
       ! Check if lambda is in (-h_1, \infty)
       if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
         f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda) ! new value of ||x(lambda)||^2
-        f_R = (f_N - delta**2)**2          ! new value of (||x(lambda)||^2 - delta^2)^2
-        print*,'Previous value of (||x(lambda)||^2 - delta^2)^2:', prev_f_R
-        print*,'Actual value of (||x(lambda)||^2 - delta^2)^2:', f_R
-        print*,'Predicted value of (||x(lambda)||^2 - delta^2)^2:', m
-        print*,'previous - actual:', prev_f_R - f_R
-        print*,'previous - model:', prev_f_R - m
+        if (version_lambda_search == 1) then
+          f_R = (f_N - delta**2)**2          ! new value of (||x(lambda)||^2 - delta^2)^2
+        else
+          f_R = (1d0/f_N - 1d0/delta**2)**2
+        endif
+        
+        if (version_lambda_search == 1) then
+          print*,'Previous value of (||x(lambda)||^2 - delta^2)^2:', prev_f_R
+          print*,'Actual value of (||x(lambda)||^2 - delta^2)^2:', f_R
+          print*,'Predicted value of (||x(lambda)||^2 - delta^2)^2:', model
+        else
+          print*,'Previous value of (1/||x(lambda)||^2 - 1/delta^2)^2:', prev_f_R
+          print*,'Actual value of (1/||x(lambda)||^2 - 1/delta^2)^2:', f_R
+          print*,'Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2:', model
+        endif
 
-        if (ABS(prev_f_R - m) < 1d-12) then
+        print*,'previous - actual:', prev_f_R - f_R
+        print*,'previous - model:', prev_f_R - model
+
+        if (DABS(prev_f_R - model) < 1d-12) then
           print*,''
           print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
           print*,''
         endif        
 
-        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
+        rho_2 = (prev_f_R - f_R)/(prev_f_R - model)
         print*,'rho_2:', rho_2               
       else
         rho_2 = 0d0 ! in order to reduce the size of the trust region, alpha, until lambda is in (-h_1, \infty)
@@ -365,104 +396,102 @@ Resolution with the Newton method:
       print*,''
       print*,'lambda, ||x||, delta:'
       print*, lambda, dsqrt(f_N), delta
-      print*,'CC:', ABS(1d0 - f_N/delta**2)
+      print*,'CC:', DABS(1d0 - f_N/delta**2)
       print*,''
       
       i = i + 1
     enddo
 
-  else 
-    ! Version 2: Resolution of (1/||x(lambda)||^2 - 1/delta^2)^2 = 0
-    
-    d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
-    d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
-
-    alpha = ABS((1d0/ABS(d_2))*d_1)
-
-    ! Newton's method
-    do while (i <= 100 .and. ABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
-      print*,'--------------------------------------'
-      print*,'Research of lambda, iteration:', i
-      print*,'--------------------------------------'
-
-      ! Update of f_N, f_R and the derivatives
-      prev_f_N = f_N 
-      prev_f_R = (1d0/prev_f_N - 1d0/delta**2)**2
-      d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
-      d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
-      write(*,'(a,E12.5,a,E12.5)') ' 1st and 2nd derivative: ', d_1,', ', d_2     
-
-      ! Newton's step
-      y = -(1d0/ABS(d_2))*d_1 
-
-      ! Constraint on y
-      if (ABS(y) > alpha) then
-        y = alpha * (y/ABS(y)) ! preservation of the sign of y
-      endif
-      write(*,'(a,E12.5)') ' Step length: ', y
-
-      ! Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2, Taylor series
-      m = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
-
-      ! Update of lambda
-      prev_lambda = lambda
-      lambda = prev_lambda + y 
-      print*,'prev lambda:', prev_lambda
-      print*,'new lambda:', lambda
-
-      ! Check if lambda is in (-h_1, \infty)
-      if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then  ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
-        f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda) ! new value of ||x(lambda)||^2
-        f_R = (1d0/f_N - 1d0/delta**2)**2                      ! new value of (1/||x(lambda)||^2 - 1/delta^2)^2
-        print*,'Previous value of (1/||x(lambda)||^2 - 1/delta^2)^2:', prev_f_R
-        print*,'Actual value of (1/||x(lambda)||^2 - 1/delta^2)^2:', f_R
-        print*,'Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2:', m
-        print*,'previous - actual:', prev_f_R - f_R
-        print*,'previous - model:', prev_f_R - m
-
-        if (ABS(prev_f_R - m) < 1d-12) then
-          print*,''
-          print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
-          print*,''
-        endif
-
-        rho_2 = (prev_f_R - f_R)/(prev_f_R - m)
-        print*,'rho_2:', rho_2               
-      else
-        rho_2 = 0d0 ! in order to reduce the size of the trust region, alpha, until lambda is in (-h_1, \infty)
-        print*,'lambda < -e_val(1) ===> rho_2 = 0'
-      endif
-
-      ! Evolution of the trust length, alpha
-      if (rho_2 >= 0.75d0) then
-        alpha = 2d0 * alpha
-      elseif (rho_2 >= 0.5d0) then
-        alpha = alpha
-      elseif (rho_2 >= 0.25d0) then
-        alpha = 0.5d0 * alpha
-      else 
-        alpha = 0.25d0 * alpha
-      endif
-      write(*,'(a,E12.5)') ' New trust length alpha: ', alpha
-
-      ! cancellaion of the step if rho < 0.1
-      if (rho_2 < thresh_rho_2) then!0.1d0) then
-        lambda = prev_lambda
-        f_N = prev_f_N
-        print*,'Rho_2 <', thresh_rho_2,', cancellation of the step: lambda = prev_lambda'
-      endif
-
-      print*,''
-      print*,'lambda, ||x||, delta:'
-      print*, lambda, dsqrt(f_N), delta
-      print*,'CC:', ABS(1d0-f_N/delta**2)
-      print*,''
-      
-      i = i + 1
-    enddo
-  endif
-
-  CALL wall_time(t2)
+!  else 
+!    ! Version 2: Resolution of (1/||x(lambda)||^2 - 1/delta^2)^2 = 0
+!    
+!    d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+!    d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
+!
+!    alpha = DABS((1d0/d_2))*d_1)
+!
+!    ! Newton's method
+!    do while (i <= 100 .and. DABS(1d0-f_N/delta**2) > thresh_cc) !1d-6)
+!      print*,'--------------------------------------'
+!      print*,'Research of lambda, iteration:', i
+!      print*,'--------------------------------------'
+!
+!      ! Update of f_N, f_R and the derivatives
+!      prev_f_N = f_N 
+!      prev_f_R = (1d0/prev_f_N - 1d0/delta**2)**2
+!      d_1 = d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
+!      d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
+!      write(*,'(a,E12.5,a,E12.5)') ' 1st and 2nd derivative: ', d_1,', ', d_2     
+!
+!      ! Newton's step
+!      y = -(1d0/DABS(d_2))*d_1
+!
+!      ! Constraint on y
+!      if (DABS(y) > alpha) then
+!        y = alpha * (y/DABS(y)) ! preservation of the sign of y
+!      endif
+!      write(*,'(a,E12.5)') ' Step length: ', y
+!
+!      ! Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2, Taylor series
+!      model = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
+!
+!      ! Update of lambda
+!      prev_lambda = lambda
+!      lambda = prev_lambda + y 
+!      print*,'prev lambda:', prev_lambda
+!      print*,'new lambda:', lambda
+!
+!      ! Check if lambda is in (-h_1, \infty)
+!      if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then  ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
+!        f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda) ! new value of ||x(lambda)||^2
+!        f_R = (1d0/f_N - 1d0/delta**2)**2                      ! new value of (1/||x(lambda)||^2 - 1/delta^2)^2
+!        print*,'Previous value of (1/||x(lambda)||^2 - 1/delta^2)^2:', prev_f_R
+!        print*,'Actual value of (1/||x(lambda)||^2 - 1/delta^2)^2:', f_R
+!        print*,'Predicted value of (1/||x(lambda)||^2 - 1/delta^2)^2:', model
+!        print*,'previous - actual:', prev_f_R - f_R
+!        print*,'previous - model:', prev_f_R - model
+!
+!        if (ABS(prev_f_R - model) < 1d-12) then
+!          print*,''
+!          print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
+!          print*,''
+!        endif
+!
+!        rho_2 = (prev_f_R - f_R)/(prev_f_R - mmodel)
+!        print*,'rho_2:', rho_2               
+!      else
+!        rho_2 = 0d0 ! in order to reduce the size of the trust region, alpha, until lambda is in (-h_1, \infty)
+!        print*,'lambda < -e_val(1) ===> rho_2 = 0'
+!      endif
+!
+!      ! Evolution of the trust length, alpha
+!      if (rho_2 >= 0.75d0) then
+!        alpha = 2d0 * alpha
+!      elseif (rho_2 >= 0.5d0) then
+!        alpha = alpha
+!      elseif (rho_2 >= 0.25d0) then
+!        alpha = 0.5d0 * alpha
+!      else 
+!        alpha = 0.25d0 * alpha
+!      endif
+!      write(*,'(a,E12.5)') ' New trust length alpha: ', alpha
+!
+!      ! cancellaion of the step if rho < 0.1
+!      if (rho_2 < thresh_rho_2) then!0.1d0) then
+!        lambda = prev_lambda
+!        f_N = prev_f_N
+!        print*,'Rho_2 <', thresh_rho_2,', cancellation of the step: lambda = prev_lambda'
+!      endif
+!
+!      print*,''
+!      print*,'lambda, ||x||, delta:'
+!      print*, lambda, dsqrt(f_N), delta
+!      print*,'CC:', DABS(1d0-f_N/delta**2)
+!      print*,''
+!      
+!      i = i + 1
+!    enddo
+!  endif
 
   if (i > nb_it_max_lambda) then
     print*,''
@@ -473,14 +502,16 @@ Resolution with the Newton method:
     print*,''
   endif
 
-  ! Time
-  t3 = t2 - t1
-  print*,'Time to search the optimal lambda :', t3
   print*,'Number of iterations :', i
   print*,'Value of lambda :', lambda
   print*,'Error on the trust region (1d0-f_N/delta**2) (Convergence criterion) :', 1d0-f_N/delta**2
   print*,'Error on the trust region (||x||^2 - delta^2)^2) :', (f_N - delta**2)**2
   print*,'Error on the trust region (1/||x||^2 - 1/delta^2)^2)', (1d0/f_N - 1d0/delta**2)**2
+
+  ! Time
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in trust_newton:', t3
 
   print*,'' 
   print*,'---End trust_newton---'
@@ -584,7 +615,7 @@ function d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (ABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -598,7 +629,7 @@ function d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (ABS(e_val(i)) > thresh_eig) then
       tmp_accu2(i) =  tmp_wtg(i)**2 / (e_val(i) + lambda)**3 
     endif
   enddo
@@ -730,7 +761,7 @@ function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   ! accu1
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > 1e-12) then
+    if (ABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2
     endif
   enddo
@@ -745,7 +776,7 @@ function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   ! accu2
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3
     endif
   enddo
@@ -760,7 +791,7 @@ function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -855,7 +886,7 @@ function f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
   ! Calculations 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
        tmp_fN(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**2
     endif
   enddo
@@ -945,7 +976,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   do i = 1, n
     wtg = 0d0
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -956,7 +987,7 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   do i = 1, n
     wtg = 0d0
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
       enddo
@@ -1039,7 +1070,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu3 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1050,7 +1081,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1061,7 +1092,7 @@ function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1133,7 +1164,7 @@ function f_norm_trust_region(n,e_val,tmp_wtg,lambda)
   f_norm_trust_region = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then    
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then    
       f_norm_trust_region = f_norm_trust_region + tmp_wtg(i)**2 / (e_val(i) + lambda)**2
     endif
   enddo
@@ -1242,7 +1273,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
 !  !$OMP MASTER
 !  do i = 1, n
-!    if (ABS(e_val(i) + lambda) > 1d-12) then
+!    if (ABS(e_val(i)+lambda) > 1d-12) then
 !      tmp_accu1(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**2
 !    endif
 !  enddo
@@ -1250,7 +1281,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1264,7 +1295,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
 !  !$OMP MASTER
 !  do i = 1, n
-!    if (ABS(e_val(i) + lambda) > 1d-12) then
+!    if (ABS(e_val(i)+lambda) > 1d-12) then
 !      tmp_accu2(i) = tmp_wtg(i)**2 / (e_val(i) + lambda)**3
 !    endif
 !  enddo
@@ -1272,7 +1303,7 @@ function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1403,7 +1434,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu1(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**2 
     endif
   enddo
@@ -1417,7 +1448,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu2(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**3 
     endif
   enddo
@@ -1431,7 +1462,7 @@ function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   !$OMP DO
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       tmp_accu3(i) = tmp_wtg(i)**2 /  (e_val(i) + lambda)**4
     endif
   enddo
@@ -1522,7 +1553,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu2 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1532,7 +1563,7 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
   
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1614,7 +1645,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   accu3 = 0d0
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1624,7 +1655,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
   
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)
@@ -1634,7 +1665,7 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   enddo
 
   do i = 1, n
-    if (ABS(e_val(i) + lambda) > thresh_eig) then
+    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
       wtg = 0d0
       do j = 1, n
         wtg = wtg + w(j,i) * v_grad(j)

@@ -1,7 +1,7 @@
 * Algorithm of the trust region
 
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-subroutine algo_trust1(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
   include 'constants.h'
 
@@ -56,7 +56,7 @@ end subroutine
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-subroutine algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+subroutine is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
   include 'constants.h'
 

@@ -16,7 +16,7 @@
   double precision, parameter :: thresh_wtg = 1d-6
   double precision, parameter :: thresh_wtg2 = 1d-6
   logical, parameter :: absolute_eig = .False.
-  logical, parameter :: avoid_saddle = .True.
+  logical, parameter :: avoid_saddle = .False.
   integer, parameter :: version_lambda_search = 2
   
   ! thresh_rho: threshold for the step cancellation

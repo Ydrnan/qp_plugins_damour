@@ -291,15 +291,8 @@ subroutine org_run_orb_opt_trust
 
         ! TODO mettre ca dans une subroutine
         ! Energy of the actual step
-        energy = 0d0
-        do i = 1, N_states
-          energy = energy + ci_energy(i) * state_average_weight(i)
-        enddo
-        
-        energy = energy / DBLE(N_states)
-        
-        print*, 'ci_energy :', energy
-
+        call update_st_av_ci_energy(energy)
+ 
         ! Calculation of rho 
         call org_rho_model(prev_energy,energy,e_model,rho)
 
@@ -376,7 +369,7 @@ subroutine org_run_orb_opt_trust
 !!#    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
 !!#    do while (cancel_step)
 !!#      ! Hessian,gradient,Criterion -> x 
-!!#      call algo_trust1(n,mo_num,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit) 
+!!#      call step_in_trust_region(n,mo_num,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit) 
 !!#      if (must_exit) then
 !!#        ! ### Message ###
 !!#        ! if algo_trust1 sets must_exit on true for numerical reasons
@@ -416,18 +409,12 @@ subroutine org_run_orb_opt_trust
 !!#      call save_wavefunction_unsorted
 !!#
 !!#      ! Energy of the actual step
-!!#      energy = 0d0
-!!#      do i = 1, N_states
-!!#        energy = energy + ci_energy(i) * state_average_weight(i)
-!!#      enddo
-!!#      
-!!#      energy = energy / DBLE(N_states)
-!!#      
-!!#      print*, 'ci_energy :', energy
+!!#      call update_st_av_ci_energy(energy)
+!!#
 !!#      criterion = energy
 !!#
 !!#      ! Criterion -> step accepted or rejected 
-!!#      call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
+!!#      call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,thresh_rho,rho,cancel_step)
 !!#
 !!#      ! ### TODO ###
 !!#      !if (cancel_step) then

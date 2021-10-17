@@ -519,15 +519,6 @@ In order to give a little kick in the system
   logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step
-!  !Initialization
-!  not_converged = .TRUE.
-!  if (n_core_orb < 2) then
-!    not_core_converged = .FALSE.
-!  else 
-!    not_core_converged = .TRUE.
-!  endif
-!  not_occ_converged = .TRUE.
-!  not_vir_converged = .TRUE.
 
   !Initialization
   not_converged = .TRUE.
@@ -562,13 +553,13 @@ In order to give a little kick in the system
     if (l==1) then ! core
       not_converged = not_core_converged
       tmp_list_size = dim_list_core_orb
-    elseif (l==2) then
+    elseif (l==2) then ! act
       not_converged = not_act_converged
       tmp_list_size = dim_list_act_orb
-    elseif (l==3) then
+    elseif (l==3) then ! inact
       not_converged = not_inact_converged
       tmp_list_size = dim_list_inact_orb
-    else
+    else ! virt
       not_converged = not_virt_converged
       tmp_list_size = dim_list_virt_orb
     endif
@@ -599,19 +590,10 @@ In order to give a little kick in the system
     print*,'prev_criterion', prev_criterion
 
     print*,'l:',l 
-!#    k = 1
-!#    do while (not_converged .and. k <= 10000)
-!#
-!#      print*,''
-!#      print*,'============='
-!#      print*,'Iteration:', l, k
-!#      print*,'============='
-!#      print*,''
-      
 
       !!!!!Test
       !### Initialization ###
-      nb_iter = 0
+      nb_iter = 0 ! Must start at 0 !!!
       rho = 0.5d0
       !not_converged = .True.
 
@@ -633,10 +615,10 @@ In order to give a little kick in the system
         ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
         do while (cancel_step)
           ! Hessian,gradient,Criterion -> x 
-          call algo_trust1(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+          call step_in_trust_region(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
           if (must_exit) then
             ! ### Message ###
-            ! if algo_trust1 sets must_exit on true for numerical reasons
+            ! if step_in_trust_region sets must_exit on true for numerical reasons
             print*,'algo_trust1 sends the message : Exit'
             exit
           endif
@@ -684,7 +666,7 @@ In order to give a little kick in the system
           print*,'Criterion:', nb_iter, criterion
 
           ! Criterion -> step accepted or rejected 
-          call algo_trust2(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
           ! ### TODO ###
           !if (cancel_step) then
           ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
@@ -693,9 +675,6 @@ In order to give a little kick in the system
           if (cancel_step) then
             mo_coef = prev_mos
             ! pas besoind e recalculer vu qu'on garde le gradient et le hessien
-            !call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-            !call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-            !call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
           endif
         enddo
         !call save_mos() !### depend of the time for 1 iteration

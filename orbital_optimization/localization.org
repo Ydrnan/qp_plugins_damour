@@ -469,7 +469,7 @@ In order to give a little kick in the system
   print*,'========================'
   print*,'' 
     
-  logical :: not_converged, not_core_converged, not_occ_converged, not_vir_converged
+  logical :: not_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step
 

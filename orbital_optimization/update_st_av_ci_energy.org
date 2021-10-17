@@ -1,0 +1,20 @@
+* Update the CI state average energy
+
+#+BEGIN_SRC f90 :comments org :tangle update_st_av_ci_energy.irp.f
+subroutine update_st_av_ci_energy(energy)
+
+  implicit none
+  
+  double precision, intent(out) :: energy
+  integer :: i
+
+  energy = 0d0
+  do i = 1, N_states
+    energy = energy + ci_energy(i) * state_average_weight(i)
+  enddo
+  
+  energy = energy / DBLE(N_states)
+  
+  print*, 'ci_energy :', energy
+end
+#+END_SRC

@@ -233,11 +233,9 @@ To do the localization we have compute the gradient and the
 diagonal hessian of the Foster-Boys criterion with respect to the MO
 rotations and we minimize it with the Newton method.
 Since we already have compute the first and second derivatives of the
-FB with respect to the MO rotations we have the analytical gradient
+FB criterion with respect to the MO rotations we have the analytical gradient
 and diagonal hessian. Hovik uses an other method in her algorithm and
 it seems to work very for big systems.
-
-TODO: add trust region
 
 In order to avoid the problem of starting on a saddle point, the
 localization procedure starts by giving a little kick in the MOs in
@@ -260,22 +258,102 @@ Example:
 The gradient for the localization of the core MOs can be expressed 
 as a vector of length mo_num*(mo_num-1)/2 with only
 n_core_orb*(n_core_orb-1)/2 non zero elements, so it is more relevant
-to use a vector of size n_core_orb*(n_core_orb-1)/2.
+to use a vector of size n_act_orb*(n_core_orb-1)/2.
 So here the gradient is a vector of size
 tmp_list_size*(tmp_list_size)/2 where tmp_list_size is the number of
 MOs is the corresponding mo class.
 The same thing happened for the hessian, the matrix containing the
 step and the rotation matrix, which are tmp_list_size by tmp_list_size
-matrices. 
+matrices.
 
-TODO: improve the previous paragraph
+Ex gradient for 4 core orbitales:
+\begin{align*}
+\begin{pmatrix}
+0 & -a & -b & -d & \hdots & 0 \\
+a &  0 & -c & -e & \hdots & 0 \\
+b &  c &  0 & -f & \hdots & 0 \\
+d &  e &  f &  0 & \hdots & 0 \\  
+\vdots &  \vdots &  \vdots & \vdots  & \ddots & \vdots \\
+0 &  0 &  0 &  0 & \hdots & 0 \\
+\end{pmatrix}
+\Rightarrow
+\begin{pmatrix}
+a \\
+b \\
+c \\
+e \\
+f \\
+0 \\
+\vdots \\
+0 \\
+\end{pmatrix}
+\end{align*} 
+
+\begin{align*}
+\begin{pmatrix}
+0 & -a & -b & -d & \hdots & 0 \\
+a &  0 & -c & -e & \hdots & 0 \\
+b &  c &  0 & -f & \hdots & 0 \\
+d &  e &  f &  0 & \hdots & 0 \\  
+\vdots &  \vdots &  \vdots & \vdots  & \ddots & \vdots \\
+0 &  0 &  0 &  0 & \hdots & 0 \\
+\end{pmatrix}
+\Rightarrow
+\begin{pmatrix}
+0 & -a & -b & -d \\
+a &  0 & -c & -e \\
+b &  c &  0 & -f \\
+d &  e &  f &  0 \\  
+\end{pmatrix}
+\Rightarrow
+\begin{pmatrix}
+a \\
+b \\
+c \\
+e \\
+f \\
+\end{pmatrix}
+\end{align*}
+
+The same thing can be done if indexes of the orbitales are not
+consecutives since it's done with lists of MOs:
+
+\begin{align*}
+\begin{pmatrix}
+0 & -a &  0 & -b & -d & \hdots & 0 \\
+a &  0 &  0 & -c & -e & \hdots & 0 \\
+0 &  0 &  0 &  0 &  0 & \hdots & 0 \\
+b &  c &  0 &  0 & -f & \hdots & 0 \\
+d &  e &  0 &  f &  0 & \hdots & 0 \\  
+\vdots &  \vdots & \vdots & \vdots & \vdots  & \ddots & \vdots \\
+0 &  0 &  0 &  0 &  0 & \hdots & 0 \\
+\end{pmatrix}
+\Rightarrow
+\begin{pmatrix}
+0 & -a & -b & -d \\
+a &  0 & -c & -e \\
+b &  c &  0 & -f \\
+d &  e &  f &  0 \\  
+\end{pmatrix}
+\Rightarrow
+\begin{pmatrix}
+a \\
+b \\
+c \\
+e \\
+f \\
+\end{pmatrix}
+\end{align*}
 
 The dipoles are updated using the ao_to_mo subroutine without the
 restore_symmetry which is actually in N^4 but can be rewrite in N^2
 log(N^2).
 The bottleneck of the program is normally N^3 with the matrix
 multiplications/diagonalizations. The use of the full hessian can be
-an improvement but it will scale in N^4...  
+an improvement but it will scale in N^4... 
+
+By using the trust region the bottleneck is the diagonalization of the
+hessian. 
 
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
 program localization
@@ -354,21 +432,6 @@ In order to give a little kick in the system
       enddo
     enddo
   endif
-
-!  ! Pre rotation for core MOs
-!  if (n_core_orb >= 2) then
-!    do i = 1, n_core_orb
-!      do j = 1, n_core_orb
-!        if (i > j) then
-!          pre_rot(i,j) = angle_pre_rot
-!        elseif (i < j) then
-!          pre_rot(i,j) = - angle_pre_rot
-!        else
-!          pre_rot(i,j) = 0d0
-!        endif
-!      enddo
-!    enddo
-!  endif
   
   ! Pre rotation for active MOs
   if (dim_list_act_orb >= 2) then
@@ -404,19 +467,6 @@ In order to give a little kick in the system
     enddo
   endif
 
-!  ! Pre rotation for occ MOs
-!  do i = n_core_orb + 1, n_occ
-!    do j = n_core_orb + 1, n_occ
-!      if (i > j) then
-!        pre_rot(i,j) = angle_pre_rot
-!      elseif (i < j) then
-!        pre_rot(i,j) = - angle_pre_rot
-!      else
-!        pre_rot(i,j) = 0d0
-!      endif
-!    enddo
-!  enddo
-
   ! Pre rotation for virtual MOs
   if (dim_list_virt_orb >= 2) then
     do tmp_j = 1, dim_list_virt_orb
@@ -433,19 +483,6 @@ In order to give a little kick in the system
       enddo
     enddo
   endif
-
-!  ! Pre rotation for vir MOs
-!  do i = n_occ + 1, mo_num
-!    do j = n_occ + 1, mo_num
-!      if (i > j) then
-!        pre_rot(i,j) = angle_pre_rot
-!      elseif (i < j) then
-!        pre_rot(i,j) = - angle_pre_rot
-!      else
-!        pre_rot(i,j) = 0d0
-!      endif
-!    enddo
-!  enddo
 
   ! Nothing for deleted ones
 

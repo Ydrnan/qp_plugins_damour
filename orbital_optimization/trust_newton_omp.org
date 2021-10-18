@@ -207,12 +207,12 @@ Resolution with the Newton method:
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   epsilon = 1d-4
-  lambda = MAX(0d0+epsilon, -e_val(1) + epsilon)
+  lambda =MAX(0d0, -e_val(1)) !MAX(0d0+epsilon, -e_val(1) + epsilon)
   
   ! Pre research of lambda to start near the optimal lambda
   print*, 'Pre research of lambda:'
   print*,'Initial lambda =', lambda
-  f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
+  f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
   print*,'||x(lambda)||=', dsqrt(f_N),'delta=',delta 
   i = 1
   if (f_N > delta**2) then
@@ -220,13 +220,15 @@ Resolution with the Newton method:
     do while (f_N > delta**2 .and. i <= 20)
 
       prev_f_N = f_N
-      lambda = lambda * 2d0
-      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
-      print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
+      !lambda = lambda * 2d0
+      epsilon = epsilon * 2d0
+      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
+      print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
       
       if (prev_f_N < f_N) then
         print*,'WARNING, error: prev_f_N < f_N, exit'
-        lambda = lambda * 0.5d0
+        !lambda = lambda * 0.5d0
+        epsilon = epsilon * 0.5d0
         i = 21
       endif
 
@@ -236,13 +238,15 @@ Resolution with the Newton method:
      print*,'Reducing lambda...'
      do while (f_N < delta**2 .and. i <= 20)
 
-      lambda = lambda * 0.5d0
-      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
-      print*, 'lambda', lambda, '||x||', dsqrt(f_N), 'delta', delta
+      !lambda = lambda * 0.5d0
+      epsilon = epsilon * 0.5d0
+      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
+      print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
 
       if (prev_f_N > f_N) then
         print*,'WARNING, error: prev_f_N > f_N, exit'
-        lambda = lambda * 2d0
+        !lambda = lambda * 2d0
+        epsilon = epsilon * 2d0
         i = 21
       endif
 
@@ -257,6 +261,7 @@ Resolution with the Newton method:
     enddo
   endif
   print*,'End of the pre research of lambda'
+  lambda = lambda + epsilon
 
   print*, 'e_val(1):', e_val(1)
   print*, 'Staring point, lambda =', lambda

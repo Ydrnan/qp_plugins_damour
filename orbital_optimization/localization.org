@@ -469,7 +469,7 @@ In order to give a little kick in the system
   print*,'========================'
   print*,'' 
     
-  logical :: not_converged
+  logical :: not_converged, not_core_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step
 
@@ -516,7 +516,8 @@ In order to give a little kick in the system
       not_converged = not_virt_converged
       tmp_list_size = dim_list_virt_orb
     endif
-   
+  
+    ! Allocation tmp array  
     allocate(tmp_list(tmp_list_size))
 
     if (l==1) then ! core
@@ -528,7 +529,8 @@ In order to give a little kick in the system
     else
       tmp_list = list_virt
     endif
-   
+  
+    ! Size for the 2D -> 1D transformation 
     tmp_n = tmp_list_size * (tmp_list_size - 1)/2
   
     ! Allocation of tmp gradient and hessian

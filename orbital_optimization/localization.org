@@ -575,7 +575,7 @@ In order to give a little kick in the system
             ! ### Message ###
             ! if step_in_trust_region sets must_exit on true for numerical reasons
             print*,'algo_trust1 sends the message : Exit'
-            exit
+            !################################# exit ###########################
           endif
           !### TODO ###  
           ! Compute x -> m_x
@@ -635,7 +635,7 @@ In order to give a little kick in the system
         !call save_mos() !### depend of the time for 1 iteration
         ! To exit the external loop if must_exti = .True.
         if (must_exit) then
-          exit
+          !################ exit #########################
         endif 
         ! Step accepted, nb iteration + 1
         nb_iter = nb_iter + 1

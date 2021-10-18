@@ -394,8 +394,6 @@ subroutine run_localization
   allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
   allocate(prev_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
 
-  call nb_occ_om(n_occ)
-
   ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
 
@@ -403,7 +401,7 @@ subroutine run_localization
   print*, 'mo_num:', mo_num
 
   call compute_criterion(criterion)
-  print*,'HF', HF_energy
+  !print*,'HF', HF_energy
   print*,'Criterion:', criterion
 #+END_SRC
 
@@ -497,7 +495,7 @@ In order to give a little kick in the system
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
   call compute_criterion(criterion)
   print*,'### After pre rotation :'
-  print*,'HF', HF_energy
+!  print*,'HF', HF_energy
   print*,'Criterion:', criterion
 
   print*,''
@@ -619,7 +617,7 @@ In order to give a little kick in the system
             ! ### Message ###
             ! if step_in_trust_region sets must_exit on true for numerical reasons
             print*,'algo_trust1 sends the message : Exit'
-            !### exit ###
+            exit 
           endif
           !### TODO ###  
           ! Compute x -> m_x
@@ -679,7 +677,7 @@ In order to give a little kick in the system
         !call save_mos() !### depend of the time for 1 iteration
         ! To exit the external loop if must_exti = .True.
         if (must_exit) then
-          !### exit ###
+          exit
         endif 
         ! Step accepted, nb iteration + 1
         nb_iter = nb_iter + 1
@@ -812,12 +810,12 @@ In order to give a little kick in the system
     
     call save_mos()
     TOUCH mo_coef 
-    print*,'HF', HF_energy
+    !print*,'HF', HF_energy
     
   enddo
 
   TOUCH mo_coef 
-  print*,'HF', HF_energy
+  !print*,'HF', HF_energy
 
   call compute_spatial_extent(spatial_extent)
 

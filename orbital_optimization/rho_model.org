@@ -60,11 +60,13 @@ subroutine org_rho_model(prev_energy, energy,e_model,rho)
   double precision, intent(out) :: rho
 
   ! Internal
-  !double precision :: energy
+  double precision :: t1, t2, t3
   integer :: i
 
   print*,''
   print*,'---Rho_model---'
+  
+  call wall_time(t1)
 #+END_SRC
 
 ** State average energy
@@ -126,6 +128,10 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
     prev_energy = energy
     print*, 'Rho >=', thresh_rho,', energy -> prev_energy :', energy
   endif
+
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in rho model', t3
 
   print*,'---End rho_model---'
   print*,''

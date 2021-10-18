@@ -36,12 +36,15 @@ subroutine org_apply_mo_rotation(R,prev_mos)
   double precision, intent(out) :: prev_mos(ao_num,mo_num)
   
   ! internal
-  double precision, allocatable  :: new_mos(:,:)
+  double precision, allocatable :: new_mos(:,:)
   integer                       :: i,j
+  double precision              :: t1,t2,t3
 
   print*,''
   print*,'---apply_mo_rotation---'
-  
+
+  call wall_time(t1)  
+
   ! Allocation
   allocate(new_mos(ao_num,mo_num))
   
@@ -70,6 +73,9 @@ subroutine org_apply_mo_rotation(R,prev_mos)
   ! Deallocation, end
   deallocate(new_mos)
 
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in apply mo rotation:', t3
   print*,'---End apply_mo_rotation---'
 
 end subroutine

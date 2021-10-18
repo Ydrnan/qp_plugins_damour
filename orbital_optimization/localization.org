@@ -529,7 +529,14 @@ In order to give a little kick in the system
     else
       tmp_list = list_virt
     endif
-  
+
+    if (not_converged) then
+      ! print mo_class
+      print*,''
+      print*,'###', mo_class(tmp_list(1)), 'MOs ###'
+      print*,''
+    endif
+
     ! Size for the 2D -> 1D transformation 
     tmp_n = tmp_list_size * (tmp_list_size - 1)/2
   
@@ -560,7 +567,7 @@ In order to give a little kick in the system
         ! ### TODO ## 
         ! Call your gradient
         ! Call you hessian
-
+    
         call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
         print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
         ! Diagonal hessian
@@ -575,7 +582,7 @@ In order to give a little kick in the system
             ! ### Message ###
             ! if step_in_trust_region sets must_exit on true for numerical reasons
             print*,'algo_trust1 sends the message : Exit'
-            !################################# exit ###########################
+            !### exit ###
           endif
           !### TODO ###  
           ! Compute x -> m_x
@@ -635,7 +642,7 @@ In order to give a little kick in the system
         !call save_mos() !### depend of the time for 1 iteration
         ! To exit the external loop if must_exti = .True.
         if (must_exit) then
-          !################ exit #########################
+          !### exit ###
         endif 
         ! Step accepted, nb iteration + 1
         nb_iter = nb_iter + 1

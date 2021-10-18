@@ -83,7 +83,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   double precision, allocatable :: RR_t(:,:)
   integer                       :: i,j
   integer                       :: info2, lwork ! for dsyev
-  double precision              :: norm, max_elem, max_elem_A
+  double precision              :: norm, max_elem, max_elem_A, t1,t2,t3
 
   ! function
   double precision              :: dnrm2
@@ -91,6 +91,8 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
   print*,''
   print*,'---rotation_matrix---'
+
+  call wall_time(t1)
 
   ! Allocation
   allocate(B(n,n))
@@ -413,6 +415,10 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
   deallocate(part_1,part_1a)
   deallocate(part_2,part_2a,part_2b,part_2c)
   deallocate(RR_t)
+
+  call wall_time(t2)
+  t3 = t2-t1
+  print*,'Time in rotation matrix:', t3
 
   print*,'---End rotation_matrix---'
 

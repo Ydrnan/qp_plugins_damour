@@ -49,7 +49,7 @@ subroutine org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
   double precision, intent(out) :: e_model
 
   ! internal
-  double precision              :: part_1, part_2
+  double precision              :: part_1, part_2, t1,t2,t3
   double precision, allocatable :: part_2a(:)
 
   integer :: i,j
@@ -59,6 +59,8 @@ subroutine org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 
   print*,''
   print*,'---Trust_e_model---'
+
+  call wall_time(t1)
 
   ! Allocation
   allocate(part_2a(n))
@@ -105,6 +107,10 @@ TODO: remove the dot products
   endif
 
   deallocate(part_2a)
+
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in trust e model:', t3
 
   print*,'---End trust_e_model---'
   print*,''

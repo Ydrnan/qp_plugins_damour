@@ -217,7 +217,7 @@ Resolution with the Newton method:
   i = 1
   if (f_N > delta**2) then
     print*,'Increasing lambda...'
-    do while (f_N > delta**2 .and. i <= 20)
+    do while (f_N > delta**2 .and. i <= nb_it_max_pre_search)
 
       prev_f_N = f_N
       !lambda = lambda * 2d0
@@ -229,14 +229,14 @@ Resolution with the Newton method:
         print*,'WARNING, error: prev_f_N < f_N, exit'
         !lambda = lambda * 0.5d0
         epsilon = epsilon * 0.5d0
-        i = 21
+        i = nb_it_max_pre_search + 1
       endif
 
       i = i + 1
     enddo
   else
      print*,'Reducing lambda...'
-     do while (f_N < delta**2 .and. i <= 20)
+     do while (f_N < delta**2 .and. i <= nb_it_max_pre_search)
 
       !lambda = lambda * 0.5d0
       epsilon = epsilon * 0.5d0
@@ -247,20 +247,22 @@ Resolution with the Newton method:
         print*,'WARNING, error: prev_f_N > f_N, exit'
         !lambda = lambda * 2d0
         epsilon = epsilon * 2d0
-        i = 21
+        i = nb_it_max_pre_search + 1
       endif
 
       ! To ensure that lambda is in > -e_val(1) if e_val(1) < 0
-      if (lambda < MAX(0d0,-e_val(1))) then
-        print*,'WARNING, error: lambda > MAX(0d0,-e_val(1), exit'
-        lambda = lambda * 2d0
-        i = 21
-      endif
+      !if (lambda < MAX(0d0,-e_val(1))) then
+      !  print*,'WARNING, error: lambda > MAX(0d0,-e_val(1), exit'
+      !  lambda = lambda * 2d0
+      !  i = 21
+      !endif
 
       i = i + 1
     enddo
   endif
   print*,'End of the pre research of lambda'
+  
+  ! New value of lambda
   lambda = lambda + epsilon
 
   print*, 'e_val(1):', e_val(1)

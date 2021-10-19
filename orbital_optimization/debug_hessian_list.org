@@ -1,0 +1,174 @@
+* Debug the hessian
+
+*Program to check the hessian matrix*
+
+The program compares the result of the first and last code for the
+hessian. First of all the 4D hessian and after the 2D hessian.
+
+Provided:
+| mo_num | integer | number of MOs |
+
+Internal:
+| n                                 | integer          | number of orbitals pairs (p,q) p<q |
+| H(n,n)                            | double precision | Original hessian matrix (2D)       |
+| H2(n,n)                           | double precision | Hessian matrix (2D)                |
+| h_f(mo_num,mo_num,mo_num,mo_num)  | double precision | Original hessian matrix (4D)       |
+| h_f2(mo_num,mo_num,mo_num,mo_num) | double precision | Hessian matrix (4D)                |
+| method                            | integer          | - 1: full hessian                  |
+|                                   |                  | - 2: diagonal hessian              |
+| i,j,p,q,k                         | integer          | indexes                            |
+| threshold                         | double precision | threshold for the errors           |
+| max_error                         | double precision | maximal error in the 4D hessian    |
+| max_error_H                       | double precision | maximal error in the 2D hessian    |
+| nb_error                          | integer          | number of errors in the 4D hessian |
+| nb_error_H                        | integer          | number of errors in the 2D hessian |
+
+#+BEGIN_SRC f90 :comments org :tangle org_debug_hessian_list.irp.f
+program org_debug_hessian_list
+
+  implicit none
+
+  ! Variables
+
+  double precision, allocatable :: H(:,:),H2(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
+  integer                       :: method
+  integer                       :: n,m
+  integer                       :: i,j,k,l
+  double precision              :: max_error, max_error_H
+  integer                       :: nb_error, nb_error_H
+  double precision              :: threshold
+  
+  ! Choice of the method 
+  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
+ 
+  m = mo_num
+  ! Definition of n  
+  n = m*(m-1)/2
+
+  PROVIDE mo_two_e_integrals_in_map ! Vérifier pour suppression
+
+  ! Allocation
+  allocate(H(n,n),H2(n,n))  
+  allocate(h_f(m,m,m,m),h_f2(m,m,m,m))
+
+  ! Calculation
+  
+  ! Hessian 
+  if (method == 1) then 
+
+    print*,'Use the full hessian matrix'
+    call org_first_hess(n,H,h_f)
+    call first_hess_list(n,m,list_act,H2,h_f2)
+
+    ! Difference
+    h_f = h_f - h_f2
+    H = H - H2
+    max_error = 0d0
+    nb_error = 0    
+    threshold = 1d-12
+
+    do l = 1, m
+      do k= 1, m
+        do j = 1, m
+          do i = 1, m
+            if (ABS(h_f(i,j,k,l)) > threshold) then
+              print*,h_f(i,j,k,l)
+              nb_error = nb_error + 1
+              if (ABS(h_f(i,j,k,l)) > ABS(max_error)) then
+                max_error = h_f(i,j,k,l)
+              endif
+            endif
+          enddo
+        enddo
+      enddo
+    enddo
+
+   max_error_H = 0d0
+   nb_error_H = 0
+
+   do j = 1, n
+     do i = 1, n
+       if (ABS(H(i,j)) > threshold) then
+         print*, H(i,j)
+         nb_error_H = nb_error_H + 1
+
+         if (ABS(H(i,j)) > ABS(max_error_H)) then
+           max_error_H = H(i,j)
+         endif
+
+       endif
+     enddo
+   enddo 
+
+  else
+
+    print*, 'Use the diagonal hessian matrix'
+    call first_diag_hess(n,H,h_f)
+    call first_diag_hess_list(n,m,list_act,H2,h_f2)
+    
+    h_f = h_f - h_f2
+    max_error = 0d0
+    nb_error = 0
+    threshold = 1d-12
+
+    do l = 1, m
+      do k = 1, m
+        do j = 1, m
+          do i = 1, m
+
+            if (ABS(h_f(i,j,k,l)) > threshold) then
+
+              print*,h_f(i,j,k,l)
+              nb_error = nb_error + 1
+
+              if (ABS(h_f(i,j,k,l)) > ABS(max_error)) then
+                max_error = h_f(i,j,k,l)
+              endif
+
+            endif
+
+          enddo
+        enddo
+      enddo
+    enddo
+
+    h=H-H2
+  
+    max_error_H = 0d0
+    nb_error_H = 0
+ 
+    do j = 1, n
+      do i = 1, n
+        if (ABS(H(i,j)) > threshold) then
+          print*, H(i,j)
+          nb_error_H = nb_error_H + 1
+ 
+          if (ABS(H(i,j)) > ABS(max_error_H)) then
+            max_error_H = H(i,j)
+          endif
+ 
+        endif
+      enddo
+    enddo
+   
+  endif
+  
+  print*,''
+  if (method == 1) then
+    print*,'Check the full hessian'
+  else
+    print*,'Check the diagonal hessian'
+  endif
+   
+  print*,'Threshold :', threshold
+  print*,'Nb error :', nb_error
+  print*,'Max error :', max_error
+  print*,''
+  print*,'Nb error_H :', nb_error_H
+  print*,'Max error_H :', max_error_H
+ 
+  ! Deallocation
+  deallocate(H,H2,h_f,h_f2)
+
+end program
+#+END_SRC

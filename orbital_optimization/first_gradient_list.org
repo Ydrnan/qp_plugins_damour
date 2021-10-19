@@ -1,6 +1,6 @@
 * First gradient
 #+BEGIN_SRC f90 :comments org :tangle first_gradient_list.irp.f
-subroutine first_gradient_list(tmp_n,list,m,v_grad)
+subroutine first_gradient_list(tmp_n,m,list,v_grad)
 
   include 'constants.h'
 
@@ -14,13 +14,12 @@ subroutine first_gradient_list(tmp_n,list,m,v_grad)
   ! qp set determinant read_wf true
 
   ! in
-  integer, intent(in) :: tmp_n,m
-  double precision, intent(in) :: list(m)
+  integer, intent(in) :: tmp_n,m,list(m)
   ! n : integer, n = m*(m-1)/2
   ! m = list_size
   
   ! out
-  double precision, intent(out) :: v_grad(n)
+  double precision, intent(out) :: v_grad(tmp_n)
   ! v_grad : double precision vector of length n containeing the gradient
 
   ! internal
@@ -57,12 +56,13 @@ subroutine first_gradient_list(tmp_n,list,m,v_grad)
   !=============
 
   v_grad = 0d0
+  grad = 0d0
 
   do tmp_p = 1, m
     p = list(tmp_p)
     do tmp_q = 1, m
       q = list(tmp_q)
-      grad(tmp_p,tmp_q) = 0d0
+      !grad(tmp_p,tmp_q) = 0d0
       do tmp_r = 1, m
         r = list(tmp_r)
         grad(tmp_p,tmp_q) = grad(tmp_p,tmp_q) + mo_one_e_integrals(p,r) * one_e_dm_mo(r,q) &
@@ -88,7 +88,7 @@ subroutine first_gradient_list(tmp_n,list,m,v_grad)
 
   ! Conversion mo_num*mo_num matrix to mo_num(mo_num-1)/2 vector
   do tmp_i = 1, tmp_n
-    call vec_to_mat_index(i,tmp_p,tmp_q)
+    call vec_to_mat_index(tmp_i,tmp_p,tmp_q)
     v_grad(tmp_i)=(grad(tmp_p,tmp_q) - grad(tmp_q,tmp_p))
   enddo  
 
@@ -114,7 +114,7 @@ subroutine first_gradient_list(tmp_n,list,m,v_grad)
   if (debug) then
     print*,'Matrix containing the gradient :'
     do tmp_i = 1, m
-      write(*,'(100(F10.5))') A(tmp_i,1:m)
+      write(*,'(100(E12.5))') A(tmp_i,1:m)
     enddo
   endif
 
@@ -124,7 +124,7 @@ subroutine first_gradient_list(tmp_n,list,m,v_grad)
 
   deallocate(grad,A)
 
-  print*,'---End first_gradient---'
+  print*,'---End first_gradient_list---'
 
 end subroutine
 

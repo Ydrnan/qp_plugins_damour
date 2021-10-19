@@ -1,6 +1,6 @@
 * First gradient
-#+BEGIN_SRC f90
-subroutine first_gradient(n,v_grad)
+#+BEGIN_SRC f90 :comments org :tangle org_first_gradient.irp.f
+subroutine org_first_gradient(n,v_grad)
 
   include 'constants.h'
 
@@ -56,7 +56,7 @@ subroutine first_gradient(n,v_grad)
   !=============
 
   if (debug) then
-    print*,'Enter in first_gradient'
+    print*,'---first_gradient---'
   endif
 
   v_grad = 0d0
@@ -108,10 +108,10 @@ subroutine first_gradient(n,v_grad)
   enddo
 
   ! Display, matrix containting the gradient elements
-  if (debug) then
+  if (debug) then    
     print*,'Matrix containing the gradient :'
     do i = 1, mo_num
-      write(*,'(100(F10.5))') A(i,1:mo_num)
+      write(*,'(100(E12.5))') A(i,1:mo_num)
     enddo
   endif
 
@@ -122,7 +122,7 @@ subroutine first_gradient(n,v_grad)
   deallocate(grad,A)
 
   if (debug) then
-    print*,'Leave first_gradient'
+    print*,'---End first_gradient---'
   endif
 
 end subroutine

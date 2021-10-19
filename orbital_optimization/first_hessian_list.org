@@ -82,8 +82,7 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
           s = list(tmp_s)
 
             if (q==r) then
-              do tmp_u = 1, m
-                u = list(tmp_u)
+              do u = 1, mo_num
 
                 hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) + 0.5d0 * (  &
                   mo_one_e_integrals(u,p) * one_e_dm_mo(u,s) &
@@ -117,8 +116,7 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
           s = list(tmp_s)
 
           if (p==s) then
-            do tmp_u = 1, m
-              u = list(tmp_u)
+            do u = 1, mo_num
 
                   hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) + 0.5d0 * ( &
                     mo_one_e_integrals(u,r) * one_e_dm_mo(u,q) &
@@ -180,12 +178,9 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
           s = list(tmp_s)
 
            if (q==r) then
-             do tmp_t = 1, m
-               t = list(tmp_t)
-               do tmp_u = 1, m
-                 u = list(tmp_u)
-                 do tmp_v = 1, m
-                   v = list(tmp_v)
+             do t = 1, mo_num
+               do u = 1, mo_num
+                 do v = 1, mo_num
 
                    hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) + 0.5d0 * (  &
                      get_two_e_integral(u,v,p,t,mo_integrals_map) * two_e_dm_mo(u,v,s,t) &
@@ -221,12 +216,9 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
           s = list(tmp_s)
 
           if (p==s) then
-            do tmp_t = 1, m
-              t = list(tmp_t)
-              do tmp_u = 1, m
-                u = list(tmp_u)
-                do tmp_v = 1, m
-                  v = list(tmp_v)
+            do t = 1, mo_num
+              do u = 1, mo_num
+                do v = 1, mo_num
 
                   hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) + 0.5d0 * ( &
                     get_two_e_integral(q,t,u,v,mo_integrals_map) * two_e_dm_mo(r,t,u,v) &
@@ -261,10 +253,8 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
         do tmp_s = 1, m
           s = list(tmp_s)
 
-          do tmp_u = 1, m
-            u = list(tmp_u)
-            do tmp_v = 1, m
-              v = list(tmp_v)
+          do u = 1, mo_num
+            do v = 1, mo_num
 
               hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) &
                + get_two_e_integral(u,v,p,r,mo_integrals_map) * two_e_dm_mo(u,v,q,s) &
@@ -297,10 +287,8 @@ subroutine first_hess_list(tmp_n,m,list,H,h_tmpr)
         do tmp_s = 1, m
           s = list(tmp_s)
 
-          do tmp_t = 1, m
-            t = list(tmp_t)
-            do tmp_u = 1, m
-              u = list(tmp_u)
+          do t = 1, mo_num
+            do u = 1, mo_num
 
               hessian(tmp_p,tmp_q,tmp_r,tmp_s) = hessian(tmp_p,tmp_q,tmp_r,tmp_s) &
                - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u) &

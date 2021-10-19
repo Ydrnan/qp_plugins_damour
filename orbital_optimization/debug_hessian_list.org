@@ -39,9 +39,9 @@ program org_debug_hessian_list
   double precision              :: threshold
   
   ! Choice of the method 
-  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
  
-  m = mo_num
+  m = dim_list_act_orb !mo_num
   ! Definition of n  
   n = m*(m-1)/2
 
@@ -151,7 +151,7 @@ program org_debug_hessian_list
       enddo
     enddo
    
-  endif
+ endif
   
   print*,''
   if (method == 1) then

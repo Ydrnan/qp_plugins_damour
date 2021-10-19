@@ -31,7 +31,7 @@ program org_debug_grad_list
   double precision              :: max_error, max_elem
   integer                       :: nb_error
   
-  m = mo_num
+  m = mo_num !dim_list_act_orb
   ! Definition of n  
   n = m*(m-1)/2
 

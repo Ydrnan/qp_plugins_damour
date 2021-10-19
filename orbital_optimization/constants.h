@@ -3,7 +3,7 @@
   double precision, parameter :: pi = 3.1415926535897932d0
   
   ! Global variable for orbital optimization
-  integer, parameter :: method = 1
+  integer, parameter :: method = 2
   ! method = 1 -> full hessian
   ! method = 2 -> diagonal hessian
   

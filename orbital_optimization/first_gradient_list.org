@@ -63,19 +63,15 @@ subroutine first_gradient_list(tmp_n,m,list,v_grad)
     do tmp_q = 1, m
       q = list(tmp_q)
       !grad(tmp_p,tmp_q) = 0d0
-      do tmp_r = 1, m
-        r = list(tmp_r)
+      do r = 1, mo_num
         grad(tmp_p,tmp_q) = grad(tmp_p,tmp_q) + mo_one_e_integrals(p,r) * one_e_dm_mo(r,q) &
                                - mo_one_e_integrals(r,q) * one_e_dm_mo(p,r)
 
       enddo
 
-      do tmp_r = 1, m
-        r = list(tmp_r)
-        do tmp_s = 1, m
-          s = list(tmp_s)
-          do tmp_t = 1, m
-            t = list(tmp_t)
+      do r = 1, mo_num
+        do s = 1, mo_num
+          do t = 1, mo_num
 
             grad(tmp_p,tmp_q) = grad(tmp_p,tmp_q) &
                 + get_two_e_integral(p,t,r,s,mo_integrals_map) * two_e_dm_mo(r,s,q,t) &
@@ -111,12 +107,12 @@ subroutine first_gradient_list(tmp_n,m,list,v_grad)
   enddo
 
   ! Display, matrix containting the gradient elements
-  if (debug) then
+  !if (debug) then
     print*,'Matrix containing the gradient :'
     do tmp_i = 1, m
       write(*,'(100(E12.5))') A(tmp_i,1:m)
     enddo
-  endif
+  !endif
 
   !==============
   ! Deallocation

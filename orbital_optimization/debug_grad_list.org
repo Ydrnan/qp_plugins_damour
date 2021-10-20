@@ -31,7 +31,7 @@ program org_debug_grad_list
   double precision              :: max_error, max_elem
   integer                       :: nb_error
   
-  m = mo_num !dim_list_act_orb
+  m = dim_list_act_orb
   ! Definition of n  
   n = m*(m-1)/2
 
@@ -45,7 +45,7 @@ program org_debug_grad_list
   call diagonalize_ci ! Vérifier pour suppression
 
   ! Gradient  
-  call org_first_gradient(n,v_grad,max_elem)
+  call org_gradient_list(n,m,list_act,v_grad,max_elem)
   call first_gradient_list(n,m,list_act,v_grad2)
   
   

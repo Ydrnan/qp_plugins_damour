@@ -107,12 +107,12 @@ subroutine first_gradient_list(tmp_n,m,list,v_grad)
   enddo
 
   ! Display, matrix containting the gradient elements
-  !if (debug) then
+  if (debug) then
     print*,'Matrix containing the gradient :'
     do tmp_i = 1, m
       write(*,'(100(E12.5))') A(tmp_i,1:m)
     enddo
-  !endif
+  endif
 
   !==============
   ! Deallocation

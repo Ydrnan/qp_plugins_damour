@@ -7,22 +7,22 @@ This program just optimize the orbitals for a fixed number of
 determinants. This optimization process must be repeated for different
 number of determinants.
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
 #+END_SRC
 
 * Main program : orb_opt_trust
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f 
-program org_orb_opt_trust
+#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f 
+program org_orb_opt_trust_v2
   read_wf = .true. ! must be True for the orbital optimization !!!
   TOUCH read_wf
-  call org_run_orb_opt_trust
+  call org_run_orb_opt_trust_v2
 end
 #+END_SRC
 
 * Subroutine : run_orb_opt_trust
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
 #+END_SRC
 
 *Subroutine to optimize orbitals*
@@ -88,8 +88,8 @@ Variables:
 |                                 |                  | a Taylor series                                   |
 
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-subroutine org_run_orb_opt_trust
+   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+subroutine org_run_orb_opt_trust_v2
 
   include 'constants.h'
 
@@ -99,17 +99,20 @@ subroutine org_run_orb_opt_trust
 
   double precision, allocatable :: R(:,:)
   double precision, allocatable :: H(:,:),h_f(:,:,:,:)
-  double precision, allocatable :: v_grad(:),m_x(:,:),x(:)
-  double precision, allocatable :: e_val(:), w(:,:)
+  double precision, allocatable :: v_grad(:)
   double precision, allocatable :: prev_mos(:,:),new_mos(:,:)
   integer                       :: info
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: max_elem, delta, rho
-  logical :: converged, cancel_step
+  logical :: cancel_step
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
-  double precision :: prev_energy, e_model, energy
   double precision :: t1, t2, t3
+  double precision :: prev_criterion, criterion, criterion_model
+  logical :: not_converged, must_exit
+  integer :: m, tmp_n, tmp_i, tmp_j, tmp_k
+  integer,allocatable :: tmp_list(:)
+  double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:)
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
    #+END_SRC
@@ -121,7 +124,7 @@ subroutine org_run_orb_opt_trust
    - the "diagonal" hessian, which uses only the diagonal elements of the
      hessian, called "diag_hess" in "diagonal_hessian.irp.f"
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
   !Display the method
   print*, 'Method :', method
   if (method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
@@ -144,200 +147,160 @@ subroutine org_run_orb_opt_trust
 
    Cf. mat_to_vec_index and vec_to_mat_index
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
   ! Definition of n
-  n = mo_num*(mo_num-1)/2
-
-  allocate(v_grad(n), H(n,n)) ! gradient and hessian
   allocate(R(mo_num,mo_num))  ! rotation matrix
-  allocate(m_x(mo_num,mo_num),x(n))  ! Newton step
-  allocate(e_val(n), w(n,n))  ! eigenvalues and eigenvectors
-  allocate(h_f(mo_num,mo_num,mo_num,mo_num))  ! 4D hessian (debug)
   allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num)) ! old and new MOs
+  
+  m = dim_list_act_orb
+  tmp_n = m*(m-1)/2
+  
+  allocate(tmp_list(m))
+  allocate(tmp_R(m,m), tmp_m_x(m,m), tmp_x(tmp_n))
+  allocate(H(tmp_n,tmp_n), h_f(m,m,m,m), v_grad(tmp_n))
+
    #+END_SRC
 
 ** Calculations
 *** Initialization
 
-    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-  converged = .False.
-  cancel_step = .False.
-  delta = 0d0
-  rho = 0.5d0 ! Must be 0.5 for the first step, otherwise delta will be changed
-  nb_iter = 0
-  nb_cancel = 0
-  nb_diag = 0
-  nb_cancel_tot = 0
-
-  !thresh_eig = 1d-12 ! threshold for e_val(i) + lambda in the trust region
-  !thresh_rho = 0.1d0 ! threshold for the step cancellation, if rho >= thresh_rho -> step accepted, else step rejected
-
+    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
   ! Initialization of the CI energy
   call diagonalize_ci
 
-  call update_st_av_ci_energy(energy)
-
   print *, 'CI energy : ', ci_energy
-  print*, 'State av energy :', prev_energy
 
     #+END_SRC
 
 *** Algorithm
 
-    "gradient" takes n and gives :
-    - v_grad, the gradient in a vector 
-    - max_elem, its bigger element in absolute value
 
-    "hess" or "diag_hess" takes n and gives :
-    - H, the n by n hessian
-    - h_f, the 4D mo_num hessian (debug)
-
-    "diagonalization_hessian" takes n and H and gives :
-    - e_val, the eigenvalues
-    - w, the eigenvectors
-
-    "trust_region" takes n, method, nb_iter, H, v_grad, rho, e_val, w,
-    delta and gives :
-    - x, the step in the trust region (vector)
-    - m_x, the step in the trust region (antisymmetric matrix) 
-    - delta, the trust region (updated)  
-
-    "trust_e_model" takes n, x, v_grad, H and gives :
-    - e_model, the predicted energy after the rotation, using the Taylor
-      expansion at the 2nd order
-
-    "rotation_matrix" takes mo_num, m_x and gives :
-    - R, the rotation matrix to compute the next MOs (by multiplying
-      the MO coefficients by the rotation matrix)
-
-    "apply_mo_rotation" takes R (and the MO coefficients) and gives :
-    - prev_mos, the previous MOs <=> MOs before the rotation 
-    - new_mos, the new MOs <=> MOs after the rotation
-
-    "rho_model" takes prev_energy, e_model (and the actual energy) and gives :
-    - rho, which estimates the 'quality' of the model (Taylor expansion)
-      compare to the real energy
-
-    While rho < 0.1 the algorithm goes back to "trust_region" and delta
-    will be reduced.
-    If rho >= 0.1 the step is accepted and the algorithm goes back to
-    the calculation of the gradient.
-
-    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
   ! Loop until the convergence of the optimization
-  do while (.not.converged)
 
-     print*,'*********************'
-     print*,'Iteration :', nb_iter
-     print*,'*********************'
-
-     !print *, 'CI energy : ', ci_energy
-
-     ! Gradient
-     call org_gradient(n,v_grad,max_elem)
-
-     ! Hessian
-     if (method == 1) then
-        call org_hess(n,H,h_f) !h_f -> debug
-     else
-        call org_diag_hess(n,H,h_f) !h_f -> debug
-     endif
-
-     ! Diagonalization of the hessian
-     call org_diagonalization_hessian(n,H,e_val,w)
-     
-     if (absolute_eig) then
-       e_val = ABS(e_val)
-     endif
-
-     cancel_step = .True.
-     nb_cancel = 0
-
-     ! Loop to ensure the diminution of the energy
-     ! Each time rho is too small or rho < 0, the trust region
-     ! is done with a smaller delta
-     do while ( cancel_step )
-
-        ! Step in the trust region
-        call org_trust_region(n,mo_num,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
-
-        ! Estimation of the energy after the rotation
-        call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
-
-        !  tmp bourrin
-        if (DABS(prev_energy - e_model) < 1d-12) then
-          print*,'#########################################'
-          print*,'DABS(prev_energy - e_model) < 1d-12, exit'
-          print*,'#########################################'
-          return 
-        endif
-
-        ! Calculation of the rotation matrix
-        call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-
-        ! Calculation of the new MOs
-        call org_apply_mo_rotation(R,prev_mos)
-        call save_mos()
-
-        ! Update and diagonalization of the hamiltonian
-        call clear_mo_map
-        TOUCH mo_coef psi_det psi_coef
-        call diagonalize_ci
-        call save_wavefunction_unsorted
-
-        ! TODO mettre ca dans une subroutine
-        ! Energy of the actual step
-        call update_st_av_ci_energy(energy)
- 
-        ! Calculation of rho 
-        call org_rho_model(prev_energy,energy,e_model,rho)
-
-        ! TODO mettre ça dans uen subroutine
-        if (nb_iter == 0) then
-          nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
-        endif
-
-        if (rho >= thresh_rho) then !0.1d0) then
-           ! exit, the step is accepted
-           cancel_step = .False.
-        else
-           ! Cancellation of the previous rotation
-           mo_coef = prev_mos ! previous MOs 
-           call save_mos() ! save the MOs
-
-           nb_cancel = nb_cancel + 1
-           nb_cancel_tot = nb_cancel_tot + 1
-           print*, '***********************'
-           print*, 'Step cancel : rho <', thresh_rho
-           print*, '***********************'
-        endif
-        nb_diag = nb_diag + 1 
-
-        print*, 'nb_diag :', nb_diag
-        print*, 'nb_cancel :', nb_cancel
-        print*, 'nb_cancel_tot :', nb_cancel_tot
-
-        ! exit  
-        if (nb_diag >= 50) then
-           print*,'nb_diag >= 50 : end'
-           return
-        endif
+  !### Initialization ###
+  nb_iter = 0
+  rho = 0.5d0
+  not_converged = .True.
+  tmp_list = list_act
   
-     enddo
+  ! ### TODO ###
+  ! Compute the criterion before the loop
+  call update_st_av_ci_energy(prev_criterion)
+  print*, 'State av energy :', prev_criterion
 
-     nb_iter = nb_iter + 1
+  do while (not_converged)
+    ! ### TODO ## 
+    ! Call your gradient
+    ! Call you hessian
 
-     if (nb_iter >= 20 .or. nb_diag >= 50 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
-        converged = .True.
-     endif
+    ! Gradient
+    call first_gradient_list(tmp_n,m,tmp_list,v_grad)
+    max_elem = 1d0
+    ! Hessian
+    if (method == 1) then
+       call first_hess_list(tmp_n,m,tmp_list,H,h_f)
+    else
+       call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
+    endif
 
+    cancel_step = .True. ! To enter in the loop just after 
+    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+    do while (cancel_step)
+      ! Hessian,gradient,Criterion -> x 
+      call step_in_trust_region(tmp_n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      if (must_exit) then
+        ! ### Message ###
+        ! if algo_trust1 sets must_exit on true for numerical reasons
+        print*,'step_in_trust_region sends the message : Exit'
+        exit
+      endif
+      !### TODO ###  
+      ! Compute x -> m_x
+      ! Compute m_x -> R
+      ! Apply R and keep the previous MOs...
+      ! Update/touch 
+      ! Compute the new criterion/energy -> criterion
+
+      ! 1D tmp -> 2D tmp 
+      call vec_to_mat_v2(tmp_n,m,tmp_x,tmp_m_x)
+
+      call org_rotation_matrix(tmp_m_x,m,tmp_R,m,m,info)
+
+      ! tmp_R to R, subspace to full space
+      R = 0d0
+      do i = 1, mo_num
+        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+      enddo
+      do tmp_j = 1, m
+        j = tmp_list(tmp_j)
+        do tmp_i = 1, m
+          i = tmp_list(tmp_i)
+          R(i,j) = tmp_R(tmp_i,tmp_j)
+        enddo
+      enddo
+
+      call org_apply_mo_rotation(R, prev_mos)   
+
+      ! Update and diagonalization of the hamiltonian
+      call clear_mo_map
+      TOUCH mo_coef psi_det psi_coef
+      call diagonalize_ci
+      call save_wavefunction_unsorted
+
+      ! Energy of the actual step
+      call update_st_av_ci_energy(criterion)
+
+      ! Criterion -> step accepted or rejected 
+      call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+
+      ! ### TODO ###
+      !if (cancel_step) then
+      ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+      !endif
+
+      if (cancel_step) then
+        mo_coef = prev_mos
+        call save_mos()
+      endif
+      if (delta < 1d-10) then
+        print*,'delta < 1d-10, return'
+        return
+      endif
+
+    enddo
+    call save_mos() !### depend of the time for 1 iteration
+    ! To exit the external loop if must_exti = .True.
+    if (must_exit) then
+      exit
+    endif 
+
+    ! Step accepted, nb iteration + 1
+    nb_iter = nb_iter + 1
+    ! ### TODO ###
+    !if (###Conditions###) then
+    ! no_converged = .False.
+    !endif
+    if (DABS(max_elem) < 1d-6) then
+      not_converged = .False.
+    endif
+    if (nb_iter > 20) then
+      not_converged = .False. 
+    endif
+    if (.not. not_converged) then
+      print*,'##################################'
+      print*,'Converged, end of the optimization'
+      print*,'##################################'
+    endif
   enddo
+
+  call diagonalize_ci
     #+END_SRC
     
 ** Deallocation, end
 
-    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
-  deallocate(v_grad,H,R,e_val,w,x,m_x)
+    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+  deallocate(v_grad,H,R)
   deallocate(h_f,prev_mos,new_mos)
 
 end

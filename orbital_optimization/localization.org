@@ -367,21 +367,20 @@ subroutine run_localization
   implicit none
 
   ! Variables
-  double precision, allocatable :: m_theta(:,:), pre_rot(:,:), R(:,:), R2(:,:), m_x(:,:), m_x2(:,:), x(:)
+  double precision, allocatable :: pre_rot(:,:), R(:,:)
   double precision, allocatable :: prev_mos(:,:), spatial_extent(:), tmp_R(:,:)
-  double precision :: criterion, angle_pre_rot
-  double precision :: theta_max
-  integer          :: i_theta_max, j_theta_max
+  double precision :: criterion, angle_pre_rot, norm_grad
   integer          :: i,j,k,l,p, tmp_i, tmp_j, tmp_k
-  integer          :: mo_beg, mo_end
-  integer          :: n_occ
   integer          :: info
   integer          :: n, tmp_n, tmp_list_size
-  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:), tmp_x(:), e_val(:), W(:,:)
+  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:), tmp_x(:)
   double precision :: max_elem, t1, t2, t3, t4, t5, t6
   integer, allocatable :: tmp_list(:)
   double precision :: prev_criterion, rho, delta, criterion_model
-  integer ::  nb_iter
+  integer :: nb_iter
+  logical :: not_converged, not_core_converged
+  logical :: not_act_converged, not_inact_converged, not_virt_converged
+  logical :: use_trust_region, must_exit, cancel_step
 
   !restore_symm = .False.
   !SOFT_TOUCH restore_symm
@@ -389,16 +388,12 @@ subroutine run_localization
   n = mo_num*(mo_num-1)/2
 
   ! Allocation
-  !allocate(v_grad(n), H(n,n), x(n))
-  allocate(spatial_extent(mo_num), R2(mo_num,mo_num))
-  allocate(m_theta(mo_num, mo_num), pre_rot(mo_num, mo_num), R(mo_num, mo_num))
-  allocate(prev_mos(ao_num, mo_num), m_x(mo_num,mo_num), m_x2(mo_num, mo_num))
+  allocate(spatial_extent(mo_num))
+  allocate(pre_rot(mo_num, mo_num), R(mo_num, mo_num))
+  allocate(prev_mos(ao_num, mo_num))
 
   ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
-
-  print*, 'elec_num:', elec_num
-  print*, 'mo_num:', mo_num
 
   call compute_criterion(criterion)
   !print*,'HF', HF_energy
@@ -503,10 +498,6 @@ In order to give a little kick in the system
   print*,'  Orbital localization'
   print*,'========================'
   print*,'' 
-    
-  logical :: not_converged, not_core_converged
-  logical :: not_act_converged, not_inact_converged, not_virt_converged
-  logical :: use_trust_region, must_exit, cancel_step
 
   !Initialization
   not_converged = .TRUE.
@@ -575,238 +566,110 @@ In order to give a little kick in the system
     ! Size for the 2D -> 1D transformation 
     tmp_n = tmp_list_size * (tmp_list_size - 1)/2
   
-    ! Allocation of tmp gradient and hessian
+    ! Allocation of temporary arrays
     allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size), tmp_R(tmp_list_size, tmp_list_size))
-    allocate(tmp_x(tmp_n), e_val(tmp_n), W(tmp_n,tmp_n))
+    allocate(tmp_x(tmp_n))
 
-    ! Initialization for trust region
+    !!!!!Test
+    !### TODOD, Initialization ###
     delta = 0d0
+    nb_iter = 0 ! Must start at 0 !!!
     rho = 0.5d0
-    nb_iter = 0 
-    call compute_criterion(prev_criterion)
-    print*,'prev_criterion', prev_criterion
 
-    print*,'l:',l 
+    ! ### TODO ###
+    ! Compute the criterion before the loop
+    call compute_criterion(prev_criterion) 
 
-      !!!!!Test
-      !### Initialization ###
-      nb_iter = 0 ! Must start at 0 !!!
-      rho = 0.5d0
-      !not_converged = .True.
+    do while (not_converged)
+      ! ### TODO ## 
+      ! Call your gradient
+      ! Call you hessian
 
-      ! ### TODO ###
-      ! Compute the criterion before the loop
-      call compute_criterion(prev_criterion) 
+      print*,''
+      print*,'***********************'
+      print*,'Iteration', nb_iter
+      print*,'***********************'
+      print*,''
+  
+      call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
+      print*, 'Max element in gradient:', max_elem
+      print*, 'Norm of the gradient:', norm_grad
+      ! Diagonal hessian
+      call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
 
-      do while (not_converged)
-        ! ### TODO ## 
-        ! Call your gradient
-        ! Call you hessian
-    
-        call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
-        print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
-        ! Diagonal hessian
-        call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
-
-        cancel_step = .True. ! To enter in the loop just after 
-        ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
-        do while (cancel_step)
-          ! Hessian,gradient,Criterion -> x 
-          call step_in_trust_region(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
-          if (must_exit) then
-            ! ### Message ###
-            ! if step_in_trust_region sets must_exit on true for numerical reasons
-            print*,'algo_trust1 sends the message : Exit'
-            ! ### exit 
-          endif
-          !### TODO ###  
-          ! Compute x -> m_x
-          ! Compute m_x -> R
-          ! Apply R and keep the previous MOs...
-          ! Update/touch 
-          ! Compute the new criterion/energy -> criterion
-
-          ! 1D tmp -> 2D tmp 
-          tmp_m_x = 0d0
-          do tmp_j = 1, tmp_list_size - 1
-            do tmp_i = tmp_j + 1, tmp_list_size
-              call mat_to_vec_index(tmp_i,tmp_j,tmp_k)
-              tmp_m_x(tmp_i, tmp_j) = tmp_x(tmp_k)
-            enddo
-          enddo
-        
-          ! Antisym
-          do tmp_i = 1, tmp_list_size - 1
-            do tmp_j = tmp_i + 1, tmp_list_size
-              tmp_m_x(tmp_i,tmp_j) = - tmp_m_x(tmp_j,tmp_i) 
-            enddo
-          enddo
-
-          call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
-          ! tmp_R to R, subspace to full space
-          R = 0d0
-          do i = 1, mo_num
-            R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-          enddo
-          do tmp_j = 1, tmp_list_size
-            j = tmp_list(tmp_j)
-            do tmp_i = 1, tmp_list_size
-              i = tmp_list(tmp_i)
-              R(i,j) = tmp_R(tmp_i,tmp_j)
-            enddo
-          enddo
-          call org_apply_mo_rotation(R, prev_mos)   
-          call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-          call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-          call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-          call compute_criterion(criterion)
-          print*,'Criterion:', nb_iter, criterion
-
-          ! Criterion -> step accepted or rejected 
-          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
-          ! ### TODO ###
-          !if (cancel_step) then
-          ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
-          !endif
-
-          if (cancel_step) then
-            mo_coef = prev_mos
-            ! pas besoind e recalculer vu qu'on garde le gradient et le hessien
-          endif
-        enddo
-        !call save_mos() !### depend of the time for 1 iteration
-        ! To exit the external loop if must_exti = .True.
+      cancel_step = .True. ! To enter in the loop just after 
+      ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+      do while (cancel_step)
+        ! Hessian,gradient,Criterion -> x 
+        call step_in_trust_region(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
         if (must_exit) then
-          ! ### exit
-        endif 
-        ! Step accepted, nb iteration + 1
-        nb_iter = nb_iter + 1
-        ! ### TODO ###
-        !if (###Conditions###) then
-        ! no_converged = .False.
+          ! ### Message ###
+          ! if step_in_trust_region sets must_exit on true for numerical reasons
+          print*,'step_in_trust_region sends the message : Exit'
+          exit 
+        endif
+        !### TODO ###  
+        ! Compute x -> m_x
+        ! Compute m_x -> R
+        ! Apply R and keep the previous MOs...
+        ! Update/touch 
+        ! Compute the new criterion/energy -> criterion
+
+        ! 1D tmp -> 2D tmp 
+        call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
+
+        call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+        ! tmp_R to R, subspace to full space
+        R = 0d0
+        do i = 1, mo_num
+          R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+        enddo
+        do tmp_j = 1, tmp_list_size
+          j = tmp_list(tmp_j)
+          do tmp_i = 1, tmp_list_size
+            i = tmp_list(tmp_i)
+            R(i,j) = tmp_R(tmp_i,tmp_j)
+          enddo
+        enddo
+        call org_apply_mo_rotation(R, prev_mos)   
+        call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+        call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+        call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+        call compute_criterion(criterion)
+        print*,'Criterion:', nb_iter, criterion
+
+        ! Criterion -> step accepted or rejected 
+        call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+        ! ### TODO ###
+        !if (cancel_step) then
+        ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
         !endif
-        if (DABS(max_elem) < 1d-6) then
-          not_converged = .False.
+
+        if (cancel_step) then
+          mo_coef = prev_mos
         endif
       enddo
+      !call save_mos() !### depend of the time for 1 iteration
+      ! To exit the external loop if must_exti = .True.
+      if (must_exit) then
+        exit
+      endif 
+      ! Step accepted, nb iteration + 1
+      nb_iter = nb_iter + 1
+      ! ### TODO ###
+      !if (###Conditions###) then
+      ! no_converged = .False.
+      !endif
+      if (DABS(max_elem) < 1d-6) then
+        not_converged = .False.
+      endif
+      if (nb_iter > 10000) then
+        not_converged = .False.
+      endif
+    enddo
 
-      !!!!!!!!! END TEST !!!!!!!!!!!!!!!!!!!!!!!!!
-
-!#      call wall_time(t1)
-!#      ! Gradient
-!#      call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
-!#      print*, 'Max element in gradient:', tmp_list(1), tmp_list(tmp_list_size), max_elem
-!#      ! Diagonal hessian
-!#      call H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
-!#      
-!#      ! Without trust region
-!#      if (.not. use_trust_region) then
-!#        ! Step in the subspace
-!#        call x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
-!#      endif
-!#
-!#      ! With trust region
-!#      if (use_trust_region) then
-!#        ! Diagonalization of the hessian
-!#        call org_diagonalization_hessian(tmp_n,H,e_val,w)
-!#        e_val = ABS(e_val)
-!#        call org_trust_region(tmp_n,tmp_list_size,nb_iter,thresh_eig,H,v_grad,rho,e_val,w,tmp_x,tmp_m_x,delta)
-!#      endif
-!#
-!#      ! tmp_m_x to m_x, subspace to full space
-!#      !m_x = 0d0
-!#      !do tmp_j = 1, tmp_list_size
-!#      !  j = tmp_list(tmp_j)
-!#      !  do tmp_i = 1, tmp_list_size
-!#      !    i = tmp_list(tmp_i)
-!#      !    m_x(i,j) = tmp_m_x(tmp_i, tmp_j)
-!#      !  enddo
-!#      !enddo
-!#
-!#      ! Rotation matrix 
-!#      !call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-!#      call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
-!#
-!#!      if (use_trust_region) then
-!#!        ! Estimation of the energy after the rotation
-!#!        call org_trust_e_model(tmp_n,v_grad,H,tmp_x,prev_criterion,criterion_model)
-!#!      endif
-!#
-!#      ! tmp_R to R, subspace to full space
-!#      R = 0d0
-!#      do i = 1, mo_num
-!#        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-!#      enddo
-!#      do tmp_j = 1, tmp_list_size
-!#        j = tmp_list(tmp_j)
-!#        do tmp_i = 1, tmp_list_size
-!#          i = tmp_list(tmp_i)
-!#          R(i,j) = tmp_R(tmp_i,tmp_j)
-!#        enddo
-!#      enddo
-!#       
-!#      ! Application to the mo_coef
-!#      call org_apply_mo_rotation(R, prev_mos)   
-!#  
-!#      ! Update the dipoles
-!#      call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-!#      call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-!#      call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-!#  
-!#      ! New criterion after rotation + update dipoles
-!#      call compute_criterion(criterion)
-!#      print*,'Criterion:', k, criterion
-!#     
-!#      if (use_trust_region) then
-!#        ! Calculation of rho 
-!#        call org_rho_model(prev_criterion, criterion,criterion_model,thresh_rho, rho)
-!#        !prev_criterion = criterion
-!#
-!#        if (nb_iter == 0) then
-!#            nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
-!#        endif
-!#
-!#        if (rho >= thresh_rho) then !0.1d0) then
-!#           ! exit, the step is accepted
-!#           !cancel_step = .False.
-!#        else
-!#           ! Cancellation of the previous rotation
-!#           mo_coef = prev_mos ! previous MOs 
-!#           
-!#           ! Update the dipoles
-!#           call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-!#           call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-!#           call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-!#
-!#           print*, '***********************'
-!#           print*, 'Step cancel : rho < 0.1'
-!#           print*, '***********************'
-!#        endif
-!#      endif 
-!#      
-!#      call wall_time(t2)
-!#      t3 = t2 - t1
-!#      print*, 'Time for one iteration:', t3
-!#
-!#      if (ABS(max_elem) < 1d-6) then
-!#        not_converged = .FALSE.
-!#      endif
-!#
-!#      ! tmp to stop algorithm when when the diff is too small and avoid some problems
-!#      if (ABS(prev_criterion - criterion_model) < 1d-12) then
-!#        not_converged = .FALSE.
-!#        print*,''
-!#        print*,'####################################################' 
-!#        print*,'(ABS(prev_criterion - criterion_model) < 1d-12, exit'
-!#        print*,'####################################################'
-!#        print*,''
-!#      endif
-!#  
-!#      k = k+1 
-!#    enddo
-
-    ! Deallocation
-    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x,e_val,W)
+    ! Deallocation of temporary arrays
+    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x)
     
     call save_mos()
     TOUCH mo_coef 
@@ -830,12 +693,12 @@ $B_{12} = (\langle 1 | r | 1 \rangle - \langle 2 | r | 2 \rangle)
 \langle 1 | r| 2 \rangle$
 
 #+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
-subroutine gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem)
+subroutine gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   
   implicit none
   
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: v_grad(tmp_n), max_elem
+  double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
   double precision, allocatable :: m_grad(:,:)
   integer :: i,j,k,tmp_i,tmp_j,tmp_k
   double precision :: pi
@@ -869,6 +732,12 @@ subroutine gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_e
       max_elem = ABS(v_grad(tmp_k))
     endif
   enddo 
+
+  norm_grad = 0d0
+  do tmp_k = 1, tmp_n
+    norm_grad = norm_grad + v_grad(tmp_k)**2
+  enddo
+  norm_grad = dsqrt(norm_grad)
 
   ! Deallocation
   deallocate(m_grad)
@@ -931,70 +800,6 @@ subroutine H_diag_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, H)
 
   ! Deallocation
   deallocate(beta)
-
-end subroutine
-
-subroutine x_orb_loc(n, v_grad, H, m_x)
-
-  implicit none
-
-  integer, intent(in) :: n
-  double precision, intent(in) :: v_grad(n)
-  double precision, intent(in) :: H(n,n)
-  double precision, intent(out) :: m_x(mo_num, mo_num)
-  double precision, allocatable :: x(:)
-  double precision :: lambda , accu, max_elem
-  integer :: i,j,k, mo_beg, mo_end
-
-  ! Allocation
-  allocate(x(n))
-
-  ! Level shifted hessian
-  lambda = 0d0
-  do i = 1, n
-    if (H(i,i) < lambda) then
-      lambda = H(i,i)
-    endif
-  enddo
-
-  ! min element in the hessian
-  if (lambda < 0d0) then
-    lambda = -lambda + 1d-6
-  endif  
-  
-  print*, 'lambda', lambda
- 
-  x = 0d0
-  ! Good
-  do i = 1, n
-    if (ABS(H(i,i)) > 1d-6) then
-      x(i) = - 1d0/(ABS(H(i,i))+lambda) *  v_grad(i)!(-v_grad(i)) 
-    endif
-  enddo
-  
-  ! 1D -> 2D
-  m_x = 0d0
-  do j = 1, mo_num
-    do i = 1, mo_num
-      if (i>j) then
-        call mat_to_vec_index(i,j,k)
-        m_x(i,j) = x(k)
-      else
-        m_x(i,j) = 0d0
-      endif
-    enddo
-  enddo
-
-  do j = 1, mo_num
-    do i = 1, mo_num
-      if (i<j) then
-        m_x(i,j) = - m_x(j,i)
-      endif
-    enddo
-  enddo
-
-  ! Deallocation
-  deallocate(x)
 
 end subroutine
 
@@ -1135,10 +940,9 @@ subroutine compute_spatial_extent(spatial_extent)
   implicit none
  
   double precision, intent(out) :: spatial_extent(mo_num)
-  double precision :: average_core, average_occ, average_vir
-  double precision :: std_var_core, std_var_occ, std_var_vir
-  integer :: i,j,k,l, n_occ
-   
+  double precision :: average_core, average_act, average_inact, average_virt
+  double precision :: std_var_core, std_var_act, std_var_inact, std_var_virt
+  integer :: i,j,k,l
 
   spatial_extent = 0d0
   
@@ -1156,20 +960,33 @@ subroutine compute_spatial_extent(spatial_extent)
     spatial_extent(i) = dsqrt(spatial_extent(i))
   enddo
 
-  call nb_occ_om(n_occ)
-
   average_core = 0d0
   std_var_core = 0d0
-  if (n_core_orb >= 2) then
-    call compute_average_sp_ext(spatial_extent, 1, n_core_orb, average_core)
-    call compute_std_var_sp_ext(spatial_extent, 1, n_core_orb, average_core, std_var_core)
+  if (dim_list_core_orb >= 2) then
+    call compute_average_sp_ext(spatial_extent, list_core, dim_list_core_orb, average_core)
+    call compute_std_var_sp_ext(spatial_extent, list_core, dim_list_core_orb, average_core, std_var_core)
+  endif
+
+  average_act = 0d0
+  std_var_act = 0d0
+  if (dim_list_act_orb >= 2) then
+    call compute_average_sp_ext(spatial_extent, list_act, dim_list_act_orb, average_act)
+    call compute_std_var_sp_ext(spatial_extent, list_act, dim_list_act_orb, average_act, std_var_act)
   endif
   
-  call compute_average_sp_ext(spatial_extent, n_core_orb + 1, n_occ, average_occ)
-  call compute_std_var_sp_ext(spatial_extent, n_core_orb + 1, n_occ, average_occ, std_var_occ)
-  
-  call compute_average_sp_ext(spatial_extent, n_occ + 1, mo_num, average_vir)
-  call compute_std_var_sp_ext(spatial_extent, n_occ + 1, mo_num, average_vir, std_var_vir)
+  average_inact = 0d0
+  std_var_inact = 0d0
+  if (dim_list_inact_orb >= 2) then
+    call compute_average_sp_ext(spatial_extent, list_inact, dim_list_inact_orb, average_inact)
+    call compute_std_var_sp_ext(spatial_extent, list_inact, dim_list_inact_orb, average_inact, std_var_inact)
+  endif
+
+  average_virt = 0d0
+  std_var_virt = 0d0
+  if (dim_list_virt_orb >= 2) then
+    call compute_average_sp_ext(spatial_extent, list_virt, dim_list_virt_orb, average_virt)
+    call compute_std_var_sp_ext(spatial_extent, list_virt, dim_list_virt_orb, average_virt, std_var_virt)
+  endif
 
   print*,''
   print*,'============================='
@@ -1178,9 +995,12 @@ subroutine compute_spatial_extent(spatial_extent)
   print*,''
 
   print*, 'elec_num:', elec_num
-  print*, 'core:', n_core_orb
-  print*, 'occ:', n_occ
-  print*, 'vir:', mo_num - n_occ
+  print*, 'elec_alpha_num:', elec_alpha_num
+  print*, 'elec_beta_num:', elec_beta_num
+  print*, 'core:', dim_list_core_orb
+  print*, 'act:', dim_list_act_orb
+  print*, 'inact:', dim_list_inact_orb
+  print*, 'virt:', dim_list_virt_orb
   print*, 'mo_num:', mo_num
   print*,''
    
@@ -1189,14 +1009,19 @@ subroutine compute_spatial_extent(spatial_extent)
   print*,'Std var:', std_var_core
   print*,''
   
-  print*,'-- Occupied MOs --'
-  print*,'Average:', average_occ
-  print*,'Std var:', std_var_occ
+  print*,'-- Active MOs --'
+  print*,'Average:', average_act
+  print*,'Std var:', std_var_act
+  print*,''
+
+  print*,'-- Inactive MOs --'
+  print*,'Average:', average_inact
+  print*,'Std var:', std_var_inact
   print*,''
 
   print*,'-- Virtual MOs --'
-  print*,'Average:', average_vir
-  print*,'Std var:', std_var_vir
+  print*,'Average:', average_virt
+  print*,'Std var:', std_var_virt
   print*,''
 
   print*,'Spatial extent:'
@@ -1206,45 +1031,43 @@ subroutine compute_spatial_extent(spatial_extent)
 
 end
 
-subroutine compute_average_sp_ext(spatial_extent, mo_beg, mo_end, average)
+subroutine compute_average_sp_ext(spatial_extent, list, list_size, average)
 
   implicit none
 
-  integer, intent(in) :: mo_beg, mo_end
+  integer, intent(in) :: list_size, list(list_size)
   double precision, intent(in) :: spatial_extent(mo_num)
   double precision, intent(out) :: average
-  integer :: i,j, size
-
-  size = mo_end - mo_beg + 1
+  integer :: i, tmp_i
   
   average = 0d0
-  do i = mo_beg, mo_end
+  do tmp_i = 1, list_size
+    i = list(tmp_i)
     average = average + spatial_extent(i)
   enddo
 
-  average = average / DBLE(size)
+  average = average / DBLE(list_size)
 
 end
 
-subroutine compute_std_var_sp_ext(spatial_extent, mo_beg, mo_end, average, std_var)
+subroutine compute_std_var_sp_ext(spatial_extent, list, list_size, average, std_var)
 
   implicit none
 
-  integer, intent(in) :: mo_beg, mo_end
+  integer, intent(in) :: list_size, list(list_size)
   double precision, intent(in) :: spatial_extent(mo_num)
   double precision, intent(in) :: average
   double precision, intent(out) :: std_var
-  integer :: i,j, size
+  integer :: i, tmp_i
 
-  size = mo_end - mo_beg + 1
- 
   std_var = 0d0
 
-  do i = mo_beg, mo_end
+  do tmp_i = 1, list_size
+    i = list(tmp_i)
     std_var = std_var + (spatial_extent(i) - average)**2
   enddo
   
-  std_var = dsqrt(1d0/DBLE(size) * std_var)
+  std_var = dsqrt(1d0/DBLE(list_size) * std_var)
 
 end
 
@@ -1332,75 +1155,6 @@ end subroutine
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
-subroutine nb_occ_om(n_occ)
-  
-  implicit none
-  
-  integer, intent(out) :: n_occ ! number of occupied orbitals
-  
-  if (mod(elec_num,2) == 0) then
-    n_occ = elec_num/2
-  else
-    n_occ = elec_num/2 + 1
-  endif
-  
-end
-
-subroutine tmp_to_full_index(tmp_i,mo_beg,i)
-
-  implicit none
-  
-  ! For a square matrix M,m by m, we define a smaller square matrix T (=tmp) (mo_end - mo_beg + 1 by mo_end - mo_beg + 1)
-  ! which contains the elements between mo_beg,mo_beg and mo_end,mo_end
-  ! index i in T matrix corresponds to index p in M
-  ! index j in T matrix corresponds to index q in M 
-
-  integer, intent(in) :: tmp_i
-  integer, intent(in) :: mo_beg
-  integer, intent(out) :: i
-
-  i = tmp_i + mo_beg - 1
-
-end
-
-subroutine full_to_tmp_index(i,mo_beg,tmp_i)
-
-  implicit none
-  
-  ! For a square matrix M,m by m, we define a smaller square matrix T (=tmp) (mo_end - mo_beg + 1 by mo_end - mo_beg + 1)
-  ! which contains the elements between mo_beg,mo_beg and mo_end,mo_end
-  ! index tmp_i in T matrix corresponds to index i in M
-  ! index tmp_j in T matrix corresponds to index i in M 
-
-  integer, intent(in) :: i
-  integer, intent(in) :: mo_beg
-  integer, intent(out) :: tmp_i
-
-  tmp_i = i - mo_beg + 1
-
-end
-
-subroutine tmp_to_full(tmp_m_x, tmp_size, mo_beg, mo_end, m_x)
-
-  implicit none
-
-  integer, intent(in) :: tmp_size, mo_beg, mo_end
-  double precision, intent(in) :: tmp_m_x(tmp_size,tmp_size)
-  double precision, intent(out) :: m_x(mo_num,mo_num) 
-  integer :: i,j, tmp_i, tmp_j
-
-  m_x = 0d0
-  do j = mo_beg, mo_end
-    call full_to_tmp_index(j, mo_beg, tmp_j)
-    do i = mo_beg, mo_end
-       call full_to_tmp_index(i, mo_beg, tmp_i)
-       m_x(i,j) = tmp_m_x(tmp_i,tmp_j)
-    enddo
-  enddo
-
-end
-
-
 subroutine ao_to_mo_no_sym(A_ao,LDA_ao,A_mo,LDA_mo)
   implicit none
   BEGIN_DOC
@@ -1425,34 +1179,6 @@ subroutine ao_to_mo_no_sym(A_ao,LDA_ao,A_mo,LDA_mo)
       1.d0, mo_coef,size(mo_coef,1),                                 &
       T, ao_num,                                                     &
       0.d0, A_mo, size(A_mo,1))
-
-  deallocate(T)
-end
-
-subroutine ao_to_mo_no_sym_tmp(tmp_size, mo_beg ,A_ao,LDA_ao,A_mo,LDA_mo)
-  implicit none
-  BEGIN_DOC
-  ! Transform A from the |AO| basis to the |MO| basis
-  !
-  ! $C^\dagger.A_{ao}.C$
-  END_DOC
-  integer, intent(in)            :: LDA_ao,LDA_mo,tmp_size, mo_beg
-  double precision, intent(in)   :: A_ao(LDA_ao,ao_num)
-  double precision, intent(out)  :: A_mo(LDA_mo,mo_num)
-  double precision, allocatable  :: T(:,:)
-
-  allocate ( T(ao_num,tmp_size) )
-  !DIR$ ATTRIBUTES ALIGN : $IRP_ALIGN :: T
-
-  call dgemm('N','N', ao_num, tmp_size, ao_num,                    &
-      1.d0, A_ao,LDA_ao,                                             &
-      mo_coef(1,mo_beg), size(mo_coef,1),                                      &
-      0.d0, T, size(T,1))
-
-  call dgemm('T','N', tmp_size, tmp_size, ao_num,                &
-      1.d0, mo_coef(1,mo_beg),size(mo_coef,1),                                 &
-      T, ao_num,                                                     &
-      0.d0, A_mo(mo_beg,mo_beg), size(A_mo,1))
 
   deallocate(T)
 end

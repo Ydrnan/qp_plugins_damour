@@ -195,14 +195,16 @@ subroutine org_run_orb_opt_trust_v2
     ! Call you hessian
 
     ! Gradient
-    call first_gradient_list(tmp_n,m,tmp_list,v_grad)
+    !call first_gradient_list(tmp_n,m,tmp_list,v_grad)
+    call org_gradient_list(tmp_n,m,tmp_list,v_grad,max_elem)
     max_elem = 1d0
     ! Hessian
-    if (method == 1) then
-       call first_hess_list(tmp_n,m,tmp_list,H,h_f)
-    else
-       call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
-    endif
+    call org_hess_list(tmp_n,m,tmp_list,H,h_f)
+    !if (method == 1) then
+    !   call first_hess_list(tmp_n,m,tmp_list,H,h_f)
+    !else
+    !   call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
+    !endif
 
     cancel_step = .True. ! To enter in the loop just after 
     ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho

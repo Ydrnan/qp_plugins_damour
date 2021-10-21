@@ -39,7 +39,7 @@ program org_debug_hessian_list
   double precision              :: threshold
   
   ! Choice of the method 
-  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
+  method = 1 ! 1 -> full hessian, 2 -> diagonal hessian
  
   m = dim_list_act_orb !mo_num
   ! Definition of n  
@@ -57,7 +57,7 @@ program org_debug_hessian_list
   if (method == 1) then 
 
     print*,'Use the full hessian matrix'
-    call org_first_hess(n,H,h_f)
+    call org_hess_list(n,m,list_act,H,h_f)
     call first_hess_list(n,m,list_act,H2,h_f2)
 
     ! Difference

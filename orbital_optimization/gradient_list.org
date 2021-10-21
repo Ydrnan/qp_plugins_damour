@@ -77,7 +77,7 @@ Function:
 | dnrm2              | double precision | (Lapack) norm           |
 
 #+BEGIN_SRC f90 :comments org :tangle org_gradient_list.irp.f
-subroutine org_gradient_list(n,m,list,v_grad,max_elem)
+subroutine org_gradient_list(n,m,list,v_grad,max_elem,norm)
   use omp_lib
   include 'constants.h'
 
@@ -89,11 +89,10 @@ subroutine org_gradient_list(n,m,list,v_grad,max_elem)
   integer, intent(in) :: n,m,list(m)
   
   ! out
-  double precision, intent(out) :: v_grad(n), max_elem
+  double precision, intent(out) :: v_grad(n), max_elem, norm
 
   ! internal
   double precision, allocatable :: grad(:,:),A(:,:)
-  double precision              :: norm
   integer                       :: i,p,q,r,s,t, tmp_p, tmp_q, tmp_i
   double precision              :: t1,t2,t3,t4,t5,t6
 
@@ -359,7 +358,7 @@ convergence criterion of the Newton method.
   ! Max element of the gradient
   max_elem = 0d0
   do i = 1, n
-    if (ABS(v_grad(i)) > ABS(max_elem)) then
+    if (DABS(v_grad(i)) > DABS(max_elem)) then
       max_elem = v_grad(i)
     endif
   enddo

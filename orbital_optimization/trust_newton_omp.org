@@ -362,9 +362,9 @@ Resolution with the Newton method:
         print*,'previous - actual:', prev_f_R - f_R
         print*,'previous - model:', prev_f_R - model
 
-        if (DABS(prev_f_R - model) < 1d-12) then
+        if (DABS(prev_f_R - model) < thresh_model_2) then
           print*,''
-          print*,'WARNING: ABS(previous - model) < 1d12, rho_2 will tend toward infinity'
+          print*,'WARNING: ABS(previous - model) <', thresh_model_2, 'rho_2 will tend toward infinity'
           print*,''
         endif        
 

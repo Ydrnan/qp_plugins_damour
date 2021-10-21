@@ -104,7 +104,7 @@ subroutine org_run_orb_opt_trust_v2
   integer                       :: info
   integer                       :: n
   integer                       :: i,j,p,q,k
-  double precision              :: max_elem, delta, rho
+  double precision              :: max_elem_grad, delta, rho, norm_grad
   logical :: cancel_step
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: t1, t2, t3
@@ -183,6 +183,7 @@ subroutine org_run_orb_opt_trust_v2
   rho = 0.5d0
   not_converged = .True.
   tmp_list = list_act
+  nb_cancel_tot = 0
   
   ! ### TODO ###
   ! Compute the criterion before the loop
@@ -190,14 +191,20 @@ subroutine org_run_orb_opt_trust_v2
   print*, 'State av energy :', prev_criterion
 
   do while (not_converged)
+    print*,''
+    print*,'******************'
+    print*,'Iteration', nb_iter
+    print*,'******************'
+    print*,''
+
     ! ### TODO ## 
     ! Call your gradient
     ! Call you hessian
 
     ! Gradient
     !call first_gradient_list(tmp_n,m,tmp_list,v_grad)
-    call org_gradient_list(tmp_n,m,tmp_list,v_grad,max_elem)
-    max_elem = 1d0
+    call org_gradient_list(tmp_n,m,tmp_list,v_grad,max_elem_grad,norm_grad)
+    
     ! Hessian
     call org_hess_list(tmp_n,m,tmp_list,H,h_f)
     !if (method == 1) then
@@ -205,8 +212,9 @@ subroutine org_run_orb_opt_trust_v2
     !else
     !   call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
     !endif
-
+  
     cancel_step = .True. ! To enter in the loop just after 
+    nb_cancel = 0
     ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
     do while (cancel_step)
       ! Hessian,gradient,Criterion -> x 
@@ -264,10 +272,24 @@ subroutine org_run_orb_opt_trust_v2
       if (cancel_step) then
         mo_coef = prev_mos
         call save_mos()
+        nb_cancel = nb_cancel + 1
+        nb_cancel_tot = nb_cancel_tot + 1
       endif
-      if (delta < 1d-10) then
-        print*,'delta < 1d-10, return'
-        return
+
+      if (nb_cancel > nb_cancel_max) then
+        print*,'###################################'
+        print*,'nb_cancel >', nb_cancel_max,', exit'
+        print*,'###################################'
+        must_exit = .True.
+        exit
+      endif
+ 
+      if (nb_cancel_tot > nb_cancel_tot_max) then
+        print*,'###########################################'
+        print*,'nb_cancel_tot >', nb_cancel_tot_max,', exit'
+        print*,'###########################################'
+        must_exit = .True.
+        exit
       endif
 
     enddo
@@ -283,16 +305,16 @@ subroutine org_run_orb_opt_trust_v2
     !if (###Conditions###) then
     ! no_converged = .False.
     !endif
-    if (DABS(max_elem) < 1d-6) then
+    if (DABS(max_elem_grad) < 1d-6) then
       not_converged = .False.
     endif
-    if (nb_iter > 20) then
+    if (nb_iter > nb_iter_orb_opt) then
       not_converged = .False. 
     endif
     if (.not. not_converged) then
-      print*,'##################################'
-      print*,'Converged, end of the optimization'
-      print*,'##################################'
+      print*,'#############################'
+      print*,'   End of the optimization'
+      print*,'#############################'
     endif
   enddo
 

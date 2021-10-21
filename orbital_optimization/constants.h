@@ -4,8 +4,19 @@
   
   ! Global variable for orbital optimization
   integer, parameter :: method = 2
+  integer, parameter :: nb_iter_orb_opt = 20
+  integer, parameter :: nb_cancel_max = 100
+  integer, parameter :: nb_cancel_tot_max = 1000
   ! method = 1 -> full hessian
   ! method = 2 -> diagonal hessian
+  ! nb_iter_orb_opt: Maximal number of steps in the orbital optimization
+  ! nb_cancel_max: maximal number of cancel steps
+  ! nb_cancel_tot_max: maximal number of cancel step (total)
+
+  ! Global variables for orbital localization
+  integer, parameter :: nb_iter_loc = 10000
+  logical, parameter :: sort_mos_by_e = .False.
+
   
   ! Global variables for trust region
   double precision, parameter :: thresh_rho = 0.1d0
@@ -19,6 +30,8 @@
   logical, parameter :: absolute_eig = .False.
   logical, parameter :: avoid_saddle = .False.
   integer, parameter :: version_lambda_search = 2
+  double precision, parameter :: thresh_model =  1d-12
+  double precision, parameter :: thresh_model_2 =  1d-12
   
   ! thresh_rho: threshold for the step cancellation
   !             if rho < thresh_rho, the step is cancelled
@@ -38,7 +51,12 @@
   ! absolute_eig: if True the trust region use the absolute
   !               value of the eigenvalues
   ! avoid_saddle: test in order to avoid saddle pioints
-  ! version_lambda_search : Research of the optimal lambda 
-  !                         by solving:
+  ! version_lambda_search: Research of the optimal lambda 
+  !                        by solving:
   !                         * ||x||^2 - delta^2 = 0
   !                         * 1/||x||^2 - 1/delta^2 = 0
+  ! thresh_model: if ABS(criterion - criterion_model) < thresh
+  !               the program exit to avoid numerical problem
+  ! thresh_model_2: if ABS(criterion - criterion_model) < thresh
+  !                 during the research of the optimal lambda
+  !                 it just prints a warning

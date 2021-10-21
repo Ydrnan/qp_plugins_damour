@@ -354,7 +354,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
   call dgemm('N','T',n,n,n,1d0,R,size(R,1),R,size(R,1),-1d0,RR_t,size(RR_t,1))
 
-  norm = dnrm2(n*n,RR_t,1) / (dble(n)**2)
+  norm = dnrm2(n*n,RR_t,1)
   print*, 'Rotation matrix check, norm R.R^T = ', norm 
 
   ! Debug

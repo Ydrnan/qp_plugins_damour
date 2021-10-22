@@ -405,6 +405,8 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, allocatable   :: tmp_wtg(:)
   integer                         :: i,j,k
   double precision                :: t1,t2,t3
+  integer                         :: n_neg_eval
+
 
   ! Functions
   double precision :: ddot, dnrm2
@@ -439,6 +441,33 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
       tmp_wtg(j) = tmp_wtg(j) + w(i,j) * v_grad(i)
     enddo
   enddo
+
+  if (avoid_saddle) then
+    i = 1
+    ! Number of negative eigenvalues
+    do while (e_val(i) < - thresh_eig)
+      i = i + 1
+    enddo
+    n_neg_eval = i - 1
+
+    allocate(coef(n_neg_eval))
+
+    do i = 1, n_neg_eval
+      if (version_avoid_saddle == 1) then  
+        coef(i) = 1d0
+      else
+        coef(i) = thresh_wtg2 + thresh_wtg*0.1d0
+      endif
+    enddo
+   
+    do i = 1, n_neg_eval
+      if (tmp_wtg(i) < thresh_wtg2) then
+        tmp_wtg(i) = coef(i)
+      endif
+    enddo
+
+    deallocate(coef)
+  endif 
 
   ! Norm^2 of x, ||x||^2
   print*,'||x||^2 :'
@@ -504,36 +533,6 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
   ! and not (||x||^2 - delta)^2 = 0
   
-  double precision :: delta_save, beta
-  integer :: n_neg_eval
-
-  ! Test to avoid saddle points
-  if (avoid_saddle) then
-    i = 1
-    ! Number of negative eigenvalues
-    do while (e_val(i) < - thresh_eig)
-      i = i + 1
-    enddo
-    n_neg_eval = i - 1
-    delta_save = delta ! save
-    ! Reduction of delta
-    delta = delta * DBLE(n-n_neg_eval)/DBLE(n)
-    beta = delta_save - delta
-    ! Set to 0 the terms where e_val < 0 and w^T.g is small
-    do i = 1, n_neg_eval 
-      if (DABS(tmp_wtg(i)) < thresh_wtg2) then
-        tmp_wtg(i) = 0d0
-      endif
-    enddo
-  endif
- 
-!#  ! w_1^T . g = 0 ?
-!#  if (DABS(tmp_wtg(1)) < thresh_wtg .and. e_val(1) < 0d0) then
-!#     norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg, - e_val(1))
-!#     print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
-!#  endif
-
-!!!
   ! Research of lambda to solve ||x(lambda)|| = Delta 
   print*, 'e_val(1) = ', e_val(1)
   print*, 'w_1^T.g =', tmp_wtg(1)
@@ -587,45 +586,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
       endif
      
   endif
-
-!!!
-
-!#  ! H positive definite, ||x(lambda = 0)|| <= Delta
-!#  if (dsqrt(norm2_x) <= delta .and. e_val(1) >= 0d0) then!-1d-12) then
-!#     ! Unconstraint solution, lambda = 0
-!#     print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
-!#     print*, '||x(0)||=', dsqrt(norm2_x)
-!#     print*, 'lambda = 0, no lambda optimization'
-!#     lambda = 0d0
-!#
-!#     ! H positive definite, ||x(lambda = 0)|| > Delta
-!#  elseif (e_val(1) >= 0d0) then!-1d-12) then
-!#     ! Constraint solution
-!#     print*, 'H positive definite, ||x(lambda = 0)|| > Delta'
-!#     print*, '||x(0)||=', dsqrt(norm2_x) 
-!#     print*,'Computation of the optimal lambda...'
-!#     call org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
-!#
-!#     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
-!#  elseif (dsqrt(norm2_x) <= delta .and. DABS(tmp_wtg(1)) < thresh_wtg) then
-!#     ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
-!#     print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
-!#     print*, 'lambda = -e_val(1), no lambda optimization'
-!#     lambda = - e_val(1)
-!#
-!#     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
-!#     ! H indefinite, w_1^T.g =/= 0
-!#  else
-!#     ! Constraint solution/ add lambda
-!#     if (DABS(tmp_wtg(1)) < thresh_wtg) then
-!#        print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
-!#     else
-!#        print*, 'H indefinite, w_1^T.g =/= 0'
-!#     endif
-!#     print*, 'Computation of the optimal lambda...'
-!#     call org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
-!#  endif
-
+  
   norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
   print*,''
   print*,'Summary after the trust region:'
@@ -656,22 +617,6 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   ! Initialisation
   x = 0d0
 
-!#  ! Calculation of the step x
-!#  do i = 1, n
-!#     if (DABS(e_val(i) + lambda) > thresh_eig) then !1d-12) then ! in order to avoid 1/0
-!#        ! eigenvalues must be > 0 !!!
-!#        accu = 0d0
-!#        do j = 1, n 
-!#           accu = accu + W(j,i) * v_grad(j)
-!#        enddo
-!#        !accu = ddot(n,W(:,i),1,v_grad,1)
-!#        do j = 1, n
-!#           x(j) = x(j) - accu * W(j,i) / (e_val(i) + lambda)
-!#        enddo
-!#        !x = x - accu * W(:,i) / (e_val(i) + lambda)
-!#     endif
-!#  enddo
-
   ! Calculation of the step x
   do i = 1, n 
     if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
@@ -680,50 +625,6 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
       enddo
     endif
   enddo
-
-  ! Test
-  if (avoid_saddle) then
-    norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
-    ! update beta, in order to have ||x|| = delta(_save) and not ||x|| < delta(_save)
-    beta = delta_save - dsqrt(norm2_x)
-
-    allocate(coef(n_neg_eval))
-
-    do i = 1, n_neg_eval
-      if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
-         if (version_avoid_saddle == 1) then  
-           coef(i) = 1d0
-         else  
-           coef(i) = 1d0/DABS(e_val(i))
-         endif
-      else
-         coef(i) = 0d0
-      endif
-    enddo
-    
-      ! Compute the factor to keep the contsraint on x
-      accu = 0d0
-      do i = 1, n_neg_eval
-        if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
-          accu = accu + coef(i)**2 ! + 1d0 / e_val(i)**2
-        endif
-      enddo
-      alpha_2 = beta * 1d0/accu
-  
-      ! Addition of the components for the negative eigenvalues with w^T.g ~ 0
-      do i = 1, n_neg_eval
-        if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
-          do j = 1, n
-            x(j) = x(j) - dsqrt(alpha_2) *  W(j,i) * coef(i)   !/ DABS(e_val(i)) 
-          enddo
-        endif
-      enddo
-
-    ! Reset delta to the right value
-    delta = delta_save
-
-    deallocate(coef)
-  endif
     #+END_SRC
 
 *** Transformation of x

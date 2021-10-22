@@ -2,7 +2,7 @@
   
   double precision, parameter :: pi = 3.1415926535897932d0
   
-  ! Global variable for orbital optimization
+  ! Global variables for orbital optimization
   integer, parameter :: method = 2
   integer, parameter :: nb_iter_orb_opt = 20
   integer, parameter :: nb_cancel_max = 100

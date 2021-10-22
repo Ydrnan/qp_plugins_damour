@@ -1,10 +1,7 @@
 * Orbital localization
 
-Test localization with pairwise rotations
+Molecular orbitals localization
 
-Boys localization
-TODO:
-doc
 ** Doc
 
 The program localizes the orbitals in function of their mo_class:
@@ -32,6 +29,7 @@ have the right mo class for his next calculation...
 For more information on the mo classes:
 qp set_mo_class -h
 
+*** Foster-Boys localization
 Foster-Boys localization:
 - cite Foster
 - cite Kleir 
@@ -244,6 +242,52 @@ order to break the symmetry and escape from a possible saddle point.
 In order to speed up the iteration we compute the gradient, the
 diagonal hessian and the step in temporary matrices of the size
 (number MOs in mo_class by number MOs in mo_class)
+
+*** Pipek-Mezey localization
+-cite pipek mezey 1989
+J. Pipek, P. G. Mezey, J. Chem. Phys. 90, 4916 (1989)
+DOI: 10.1063/1.456588
+
+FB localization does not preserve the $\sigma - \pi$ separation of the
+MOs, it leads to "banana" orbitals. The Pipek-Mezey localization
+normally preserve this separation.
+
+Their localization method starts from fact that the localization of the
+MOs can be definined as
+\begin{align*}
+d_i = \left( \sum_{A = 1}^N (Q_A^i)^2 \right)^{-1}, \quad 0 < d_i < N
+\end{align*}
+with $A$ representing the differents atoms of the moleculs and $Q_A^i$
+the Mulliken population of the MO $i$. 
+From that the mean delocalization is 
+\begin{align*}
+D^{-1} = n^{-1} \sum_{i=1}^n d_i^{-1}, \quad 0 < D \leq D_{max} \leq N
+\end{align*}
+where
+\begin{align*}
+D_{max} &= \frac{n^2}{\sum_{A=1}^N \textbf{Q}_A^2} \\
+&= \frac{\left( \sum_{A=1}^N \textbf{Q}_A\right)^2}{\sum_{A=1}^N \textbf{Q}_A^2}
+\end{align*}
+"with $\textbf{Q_A}$ is the total atomic charges (populations) which
+are invariant to any unitary transformation."
+"$D$ measures the mean extension of the one-elec-
+tron orbitals"
+As for the Foster-Boys method we have to search the unitary
+transformation which minimizes $D$.
+
+They defined for each AOs $|\mu>$ the corresponding operator 
+\begin{align*}
+P_{\mu} = P_{\mu}^{\dagger} = \frac{1}{2}
+\left( |\tilde{\mu} > < \mu| + |\mu > < \tilde{\mu}| \right)
+\end{align*}
+with
+\begin{align*}
+|\tilde{\mu} > = \sum_{\nu} (\textbf{S})^{-1}_{\nu \mu} |\nu>
+\end{align*}
+and $\textbf{S}$ the overlap matrix,
+\begin{align*}
+S_{\mu \nu} = < \mu | \nu >
+\end{align*}
 
 ** IDK
 

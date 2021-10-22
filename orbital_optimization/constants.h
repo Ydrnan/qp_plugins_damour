@@ -29,6 +29,7 @@
   double precision, parameter :: thresh_wtg2 = 1d-6
   logical, parameter :: absolute_eig = .False.
   logical, parameter :: avoid_saddle = .False.
+  integer, parameter :: version_avoid_saddle = 2
   integer, parameter :: version_lambda_search = 2
   double precision, parameter :: thresh_model =  1d-12
   double precision, parameter :: thresh_model_2 =  1d-12
@@ -50,7 +51,8 @@
   !             is 0
   ! absolute_eig: if True the trust region use the absolute
   !               value of the eigenvalues
-  ! avoid_saddle: test in order to avoid saddle pioints
+  ! avoid_saddle: test in order to avoid saddle points
+  ! version_avoid_saddle: cf trust_region
   ! version_lambda_search: Research of the optimal lambda 
   !                        by solving:
   !                         * ||x||^2 - delta^2 = 0

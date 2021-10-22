@@ -398,7 +398,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, intent(out)   :: m_x(m,m), x(n)
 
   ! Internal
-  double precision, allocatable   :: diff(:)
+  double precision, allocatable   :: diff(:), coef(:)
   double precision, allocatable   :: Hm1(:,:), Hm1g(:)
   double precision                :: accu, lambda, trust_radius2, alpha_2
   double precision                :: norm2_x, norm2_g
@@ -686,12 +686,26 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
     norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
     ! update beta, in order to have ||x|| = delta(_save) and not ||x|| < delta(_save)
     beta = delta_save - dsqrt(norm2_x)
+
+    allocate(coef(n_neg_eval))
+
+    do i = 1, n_neg_eval
+      if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
+         if (version_avoid_saddle == 1) then  
+           coef(i) = 1d0
+         else  
+           coef(i) = 1d0/DABS(e_val(i))
+         endif
+      else
+         coef(i) = 0d0
+      endif
+    enddo
     
       ! Compute the factor to keep the contsraint on x
       accu = 0d0
       do i = 1, n_neg_eval
         if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
-          accu = accu + 1d0/e_val(i)**2
+          accu = accu + coef(i)**2 ! + 1d0 / e_val(i)**2
         endif
       enddo
       alpha_2 = beta * 1d0/accu
@@ -700,13 +714,15 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
       do i = 1, n_neg_eval
         if (tmp_wtg(i) == 0d0 .and. e_val(i) <= -1d-8) then
           do j = 1, n
-            x(j) = x(j) - dsqrt(alpha_2) *  W(j,i) / DABS(e_val(i)) 
+            x(j) = x(j) - dsqrt(alpha_2) *  W(j,i) * coef(i)   !/ DABS(e_val(i)) 
           enddo
         endif
       enddo
 
     ! Reset delta to the right value
     delta = delta_save
+
+    deallocate(coef)
   endif
     #+END_SRC
 

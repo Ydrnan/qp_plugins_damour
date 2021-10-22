@@ -459,9 +459,13 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
         coef(i) = thresh_wtg2 + thresh_wtg*0.1d0
       endif
     enddo
-   
+
+    if (tmp_wtg(1) < thresh_wtg2) then 
+      tmp_wtg(1) = 0d0
+    endif
+ 
     do i = 1, n_neg_eval
-      if (tmp_wtg(i) < thresh_wtg2) then
+      if (tmp_wtg(i) < thresh_wtg2 .and. i /= 1) then
         tmp_wtg(i) = coef(i)
       endif
     enddo
@@ -625,6 +629,19 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
       enddo
     endif
   enddo
+
+double precision :: beta, norm_x
+ 
+  if (avoid_saddle) then
+    if (tmp_wtg(1) < 1d-15 .and. (1d0 - dsqrt(norm2_x)/delta) > 1d-3 ) then
+      norm_x = dnrm2(n,x,1)
+      beta = delta**2 - norm_x**2!dsqrt(norm2_x)
+      x = x + W(:,1) * dsqrt(beta)
+      norm_x = dnrm2(n,x,1)
+      print*, 'Add w_1 * dsqrt(delta^2 - ||x||^2):'
+      print*, '||x||', norm_x 
+    endif
+  endif
     #+END_SRC
 
 *** Transformation of x

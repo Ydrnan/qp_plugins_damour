@@ -16,6 +16,10 @@
   ! Global variables for orbital localization
   integer, parameter :: nb_iter_loc = 10000
   logical, parameter :: sort_mos_by_e = .False.
+  logical, parameter :: kick_in_mos = .True.
+  double precision, parameter :: angle_pre_rot = 0.1d0
+  integer, parameter :: method_loc = 2
+  integer, parameter :: nb_iter_max_loc = 10000
 
   
   ! Global variables for trust region
@@ -33,6 +37,7 @@
   integer, parameter :: version_lambda_search = 2
   double precision, parameter :: thresh_model =  1d-12
   double precision, parameter :: thresh_model_2 =  1d-12
+  double precision, parameter :: thresh_delta = 1d-10
   
   ! thresh_rho: threshold for the step cancellation
   !             if rho < thresh_rho, the step is cancelled

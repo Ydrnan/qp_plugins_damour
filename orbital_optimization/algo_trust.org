@@ -41,12 +41,16 @@ Example:
     call #your_gradient(v_grad) (1D array)
     call #your_hessian(H) (2D array) 
 
+    ! ### TODO ###
+    ! Diagonalization of the hessian 
+    call org_diagonalization_hessian(n,H,e_val,w)
+
     cancel_step = .True. ! To enter in the loop just after 
     ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
     do while (cancel_step)
 
       ! Hessian,gradient,Criterion -> x 
-      call step_in_trust_region(tmp_n,tmp_list_size,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+      call step_in_trust_region(tmp_n,tmp_list_size,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
       if (must_exit) then
         ! ### Message ###
@@ -128,7 +132,8 @@ Output:
 ### TODO ### Sortir la diagonalisation
 
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+!subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+subroutine step_in_trust_region(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
   include 'constants.h'
 
@@ -136,31 +141,35 @@ subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,cr
 
   ! in
   integer, intent(in)             :: n,m, nb_iter
-  double precision, intent(in)    :: H(n,n), v_grad(n)
+  double precision, intent(in)    :: H(n,n), W(n,n), v_grad(n)
   double precision, intent(in)    :: rho, prev_criterion
 
   ! inout
-  double precision, intent(inout) :: delta
+  double precision, intent(inout) :: delta, e_val(n)
 
   ! out
   double precision, intent(out)   :: criterion_model, x(n)
   logical, intent(out)            :: must_exit
 
   ! internal
-  double precision, allocatable   :: W(:,:), e_val(:),m_x(:,:)
+  double precision, allocatable   :: m_x(:,:)
   integer :: info
 
-  allocate(W(n,n), e_val(n), m_x(m,m))
+  allocate(m_x(m,m))
   
   must_exit = .False.
   
-  call org_diagonalization_hessian(n,H,e_val,w)
+  !call org_diagonalization_hessian(n,H,e_val,w)
+
+  if (delta > DBLE(m*m)*2d0*pi) then 
+    delta = DBLE(m*m)*2d0*pi
+  endif
 
   if(absolute_eig) then
     e_val=dabs(e_val)
   endif
 
-  call org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,W,x,m_x,delta)
+  call org_trust_region(n,m,nb_iter,v_grad,rho,e_val,W,x,m_x,delta)
   m_x = 0d0 ! Can't be used
   !call org_rotation_matrix(m_x,m,R,m,m,info)
   ! m_x et R dépende de l'ordre de remplissage....
@@ -176,13 +185,22 @@ subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,cr
     must_exit = .True.
   endif
 
+  if (delta < thresh_delta) then
+    print*,''
+    print*,'##############################################'
+    print*,'Delta <', thresh_delta, 'stop the trust region'
+    print*,'##############################################'
+    print*,''
+    must_exit = .True.
+  endif
+
   ! Add after the the call to the subroutine a statement
   ! "if (must_exit) then
   !   exit
   ! endif"
   ! in order to exit the optimization loop
 
-  deallocate(W,e_val,m_x)
+  deallocate(m_x)
 
 end subroutine
 #+END_SRC

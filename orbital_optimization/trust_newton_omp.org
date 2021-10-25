@@ -238,16 +238,17 @@ Resolution with the Newton method:
      print*,'Reducing lambda...'
      do while (f_N < delta**2 .and. i <= nb_it_max_pre_search)
 
-      !lambda = lambda * 0.5d0
-      epsilon = epsilon * 0.5d0
-      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
-      print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
+       prev_f_N = f_N  
+       !lambda = lambda * 0.5d0
+       epsilon = epsilon * 0.5d0
+       f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
+       print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
 
-      if (prev_f_N > f_N) then
-        print*,'WARNING, error: prev_f_N > f_N, exit'
-        !lambda = lambda * 2d0
-        epsilon = epsilon * 2d0
-        i = nb_it_max_pre_search + 1
+       if (prev_f_N > f_N) then
+         print*,'WARNING, error: prev_f_N > f_N, exit'
+         !lambda = lambda * 2d0
+         epsilon = epsilon * 2d0
+         i = nb_it_max_pre_search + 1
       endif
 
       ! To ensure that lambda is in > -e_val(1) if e_val(1) < 0
@@ -367,6 +368,13 @@ Resolution with the Newton method:
           print*,'WARNING: ABS(previous - model) <', thresh_model_2, 'rho_2 will tend toward infinity'
           print*,''
         endif        
+
+        if (prev_f_R - f_R <= 1d-16 .or. prev_f_R - model <= 1d-16) then
+          print*,''
+          print*,'WARNING: ABS(previous - model) <= 1d-16, exit'
+          print*,''
+          exit
+        endif
 
         rho_2 = (prev_f_R - f_R)/(prev_f_R - model)
         print*,'rho_2:', rho_2               

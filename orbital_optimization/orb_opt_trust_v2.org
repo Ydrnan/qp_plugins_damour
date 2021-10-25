@@ -112,7 +112,7 @@ subroutine org_run_orb_opt_trust_v2
   logical :: not_converged, must_exit
   integer :: m, tmp_n, tmp_i, tmp_j, tmp_k
   integer,allocatable :: tmp_list(:)
-  double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:)
+  double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:), W(:,:), e_val(:)
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
    #+END_SRC
@@ -157,7 +157,7 @@ subroutine org_run_orb_opt_trust_v2
   
   allocate(tmp_list(m))
   allocate(tmp_R(m,m), tmp_m_x(m,m), tmp_x(tmp_n))
-  allocate(H(tmp_n,tmp_n), h_f(m,m,m,m), v_grad(tmp_n))
+  allocate(H(tmp_n,tmp_n), h_f(m,m,m,m), v_grad(tmp_n),W(tmp_n,tmp_n),e_val(tmp_n))
 
    #+END_SRC
 
@@ -213,12 +213,14 @@ subroutine org_run_orb_opt_trust_v2
     !   call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
     !endif
   
+    call org_diagonalization_hessian(tmp_n,H,e_val,w)
+
     cancel_step = .True. ! To enter in the loop just after 
     nb_cancel = 0
     ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
     do while (cancel_step)
       ! Hessian,gradient,Criterion -> x 
-      call step_in_trust_region(tmp_n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      call step_in_trust_region(tmp_n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
       if (must_exit) then
         ! ### Message ###
         ! if algo_trust1 sets must_exit on true for numerical reasons
@@ -324,7 +326,7 @@ subroutine org_run_orb_opt_trust_v2
 ** Deallocation, end
 
     #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
-  deallocate(v_grad,H,R)
+  deallocate(v_grad,H,R,W,e_val)
   deallocate(h_f,prev_mos,new_mos)
 
 end

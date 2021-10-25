@@ -377,7 +377,7 @@ An improvement can be done using a elleptical trust region.
    | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
+subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   include 'constants.h'
 
@@ -387,7 +387,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
 
   ! in
   integer, intent(in)             :: n,m
-  double precision, intent(in)    :: H(n,n), v_grad(n), rho
+  double precision, intent(in)    :: v_grad(n), rho
   integer, intent(in)             :: nb_iter
   double precision, intent(in)    :: e_val(n), w(n,n)
 
@@ -398,8 +398,7 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, intent(out)   :: m_x(m,m), x(n)
 
   ! Internal
-  double precision, allocatable   :: diff(:), coef(:)
-  double precision, allocatable   :: Hm1(:,:), Hm1g(:)
+  double precision, allocatable   ::  coef(:)
   double precision                :: accu, lambda, trust_radius2, alpha_2
   double precision                :: norm2_x, norm2_g
   double precision, allocatable   :: tmp_wtg(:)
@@ -420,8 +419,6 @@ subroutine org_trust_region(n,m,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
   call wall_time(t1)
 
   ! Allocation
-  allocate(diff(n))
-  allocate(Hm1(n,n),Hm1g(n))
   allocate(tmp_wtg(n))
    #+END_SRC
 
@@ -673,67 +670,10 @@ double precision :: beta, norm_x
   enddo
     #+END_SRC
 
-*** Debug
-
-TODO: Delete
-
-    The goal of this part is to compare the previous result (only if you
-    force the use of lambda = 0 !!!) with the "standard method". Clearly,
-    here we inverse the matrix in a way that only work for matrix with a
-    good conditionning (cf. matrix_inversion).
-
-    For that reason, in some cases, little differences appear but I don't
-    know which calculation is wrong... But don't worry, both work well in
-    our case.
-
-    Don't put debug = .True. in constants.h, the output will be a
-    nightmare, just add "!" before the if/endif. 
-
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-  ! Debug
-  if (debug) then
-     integer :: nb_error ! number of error
-     double precision :: max_error ! biggest error
-
-     print*,'x'
-     write(*,'(100(F10.5))') x(:)
-
-     ! Verification
-     call matrix_inversion(method,n,H,Hm1)
-
-     print*,''
-     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)
-
-     print*,'vector Hm1.g :'
-     write(*,'(100(F10.5))') Hm1g(:)
-
-     ! Calculation of the error
-     diff = x - Hm1g
-
-     nb_error = 0
-     max_error = 0d0
-
-     print*,'diff'
-     do i = 1, n
-        if (ABS(x(i)) > 1e-12) then
-           print*,i, diff(i)
-           nb_error = nb_error + 1
-           if (ABS(x(i)) > max_error) then
-              max_error =  x(i)
-           endif
-        endif
-     enddo
-
-     print*, 'Number of errors :', nb_error
-     print*, 'Max error :', max_error
-
-  endif
-    #+END_SRC 
-
 *** Deallocation, end
 
     #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-  deallocate(diff,Hm1,Hm1g,tmp_wtg)
+  deallocate(tmp_wtg)
 
   call wall_time(t2)
   t3 = t2 - t1

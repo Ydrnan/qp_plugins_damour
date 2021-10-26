@@ -440,34 +440,27 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   enddo
 
   if (avoid_saddle) then
-    i = 1
+    i = 2
     ! Number of negative eigenvalues
     do while (e_val(i) < - thresh_eig)
-      i = i + 1
-    enddo
-    n_neg_eval = i - 1
-
-    allocate(coef(n_neg_eval))
-
-    do i = 1, n_neg_eval
-      if (version_avoid_saddle == 1) then  
-        coef(i) = 1d0
-      else
-        coef(i) = thresh_wtg2 + thresh_wtg*0.1d0
+      if (tmp_wtg(i) < thresh_wtg2) then
+        if (version_avoid_saddle == 1) then  
+          tmp_wtg(i) = 1d0
+        elseif  (version_avoid_saddle == 2) then  
+          tmp_wtg(i) = DABS(e_val(i))
+        elseif  (version_avoid_saddle == 3) then  
+          tmp_wtg(i) = dsqrt(DABS(e_val(i)))
+        else
+          tmp_wtg(i) = thresh_wtg2
+        endif
       endif
+      i = i + 1
     enddo
 
     if (tmp_wtg(1) < thresh_wtg2) then 
       tmp_wtg(1) = 0d0
     endif
- 
-    do i = 1, n_neg_eval
-      if (tmp_wtg(i) < thresh_wtg2 .and. i /= 1) then
-        tmp_wtg(i) = coef(i)
-      endif
-    enddo
 
-    deallocate(coef)
   endif 
 
   ! Norm^2 of x, ||x||^2
@@ -517,6 +510,11 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
      delta = 0.5d0 * delta
   else
      delta = 0.25d0 * delta
+  endif
+
+  if (delta > 0.5d0 * n * pi) then
+    delta = 0.5d0 * n * pi
+    print*,'Delta > delta_max, delta = 0.5d0 * n * pi'
   endif
 
   print*, 'Delta :', delta
@@ -619,20 +617,34 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   x = 0d0
 
   ! Calculation of the step x
-  do i = 1, n 
-    if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
-      do j = 1, n
-        x(j) = x(j) - tmp_wtg(i) * W(j,i) / (e_val(i) + lambda)
-      enddo
-    endif
-  enddo
+  if (.not. absolute_eig) then
 
-double precision :: beta, norm_x
+    do i = 1, n 
+      if (DABS(e_val(i)) > thresh_eig .and. DABS(e_val(i)+lambda) > thresh_eig) then
+        do j = 1, n
+          x(j) = x(j) - tmp_wtg(i) * W(j,i) / (e_val(i) + lambda)
+        enddo
+      endif
+    enddo
+
+  else
+
+    do i = 1, n 
+      if (DABS(e_val(i)) > thresh_eig) then
+        do j = 1, n
+          x(j) = x(j) - tmp_wtg(i) * W(j,i) / (DABS(e_val(i)) + lambda)
+        enddo
+      endif
+    enddo
+
+  endif
+
+  double precision :: beta, norm_x
  
   if (avoid_saddle) then
     if (tmp_wtg(1) < 1d-15 .and. (1d0 - dsqrt(norm2_x)/delta) > 1d-3 ) then
       norm_x = dnrm2(n,x,1)
-      beta = delta**2 - norm_x**2!dsqrt(norm2_x)
+      beta = delta**2 - norm_x**2
       x = x + W(:,1) * dsqrt(beta)
       norm_x = dnrm2(n,x,1)
       print*, 'Add w_1 * dsqrt(delta^2 - ||x||^2):'

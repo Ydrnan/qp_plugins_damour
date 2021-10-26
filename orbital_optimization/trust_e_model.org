@@ -87,7 +87,7 @@ TODO: remove the dot products
   
   ! Product 1/2 . x^T.H.x
   part_2 = 0.5d0 * ddot(n,x,1,part_2a,1)
-  
+  part_2 = 0d0  
   !if (debug) then
     print*,'x^T.H.x : ', part_2 
   !endif

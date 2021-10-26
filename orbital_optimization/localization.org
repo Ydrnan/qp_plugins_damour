@@ -584,7 +584,6 @@ In order to give a little kick in the system
 
   !Initialization
   not_converged = .TRUE.
-  use_trust_region = .TRUE. !.FALSE. ! ################ TODO ###############
 
   if (dim_list_core_orb >= 2) then
     not_core_converged = .TRUE.
@@ -668,6 +667,7 @@ In order to give a little kick in the system
       ! ### TODO ## 
       ! Call your gradient
       ! Call you hessian
+      ! Diagonalize the hessian
 
       print*,''
       print*,'***********************'
@@ -677,12 +677,11 @@ In order to give a little kick in the system
   
       !call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
       call gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
-
       ! Diagonal hessian
       call hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
 
+      ! Diagonalization
       !call org_diagonalization_hessian(tmp_n,H,e_val,w)
-
       do i = 1, tmp_n
         e_val(i) = H(i,i)
       enddo
@@ -807,6 +806,7 @@ subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_ele
   double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
 
   if (method_loc == 1) then ! Foster_boys
+    call gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
     call gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   elseif (method_loc == 2) then ! Pipek-Mezey
     call gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
@@ -828,6 +828,7 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
   double precision, intent(out) :: H(tmp_n, tmp_n)
 
   if (method_loc == 1) then ! Foster_boys
+    call hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
     call hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   elseif (method_loc == 2) then ! Pipek-Mezey
     call hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
@@ -883,6 +884,13 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
   double precision, allocatable :: m_grad(:,:)
   integer :: i,j,k,tmp_i,tmp_j,tmp_k
+  double precision :: t1, t2, t3
+
+  print*,''
+  print*,'---gradient_FB---'
+  print*,''
+
+  call wall_time(t1)
 
   ! Allocation
   allocate(m_grad(tmp_list_size, tmp_list_size))
@@ -924,6 +932,98 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   ! Deallocation
   deallocate(m_grad)
 
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in gradient_FB:', t3
+
+  print*,''
+  print*,'---End gradient_FB---'
+  print*,''
+
+end subroutine
+
+subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
+  
+  use omp_lib
+
+  implicit none
+  
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
+  double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
+  double precision, allocatable :: m_grad(:,:)
+  integer :: i,j,k,tmp_i,tmp_j,tmp_k
+  double precision :: t1, t2, t3
+
+  print*,''
+  print*,'---gradient_FB_omp---'
+  print*,''
+
+  call wall_time(t1)
+
+  ! Allocation
+  allocate(m_grad(tmp_list_size, tmp_list_size))
+
+  ! Initialization omp
+  call omp_set_max_active_levels(1)
+
+  !$OMP PARALLEL                                                             &
+      !$OMP PRIVATE(i,j,tmp_i,tmp_j,tmp_k)                                         &
+      !$OMP SHARED(tmp_n,tmp_list_size,m_grad,v_grad,mo_dipole_x,mo_dipole_y,mo_dipole_z,tmp_list) &
+      !$OMP DEFAULT(NONE)
+
+  ! Calculation
+  !$OMP DO
+  do tmp_j = 1, tmp_list_size
+    j = tmp_list(tmp_j)
+    do tmp_i = 1, tmp_list_size
+      i = tmp_list(tmp_i)
+      m_grad(tmp_i,tmp_j) = 4d0 * mo_dipole_x(i,j) * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
+                           +4d0 * mo_dipole_y(i,j) * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
+                           +4d0 * mo_dipole_z(i,j) * (mo_dipole_z(i,i) - mo_dipole_z(j,j))
+    enddo
+  enddo
+  !$OMP END DO
+
+  ! 2D -> 1D
+  !$OMP DO
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    v_grad(tmp_k) = m_grad(tmp_i,tmp_j) 
+  enddo 
+  !$OMP END DO
+
+  !$OMP END PARALLEL
+
+  call omp_set_max_active_levels(4)
+
+  ! Maximum element in the gradient
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (ABS(v_grad(tmp_k)) > max_elem) then
+      max_elem = ABS(v_grad(tmp_k))
+    endif
+  enddo 
+
+  norm_grad = 0d0
+  do tmp_k = 1, tmp_n
+    norm_grad = norm_grad + v_grad(tmp_k)**2
+  enddo
+  norm_grad = dsqrt(norm_grad)
+
+  print*, 'Maximal element in the gradient:', max_elem
+  print*, 'Norm of the gradient:', norm_grad  
+
+  ! Deallocation
+  deallocate(m_grad)
+
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in gradient_FB_omp:', t3
+
+  print*,''
+  print*,'---End gradient_FB_omp---'
+  print*,''
+
 end subroutine
 
 subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
@@ -934,8 +1034,15 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   double precision, intent(out) :: H(tmp_n, tmp_n)
   double precision, allocatable :: beta(:,:)
   integer :: i,j,tmp_k,tmp_i, tmp_j
-  double precision :: max_elem
-    
+  double precision :: max_elem, t1,t2,t3
+   
+  print*,''
+  print*,'---hessian_FB---'
+  print*,''
+
+  call wall_time(t1)
+
+
   ! Allocation
   allocate(beta(tmp_list_size,tmp_list_size))
   
@@ -982,9 +1089,113 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
 
   ! Deallocation
   deallocate(beta)
+ 
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in hessian_FB:', t3
+
+  print*,''
+  print*,'---End hessian_FB---'
+  print*,''
 
 end subroutine
 
+subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
+
+  implicit none
+
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
+  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, allocatable :: beta(:,:)
+  integer :: i,j,tmp_k,tmp_i, tmp_j
+  double precision :: max_elem, t1,t2,t3
+   
+  print*,''
+  print*,'---hessian_FB_omp---'
+  print*,''
+
+  call wall_time(t1)
+
+  ! Allocation
+  allocate(beta(tmp_list_size,tmp_list_size))
+
+  ! Initialization omp
+  call omp_set_max_active_levels(1)
+
+  !$OMP PARALLEL                                                             &
+      !$OMP PRIVATE(i,j,tmp_i,tmp_j,tmp_k)                                         &
+      !$OMP SHARED(tmp_n,tmp_list_size,beta,H,mo_dipole_x,mo_dipole_y,mo_dipole_z,tmp_list) &
+      !$OMP DEFAULT(NONE)
+
+  
+  ! Calculation
+  !$OMP DO
+  do tmp_j = 1, tmp_list_size
+    j = tmp_list(tmp_j)
+    do tmp_i = 1, tmp_list_size
+      i = tmp_list(tmp_i)
+      beta(tmp_i,tmp_j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j))**2 - 4d0 * mo_dipole_x(i,j)**2 &
+                         +(mo_dipole_y(i,i) - mo_dipole_y(j,j))**2 - 4d0 * mo_dipole_y(i,j)**2 &
+                         +(mo_dipole_z(i,i) - mo_dipole_z(j,j))**2 - 4d0 * mo_dipole_z(i,j)**2
+    enddo
+  enddo
+  !$OMP END DO
+
+  !$OMP DO
+  do j = 1, tmp_n
+    do i = 1, tmp_n
+      H(i,j) = 0d0 
+    enddo
+  enddo
+  !$OMP END DO
+  
+  !$OMP DO
+  do tmp_k = 1, tmp_n
+    call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
+    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+  enddo
+  !$OMP END DO
+  
+  !$OMP END PARALLEL
+
+  call omp_set_max_active_levels(4)
+
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) < max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Min elem H:', max_elem
+
+  max_elem = 0d0
+  do tmp_k = 1, tmp_n
+    if (H(tmp_k,tmp_k) > max_elem) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Max elem H:', max_elem
+  
+  max_elem = 1d10
+  do tmp_k = 1, tmp_n
+    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
+      max_elem = H(tmp_k,tmp_k)
+    endif
+  enddo
+  print*, 'Near 0 elem H:', max_elem
+
+  ! Deallocation
+  deallocate(beta)
+ 
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in hessian_FB_omp:', t3
+
+  print*,''
+  print*,'---End hessian_FB_omp---'
+  print*,''
+
+end subroutine
 #+END_SRC
 ** Pipek-Mezey
 #+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
@@ -1065,13 +1276,19 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
   double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
-  double precision, allocatable :: m_grad(:,:), tmp_int(:,:), CS(:,:), tmp_mo_coef(:,:), tmp_mo_coef2(:,:)
-  integer :: i,j,k,tmp_i,tmp_j,tmp_k, a, b, mu ,rho 
+  double precision, allocatable :: m_grad(:,:), tmp_int(:,:), CS(:,:), tmp_mo_coef(:,:), tmp_mo_coef2(:,:),tmp_accu(:,:),tmp_CS(:,:)
+  integer :: i,j,k,tmp_i,tmp_j,tmp_k, a, b, mu ,rho
+  double precision :: t1,t2,t3
+
+  print*,''
+  print*,'---gradient_PM---'
+  print*,''
+
+  call wall_time(t1)
 
   ! Allocation
-  allocate(m_grad(tmp_list_size, tmp_list_size), tmp_int(tmp_list_size, tmp_list_size))
+  allocate(m_grad(tmp_list_size, tmp_list_size), tmp_int(tmp_list_size, tmp_list_size),tmp_accu(tmp_list_size, tmp_list_size))
   allocate(CS(tmp_list_size,ao_num),tmp_mo_coef(ao_num,tmp_list_size))
-
 
   do tmp_i = 1, tmp_list_size
     i = tmp_list(tmp_i)
@@ -1089,19 +1306,52 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   do a = 1, nucl_num ! loop over the nuclei
     tmp_int = 0d0
 
-    do tmp_j = 1, tmp_list_size
-      do tmp_i = 1, tmp_list_size
-        do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
-          mu = nucl_aos(a,b)
+    !do tmp_j = 1, tmp_list_size
+    !  do tmp_i = 1, tmp_list_size
+    !    do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
+    !      mu = nucl_aos(a,b)
 
-          tmp_int(tmp_i,tmp_j) = tmp_int(tmp_i,tmp_j) + 0.5d0 * (CS(tmp_i,mu) * tmp_mo_coef(mu,tmp_j) + tmp_mo_coef(mu,tmp_i) * CS(tmp_j,mu))
+    !      tmp_int(tmp_i,tmp_j) = tmp_int(tmp_i,tmp_j) + 0.5d0 * (CS(tmp_i,mu) * tmp_mo_coef(mu,tmp_j) + tmp_mo_coef(mu,tmp_i) * CS(tmp_j,mu))
 
-                                 !  (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
-                                 !+ mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
+    !                             !  (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
+    !                             !+ mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
 
-        enddo
+    !    enddo
+    !  enddo
+    !enddo
+
+    allocate(tmp_mo_coef2(nucl_n_aos(a),tmp_list_size),tmp_CS(tmp_list_size,nucl_n_aos(a)))
+
+    do tmp_i = 1, tmp_list_size
+      do b = 1, nucl_n_aos(a)
+        mu = nucl_aos(a,b)
+
+        tmp_mo_coef2(b,tmp_i) = tmp_mo_coef(mu,tmp_i)
+
       enddo
     enddo
+
+    
+    do b = 1, nucl_n_aos(a)
+      mu = nucl_aos(a,b)
+      do tmp_i = 1, tmp_list_size
+
+        tmp_CS(tmp_i,b) = CS(tmp_i,mu)
+
+      enddo
+    enddo   
+
+    call dgemm('N','N',tmp_list_size,tmp_list_size,nucl_n_aos(a),1d0,tmp_CS,size(tmp_CS,1),tmp_mo_coef2,size(tmp_mo_coef2,1),0d0,tmp_accu,size(tmp_accu,1))
+ 
+    do tmp_j = 1, tmp_list_size
+      do tmp_i = 1, tmp_list_size
+
+        tmp_int(tmp_i,tmp_j) = 0.5d0 * (tmp_accu(tmp_i,tmp_j) + tmp_accu(tmp_j,tmp_i))   
+
+      enddo
+    enddo
+
+    deallocate(tmp_mo_coef2,tmp_CS)
 
     do tmp_j = 1, tmp_list_size
       do tmp_i = 1, tmp_list_size
@@ -1138,6 +1388,14 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
 
   ! Deallocation
   deallocate(m_grad,tmp_int,CS,tmp_mo_coef)
+
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in gradient_PM:', t3
+
+  print*,''
+  print*,'---End gradient_PM---'
+  print*,''
 
 end
 
@@ -1227,12 +1485,18 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
 
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
   double precision, intent(out) :: H(tmp_n, tmp_n)
-  double precision, allocatable :: beta(:,:),tmp_int(:,:),CS(:,:),tmp_mo_coef(:,:)
+  double precision, allocatable :: beta(:,:),tmp_int(:,:),CS(:,:),tmp_mo_coef(:,:),tmp_mo_coef2(:,:),tmp_accu(:,:),tmp_CS(:,:)
   integer :: i,j,tmp_k,tmp_i, tmp_j, a,b,rho,mu
-  double precision :: max_elem
+  double precision :: max_elem, t1,t2,t3
     
+  print*,''
+  print*,'---hessian_PM---'
+  print*,''
+
+  call wall_time(t1)
+
   ! Allocation
-  allocate(beta(tmp_list_size,tmp_list_size),tmp_int(tmp_list_size,tmp_list_size))
+  allocate(beta(tmp_list_size,tmp_list_size),tmp_int(tmp_list_size,tmp_list_size),tmp_accu(tmp_list_size,tmp_list_size))
   allocate(CS(tmp_list_size,ao_num),tmp_mo_coef(ao_num,tmp_list_size))
 
   beta = 0d0
@@ -1251,19 +1515,52 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   do a = 1, nucl_num ! loop over the nuclei
     tmp_int = 0d0
 
-    do tmp_j = 1, tmp_list_size
-      do tmp_i = 1, tmp_list_size
-        do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
-          mu = nucl_aos(a,b)
+    !do tmp_j = 1, tmp_list_size
+    !  do tmp_i = 1, tmp_list_size
+    !    do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
+    !      mu = nucl_aos(a,b)
 
-          tmp_int(tmp_i,tmp_j) = tmp_int(tmp_i,tmp_j) + 0.5d0 * (CS(tmp_i,mu) * tmp_mo_coef(mu,tmp_j) + tmp_mo_coef(mu,tmp_i) * CS(tmp_j,mu))
+    !      tmp_int(tmp_i,tmp_j) = tmp_int(tmp_i,tmp_j) + 0.5d0 * (CS(tmp_i,mu) * tmp_mo_coef(mu,tmp_j) + tmp_mo_coef(mu,tmp_i) * CS(tmp_j,mu))
 
-                                 !  (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
-                                 !+ mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
+    !                             !  (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
+    !                             !+ mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
 
-        enddo
+    !    enddo
+    !  enddo
+    !enddo
+ 
+    allocate(tmp_mo_coef2(nucl_n_aos(a),tmp_list_size),tmp_CS(tmp_list_size,nucl_n_aos(a)))
+
+    do tmp_i = 1, tmp_list_size
+      do b = 1, nucl_n_aos(a)
+        mu = nucl_aos(a,b)
+
+        tmp_mo_coef2(b,tmp_i) = tmp_mo_coef(mu,tmp_i)
+
       enddo
     enddo
+
+    
+    do b = 1, nucl_n_aos(a)
+      mu = nucl_aos(a,b)
+      do tmp_i = 1, tmp_list_size
+
+        tmp_CS(tmp_i,b) = CS(tmp_i,mu)
+
+      enddo
+    enddo   
+
+    call dgemm('N','N',tmp_list_size,tmp_list_size,nucl_n_aos(a),1d0,tmp_CS,size(tmp_CS,1),tmp_mo_coef2,size(tmp_mo_coef2,1),0d0,tmp_accu,size(tmp_accu,1))
+ 
+    do tmp_j = 1, tmp_list_size
+      do tmp_i = 1, tmp_list_size
+
+        tmp_int(tmp_i,tmp_j) = 0.5d0 * (tmp_accu(tmp_i,tmp_j) + tmp_accu(tmp_j,tmp_i))   
+
+      enddo
+    enddo
+
+    deallocate(tmp_mo_coef2,tmp_CS)
 
     ! Calculation
     do tmp_j = 1, tmp_list_size
@@ -1308,6 +1605,14 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
 
   ! Deallocation
   deallocate(beta,tmp_int)
+
+  call wall_time(t2)
+  t3 = t2 - t1
+  print*,'Time in hessian_PM:', t3
+
+  print*,''
+  print*,'---End hessian_PM---'
+  print*,''
 
 end
 

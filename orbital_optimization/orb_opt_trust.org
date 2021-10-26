@@ -175,13 +175,13 @@ subroutine org_run_orb_opt_trust
   ! Initialization of the CI energy
   call diagonalize_ci
 
-  call update_st_av_ci_energy(energy)
+  call update_st_av_ci_energy(prev_energy)
 
   print *, 'CI energy : ', ci_energy
   print*, 'State av energy :', prev_energy
 
     #+END_SRC
-
+    
 *** Algorithm
 
     "gradient" takes n and gives :
@@ -260,7 +260,7 @@ subroutine org_run_orb_opt_trust
 
         ! Step in the trust region
         call org_trust_region(n,mo_num,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
-
+        
         ! Estimation of the energy after the rotation
         call org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
 

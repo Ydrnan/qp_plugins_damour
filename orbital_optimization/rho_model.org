@@ -114,7 +114,7 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
   print*, 'predicted energy, e_model :', e_model
   print*, 'real energy, energy :', energy
   print*, 'prev_energy - energy :', prev_energy - energy
-  print*, 'e_model - energy :', prev_energy - e_model
+  print*, 'prev_energy - e_model :', prev_energy - e_model
   print*, 'Rho :', rho
   print*, 'Threshold for rho:', thresh_rho
 

@@ -59,6 +59,7 @@ program org_debug_hessian_list
     print*,'Use the full hessian matrix'
     call org_hess_list(n,m,list_act,H,h_f)
     call first_hess_list(n,m,list_act,H2,h_f2)
+    !call org_hess(n,H2,h_f2)
 
     ! Difference
     h_f = h_f - h_f2

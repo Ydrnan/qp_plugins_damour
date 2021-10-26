@@ -161,19 +161,11 @@ subroutine step_in_trust_region(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,
   
   !call org_diagonalization_hessian(n,H,e_val,w)
 
-  if (delta > DBLE(m*m)*2d0*pi) then 
-    delta = DBLE(m*m)*2d0*pi
-  endif
-
-  if(absolute_eig) then
-    e_val=dabs(e_val)
-  endif
-
   call org_trust_region(n,m,nb_iter,v_grad,rho,e_val,W,x,m_x,delta)
   m_x = 0d0 ! Can't be used
   !call org_rotation_matrix(m_x,m,R,m,m,info)
   ! m_x et R dépende de l'ordre de remplissage....
-  
+
   call org_trust_e_model(n,v_grad,H,x,prev_criterion,criterion_model)
   ! exit if DABS(prev_criterion - criterion_model) < 1d-12
   if (DABS(prev_criterion - criterion_model) < thresh_model) then

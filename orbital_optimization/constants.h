@@ -3,7 +3,7 @@
   double precision, parameter :: pi = 3.1415926535897932d0
   
   ! Global variables for orbital optimization
-  integer, parameter :: method = 2
+  integer, parameter :: method = 1
   integer, parameter :: nb_iter_orb_opt = 20
   integer, parameter :: nb_cancel_max = 100
   integer, parameter :: nb_cancel_tot_max = 1000
@@ -14,11 +14,11 @@
   ! nb_cancel_tot_max: maximal number of cancel step (total)
 
   ! Global variables for orbital localization
-  integer, parameter :: nb_iter_loc = 10000
+  integer, parameter :: nb_iter_loc = 1000
   logical, parameter :: sort_mos_by_e = .False.
   logical, parameter :: kick_in_mos = .True.
   double precision, parameter :: angle_pre_rot = 0.1d0
-  integer, parameter :: method_loc = 2
+  integer, parameter :: method_loc = 1 
   integer, parameter :: nb_iter_max_loc = 10000
 
   
@@ -32,8 +32,8 @@
   double precision, parameter :: thresh_wtg = 1d-6
   double precision, parameter :: thresh_wtg2 = 1d-6
   logical, parameter :: absolute_eig = .False.
-  logical, parameter :: avoid_saddle = .False.
-  integer, parameter :: version_avoid_saddle = 2
+  logical, parameter :: avoid_saddle = .True.
+  integer, parameter :: version_avoid_saddle = 3
   integer, parameter :: version_lambda_search = 2
   double precision, parameter :: thresh_model =  1d-12
   double precision, parameter :: thresh_model_2 =  1d-12

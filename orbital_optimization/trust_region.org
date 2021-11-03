@@ -439,7 +439,7 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
     enddo
   enddo
 
-  if (avoid_saddle) then
+  if (avoid_saddle .and. e_val(1) < - thresh_eig) then
     i = 2
     ! Number of negative eigenvalues
     do while (e_val(i) < - thresh_eig)
@@ -641,7 +641,7 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   double precision :: beta, norm_x
  
-  if (avoid_saddle) then
+  if (avoid_saddle .and. e_val(1) < - thresh_eig) then
     if (tmp_wtg(1) < 1d-15 .and. (1d0 - dsqrt(norm2_x)/delta) > 1d-3 ) then
       norm_x = dnrm2(n,x,1)
       beta = delta**2 - norm_x**2

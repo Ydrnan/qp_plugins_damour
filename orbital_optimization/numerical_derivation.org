@@ -1,0 +1,273 @@
+#+BEGIN_SRC f90 :comments org :tangle numerical_derivation.irp.f
+program num_diff
+
+  implicit none
+
+  integer :: n, n_r, ref, s, index
+  integer :: i
+  double precision, allocatable :: x(:), f_x(:), tmp_x(:), tmp_f_x(:), v_dk_f(:)
+  double precision :: dx, x_0, energy, e_model
+
+  n = 21
+
+  if (mod(n,2)==0) then
+    print*,'mod(n,2)=0, abort'
+    call abort
+  endif
+
+  allocate(x(n),f_x(n),v_dk_f(n-1))
+
+  x_0 = 0d0
+  index = 2
+  dx = 1d-3
+
+  open(10, file="derivatives.dat")
+
+do index = 1, mo_num*(mo_num-1)/2
+!  do s = 3, 6
+!  dx = 10d0**(-s)
+
+  call product_grid(n,x_0,dx,x)
+
+  do i = 1, n
+    ! f_x(i) = ### call la fonction
+    !call test_e_ci_rot_mo(x(i),index,energy)
+    call test_loc_rot_mo(x,index,energy)
+    f_x(i) = energy
+  enddo
+
+  call compute_diff(n,x,f_x,v_dk_f)
+
+  do i = 1, 1!3 !n-1
+    write(10,*) index, v_dk_f(i), v_dk_f(i+1)
+  enddo
+
+  !do i = 1, n
+    !write(*,*) x(i), f_x(i), f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2
+    !write(*,*) f_x(i) / (f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2)
+  !enddo
+ 
+enddo
+!enddo
+  close(10)
+  deallocate(x,f_x,v_dk_f)
+
+end
+
+subroutine test_loc_rot_mo(x,index,energy)
+
+  implicit none
+
+  double precision, intent(in) :: x
+  integer, intent(in) :: index
+  double precision, intent(out) :: energy
+
+  double precision, allocatable :: v_x(:), m_x(:,:),prev_mos(:,:),R(:,:)
+  integer :: i,j,n,info
+
+  n = mo_num*(mo_num-1)/2
+
+  allocate(v_x(n),m_x(mo_num,mo_num),R(mo_num,mo_num),prev_mos(mo_num,mo_num))
+
+  do i = 1, n
+    v_x(i) = 0d0
+  enddo
+ 
+  v_x(index) = x
+
+  ! 1D tmp -> 2D tmp 
+  call vec_to_mat_v2(n,mo_num,v_x,m_x)
+  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call org_apply_mo_rotation(R, prev_mos)
+
+! Update the dipoles
+call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+call criterion_FB(energy)
+
+  mo_coef = prev_mos  
+  call save_mos
+
+  ! Update the dipoles
+call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)  
+
+  deallocate(v_x,m_x,R,prev_mos)
+
+end
+
+subroutine test_e_ci_rot_mo(x,index,energy)
+
+  implicit none
+
+  double precision, intent(in) :: x
+  integer, intent(in) :: index
+  double precision, intent(out) :: energy
+
+  double precision, allocatable :: v_x(:), m_x(:,:),prev_mos(:,:),R(:,:)
+  integer :: i,j,n,info
+
+  n = mo_num*(mo_num-1)/2
+
+  allocate(v_x(n),m_x(mo_num,mo_num),R(mo_num,mo_num),prev_mos(mo_num,mo_num))
+
+  do i = 1, n
+    v_x(i) = 0d0
+  enddo
+ 
+  v_x(index) = x
+
+  ! 1D tmp -> 2D tmp 
+  call vec_to_mat_v2(n,mo_num,v_x,m_x)
+  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call org_apply_mo_rotation(R, prev_mos)
+  
+  call clear_mo_map
+  TOUCH mo_coef psi_det psi_coef
+  call diagonalize_ci
+  call save_wavefunction_unsorted
+  
+  call update_st_av_ci_energy(energy)
+
+  mo_coef = prev_mos
+  call save_mos
+
+  call clear_mo_map
+  TOUCH mo_coef psi_det psi_coef
+  call diagonalize_ci
+  call save_wavefunction_unsorted
+
+  deallocate(v_x,m_x,R,prev_mos)
+
+end
+
+subroutine compute_diff(n,x,f_x,v_dk_f)
+
+  implicit none
+  
+  integer, intent(in) :: n
+  double precision, intent(in) :: x(n), f_x(n)
+  double precision, intent(out) :: v_dk_f(n-1)
+  double precision, allocatable :: delta_pk(:,:)
+  double precision, allocatable :: work(:)
+  integer :: i
+  integer :: info, lwork
+  integer, allocatable :: ipiv(:)
+
+  double precision :: dk_f ! function to compute the k-th derivative
+
+!  n_r = MIN((ref-1)*2+1,(n-ref-1)*2+1) ! number of points that can be used for the num diff
+!  print*,'Nb points:', n
+!  print*,'Ref:', ref
+!  print*,'Reduced nb:', n_r
+!
+!  s = ref - n_r/2 ! starting point for tmp_x and tmp_f_x
+
+  lwork = 64 *n
+
+  allocate(delta_pk(n,n),ipiv(n),work(lwork))
+
+  call f_delta_pk(n,x,delta_pk)
+
+  ! Matrix inversion with LU decomposition
+  call dgetrf(n,n,delta_pk,size(delta_pk,1),ipiv,info)
+  call dgetri(n,delta_pk,size(delta_pk,1),ipiv,work,lwork,info)
+  print*,'info',info
+
+  ! all the k-1 derivatives
+  do i = 1, n - 1
+    v_dk_f(i) =  dk_f(i,n,f_x,delta_pk)
+  enddo
+
+  deallocate(delta_pk,ipiv,work)
+  
+end
+
+subroutine product_grid(n,x_0,dx,grid)
+
+  implicit none
+
+  integer, intent(in) :: n
+  double precision, intent(in) :: dx, x_0
+
+  double precision, intent(out) :: grid(n)
+  integer :: i
+
+  ! uniform grid over [x_0-(n/2)dx, x_0+(n/2)dx]
+  do i = 1, n
+    grid(i) = x_0 + dx*DBLE(i-n/2-1)
+  enddo
+
+end
+
+subroutine f_delta_pk(n,x,delta_pk)
+
+  implicit none
+
+  integer, intent(in) :: n
+  double precision, intent(in) :: x(n) ! the points for the numerical diff
+  double precision, intent(out) :: delta_pk(n,n)
+  integer :: ref, i ,j
+  double precision, allocatable :: dx(:)
+  integer :: factorial
+
+  ref = n / 2 + 1
+
+  allocate(dx(n))
+ 
+  ! difference between the point and the point for the diff
+  do i = 1, n
+    dx(i) = x(i) - x(ref)
+  enddo
+
+  ! k starts at 0, k = j-1
+  do j = 1, n
+    do i = 1, n
+      delta_pk(i,j) = dx(i)**(j-1)/DBLE(factorial(j-1))
+    enddo
+  enddo
+
+  deallocate(dx)
+
+end
+
+function dk_f(k,n,f_x,inv_delta_pk)
+
+  implicit none
+
+  integer, intent(in) :: k ! k-th derivative
+  integer, intent(in) :: n ! number of points used
+  double precision, intent(in) :: f_x(n) ! value of the function for different points
+  double precision, intent(in) :: inv_delta_pk(n,n) ! inverse of delta_pk
+  double precision :: dk_f
+
+  integer :: i
+
+  dk_f = 0d0
+  
+  do i = 1, n
+    dk_f = dk_f + inv_delta_pk(k+1,i) * f_x(i)
+  enddo
+
+end function
+
+function factorial(k)
+
+  implicit none
+
+  integer, intent(in) :: k
+  integer :: factorial, i
+
+  factorial = 1
+
+  if (k>0) then
+    do i = 1, k
+     factorial = i * factorial
+    enddo
+  endif
+  
+end
+
+#+END_SRC

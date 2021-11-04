@@ -49,6 +49,10 @@ program debug_hessian
     call first_hess(n,H,h_f)
     call hess(n,H2,h_f2)
 
+    do i = 1, n
+      print*,i,H(i,i)
+    enddo
+
     h_f = h_f - h_f2
     H = H - H2
     max_error = 0d0
@@ -99,6 +103,10 @@ program debug_hessian
     call first_diag_hess(n,H,h_f)
     call diag_hess(n,H2,h_f2)
     
+    do i = 1, n
+     print*,i,H(i,i)
+    enddo
+
     h_f = h_f - h_f2
     max_error = 0d0
     nb_error = 0

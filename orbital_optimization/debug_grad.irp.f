@@ -39,7 +39,11 @@ program debug_grad
   ! Gradient  
   call first_gradient(n,v_grad,max_elem)
   call gradient(n,v_grad2,max_elem)
-  
+ 
+  do i = 1, n
+   print*,i,v_grad(i)
+  enddo
+ 
   v_grad = v_grad - v_grad2
   nb_error = 0
   max_error = 0d0 

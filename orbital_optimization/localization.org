@@ -437,11 +437,13 @@ an improvement but it will scale in N^4...
 By using the trust region the bottleneck is the diagonalization of the
 hessian. 
 
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 org :tangle localization.irp.f
 program localization
  call run_localization
 end
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
 subroutine run_localization
 
   include 'constants.h'
@@ -790,12 +792,12 @@ In order to give a little kick in the system
   !print*,'HF', HF_energy
   call compute_spatial_extent(spatial_extent)
 
-end program  
+end   
 #+END_SRC
 
 ** Rassemblement bourrin
 
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   
   include 'constants.h'
@@ -875,7 +877,7 @@ end
 
 ** Foster-Boys
 
-#+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   
   implicit none
@@ -1198,7 +1200,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
 end subroutine
 #+END_SRC
 ** Pipek-Mezey
-#+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
 
   implicit none
@@ -1619,7 +1621,7 @@ end
 #+END_SRC
 
 ** Criterion
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_crit_pipek(criterion)
 
   implicit none
@@ -1721,7 +1723,7 @@ subroutine criterion_FB(criterion)
 end subroutine
 #+END_SRC
 ** Spatial extent
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_spatial_extent(spatial_extent)
 
   implicit none
@@ -1859,7 +1861,7 @@ subroutine compute_std_var_sp_ext(spatial_extent, list, list_size, average, std_
 end
 #+END_SRC
 ** Pairwise
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_theta(m_theta)
 
   implicit none
@@ -2003,7 +2005,7 @@ end subroutine
 #+END_SRC
 ** Utils
 
-#+BEGIN_SRC  f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)
 
   implicit none
@@ -2064,7 +2066,7 @@ subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp
 end subroutine
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine ao_to_mo_no_sym(A_ao,LDA_ao,A_mo,LDA_mo)
   implicit none
   BEGIN_DOC

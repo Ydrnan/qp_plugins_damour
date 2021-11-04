@@ -23,38 +23,42 @@ program num_diff
 
   open(10, file="derivatives.dat")
 
-do index = 1, mo_num*(mo_num-1)/2
-!  do s = 3, 6
-!  dx = 10d0**(-s)
-
-  call product_grid(n,x_0,dx,x)
-
-  do i = 1, n
-    ! f_x(i) = ### call la fonction
-    !call test_e_ci_rot_mo(x(i),index,energy)
-    call test_loc_rot_mo(x(i),index,energy)
-    f_x(i) = energy
-  enddo
-
-  call compute_diff(n,x,f_x,v_dk_f)
-
-  do i = 1, 1!3 !n-1
-    write(10,*) index, v_dk_f(i), v_dk_f(i+1)
-  enddo
-
-  !do i = 1, n
-    !write(*,*) x(i), f_x(i), f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2
-    !write(*,*) f_x(i) / (f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2)
+  do index = 1, mo_num*(mo_num-1)/2
+  !  do s = 3, 6
+  !  dx = 10d0**(-s)
+  
+    call product_grid(n,x_0,dx,x)
+  
+    do i = 1, n
+      ! f_x(i) = ### call la fonction
+      !call test_e_ci_rot_mo(x(i),index,energy)
+      call test_loc_rot_mo(x(i),index,energy)
+      f_x(i) = energy
+    enddo
+  
+    call compute_diff(n,x,f_x,v_dk_f)
+  
+    do i = 1, 1!3 !n-1
+      write(10,*) index, v_dk_f(i), v_dk_f(i+1)
+    enddo
+  
+    !do i = 1, n
+      !write(*,*) x(i), f_x(i), f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2
+      !write(*,*) f_x(i) / (f_x(n/2+1) + v_dk_f(1)*(x(i)-x_0) + 0.5d0 * v_dk_f(2)*(x(i)-x_0)**2)
+    !enddo
+   
   !enddo
- 
-enddo
-!enddo
+  enddo
+
   close(10)
+
   deallocate(x,f_x,v_dk_f)
 
 end
 
 subroutine test_loc_rot_mo(x,index,energy)
+
+  include 'constants.h'
 
   implicit none
 
@@ -80,20 +84,27 @@ subroutine test_loc_rot_mo(x,index,energy)
   call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
   call org_apply_mo_rotation(R, prev_mos)
 
-! Update the dipoles
-call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-call criterion_FB(energy)
-print*,'crit',energy
+  ! Update the dipoles
+  call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+  call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+  call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
+ 
+  if (method_loc == 1) then
+    call criterion_FB(energy)
+  else
+    call criterion_PM(energy)
+  endif
 
+  print*,'Crit',energy
+
+  ! Cancel the rotation
   mo_coef = prev_mos  
   call save_mos
 
   ! Update the dipoles
-call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
-call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
-call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)  
+  call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
+  call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
+  call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)  
 
   deallocate(v_x,m_x,R,prev_mos)
 

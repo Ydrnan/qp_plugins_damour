@@ -123,8 +123,8 @@ subroutine org_run_orb_opt_trust
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
   !Display the method
-  print*, 'Method :', method
-  if (method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
+  print*, 'Method :', optimization_method
+  if (optimization_method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
     print*, 'Full hessian'
   else 
     print*,'Diagonal hessian'
@@ -237,7 +237,7 @@ subroutine org_run_orb_opt_trust
      call org_gradient(n,v_grad,max_elem)
 
      ! Hessian
-     if (method == 1) then
+     if (optimization_method == 1) then
         call org_hess(n,H,h_f) !h_f -> debug
      else
         call org_diag_hess(n,H,h_f) !h_f -> debug
@@ -327,7 +327,10 @@ subroutine org_run_orb_opt_trust
 
      nb_iter = nb_iter + 1
 
-     if (nb_iter >= 20 .or. nb_diag >= 50 .or. ABS(max_elem) <= 1d-5 .or. delta <= 1d-6 ) then
+     if (nb_iter >= optimization_max_nb_iter &
+         .or. nb_diag >= 50 &
+         .or. ABS(max_elem) <= thresh_opt_max_elem_grad &
+         .or. delta <= 1d-6 ) then
         converged = .True.
      endif
 

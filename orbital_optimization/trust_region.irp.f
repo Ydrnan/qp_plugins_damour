@@ -193,7 +193,7 @@ subroutine trust_region(n,nb_iter,H,v_grad,rho,e_val,w,x,m_x,delta)
     write(*,'(100(F10.5))') x(:)
 
     ! Verification
-    call matrix_inversion(method,n,H,Hm1)
+    call matrix_inversion(optimization_method,n,H,Hm1)
 
     print*,''
     call dgemv('T',n,n,1d0,Hm1,size(Hm1,1),v_grad,1,0d0,Hm1g,1)

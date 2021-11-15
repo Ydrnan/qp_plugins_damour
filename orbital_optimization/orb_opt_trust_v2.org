@@ -126,8 +126,8 @@ subroutine org_run_orb_opt_trust_v2
 
    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
   !Display the method
-  print*, 'Method :', method
-  if (method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
+  print*, 'Method :', optimization_method
+  if (optimization_method == 1) then ! 1 -> Full hessian, 2 -> Diagonal hessian
     print*, 'Full hessian'
   else 
     print*,'Diagonal hessian'
@@ -207,7 +207,7 @@ subroutine org_run_orb_opt_trust_v2
     
     ! Hessian
     call org_hess_list(tmp_n,m,tmp_list,H,h_f)
-    !if (method == 1) then
+    !if (optimization_method == 1) then
     !   call first_hess_list(tmp_n,m,tmp_list,H,h_f)
     !else
     !   call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
@@ -307,10 +307,10 @@ subroutine org_run_orb_opt_trust_v2
     !if (###Conditions###) then
     ! no_converged = .False.
     !endif
-    if (DABS(max_elem_grad) < 1d-6) then
+    if (DABS(max_elem_grad) < thresh_opt_max_elem_grad) then
       not_converged = .False.
     endif
-    if (nb_iter > nb_iter_orb_opt) then
+    if (nb_iter > optimization_max_nb_iter) then
       not_converged = .False. 
     endif
     if (.not. not_converged) then

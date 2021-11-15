@@ -1,8 +1,6 @@
 #+BEGIN_SRC f90 :comments org :tangle debug_hessian_loc.irp.f
 program debug_hessian_loc
  
-  include 'constants.h'
-
   implicit none
 
   integer :: list_size, n
@@ -20,7 +18,7 @@ program debug_hessian_loc
   
   allocate(H(n,n),H2(n,n))
 
-  if (method_loc == 1) then
+  if (localization_method == 1) then
     print*,'Foster-Boys'
     call hessian_FB(n,list_size,list,H)
     call hessian_FB_omp(n,list_size,list,H2)

@@ -190,11 +190,11 @@ C_1(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\
 
 The derivatives are:
 \begin{align*}
-\frac{\partial C_1(\theta)}{\partial \theta} = \beta \sin(4\theta) + \gamma \sin(4 \theta)
+\frac{\partial C_1(\theta)}{\partial \theta} = \beta \sin(4\theta) + \gamma \cos(4 \theta)
 \end{align*}
 
 \begin{align*}
-\frac{\partial^2 C_1(\theta)}{\partial \theta^2} = 4 \beta \cos(4\theta) - 4 \gamma \cos(4 \theta)
+\frac{\partial^2 C_1(\theta)}{\partial \theta^2} = 4 \beta \cos(4\theta) - 4 \gamma \sin(4 \theta)
 \end{align*}
 
 Similarly:
@@ -682,7 +682,7 @@ In order to give a little kick in the system
       call gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
       ! Diagonal hessian
       call hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
-
+      
       ! Diagonalization
       !call org_diagonalization_hessian(tmp_n,H,e_val,w)
       do i = 1, tmp_n
@@ -1657,7 +1657,7 @@ subroutine compute_crit_pipek(criterion)
 
   enddo
   
-  criterion = - criterion
+  criterion = - criterion * 0.5d0
 
   deallocate(tmp_int)
 
@@ -1701,7 +1701,7 @@ subroutine criterion_PM(criterion)
 
   enddo
   
-  criterion = - criterion
+  criterion = - criterion 
 
   deallocate(tmp_int)
 

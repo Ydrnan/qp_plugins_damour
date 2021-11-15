@@ -87,7 +87,7 @@ subroutine test_loc_rot_mo_double(x,index,energy)
   call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
   call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
  
-  if (method_loc == 1) then
+  if (localization_method == 1) then
     call criterion_FB(energy)
   else
     call criterion_PM(energy)
@@ -141,7 +141,7 @@ subroutine test_loc_rot_mo(x,index,energy)
   call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
   call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
  
-  if (method_loc == 1) then
+  if (localization_method == 1) then
     call criterion_FB(energy)
   else
     call criterion_PM(energy)

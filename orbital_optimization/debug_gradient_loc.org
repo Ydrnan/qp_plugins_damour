@@ -18,14 +18,17 @@ program debug_gradient_loc
   
   allocate(v_grad(n),v_grad2(n))
 
-  if (localization_method == 1) then
+  if (localization_method == 'boys') then
     print*,'Foster-Boys'
     call gradient_FB(n,list_size,list,v_grad,max_elem,norm)
     call gradient_FB_omp(n,list_size,list,v_grad2,max_elem,norm)
-  else
+  elseif (localization_method == 'pipek') then
     print*,'Pipek-Mezey'
     call gradient_PM(n,list_size,list,v_grad,max_elem,norm)
     call gradient_PM(n,list_size,list,v_grad2,max_elem,norm) 
+  else
+    print*,'Unknown localization_method, please select boys or pipek'
+    call abort
   endif
  
   do i = 1, n

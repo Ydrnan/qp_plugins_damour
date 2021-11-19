@@ -18,14 +18,17 @@ program debug_hessian_loc
   
   allocate(H(n,n),H2(n,n))
 
-  if (localization_method == 1) then
+  if (localization_method == 'boys') then
     print*,'Foster-Boys'
     call hessian_FB(n,list_size,list,H)
     call hessian_FB_omp(n,list_size,list,H2)
-  else
+  elseif(localization_method == 'pipek') then
     print*,'Pipek-Mezey'
     call hessian_PM(n,list_size,list,H)
     call hessian_PM(n,list_size,list,H2)
+  else
+    print*,'Unknown localization_method, please select boys or pipek'
+    call abort
   endif
  
   do i = 1, n

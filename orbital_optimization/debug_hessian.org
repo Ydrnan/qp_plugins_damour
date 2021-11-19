@@ -31,16 +31,12 @@ program org_debug_hessian
   ! Variables
 
   double precision, allocatable :: H(:,:),H2(:,:), h_f(:,:,:,:), h_f2(:,:,:,:)
-  integer                       :: method
   integer                       :: n
   integer                       :: i,j,k,l
   double precision              :: max_error, max_error_H
   integer                       :: nb_error, nb_error_H
   double precision              :: threshold
   
-  ! Choice of the method 
-  method = 2 ! 1 -> full hessian, 2 -> diagonal hessian
- 
   ! Definition of n  
   n = mo_num*(mo_num-1)/2
 
@@ -53,7 +49,7 @@ program org_debug_hessian
   ! Calculation
   
   ! Hessian 
-  if (method == 1) then 
+  if (optimization_method == 'full') then 
 
     print*,'Use the full hessian matrix'
     call first_hess(n,H,h_f)
@@ -99,7 +95,7 @@ program org_debug_hessian
      enddo
    enddo 
 
-  else
+  elseif (optimization_method == 'diag') then
 
     print*, 'Use the diagonal hessian matrix'
     call first_diag_hess(n,H,h_f)
@@ -149,11 +145,14 @@ program org_debug_hessian
         endif
       enddo
     enddo
-   
+  
+  else
+    print*,'Unknown optimization_method, please select full, diag'
+    call abort
   endif
   
   print*,''
-  if (method == 1) then
+  if (optimization_method == 'full') then
     print*,'Check the full hessian'
   else
     print*,'Check the diagonal hessian'

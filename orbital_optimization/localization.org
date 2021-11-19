@@ -479,10 +479,38 @@ subroutine run_localization
   ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
 
+  print*,'Localization method:',localization_method
+  if (localization_method == 'boys') then
+    print*,'Foster-Boys localization'
+  elseif (localization_method == 'pipek') then
+    print*,'Pipek-Mezey localization'
+  else
+    print*,'Unknown localization_method, please select boys or pipek'
+    call abort
+  endif
+
   call criterion_localization(criterion)
   !print*,'HF', HF_energy
   print*,'Criterion:', criterion
 
+  print*, 'Default mo_class:', default_mo_class
+
+  if (default_mo_class) then
+    print*, 'Auto setting of the mo_class core/active/virtual...'
+    if (n_core_orb > 0) then
+      do i = 1, n_core_orb
+        mo_class(i) = 'Core'
+      enddo
+    endif
+    do i = MAX(1,n_core_orb), MAX(elec_alpha_num,elec_beta_num)
+      mo_class(i) = 'Active' 
+    enddo 
+    do i = MAX(elec_alpha_num,elec_beta_num), mo_num
+      mo_class(i) = 'Virtual'
+    enddo
+    ! To update the mo_class
+    TOUCH mo_class
+  endif
 #+END_SRC
 
 ** Pre rotation
@@ -656,7 +684,7 @@ In order to give a little kick in the system
     allocate(tmp_x(tmp_n),W(tmp_n,tmp_n),e_val(tmp_n),key(tmp_n))
 
     !!!!!Test
-    !### TODOD, Initialization ###
+    !### TODO, Initialization ###
     delta = 0d0
     nb_iter = 0 ! Must start at 0 !!!
     rho = 0.5d0
@@ -808,10 +836,10 @@ subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_ele
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
   double precision, intent(out) :: v_grad(tmp_n), max_elem, norm_grad
 
-  if (localization_method == 1) then ! Foster_boys
+  if (localization_method == 'boys') then
     call gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
     call gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
-  elseif (localization_method == 2) then ! Pipek-Mezey
+  elseif (localization_method== 'pipek') then
     call gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   else
     v_grad = 0d0
@@ -830,10 +858,10 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
   integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
   double precision, intent(out) :: H(tmp_n, tmp_n)
 
-  if (localization_method == 1) then ! Foster_boys
+  if (localization_method == 'boys') then
     call hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
     call hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
-  elseif (localization_method == 2) then ! Pipek-Mezey
+  elseif (localization_method == 'pipek') then
     call hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   else
     H = 0d0
@@ -849,9 +877,9 @@ subroutine criterion_localization(criterion)
 
   double precision, intent(out) :: criterion
 
-  if (localization_method == 1) then ! Foster_boys
+  if (localization_method == 'boys') then
     call criterion_FB(criterion)
-  elseif (localization_method == 2) then ! Pipek-Mezey
+  elseif (localization_method == 'pipek') then
     call criterion_PM(criterion)
   else
     criterion = 0d0
@@ -865,12 +893,12 @@ subroutine update_data_localization()
 
   implicit none
 
-  if (localization_method == 1) then ! Foster_boys
+  if (localization_method == 'boys') then
     ! Update the dipoles
     call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
     call ao_to_mo_no_sym(ao_dipole_y, ao_num, mo_dipole_y, mo_num)
     call ao_to_mo_no_sym(ao_dipole_z, ao_num, mo_dipole_z, mo_num)
-  elseif (localization_method == 2) then ! Pipek-Mezey
+  elseif (localization_method == 'pipek') then
   else
   endif
 end
@@ -1657,7 +1685,7 @@ subroutine compute_crit_pipek(criterion)
 
   enddo
   
-  criterion = - criterion * 0.5d0
+  criterion = - criterion 
 
   deallocate(tmp_int)
 
@@ -1863,7 +1891,9 @@ end
 #+END_SRC
 ** Pairwise
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
-subroutine compute_theta(m_theta)
+subroutine compute_theta_FB(m_theta)
+
+  include 'constants.h'
 
   implicit none
   
@@ -1871,9 +1901,6 @@ subroutine compute_theta(m_theta)
   double precision, intent(out) :: m_theta(mo_num, mo_num)
 
   double precision, allocatable :: A12(:,:), B12(:,:)
-  double precision :: pi
-
-  pi = 3.1415926535897932
 
   allocate(A12(mo_num, mo_num), B12(mo_num, mo_num))
   
@@ -1921,6 +1948,77 @@ subroutine compute_theta(m_theta)
   deallocate(A12,B12)
 
 end subroutine
+
+subroutine compute_theta_PM(list_size,list,m_theta)
+
+  implicit none
+
+  integer, intent(in) :: list_size, list(list_size)
+  double precision, intent(out) :: m_theta(mo_num,mo_num) 
+  integer :: i,j, a, b, rho, mu,tmp_i,tmp_j
+  double precision, allocatable :: A12(:,:), B12(:,:), tmp_int(:,:)
+  double precision :: atan2
+
+  allocate(A12(mo_num,mo_num),B12(mo_num,mo_num), tmp_int(mo_num,mo_num))
+  A12 = 0d0
+  B12 = 0d0
+  do a = 1, nucl_num ! loop over the nuclei
+    tmp_int = 0d0
+
+    do tmp_j = 1, list_size
+      j = list(tmp_j)
+      do tmp_i = 1, list_size
+        i = list(tmp_i)
+        do rho = 1, ao_num ! loop over all the AOs
+          do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
+            mu = nucl_aos(a,b)
+
+            tmp_int(i,j) = tmp_int(i,j) + 0.5d0 * (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
+                                   + mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
+
+          enddo
+        enddo  
+      enddo
+    enddo
+
+   do j = 1, mo_num
+      do i = 1, mo_num
+
+        A12(i,j) = A12(i,j) + tmp_int(i,j)**2 - 0.25d0 *(tmp_int(i,i) - tmp_int(j,j))**2
+
+      enddo
+    enddo
+
+    do j = 1, mo_num
+      do i = 1, mo_num
+
+        B12(i,j) = B12(i,j) + tmp_int(i,j) * (tmp_int(i,i) - tmp_int(j,j))
+
+      enddo
+    enddo
+
+  enddo
+
+  ! m_theta
+  do tmp_j = 1, list_size
+    j = list(tmp_j)
+    do tmp_i = 1, list_size
+      i = list(tmp_i)
+      if (i == j) then
+        m_theta(i,j) = 0d0 
+      else
+        m_theta(i,j) = 0.25d0 * atan2(B12(i,j), -A12(i,j))
+      endif
+    enddo
+  enddo
+
+  do i = 1, mo_num
+    write(*,'(10E12.5)') m_theta(i,:)
+  enddo
+
+  deallocate(A12,B12)
+  
+end
 
 subroutine research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
 

@@ -153,9 +153,10 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
   do j = 1, n
     do i = 1, n
-      if (A(i,j) /= -A(j,i)) then
+      if (A(i,j)+A(j,i)>1d-16) then
         print*, 'WANRING: matrix A is not antisymmetric'
         print*, 'A(i,j) /= - A(j,i):', i,j,A(i,j), A(j,i)
+        print*, 'diff:', A(i,j)+A(j,i)
         call ABORT 
       endif
     enddo

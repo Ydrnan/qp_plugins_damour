@@ -437,6 +437,8 @@ an improvement but it will scale in N^4...
 By using the trust region the bottleneck is the diagonalization of the
 hessian. 
 
+** Program
+
 #+BEGIN_SRC f90 org :tangle localization.irp.f
 program localization
  call run_localization
@@ -479,6 +481,7 @@ subroutine run_localization
   ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
 
+  ! Choice of the method (with qp_edit)
   print*,'Localization method:',localization_method
   if (localization_method == 'boys') then
     print*,'Foster-Boys localization'
@@ -489,13 +492,19 @@ subroutine run_localization
     call abort
   endif
 
+  ! Localization criterion (FB, PM, ...)
   call criterion_localization(criterion)
-  !print*,'HF', HF_energy
   print*,'Criterion:', criterion
+
+  ! Debug
+  !print*,'HF', HF_energy
 
   print*, 'Default mo_class:', default_mo_class
 
-  if (default_mo_class) then
+  ! The default mo_classes are setted only if the MOs to localize are not specified
+  if (default_mo_class .and. dim_list_inact_orb < 2 &
+     .and. dim_list_virt_orb < 2 .and. dim_list_del_orb < 2)) then
+
     print*, 'Auto setting of the mo_class core/active/virtual...'
     if (n_core_orb > 0) then
       do i = 1, n_core_orb
@@ -508,6 +517,7 @@ subroutine run_localization
     do i = MAX(elec_alpha_num,elec_beta_num), mo_num
       mo_class(i) = 'Virtual'
     enddo
+
     ! To update the mo_class
     TOUCH mo_class
   endif
@@ -516,7 +526,7 @@ subroutine run_localization
 ** Pre rotation
 In order to give a little kick in the system
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
-  ! Initialization
+  ! Initialization of the matrix
   pre_rot = 0d0
 
   if (kick_in_mos) then
@@ -590,22 +600,26 @@ In order to give a little kick in the system
   
     ! Nothing for deleted ones
   
-    ! Compute pre rotation matrix
+    ! Compute pre rotation matrix from pre_rot
     call org_rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
   
-    ! New Mos
+    ! New Mos (we don't car eabout the previous MOs prev_mos)
     call org_apply_mo_rotation(R,prev_mos)
   
+    ! Update the things related to mo_coef
     TOUCH mo_coef
   endif
 #+END_SRC
 
 ** Loc
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+  ! Criterion after the pre rotation
   call criterion_localization(criterion)
   print*,'### After pre rotation :'
-!  print*,'HF', HF_energy
   print*,'Criterion:', criterion
+
+  ! Debug
+  !print*,'HF', HF_energy
 
   print*,''
   print*,'========================'
@@ -670,7 +684,7 @@ In order to give a little kick in the system
     endif
 
     if (not_converged) then
-      ! print mo_class
+      ! Display mo_class
       print*,''
       print*,'###', mo_class(tmp_list(1)), 'MOs ###'
       print*,''
@@ -683,17 +697,17 @@ In order to give a little kick in the system
     allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size), tmp_R(tmp_list_size, tmp_list_size))
     allocate(tmp_x(tmp_n),W(tmp_n,tmp_n),e_val(tmp_n),key(tmp_n))
 
-    !!!!!Test
-    !### TODO, Initialization ###
-    delta = 0d0
+    ! ### Initialization ###
+    delta = 0d0 ! can be deleted (normally)
     nb_iter = 0 ! Must start at 0 !!!
-    rho = 0.5d0
+    rho = 0.5d0 ! Must be 0.5
 
     ! ### TODO ###
     ! Compute the criterion before the loop
     !call compute_criterion(prev_criterion) 
     call criterion_localization(prev_criterion)
 
+    ! Loop until the convergence
     do while (not_converged)
       ! ### TODO ## 
       ! Call your gradient
@@ -706,23 +720,26 @@ In order to give a little kick in the system
       print*,'***********************'
       print*,''
   
-      !call gradient_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
+      ! Gradient
       call gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
       ! Diagonal hessian
       call hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
       
-      ! Diagonalization
+      ! Diagonalization of the diagonal hessian by hands
       !call org_diagonalization_hessian(tmp_n,H,e_val,w)
       do i = 1, tmp_n
         e_val(i) = H(i,i)
       enddo
 
+      ! Key list for dsort
       do i = 1, tmp_n 
         key(i) = i
       enddo
 
+      ! Sort of the eigenvalues
       call dsort(e_val, key, tmp_n)
 
+      ! Eigenvectors
       W = 0d0
       do i = 1, tmp_n
         j = key(i)
@@ -730,8 +747,10 @@ In order to give a little kick in the system
       enddo
 
       cancel_step = .True. ! To enter in the loop just after 
-      ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+
+      ! Loop to reduce the trust radius until the criterion decreases and rho >= thresh_rho
       do while (cancel_step)
+
         ! Hessian,gradient,Criterion -> x 
         call step_in_trust_region(tmp_n,tmp_list_size,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
         if (must_exit) then
@@ -740,16 +759,18 @@ In order to give a little kick in the system
           print*,'step_in_trust_region sends the message : Exit'
           exit 
         endif
+
         !### TODO ###  
-        ! Compute x -> m_x
-        ! Compute m_x -> R
-        ! Apply R and keep the previous MOs...
+        ! Compute x -> m_x (1D -> 2D)
+        ! Compute m_x -> R (R = exp(m_x))
+        ! Apply R and keep the previous MOs... (new_mo_coef = mo_coef . R)
         ! Update/touch 
         ! Compute the new criterion/energy -> criterion
 
         ! 1D tmp -> 2D tmp 
         call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
 
+        ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
         call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
         ! tmp_R to R, subspace to full space
         R = 0d0
@@ -763,13 +784,14 @@ In order to give a little kick in the system
             R(i,j) = tmp_R(tmp_i,tmp_j)
           enddo
         enddo
+
         ! Rotation of the MOs
         call org_apply_mo_rotation(R, prev_mos)   
 
+        ! Update the things related to mo_coef
         call update_data_localization()
 
         ! Update the criterion
-        !call compute_criterion(criterion)
         call criterion_localization(criterion)
         print*,'Criterion:', nb_iter, criterion
 
@@ -780,17 +802,21 @@ In order to give a little kick in the system
         ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
         !endif
 
+        ! Previous MOs
         if (cancel_step) then
           mo_coef = prev_mos
         endif
       enddo
       !call save_mos() !### depend of the time for 1 iteration
+
       ! To exit the external loop if must_exti = .True.
       if (must_exit) then
         exit
       endif 
+
       ! Step accepted, nb iteration + 1
       nb_iter = nb_iter + 1
+
       ! ### TODO ###
       !if (###Conditions###) then
       ! no_converged = .False.
@@ -806,19 +832,25 @@ In order to give a little kick in the system
     ! Deallocation of temporary arrays
     deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x,W,e_val,key)
     
+    ! Save the MOs
     call save_mos()
     TOUCH mo_coef 
+    ! Debug
     !print*,'HF', HF_energy
     
   enddo
 
   TOUCH mo_coef 
 
+  ! To sort the MOs using the diagonal elements of the Fock matrix
   if (sort_mos_by_e) then
     call run_sort_by_fock_energies()
   endif
 
+  ! Debug
   !print*,'HF', HF_energy
+
+  ! Locality after the localization
   call compute_spatial_extent(spatial_extent)
 
 end   
@@ -838,7 +870,7 @@ subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_ele
 
   if (localization_method == 'boys') then
     call gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
-    call gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
+    !call gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   elseif (localization_method== 'pipek') then
     call gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   else
@@ -860,7 +892,7 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
 
   if (localization_method == 'boys') then
     call hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
-    call hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
+    !call hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   elseif (localization_method == 'pipek') then
     call hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   else
@@ -950,7 +982,8 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
       max_elem = ABS(v_grad(tmp_k))
     endif
   enddo 
-
+ 
+  ! Norm of the gradient
   norm_grad = 0d0
   do tmp_k = 1, tmp_n
     norm_grad = norm_grad + v_grad(tmp_k)**2
@@ -1035,6 +1068,7 @@ subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, nor
     endif
   enddo 
 
+  ! Norm of the gradient
   norm_grad = 0d0
   do tmp_k = 1, tmp_n
     norm_grad = norm_grad + v_grad(tmp_k)**2
@@ -1088,12 +1122,14 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
     enddo
   enddo
 
+  ! Diagonal of the hessian
   H = 0d0
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
     H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   
+  ! Min elem
   max_elem = 0d0
   do tmp_k = 1, tmp_n
     if (H(tmp_k,tmp_k) < max_elem) then
@@ -1102,6 +1138,7 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   print*, 'Min elem H:', max_elem
 
+  ! Max elem
   max_elem = 0d0
   do tmp_k = 1, tmp_n
     if (H(tmp_k,tmp_k) > max_elem) then
@@ -1110,6 +1147,7 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   print*, 'Max elem H:', max_elem
   
+  ! Near 0
   max_elem = 1d10
   do tmp_k = 1, tmp_n
     if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
@@ -1172,6 +1210,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   !$OMP END DO
 
+  ! Initialization
   !$OMP DO
   do j = 1, tmp_n
     do i = 1, tmp_n
@@ -1180,6 +1219,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   !$OMP END DO
   
+  ! Diagonalm of the hessian
   !$OMP DO
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
@@ -1191,6 +1231,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
 
   call omp_set_max_active_levels(4)
 
+  ! Min elem
   max_elem = 0d0
   do tmp_k = 1, tmp_n
     if (H(tmp_k,tmp_k) < max_elem) then
@@ -1199,6 +1240,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   print*, 'Min elem H:', max_elem
 
+  ! Max elem
   max_elem = 0d0
   do tmp_k = 1, tmp_n
     if (H(tmp_k,tmp_k) > max_elem) then
@@ -1207,6 +1249,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   enddo
   print*, 'Max elem H:', max_elem
   
+  ! Near 0
   max_elem = 1d10
   do tmp_k = 1, tmp_n
     if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
@@ -1241,14 +1284,16 @@ subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gra
 
   ! Allocation
   allocate(m_grad(tmp_list_size, tmp_list_size), tmp_int(tmp_list_size, tmp_list_size))
- 
+
+  ! Initialization 
   m_grad = 0d0
 
   do a = 1, nucl_num ! loop over the nuclei
-    tmp_int = 0d0
+    tmp_int = 0d0 ! Initialization for each nuclei
 
+    ! Loop over the MOs of the a given mo_class to compute <i|Q_a|j>
     do tmp_j = 1, tmp_list_size
-      j = tmp_list(tmp_j)
+      j = tmp_list(tmp_j) 
       do tmp_i = 1, tmp_list_size
         i = tmp_list(tmp_i)
         do rho = 1, ao_num ! loop over all the AOs
@@ -1263,6 +1308,7 @@ subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gra
       enddo
     enddo
 
+    ! Gradient
     do tmp_j = 1, tmp_list_size
       do tmp_i = 1, tmp_list_size
 
@@ -1286,7 +1332,8 @@ subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gra
       max_elem = ABS(v_grad(tmp_k))
     endif
   enddo 
-
+  
+  ! Norm of the gradient
   norm_grad = 0d0
   do tmp_k = 1, tmp_n
     norm_grad = norm_grad + v_grad(tmp_k)**2
@@ -1321,6 +1368,8 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   allocate(m_grad(tmp_list_size, tmp_list_size), tmp_int(tmp_list_size, tmp_list_size),tmp_accu(tmp_list_size, tmp_list_size))
   allocate(CS(tmp_list_size,ao_num),tmp_mo_coef(ao_num,tmp_list_size))
 
+
+  ! submatrix of the mo_coef
   do tmp_i = 1, tmp_list_size
     i = tmp_list(tmp_i)
     do j = 1, ao_num
@@ -1361,7 +1410,6 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
 
       enddo
     enddo
-
     
     do b = 1, nucl_n_aos(a)
       mu = nucl_aos(a,b)
@@ -1408,6 +1456,7 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
     endif
   enddo 
 
+  ! Norm of the gradient
   norm_grad = 0d0
   do tmp_k = 1, tmp_n
     norm_grad = norm_grad + v_grad(tmp_k)**2
@@ -1530,6 +1579,8 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   allocate(beta(tmp_list_size,tmp_list_size),tmp_int(tmp_list_size,tmp_list_size),tmp_accu(tmp_list_size,tmp_list_size))
   allocate(CS(tmp_list_size,ao_num),tmp_mo_coef(ao_num,tmp_list_size))
 
+  ! ### TODO ### EXPLICIT YOUR ******* temporaty arrays with formula
+
   beta = 0d0
 
   do tmp_i = 1, tmp_list_size
@@ -1570,7 +1621,6 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
 
       enddo
     enddo
-
     
     do b = 1, nucl_n_aos(a)
       mu = nucl_aos(a,b)
@@ -1891,6 +1941,7 @@ end
 #+END_SRC
 ** Pairwise
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
+! Doesn't work during the last try but was working at one moment, idk
 subroutine compute_theta_FB(m_theta)
 
   include 'constants.h'

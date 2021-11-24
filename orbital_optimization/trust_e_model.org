@@ -9,11 +9,8 @@ order :
 E_{k+1} = E_{k} + \textbf{g}_k^{T} \cdot \textbf{x}_{k+1} + \frac{1}{2} \cdot \textbf{x}_{k+1}^T \cdot \textbf{H}_{k} \cdot \textbf{x}_{k+1} + \mathcal{O}(\textbf{x}_{k+1}^2)
 \end{align*}
 
-Provided:
-| mo_num | integer | number of MOs |
-
 Input:
-| n           | integer          | mo_num*(mo_num-1)/2      |
+| n           | integer          | m*(m-1)/2                |
 | v_grad(n)   | double precision | gradient                 |
 | H(n,n)      | double precision | hessian                  |
 | x(n)        | double precision | Step in the trust region |
@@ -86,25 +83,27 @@ TODO: remove the dot products
   call dgemv('N',n,n,1d0,H,size(H,1),x,1,0d0,part_2a,1)
 
   ! Product 1/2 . x^T.H.x
-  part_2 = 0.5d0 * ddot(n,x,1,part_2a,1)
+  part_2 = 0.5d0 * ddot(n,x,1,part_2a,1
+)
   !if (debug) then
     print*,'1/2*x^T.H.x : ', part_2 
   !endif
+
   print*,'prev_energy', prev_energy
 
-  ! minus sign, there is a sign error somewhere in the program
-  ! Comes from the transposed in the calculation of the new MOs
-  ! It will be fixed soon 
-  e_model = prev_energy + part_1 + part_2!- part_1 - part_2
+  ! Sum
+  e_model = prev_energy + part_1 + part_2
 
   ! Writing the predicted energy
   print*, 'Predicted energy after the rotation : ', e_model
   print*, 'Previous energy - predicted energy:', prev_energy - e_model
   
+  ! Can be deleted, already in another subroutine
   if (DABS(prev_energy - e_model) < 1d-12 ) then 
     print*,'WARNING: ABS(prev_energy - e_model) < 1d-12'
   endif
 
+  ! Deallocation
   deallocate(part_2a)
 
   call wall_time(t2)

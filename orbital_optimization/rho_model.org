@@ -25,10 +25,8 @@ truncated at the second order doesn't represent correctly the energy
 landscape. So it's better to cancel the step and restart with a
 smaller trust region.
 
-Provided:
-| N_states                       | integer          | number of states     |
-| ci_energy(N_states)            | double precision | CI energies          |
-| state_average_weight(N_states) | double precision | weight of the states |
+Provided in qp_edit:
+| thresh_rho |
 
 Input:
 | prev_energy | double precision | previous energy (energy before the rotation) |
@@ -42,6 +40,7 @@ Output:
 Internal:
 | energy | double precision | energy (real) after the rotation |
 | i      | integer          | index                            |
+| t*     | double precision | time                             |
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
 subroutine org_rho_model(prev_energy, energy,e_model,rho)
@@ -52,11 +51,11 @@ subroutine org_rho_model(prev_energy, energy,e_model,rho)
    
   ! Variables
 
-  ! in
+  ! In
   double precision, intent(inout)  :: prev_energy
   double precision, intent(in)  :: e_model, energy
-
-  ! out
+  
+  ! Out
   double precision, intent(out) :: rho
 
   ! Internal
@@ -102,11 +101,12 @@ change!
 If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
 
 #+BEGIN_SRC f90 :comments org :tangle org_rho_model.irp.f
-  if (ABS(prev_energy - e_model) < 1d-12) then
-    print*,'WARNING: prev_energy - e_model < 1d-12'
-    print*,'=> rho will tend toward infinity'
-    print*,'Check you convergence criterion !'
-  endif
+  ! Already done in an other subroutine
+  !if (ABS(prev_energy - e_model) < 1d-12) then
+  !  print*,'WARNING: prev_energy - e_model < 1d-12'
+  !  print*,'=> rho will tend toward infinity'
+  !  print*,'Check you convergence criterion !'
+  !endif
 
   rho = (prev_energy - energy) / (prev_energy - e_model)
 

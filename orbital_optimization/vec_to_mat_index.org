@@ -50,11 +50,6 @@ subroutine vec_to_mat_index(i,p,q)
   integer :: a,b
   double precision :: da
 
-
-  if (debug) then
-    print*,'Enter in vec_to_mat_index'
-  endif
-  
   da = 0.5d0*(1+ sqrt(1d0+8d0*DBLE(i)))
   a = INT(da) 
   if ((a*(a-1))/2==i) then
@@ -68,8 +63,5 @@ subroutine vec_to_mat_index(i,p,q)
   p = p + 1
   q = i - b 
 
-  if (debug) then
-    print*,'Leave vec_to_mat_index'
-  endif
 end subroutine
 #+END_SRC

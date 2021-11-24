@@ -53,18 +53,11 @@ subroutine mat_to_vec_index(p,q,i)
 
   ! Calculation
  
-  if (debug) then
-    print*, 'Enter in mat_to_vec_index'
-  endif
-
   a = p-1
   b = a*(a-1)/2
   
   i = q+b
 
-  if (debug) then
-    print*, 'Leave mat_to_vec_index'
-  endif
 end subroutine
 #+END_SRC
 

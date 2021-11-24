@@ -1,4 +1,4 @@
-* Algorithm of the trust region
+* Algorithm for the trust region
 
 step_in_trust_region:
 Computes the step in the trust region (delta)
@@ -17,7 +17,7 @@ This estimation of the gain in energy is used by
 is_step_cancel_trust_region to say if the step is accepted or cancelled. 
 
 If the step must be cancelled, the calculation restart from the same
-hessian and gradient and recompute the step but in a smaller trust
+hessian and gradient and recomputes the step but in a smaller trust
 region and so on until the step is accepted. If the step is accepted
 the hessian and the gradient are recomputed to produce a new step.
 
@@ -112,13 +112,17 @@ Example:
 Variables:
 
 Input:
-| n               | integer          | m*(m-1)/2                                                                       |
-| m               | integer          | size of the submatrix ...                                                       |
-| H(n,n)          | double precision | Hessian                                                                         |
-| v_grad(n)       | double precision |                                                                                 |
-| prev_criterion  | double precision | Value of the criterion before the first iteration/after the previous iteration  |
-| rho             | double precision | Given by is_step_cancel_trus_region                                             |
-| nb_iter         | integer          | Actual number of iterations                                                     |
+| n              | integer          | m*(m-1)/2                                                                      |
+| m              | integer          | number of mo in the mo_class                                                   |
+| H(n,n)         | double precision | Hessian                                                                        |
+| v_grad(n)      | double precision | Gradient                                                                       |
+| W(n,n)         | double precision | Eigenvectors of the hessian                                                    |
+| e_val(n)       | double precision | Eigenvalues of the hessian                                                     |
+| criterion      | double precision | Actual criterion                                                               |
+| prev_criterion | double precision | Value of the criterion before the first iteration/after the previous iteration |
+| rho            | double precision | Given by is_step_cancel_trus_region                                            |
+|                |                  | Agreement between the real function and the Taylor series (2nd order)          |
+| nb_iter        | integer          | Actual number of iterations                                                    |
 
 Input/output:
 | delta           | double precision | Radius of the trust region                                                      |
@@ -186,7 +190,7 @@ subroutine step_in_trust_region(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,
     must_exit = .True.
   endif
 
-  ! Add after the the call to the subroutine a statement
+  ! Add after the call to this subroutine, a statement:
   ! "if (must_exit) then
   !   exit
   ! endif"
@@ -226,6 +230,7 @@ subroutine is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criter
   logical, intent(out)          :: cancel_step
   double precision, intent(out) :: rho
 
+  ! Computes rho
   call org_rho_model(prev_criterion,criterion,criterion_model,rho)
   
   if (nb_iter == 0) then

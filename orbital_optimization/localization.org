@@ -584,17 +584,23 @@ subroutine run_localization
 
   ! The default mo_classes are setted only if the MOs to localize are not specified
   if (default_mo_class .and. dim_list_inact_orb < 2 &
-     .and. dim_list_virt_orb < 2 .and. dim_list_del_orb < 2)) then
+     .and. dim_list_virt_orb < 2 .and. dim_list_del_orb < 2) then
 
     print*, 'Auto setting of the mo_class core/active/virtual...'
+
+    ! Core MOs
     if (n_core_orb > 0) then
       do i = 1, n_core_orb
         mo_class(i) = 'Core'
       enddo
     endif
+
+    ! Occupied MOs
     do i = MAX(1,n_core_orb), MAX(elec_alpha_num,elec_beta_num)
       mo_class(i) = 'Active' 
     enddo 
+    
+    ! Virtual MOs
     do i = MAX(elec_alpha_num,elec_beta_num), mo_num
       mo_class(i) = 'Virtual'
     enddo

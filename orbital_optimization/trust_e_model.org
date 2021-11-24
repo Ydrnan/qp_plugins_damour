@@ -83,8 +83,8 @@ TODO: remove the dot products
   call dgemv('N',n,n,1d0,H,size(H,1),x,1,0d0,part_2a,1)
 
   ! Product 1/2 . x^T.H.x
-  part_2 = 0.5d0 * ddot(n,x,1,part_2a,1
-)
+  part_2 = 0.5d0 * ddot(n,x,1,part_2a,1)
+
   !if (debug) then
     print*,'1/2*x^T.H.x : ', part_2 
   !endif

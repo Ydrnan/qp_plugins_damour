@@ -64,8 +64,8 @@ with $y^*$ the solution in the trust region.
 The size of the trust region evolves in function of $\rho$ as for the
 trust region seen previously cf. trust_region, rho_model.
 The prediction of the value of $f$ or $\tilde{f}$ is done using the
-Taylor series truncated at the second order cf. trust_region,
-trust_e_model. 
+Taylor series truncated at the second order cf. "trust_region",
+"trust_e_model". 
 
 The first and second derivatives of $f(\lambda) = (||\textbf{x}(\lambda)||^2 -
 \Delta^2)^2$ with respect to $\lambda$ are:
@@ -104,11 +104,13 @@ The first and second derivatives of $\tilde{f}(\lambda) = (1/||\textbf{x}(\lambd
    {(\sum_{i=1}^n \frac{(\textbf{w}_i^T \cdot \textbf{g})^2}{(h_i + \lambda)^2})^2} \right]
 \end{align*}
 
-Provided:
-| thresh_rho_2          |   |   |
-| thresh_cc             |   |   |
-| nb_it_max_lambda      |   |   |
-| version_lambda_search |   |   |
+Provided in qp_edit:
+| thresh_rho_2          |
+| thresh_cc             |
+| nb_it_max_lambda      |
+| version_lambda_search |
+| nb_it_max_pre_search  |
+see qp_edit for more details
 
 Input:
 | n          | integer          | m*(m-1)/2                  |
@@ -193,8 +195,9 @@ subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
 
   call wall_time(t1)
 
-  ! Version
-  ! version_lambda_search ! 1 -> ||x||^2 - delta^2 = 0, 2 -> 1/||x||^2 - 1/delta^2 = 0
+  ! version_lambda_search
+  ! 1 -> ||x||^2 - delta^2 = 0,
+  ! 2 -> 1/||x||^2 - 1/delta^2 = 0 (better)
   if (version_lambda_search == 1) then
     print*, 'Research of the optimal lambda by solving ||x||^2 - delta^2 = 0'
   else
@@ -204,63 +207,71 @@ subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
 #+END_SRC
 
 Resolution with the Newton method:
+
 #+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
   ! Initialization
   epsilon = 1d-4
-  lambda =MAX(0d0, -e_val(1)) !MAX(0d0+epsilon, -e_val(1) + epsilon)
+  lambda =MAX(0d0, -e_val(1))
   
   ! Pre research of lambda to start near the optimal lambda
+  ! by adding a constant epsilon and changing the constant to
+  ! have ||x(lambda + epsilon)|| ~ delta, before setting
+  ! lambda = lambda + epsilon 
   print*, 'Pre research of lambda:'
   print*,'Initial lambda =', lambda
-  f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
+  f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda + epsilon)
   print*,'||x(lambda)||=', dsqrt(f_N),'delta=',delta 
   i = 1
+  
+  ! To increase lambda
   if (f_N > delta**2) then
     print*,'Increasing lambda...'
     do while (f_N > delta**2 .and. i <= nb_it_max_pre_search)
 
+      ! Update the previous norm
       prev_f_N = f_N
-      !lambda = lambda * 2d0
+      ! New epsilon
       epsilon = epsilon * 2d0
-      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
-      print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
+      ! New norm
+      f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda + epsilon)
+
+      print*, 'lambda', lambda + epsilon, '||x||', dsqrt(f_N), 'delta', delta
       
+      ! Security
       if (prev_f_N < f_N) then
         print*,'WARNING, error: prev_f_N < f_N, exit'
-        !lambda = lambda * 0.5d0
         epsilon = epsilon * 0.5d0
         i = nb_it_max_pre_search + 1
       endif
 
       i = i + 1
     enddo
+  
+  ! To reduce lambda
   else
      print*,'Reducing lambda...'
      do while (f_N < delta**2 .and. i <= nb_it_max_pre_search)
 
+       ! Update the previous norm
        prev_f_N = f_N  
-       !lambda = lambda * 0.5d0
+       ! New epsilon
        epsilon = epsilon * 0.5d0
-       f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda+epsilon)
-       print*, 'lambda', lambda+epsilon, '||x||', dsqrt(f_N), 'delta', delta
+       ! New norm
+       f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda + epsilon)
 
+       print*, 'lambda', lambda + epsilon, '||x||', dsqrt(f_N), 'delta', delta
+
+       ! Security
        if (prev_f_N > f_N) then
          print*,'WARNING, error: prev_f_N > f_N, exit'
-         !lambda = lambda * 2d0
          epsilon = epsilon * 2d0
          i = nb_it_max_pre_search + 1
       endif
 
-      ! To ensure that lambda is in > -e_val(1) if e_val(1) < 0
-      !if (lambda < MAX(0d0,-e_val(1))) then
-      !  print*,'WARNING, error: lambda > MAX(0d0,-e_val(1), exit'
-      !  lambda = lambda * 2d0
-      !  i = 21
-      !endif
-
       i = i + 1
     enddo
   endif
+
   print*,'End of the pre research of lambda'
   
   ! New value of lambda
@@ -274,7 +285,7 @@ Resolution with the Newton method:
   ! thresh_rho_2, threshold to cancel the step in the research
   ! of the optimal lambda, the step is cancelled if rho_2 < thresh_rho_2
   print*,'Threshold for the CC:', thresh_cc
-  print*,'Threshold for rho_2:',thresh_rho_2  
+  print*,'Threshold for rho_2:', thresh_rho_2  
 
   print*, 'w_1^T . g =', tmp_wtg(1)
 
@@ -294,6 +305,7 @@ Resolution with the Newton method:
   y = 0d0           ! step size
   prev_lambda = 0d0 ! previous lambda
 
+    ! Derivatives
     if (version_lambda_search == 1) then
       d_1 = d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! first derivative of (||x(lambda)||^2 - delta^2)^2
       d_2 = d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (||x(lambda)||^2 - delta^2)^2
@@ -302,6 +314,7 @@ Resolution with the Newton method:
       d_2 = d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta) ! second derivative of (1/||x(lambda)||^2 - 1/delta^2)^2
     endif
 
+    ! Trust length
     alpha = DABS((1d0/d_2)*d_1)
 
     ! Newton's method
@@ -326,7 +339,7 @@ Resolution with the Newton method:
       ! Newton's step
       y = -(1d0/DABS(d_2))*d_1
 
-      ! Constraint on y
+      ! Constraint on y (the newton step)
       if (DABS(y) > alpha) then
         y = alpha * (y/DABS(y)) ! preservation of the sign of y
       endif
@@ -335,19 +348,22 @@ Resolution with the Newton method:
       ! Predicted value of (||x(lambda)||^2 - delta^2)^2, Taylor series
       model = prev_f_R + d_1 * y + 0.5d0 * d_2 * y**2    
 
-      ! Update of lambda
+      ! Updates lambda
       prev_lambda = lambda
       lambda = prev_lambda + y
       print*,'prev lambda:', prev_lambda
       print*,'new lambda:', lambda
 
-      ! Check if lambda is in (-h_1, \infty)
-      if (lambda > MAX(0d0, -e_val(1))) then !-e_val(1)) then ! MAX(0d0, -e_val(1)) if e_val = ABS(e_val)....
-        f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda) ! new value of ||x(lambda)||^2
+      ! Checks if lambda is in (-h_1, \infty)
+      if (lambda > MAX(0d0, -e_val(1))) then
+        ! New value of ||x(lambda)||^2
+        f_N = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
+
+        ! New f_R
         if (version_lambda_search == 1) then
           f_R = (f_N - delta**2)**2          ! new value of (||x(lambda)||^2 - delta^2)^2
         else
-          f_R = (1d0/f_N - 1d0/delta**2)**2
+          f_R = (1d0/f_N - 1d0/delta**2)**2  ! new value of (1/||x(lambda)||^2 -1/delta^2)^2
         endif
         
         if (version_lambda_search == 1) then
@@ -363,19 +379,22 @@ Resolution with the Newton method:
         print*,'previous - actual:', prev_f_R - f_R
         print*,'previous - model:', prev_f_R - model
 
+        ! Check the gain
         if (DABS(prev_f_R - model) < thresh_model_2) then
           print*,''
           print*,'WARNING: ABS(previous - model) <', thresh_model_2, 'rho_2 will tend toward infinity'
           print*,''
         endif        
 
-        if (prev_f_R - f_R <= 1d-16 .or. prev_f_R - model <= 1d-16) then
-          print*,''
-          print*,'WARNING: ABS(previous - model) <= 1d-16, exit'
-          print*,''
-          exit
-        endif
+        ! Will be deleted
+        !if (prev_f_R - f_R <= 1d-16 .or. prev_f_R - model <= 1d-16) then
+        !  print*,''
+        !  print*,'WARNING: ABS(previous - model) <= 1d-16, exit'
+        !  print*,''
+        !  exit
+        !endif
 
+        ! Computes rho_2
         rho_2 = (prev_f_R - f_R)/(prev_f_R - model)
         print*,'rho_2:', rho_2               
       else
@@ -411,6 +430,7 @@ Resolution with the Newton method:
       i = i + 1
     enddo
 
+  ! if trust newton failed
   if (i > nb_it_max_lambda) then
     print*,''
     print*,'######################################################'

@@ -47,14 +47,13 @@ program debug_hessian
 
     print*,'Use the full hessian matrix'
     call org_first_hess(n,H,h_f)
-    !call hess(n,H2,h_f2)
-    call compute_r_orbrot_h(n,H2,h_f2,one_e_dm_mo,two_e_dm_mo,mo_num)
+    call hess(n,H2,h_f2)
 
     !do i = 1, n
     !  print*,i,H(i,i)
     !enddo
 
-    !h_f =h_f - h_f2
+    h_f =h_f - h_f2
     H = H - H2
     max_error = 0d0
     nb_error = 0    
@@ -64,17 +63,17 @@ program debug_hessian
       do k= 1, mo_num
         do j = 1, mo_num
           do i = 1, mo_num
-            !print*,i,j,k,l,h_f(i,j,k,l),h_f2(i,j,k,l)
-            !if (ABS(h_f(i,j,k,l)) > threshold) then
 
-            !  print*,i,j,k,l,h_f(i,j,k,l),h_f2(i,j,k,l)
-            !  nb_error = nb_error + 1
+            if (ABS(h_f(i,j,k,l)) > threshold) then
 
-            !  if (ABS(h_f(i,j,k,l)) > ABS(max_error)) then
-            !    max_error = h_f(i,j,k,l)
-            !  endif
+              print*,i,j,k,l,h_f(i,j,k,l),h_f2(i,j,k,l)
+              nb_error = nb_error + 1
 
-            !endif
+              if (ABS(h_f(i,j,k,l)) > ABS(max_error)) then
+                max_error = h_f(i,j,k,l)
+              endif
+
+            endif
 
           enddo
         enddo

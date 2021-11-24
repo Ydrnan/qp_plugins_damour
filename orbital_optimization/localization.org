@@ -15,26 +15,44 @@ Core MOs are localized with core MOs, inactives MOs are localized with
 inactives MOs and so on. But deleted orbitals are not localized.
 
 WARNING: 
-- The user MUST SPECIFY THE MO CLASSES, otherwise the localization will be
-done for all the orbitals between them, so the occupied and virtual
-MOs will be combined together which is clearly not what we want to
-do. 
+- The user MUST SPECIFY THE MO CLASSES, otherwise if default mo class
+  is false the localization will be done for all the orbitals between
+  them, so the occupied and virtual MOs will be combined together
+  which is clearly not what we want to do. If default lpmo class is true
+  the localization will be done for the core, occupied and virtual
+  orbitals, but pay attention the mo_class are not deleted after...
 - The mo class is not important (except "deleted") because it is not
-link to the kind of MOs for CASSCF or CIPSI. It is just a way to
-separate the MOs in order to localize them separetely, for example to
-separate the core MOs, the occupied MOs and the virtuals MOs.
-- The user MUST CHANGE THE MO CLASSES AFTER THE LOCALIZATION in order to
-have the right mo class for his next calculation...
+  link to the kind of MOs for CASSCF or CIPSI. It is just a way to
+  separate the MOs in order to localize them separetely, for example
+  to separate the core MOs, the occupied MOs and the virtuals MOs.
+- The user MUST CHANGE THE MO CLASSES AFTER THE LOCALIZATION in order
+  to have the right mo class for his next calculation...
 
-For more information on the mo classes:
-qp set_mo_class -h
+For more information on the mo_class:
+lpqp set_mo_class -h
 
 *** Foster-Boys localization
 Foster-Boys localization:
 - cite Foster
-- cite Kleir 
-- cite Hoyvik
-- cite le papier des physiciens
+Boys, S. F., 1960, Rev. Mod. Phys. 32, 296.
+DOI:https://doi.org/10.1103/RevModPhys.32.300
+Boys, S. F., 1966, in Quantum Theory of Atoms, Molecules,
+and the Solid State, edited by P.-O. Löwdin (Academic
+Press, New York), p. 253.
+Daniel A. Kleier, Thomas A. Halgren, John H. Hall Jr., and William
+N. Lipscomb, J. Chem. Phys. 61, 3905 (1974)
+doi: 10.1063/1.1681683
+Høyvik, I.-M., Jansik, B., Jørgensen, P., J. Comput. Chem. 2013, 34,
+1456– 1462. DOI: 10.1002/jcc.23281 
+Høyvik, I.-M., Jansik, B., Jørgensen, P., J. Chem. Theory
+Comput. 2012, 8, 9, 3137–3146
+DOI: https://doi.org/10.1021/ct300473g
+Høyvik, I.-M., Jansik, B., Jørgensen, P., J. Chem. Phys. 137, 224114
+(2012)
+DOI: https://doi.org/10.1063/1.4769866 
+Nicola Marzari, Arash A. Mostofi, Jonathan R. Yates, Ivo Souza, and David Vanderbilt
+Rev. Mod. Phys. 84, 1419 
+https://doi.org/10.1103/RevModPhys.84.1419
 
 The Foster-Boys localization is a method to generate localized MOs
 (LMOs) by minimizing the Foster-Boys criterion:
@@ -60,17 +78,21 @@ and
 \end{align*}
 
  
-Starting with a set of MOs $\left\{\phi_i\right\}_{i=1}^N$ and we
+Starting with an initial set of MOs $\left\{\phi_i\right\}_{i=1}^N$, we
 are looking for a new set of MOs $\left\{\tilde{\phi}_i\right\}_{i=1}^N$ which
-minimizes the Foster-Boys criterion. This new set of MOs can be found
-by applying a unitary transformation $\textbf{R}$ s.t. $\textbf{R} \cdot
-\textbf{R}^T = \textbf{R}^T \cdot \textbf{R} = \textbf{I}$ on the
-coefficients of the MOs. The unitary transformation matrix or rotation
+minimizes the Foster-Boys criterion (or minimizes minus the criterion
+depending of the criterion between $C_{FB}$, $C_2$ and $C_3$. This new
+set of MOs can be found by applying a unitary transformation 
+$\textbf{R}$ s.t. $\textbf{R} \cdot \textbf{R}^T = \textbf{R}^T \cdot
+\textbf{R} = \textbf{I}$ 
+(with $\textbf{I}$ the identity matrix) on the
+coefficients of the MOs. The unitary transformation matrix or rotation 
 matrix is obtained by exponentiating an antihermithian matrix
 $\textbf{X}$, the elements $\textbf{X}_{ij}$ correspond to the
-rotation angle between the MO i and the MO j. 
-In the case where two MOs ($\phi_p$,$\phi_q$) are combined between them at each iteration it
-is the Jacobi sweep method and the related rotation matrix is trivial:
+rotation angle between the MO $i$ and the MO $j$. 
+In the case where two MOs ($\phi_p$,$\phi_q$) are combined between
+them at each iteration it is the Jacobi sweep method and the related
+rotation matrix is trivial: 
 \begin{align*}
 \textbf{R}=
 \begin{pmatrix}
@@ -107,7 +129,7 @@ $$\tilde{\phi_p} = \tilde{p} $$
 C_{FB}(\theta) &= \sum_{i=1}^N \left[ A_{ii} - A_{jj} \right] \\ 
 &- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
 &+ \left[ < \tilde{p}| r^2 | \tilde{p} > - < \tilde{p} | r |
-\tilde{p} >^2 +  < \tilde{q} | r^2 | \phi_{\tilde{q}}
+\tilde{p} >^2 +  < \tilde{q} | r^2 | {\tilde{q}}
 > - < \tilde{q} | r | \tilde{q} >^2 \right] 
 \end{align*}
 
@@ -181,7 +203,7 @@ $$ \gamma = 4 B_{pq} (B_{pp} - B_{qq}) $$
 
 Consequently:
 \begin{align*}
-C_1(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\ 
+C_{FB}(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\ 
 &- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
 &+ \left[  A_{pp} +  A_{qq} - B_{pp}^2 - B_{qq}^2
 + \frac{1}{4} [(1-\cos(4\theta) \beta + \sin(4\theta) \gamma] \right] \\
@@ -190,11 +212,11 @@ C_1(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\
 
 The derivatives are:
 \begin{align*}
-\frac{\partial C_1(\theta)}{\partial \theta} = \beta \sin(4\theta) + \gamma \cos(4 \theta)
+\frac{\partial C_{FB}(\theta)}{\partial \theta} = \beta \sin(4\theta) + \gamma \cos(4 \theta)
 \end{align*}
 
 \begin{align*}
-\frac{\partial^2 C_1(\theta)}{\partial \theta^2} = 4 \beta \cos(4\theta) - 4 \gamma \sin(4 \theta)
+\frac{\partial^2 C_{FB}(\theta)}{\partial \theta^2} = 4 \beta \cos(4\theta) - 4 \gamma \sin(4 \theta)
 \end{align*}
 
 Similarly:
@@ -207,13 +229,22 @@ C_3(\theta) &= \sum_{i=1}^N [B_{ii}^2] \\
 
 The derivatives are:
 \begin{align*}
-\frac{\partial C_3(\theta)}{\partial \theta} = - \beta \sin(4\theta) - \gamma \sin(4 \theta)
+\frac{\partial C_3(\theta)}{\partial \theta} = - \beta \sin(4\theta) - \gamma \cos(4 \theta)
 \end{align*}
 
 \begin{align*}
-\frac{\partial^2 C_3(\theta)}{\partial \theta^2} = - 4 \beta \cos(4\theta) + 4 \gamma \cos(4 \theta)
+\frac{\partial^2 C_3(\theta)}{\partial \theta^2} = - 4 \beta \cos(4\theta) + 4 \gamma \sin(4 \theta)
 \end{align*}
 
+And since we compute the derivatives around $\theta = 0$ (around the
+actual position) we have:
+\begin{align*}
+\left. \frac{\partial{C_{FB}(\theta)}}{\partial \theta}\right|_{\theta=0} = \gamma
+\end{align*}
+
+\begin{align*}
+\left. \frac{\partial^2 C_{FB}(\theta)}{\partial \theta^2}\right|_{\theta=0} = 4 \beta
+\end{align*}
 
 Locality of the orbitals:
 - cite Hoyvik
@@ -231,26 +262,27 @@ To do the localization we have compute the gradient and the
 diagonal hessian of the Foster-Boys criterion with respect to the MO
 rotations and we minimize it with the Newton method.
 Since we already have compute the first and second derivatives of the
-FB criterion with respect to the MO rotations we have the analytical gradient
+FB criterion with respect to the MO rotations (for $\theta = 0$) we have the analytical gradient
 and diagonal hessian. Hovik uses an other method in her algorithm and
 it seems to work very for big systems.
 
 In order to avoid the problem of starting on a saddle point, the
-localization procedure starts by giving a little kick in the MOs in
-order to break the symmetry and escape from a possible saddle point.
+localization procedure starts by giving a little kick in the MOs, by
+putting "kick in mos" true, in order to break the symmetry and escape
+from a possible saddle point.
 
 In order to speed up the iteration we compute the gradient, the
 diagonal hessian and the step in temporary matrices of the size
-(number MOs in mo_class by number MOs in mo_class)
+(number MOs in mo class by number MOs in mo class)
 
 *** Pipek-Mezey localization
 -cite pipek mezey 1989
 J. Pipek, P. G. Mezey, J. Chem. Phys. 90, 4916 (1989)
 DOI: 10.1063/1.456588
 
-FB localization does not preserve the $\sigma - \pi$ separation of the
+Foster-Boys localization does not preserve the $\sigma - \pi$ separation of the
 MOs, it leads to "banana" orbitals. The Pipek-Mezey localization
-normally preserve this separation.
+normally preserves this separation.
 
 Their localization method starts from fact that the localization of the
 MOs can be definined as
@@ -268,12 +300,11 @@ where
 D_{max} &= \frac{n^2}{\sum_{A=1}^N \textbf{Q}_A^2} \\
 &= \frac{\left( \sum_{A=1}^N \textbf{Q}_A\right)^2}{\sum_{A=1}^N \textbf{Q}_A^2}
 \end{align*}
-"with $\textbf{Q_A}$ is the total atomic charges (populations) which
-are invariant to any unitary transformation."
-"$D$ measures the mean extension of the one-elec-
-tron orbitals"
+"with $\textbf{Q}_A$ is the total atomic charges
+(populations) which are invariant to any unitary transformation."
+" $D$ measures the mean extension of the one-electron orbitals
 As for the Foster-Boys method we have to search the unitary
-transformation which minimizes $D$.
+transformation which minimizes $D$. "
 
 They defined for each AOs $|\mu>$ the corresponding operator 
 \begin{align*}
@@ -301,16 +332,16 @@ Q_A^i = < i | P_A | i >
 The optimum functional $\mathcal{P}$ is obtained for the maximum of
 $D^{-1}$
 \begin{align*}
-\mathcal{\phi_i} = \sum_{i=1}^n \sum_{A=1}^N \left[ <i|P_A|i> \right]^2
+\mathcal{P} = \sum_{i=1}^n \sum_{A=1}^N \left[ <i|P_A|i> \right]^2
 \end{align*}
 
 As for the Foster Boys localization, the change in the functional for
 the rotation of two MOs can be obtained using very similar terms
 \begin{align*}
-\beta_{st} = \sum_{A=1}^N \left( <s|P_A|t>^2 - \frac{1}{4} \left[<s|P_A|s> - <t|P_A|t> \right]^2 \right)
+\beta_{st}^{PM} = \sum_{A=1}^N \left( <s|P_A|t>^2 - \frac{1}{4} \left[<s|P_A|s> - <t|P_A|t> \right]^2 \right)
 \end{align*}
 \begin{align*}
-\gamma_{st} = \sum_{A=1}^N <s|P_A|t> \left[ <s| P_A |s> - <t|P_A|t> \right]
+\gamma_{st}^{PM} = \sum_{A=1}^N <s|P_A|t> \left[ <s| P_A |s> - <t|P_A|t> \right]
 \end{align*}
 The matrix element of the operator $P_A$ are obtained using 
 \begin{align*}
@@ -320,18 +351,26 @@ which leads to
 \begin{align*}
 <s|P_A|t> = \frac{1}{2} \sum_{\rho} \sum_{\mu \in A} \left[ c_{\rho}^{s*} S_{\rho \nu} c_{\mu}^{t} +c_{\mu}^{s*} S_{\mu \rho} c_{\rho}^t \right]
 \end{align*}
-$\sum_{\rho}$ -> all the AOs
-$\sum_{\mu \in A}$ -> AOs which belongs to atom A
+$\sum_{\rho}$ -> sum over all the AOs
+$\sum_{\mu \in A}$ -> sum over the AOs which belongs to atom A
 $c^t$ -> expansion coefficient of orbital |t>
-qp2:
-nucl_aos
-integer, allocatable    :: nucl_aos     (nucl_num,N_AOs_max)
-List of AOs centered on each atom
-** IDK
+
+So similarly the first and second derivatives are
+
+\begin{align*}
+\left. \frac{\partial \mathcal{P} (\theta)}{\partial \theta} \right|_{\theta=0}= \gamma^{PM}
+\end{align*}
+
+\begin{align*}
+\left. \frac{\partial^2 \mathcal{P} (\theta)}{\partial \theta^2}\right|_{\theta=0} = 4 \beta^{PM}
+\end{align*}
+
+
+** Remarks
 
 Variables:
 
-NB: The indexes i and j refere to the positions of the elements in
+The indexes i and j refere to the positions of the elements in
 the "full space", i.e., the arrays containing elements for all the MOs,
 but the indexes tmp_i and tmp_j to the positions of the elements in
 the "reduced space/subspace", i.e., the arrays containing elements for
@@ -427,15 +466,12 @@ f \\
 \end{pmatrix}
 \end{align*}
 
-The dipoles are updated using the ao_to_mo subroutine without the
-restore_symmetry which is actually in N^4 but can be rewrite in N^2
+The dipoles are updated using the "ao to mo" subroutine without the
+"restore symmetry" which is actually in N^4 but can be rewrite in N^2
 log(N^2).
 The bottleneck of the program is normally N^3 with the matrix
 multiplications/diagonalizations. The use of the full hessian can be
 an improvement but it will scale in N^4... 
-
-By using the trust region the bottleneck is the diagonalization of the
-hessian. 
 
 ** Program
 
@@ -444,6 +480,54 @@ program localization
  call run_localization
 end
 #+END_SRC
+
+
+Variables:
+| pre_rot(mo_num, mo_num)  | double precision | Matrix for the pre rotation                       |
+| R(mo_num,mo_num)         | double precision | Rotation matrix                                   |
+| tmp_R(:,:)               | double precision | Rottation matrix in a subsapce                    |
+| prev_mos(ao_num, mo_num) | double precision | Previous mo_coef                                  |
+| spatial_extent(mo_num)   | double precision | Spatial extent of the orbitals                    |
+| criterion                | double precision | Localization criterion                            |
+| prev_criterion           | double precision | Previous criterion                                |
+| criterion_model          | double precision | Estimated next criterion                          |
+| rho                      | double precision | Ratio to measure the agreement between the model  |
+|                          |                  | and the reality                                   |
+| delta                    | double precision | Radisu of the trust region                        |
+| norm_grad                | double precision | Norm of the gradient                              |
+| info                     | integer          | for dsyev from Lapack                             |
+| max_elem                 | double precision | maximal element in the gradient                   |
+| v_grad(:)                | double precision | Gradient                                          |
+| H(:,:)                   | double precision | Hessian (diagonal)                                |
+| e_val(:)                 | double precision | Eigenvalues of the hessian                        |
+| W(:,:)                   | double precision | Eigenvectors of the hessian                       |
+| tmp_x(:)                 | double precision | Step in 1D (in a subaspace)                       |
+| tmp_m_x(:,:)             | double precision | Step in 2D (in a subaspace)                       |
+| tmp_list(:)              | double precision | List of MOs in a mo_class                         |
+| i,j,k                    | integer          | Indexes in the full MO space                      |
+| tmp_i, tmp_j, tmp_k      | integer          | Indexes in a subspace                             |
+| l                        | integer          | Index for the mo_class                            |
+| key(:)                   | integer          | Key to sort the eigenvalues of the hessian        |
+| nb_iter                  | integer          | Number of iterations                              |
+| must_exit                | logical          | To exit the trust region loop                     |
+| cancel_step              | logical          | To cancel a step                                  |
+| not_*converged           | logical          | To localize the different mo classes              |
+| t*                       | double precision | To measure the time                               |
+| n                        | integer          | mo_num*(mo_num-1)/2, number of orbital parameters |
+| tmp_n                    | integer          | dim_subspace*(dim_subspace-1)/2                   |
+|                          |                  | Number of dimension in the subspace               |
+
+Variables in qp_edit for the localization:
+| localization_method      |
+| localization_max_nb_iter |
+| default_mo_class         |
+| thresh_loc_max_elem_grad |
+| kick_in_mos              |
+| angle_pre_rot            |
+
++ all the variables for the trust region
+
+Cf. qp_edit orbital optimization
 
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
 subroutine run_localization
@@ -468,9 +552,6 @@ subroutine run_localization
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step
 
-  !restore_symm = .False.
-  !SOFT_TOUCH restore_symm
- 
   n = mo_num*(mo_num-1)/2
 
   ! Allocation
@@ -630,6 +711,7 @@ In order to give a little kick in the system
   !Initialization
   not_converged = .TRUE.
 
+  ! To do the localization only if there is at least 2 MOs
   if (dim_list_core_orb >= 2) then
     not_core_converged = .TRUE.
   else
@@ -654,6 +736,7 @@ In order to give a little kick in the system
     not_virt_converged = .FALSE.
   endif
  
+  ! Loop over the mo_classes
   do l = 1, 4
 
     if (l==1) then ! core
@@ -673,6 +756,7 @@ In order to give a little kick in the system
     ! Allocation tmp array  
     allocate(tmp_list(tmp_list_size))
 
+    ! To give the list of MOs in a mo_class
     if (l==1) then ! core
       tmp_list = list_core
     elseif (l==2) then
@@ -683,8 +767,8 @@ In order to give a little kick in the system
       tmp_list = list_virt
     endif
 
+    ! Display
     if (not_converged) then
-      ! Display mo_class
       print*,''
       print*,'###', mo_class(tmp_list(1)), 'MOs ###'
       print*,''
@@ -746,7 +830,8 @@ In order to give a little kick in the system
         W(j,i) = 1d0
       enddo
 
-      cancel_step = .True. ! To enter in the loop just after 
+      ! To enter in the loop just after
+      cancel_step = .True. 
 
       ! Loop to reduce the trust radius until the criterion decreases and rho >= thresh_rho
       do while (cancel_step)
@@ -857,6 +942,24 @@ end
 #+END_SRC
 
 ** Rassemblement bourrin
+Gradient/hessian/criterion for the localization:
+They are chosen in function of the localization method
+
+Gradient:
+
+qp_edit : 
+| localization_method | method for the localization |
+
+Input: 
+| tmp_n                   | integer          | Number of parameters in the MO subspace           |
+| tmp_list_size           | integer          | Number of MOs in the mo_class we want to localize |
+| tmp_list(tmp_list_size) | integer          | MOs in the mo_class                               |
+
+Output:
+| v_grad(tmp_n)           | double precision | Gradient in the subspace                          |
+| max_elem                | double precision | Maximal element in the gradient                   |
+| norm_grad               | double precision | Norm of the gradient                              |
+
 
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
@@ -880,7 +983,16 @@ subroutine gradient_localization(tmp_n, tmp_list_size, tmp_list, v_grad, max_ele
   endif
 
 end
+#+END_SRC
 
+Hessian:
+
+Output:
+| H(tmp_n,tmp_n) | double precision | Gradient in the subspace        |
+| max_elem       | double precision | Maximal element in the gradient |
+| norm_grad      | double precision | Norm of the gradient            |
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
 
   include 'constants.h'
@@ -900,7 +1012,14 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
   endif
 
 end
+#+END_SRC
 
+Criterion:
+
+Output:
+| criterion | double precision | Criterion fr the localization |
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine criterion_localization(criterion)
 
   include 'constants.h'
@@ -918,7 +1037,10 @@ subroutine criterion_localization(criterion)
   endif
 
 end
+#+END_SRC
 
+Subroutine to update the datas needed for the localization
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine update_data_localization()
 
   include 'constants.h'
@@ -937,6 +1059,22 @@ end
 #+END_SRC
 
 ** Foster-Boys
+*** Gradient
+Input: 
+| tmp_n                   | integer          | Number of parameters in the MO subspace           |
+| tmp_list_size           | integer          | Number of MOs in the mo_class we want to localize |
+| tmp_list(tmp_list_size) | integer          | MOs in the mo_class                               |
+
+Output:
+| v_grad(tmp_n)           | double precision | Gradient in the subspace                          |
+| max_elem                | double precision | Maximal element in the gradient                   |
+| norm_grad               | double precision | Norm of the gradient                              |
+
+Internal:
+| m_grad(tmp_n,tmp_n) | double precision | Gradient in the matrix form |
+| i,j,k               | integer          | indexes in the full space   |
+| tmp_i,tmp_j,tmp_k   | integer          | indexes in the subspace     |
+| t*                  | double precision | to compute the time         |
 
 #+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
@@ -1005,7 +1143,10 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   print*,''
 
 end subroutine
+#+END_SRC
 
+*** Gradient (OMP)
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
   
   use omp_lib
@@ -1090,7 +1231,23 @@ subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, nor
   print*,''
 
 end subroutine
+#+END_SRC
 
+*** Hessian 
+
+Output:
+| H(tmp_n,tmp_n) | double precision | Gradient in the subspace        |
+| max_elem       | double precision | Maximal element in the gradient |
+| norm_grad      | double precision | Norm of the gradient            |
+
+Internal:
+Internal:
+| beta(tmp_n,tmp_n) | double precision | beta in the documentation below to compute the hesian |
+| i,j,k             | integer          | indexes in the full space                             |
+| tmp_i,tmp_j,tmp_k | integer          | indexes in the subspace                               |
+| t*                | double precision | to compute the time                                   |
+
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
 
   implicit none
@@ -1168,7 +1325,10 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   print*,''
 
 end subroutine
+#+END_SRC
 
+*** Hessian (OMP)
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
 
   implicit none
@@ -1271,7 +1431,9 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
 
 end subroutine
 #+END_SRC
+
 ** Pipek-Mezey
+*** Gradient v1
 #+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
 
@@ -1298,7 +1460,7 @@ subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gra
         i = tmp_list(tmp_i)
         do rho = 1, ao_num ! loop over all the AOs
           do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
-            mu = nucl_aos(a,b)
+            mu = nucl_aos(a,b) ! AO centered on atom a 
 
             tmp_int(tmp_i,tmp_j) = tmp_int(tmp_i,tmp_j) + 0.5d0 * (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
                                    + mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
@@ -1347,7 +1509,55 @@ subroutine grad_pipek(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gra
   deallocate(m_grad,tmp_int)
 
 end
+#+END_SRC
 
+*** Gradient
+
+The gradient is
+
+\begin{align*}
+\left. \frac{\partial \mathcal{P} (\theta)}{\partial \theta} \right|_{\theta=0}= \gamma^{PM}
+\end{align*}
+with
+\begin{align*}
+\gamma_{st}^{PM} = \sum_{A=1}^N <s|P_A|t> \left[ <s| P_A |s> - <t|P_A|t> \right]
+\end{align*}
+
+\begin{align*}
+<s|P_A|t> = \frac{1}{2} \sum_{\rho} \sum_{\mu \in A} \left[ c_{\rho}^{s*} S_{\rho \nu} c_{\mu}^{t} +c_{\mu}^{s*} S_{\mu \rho} c_{\rho}^t \right]
+\end{align*}
+$\sum_{\rho}$ -> sum over all the AOs
+$\sum_{\mu \in A}$ -> sum over the AOs which belongs to atom A
+$c^t$ -> expansion coefficient of orbital |t>
+
+Input: 
+| tmp_n                   | integer          | Number of parameters in the MO subspace           |
+| tmp_list_size           | integer          | Number of MOs in the mo_class we want to localize |
+| tmp_list(tmp_list_size) | integer          | MOs in the mo_class                               |
+
+Output:
+| v_grad(tmp_n)           | double precision | Gradient in the subspace                          |
+| max_elem                | double precision | Maximal element in the gradient                   |
+| norm_grad               | double precision | Norm of the gradient                              |
+
+Internal:
+| m_grad(tmp_list_size,tmp_list_size)       | double precision | Gradient in a 2D array                                   |
+| tmp_int(tmp_list_size,tmp_list_size)      |                  | Temporary array to store the integrals                   |
+| tmp_accu(tmp_list_size,tmp_list_size)     |                  | Temporary array to store a matrix                        |
+|                                           |                  | product and compute tmp_int                              |
+| CS(tmp_list_size,ao_num)                  |                  | Array to store the result of mo_coef * ao_overlap        |
+| tmp_mo_coef(ao_num,tmp_list_size)         |                  | Array to store just the useful MO coefficients           |
+|                                           |                  | depending of the mo_class                                |
+| tmp_mo_coef2(nucl_n_aos(a),tmp_list_size) |                  | Array to store just the useful MO coefficients           |
+|                                           |                  | depending of the nuclei                                  |
+| tmp_CS(tmp_list_size,nucl_n_aos(a))       |                  | Array to store just the useful mo_coef * ao_overlap      |
+|                                           |                  | values depending of the nuclei                           |
+| a                                         |                  | index to loop over the nuclei                            |
+| b                                         |                  | index to loop over the AOs which belongs to the nuclei a |
+| mu                                        |                  | index to refer to an AO which belongs to the nuclei a    |
+| rho                                       |                  | index to loop over all the AOs                           |
+
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_grad)
 
   implicit none
@@ -1478,7 +1688,10 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   print*,''
 
 end
+#+END_SRC
 
+*** Hessian v1
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine hess_pipek(tmp_n, tmp_list_size, tmp_list, H)
 
   implicit none
@@ -1558,7 +1771,27 @@ subroutine hess_pipek(tmp_n, tmp_list_size, tmp_list, H)
   deallocate(beta,tmp_int)
 
 end
+#+END_SRC
 
+*** Hessian
+
+The hessian is
+\begin{align*}
+\left. \frac{\partial^2 \mathcal{P} (\theta)}{\partial \theta^2}\right|_{\theta=0} = 4 \beta^{PM}
+\end{align*}
+\begin{align*}
+\beta_{st}^{PM} = \sum_{A=1}^N \left( <s|P_A|t>^2 - \frac{1}{4} \left[<s|P_A|s> - <t|P_A|t> \right]^2 \right)
+\end{align*}
+
+with
+\begin{align*}
+<s|P_A|t> = \frac{1}{2} \sum_{\rho} \sum_{\mu \in A} \left[ c_{\rho}^{s*} S_{\rho \nu} c_{\mu}^{t} +c_{\mu}^{s*} S_{\mu \rho} c_{\rho}^t \right]
+\end{align*}
+$\sum_{\rho}$ -> sum over all the AOs
+$\sum_{\mu \in A}$ -> sum over the AOs which belongs to atom A
+$c^t$ -> expansion coefficient of orbital |t>
+
+#+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
 
   implicit none
@@ -1578,8 +1811,6 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   ! Allocation
   allocate(beta(tmp_list_size,tmp_list_size),tmp_int(tmp_list_size,tmp_list_size),tmp_accu(tmp_list_size,tmp_list_size))
   allocate(CS(tmp_list_size,ao_num),tmp_mo_coef(ao_num,tmp_list_size))
-
-  ! ### TODO ### EXPLICIT YOUR ******* temporaty arrays with formula
 
   beta = 0d0
 
@@ -1700,6 +1931,7 @@ end
 #+END_SRC
 
 ** Criterion
+*** Criterion PM (old)
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_crit_pipek(criterion)
 
@@ -1740,7 +1972,20 @@ subroutine compute_crit_pipek(criterion)
   deallocate(tmp_int)
 
 end
+#+END_SRC
 
+*** Criterion PM
+
+The criterion is computed as
+\begin{align*}
+\mathcal{P} = \sum_{i=1}^n \sum_{A=1}^N \left[ <i|P_A|i> \right]^2
+\end{align*}
+with 
+\begin{align*}
+<s|P_A|t> = \frac{1}{2} \sum_{\rho} \sum_{\mu \in A} \left[ c_{\rho}^{s*} S_{\rho \nu} c_{\mu}^{t} +c_{\mu}^{s*} S_{\mu \rho} c_{\rho}^t \right]
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine criterion_PM(criterion)
 
   implicit none
@@ -1784,7 +2029,22 @@ subroutine criterion_PM(criterion)
   deallocate(tmp_int)
 
 end
+#+END_SRC
 
+*** Criterion FB
+
+The criterion is just computed as
+
+\begin{align*}
+C = - \sum_i^{mo_{num}} (<i|x|i>^2 + <i|y|i>^2 + <i|z|i>^2)
+\end{align*}
+
+The minus sign is here in order to minimize this criterion
+
+Output:
+| criterion | double precision | criterion for the Foster-Boys localization |
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine criterion_FB(criterion)
 
   implicit none
@@ -1801,7 +2061,16 @@ subroutine criterion_FB(criterion)
 
 end subroutine
 #+END_SRC
+
 ** Spatial extent
+
+The spatial extent of an orbital $i$ is computed as 
+\begin{align*}
+\sum_{\lambda=x,y,z}\sqrt{<i|\lambda^2|i> - <i|\lambda|i>^2}
+\end{align*}
+
+From that we can also compute the average and the standard deviation
+
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_spatial_extent(spatial_extent)
 
@@ -1898,7 +2167,9 @@ subroutine compute_spatial_extent(spatial_extent)
   enddo
 
 end
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_average_sp_ext(spatial_extent, list, list_size, average)
 
   implicit none
@@ -1917,7 +2188,9 @@ subroutine compute_average_sp_ext(spatial_extent, list, list_size, average)
   average = average / DBLE(list_size)
 
 end
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine compute_std_var_sp_ext(spatial_extent, list, list_size, average, std_var)
 
   implicit none
@@ -1939,6 +2212,7 @@ subroutine compute_std_var_sp_ext(spatial_extent, list, list_size, average, std_
 
 end
 #+END_SRC
+
 ** Pairwise
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 ! Doesn't work during the last try but was working at one moment, idk
@@ -2153,6 +2427,7 @@ end subroutine
 !
 !end subroutine
 #+END_SRC
+
 ** Utils
 
 #+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
@@ -2244,7 +2519,9 @@ subroutine ao_to_mo_no_sym(A_ao,LDA_ao,A_mo,LDA_mo)
 
   deallocate(T)
 end
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine run_sort_by_fock_energies()
   BEGIN_DOC
   ! Program that saves the current |MOs| ordered by diagonal element of the Fock operator.
@@ -2285,3 +2562,4 @@ subroutine run_sort_by_fock_energies()
 end
 
 #+END_SRC
+

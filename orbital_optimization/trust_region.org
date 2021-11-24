@@ -189,7 +189,7 @@ greater than $- h_1$.
   \lambda > 0 \quad \text{and} \quad \lambda \geq - h_1
 \end{align*} 
 
-From that there are four cases:
+From that there are five cases:
 - if $\textbf{H}$ is positive definite, $-h_1 < 0$, $\lambda \in (0,\infty)$
 - if $\textbf{H}$ is not positive definite and $\textbf{w}_1^T \cdot
   \textbf{g} \neq 0$, $(\textbf{H} + \textbf{I}
@@ -204,7 +204,10 @@ From that there are four cases:
   $j=1$ in the sum, $(\textbf{H} + \textbf{I} \lambda)$ must be
   positive definite, $-h_1 > 0$, $\lambda = -h_1$). This case is
   similar to the case where $\textbf{H}$ and $||\textbf{x}(\lambda =
-  0)|| \leq \Delta$.
+  0)|| \leq \Delta$
+  but we can also add to $\textbf{x}$, the first eigenvector $\textbf{W}_1$
+  time a constant to ensure the condition $||\textbf{x}(\lambda =
+  -h_1)|| = \Delta$ and escape from the saddle point
 
 Thus to find the solution, we can write: 
 \begin{align*}
@@ -288,6 +291,9 @@ the Newton step
   $||\textbf{x}(\lambda = -h_1)|| \leq \Delta$ (by removing $j=1$ in
   the sum), the solution is $\textbf{x}^* = \textbf{x}(\lambda =
   -h_1)$, similarly to the previous case.
+  But we can add to $\textbf{x}$, the first eigenvector $\textbf{W}_1$
+  time a constant to ensure the condition $||\textbf{x}(\lambda =
+  -h_1)|| = \Delta$ and escape from the saddle point
 - else if $h_1 < 0$ and $\textbf{w}_1^T \cdot \textbf{g} \neq 0$ we
   have to search $\lambda \in (-h_1, \infty)$ such as
   $\textbf{x}(\lambda) = \Delta$ by solving with the Newton method 
@@ -310,6 +316,7 @@ the Newton step
   $||\textbf{x}(\lambda = -h_1)|| > \Delta$ (by removing $j=1$ in the
   sum), again we do exactly the same thing that the previous case
   searching $\lambda \in (-h_1, \infty)$.
+  
 
 For the cases where $\textbf{w}_1^T \cdot \textbf{g} = 0$ it is not
 necessary in fact to remove the $j = 1$ in the sum since the term
@@ -321,16 +328,6 @@ m_x. This matrix $\textbf{X}$ will be used to compute a rotation
 matrix $\textbf{R}= \exp(\textbf{X})$ in "rotation_matrix".
 
 NB: 
-Knowing $\lambda$, the computation of $\textbf{x}^*$ could be done using
-a matrix multiplication instead of using a sum. 
-\begin{align*}
-  \textbf{x}^* = - (\textbf{H} + \textbf{I} \lambda)^{-1} \cdot \textbf{g}
-\end{align*}
-\begin{align*}
-  \textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1}
-  \cdot \textbf{W}^T \cdot \textbf{g}
-\end{align*}
-
 An improvement can be done using a elleptical trust region.
 
 #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
@@ -338,45 +335,43 @@ An improvement can be done using a elleptical trust region.
 
 ** Code
 
-   Provided:
-   | mo_num | integer | number of MOs |
+Provided:
+| mo_num | integer | number of MOs |
 
-   Input:
-   | n         | integer          | m*(m-1)/2                             |
-   | method    | integer          | 1 -> full hessian, 2 -> diagonal hessian        |
-   | H(n, n)   | double precision | hessian                                         |
-   | v_grad(n) | double precision | gradient                                        |
-   | e_val(n)  | double precision | eigenvalues of the hessian                      |
-   | W(n, n)   | double precision | eigenvectors of the hessian                     |
-   | rho       | double precision | agreement between the model and the reality,    |
-   |           |                  | represents the quality of the energy prediction |
-   | nb_iter   | integer          | number of iteration                             |
+Cf. qp_edit in orbital optimization section, for some constants/thresholds
 
-   Input/Ouput:
-   | delta | double precision | radius of the trust region |
+Input:
+| m         | integer          | number of MOs                                |
+| n         | integer          | m*(m-1)/2                                       |
+| H(n, n)   | double precision | hessian                                         |
+| v_grad(n) | double precision | gradient                                        |
+| e_val(n)  | double precision | eigenvalues of the hessian                      |
+| W(n, n)   | double precision | eigenvectors of the hessian                     |
+| rho       | double precision | agreement between the model and the reality,    |
+|           |                  | represents the quality of the energy prediction |
+| nb_iter   | integer          | number of iteration                             |
 
-   Output:
-   | m_x(m, m) | double precision | matrix containing the step |
-   | x(n)                | double precision | vector containing the step |
+Input/Ouput:
+| delta | double precision | radius of the trust region |
 
-   Internal:
-   | diff(n)       | double precision | debug                                        |
-   | Hm1(m, m)     | double precision | debug                                        |
-   | Hm1g(m, m)    | double precision | debug                                        |
-   | accu          | double precision | temporary variable to compute the step       |
-   | lambda        | double precision | lagrange multiplier                          |
-   | trust_radius2 | double precision | square of the radius of the trust region     |
-   | norm2_x       | double precision | norm^2 of the vector x                       |
-   | norm2_g       | double precision | norm^2 of the vector containing the gradient |
-   | wtg           | double precision | scalar product w_1^T . g                     |
-   | i, j, k       | integer          | indexes                                      |
+Output:
+| m_x(m, m) | double precision | matrix containing the step |
+| x(n)      | double precision | vector containing the step |
 
-   Function:
-   | dnrm2                   | double precision | Blas function computing the norm       |
-   | ddot                    | double precision | Blas function computing dot product    |
-   | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
+Internal:
+| accu          | double precision | temporary variable to compute the step       |
+| lambda        | double precision | lagrange multiplier                          |
+| trust_radius2 | double precision | square of the radius of the trust region     |
+| norm2_x       | double precision | norm^2 of the vector x                       |
+| norm2_g       | double precision | norm^2 of the vector containing the gradient |
+| tmp_wtg(n)    | double precision | tmp_wtg(i) = w_i^T . g                       |
+| i, j, k       | integer          | indexes                                      |
 
-   #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+Function:
+| dnrm2                   | double precision | Blas function computing the norm       |
+| f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
 subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   include 'constants.h'
@@ -398,8 +393,7 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, intent(out)   :: m_x(m,m), x(n)
 
   ! Internal
-  double precision, allocatable   ::  coef(:)
-  double precision                :: accu, lambda, trust_radius2, alpha_2
+  double precision                :: accu, lambda, trust_radius2
   double precision                :: norm2_x, norm2_g
   double precision, allocatable   :: tmp_wtg(:)
   integer                         :: i,j,k
@@ -420,18 +414,22 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   ! Allocation
   allocate(tmp_wtg(n))
-   #+END_SRC
+#+END_SRC
 
 
 *** Initialization and norm
 
-    The norm of the step size will be useful for the trust region algorithm
+The norm of the step size will be useful for the trust region
+algorithm. We start from a first guess and the radius of the trust
+region will evolve during the optimization.
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
+avoid_saddle is actually a test to avoid saddle points
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
   ! Initialization of the Lagrange multiplier
   lambda = 0d0
 
-  ! List of w^T.g, avoid the recomputation
+  ! List of w^T.g, to avoid the recomputation
   tmp_wtg = 0d0
   do j = 1, n
     do i = 1, n
@@ -439,6 +437,8 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
     enddo
   enddo
 
+  ! Replacement of the small tmp_wtg corresponding to a negative eigenvalue
+  ! in the case of avoid_saddle
   if (avoid_saddle .and. e_val(1) < - thresh_eig) then
     i = 2
     ! Number of negative eigenvalues
@@ -457,6 +457,7 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
       i = i + 1
     enddo
 
+    ! For the fist one it's a little bit different
     if (tmp_wtg(1) < thresh_wtg2) then 
       tmp_wtg(1) = 0d0
     endif
@@ -464,27 +465,26 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   endif 
 
   ! Norm^2 of x, ||x||^2
-  print*,'||x||^2 :'
   norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,0d0)
   ! We just use this norm for the nb_iter = 0 in order to initialize the trust radius delta
   ! We don't care about the sign of the eigenvalue we just want the size of the step in a normal Newton-Raphson algorithm
   ! Anyway if the step is too big it will be reduced
-  print*, norm2_x
+  print*,'||x||^2 :', norm2_x
 
   ! Norm^2 of the gradient, ||v_grad||^2
   norm2_g = (dnrm2(n,v_grad,1))**2
-  print*,'||grad||^2 :'
-  print*, norm2_g
-    #+END_SRC
+  print*,'||grad||^2 :', norm2_g
+#+END_SRC
 
 *** Trust radius initialization
 
     At the first iteration (nb_iter = 0) we initialize the trust region
     with the norm of the step generate by the Newton's method ($\textbf{x}_1 =
     (\textbf{H}_0)^{-1} \cdot \textbf{g}_0$,
-    we compute this norm using f_norm_trust_region_omp) 
+    we compute this norm using f_norm_trust_region_omp as explain just
+    below) 
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! trust radius
   if (nb_iter == 0) then
      trust_radius2 = norm2_x 
@@ -492,15 +492,17 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
      ! Compute delta, delta = sqrt(trust_radius)
      delta = dsqrt(trust_radius2)
   endif
-    #+END_SRC
+#+END_SRC
 
 *** Modification of the trust radius
 
-    In function of rho (which represents the agreement between the model
-    and the reality, cf. rho_model) the trust region evolves. We update
-    delta such as:
+In function of rho (which represents the agreement between the model
+and the reality, cf. rho_model) the trust region evolves. We update
+delta (the radius of the trust region).
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+To avoid too big trust region we put a maximum size.
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Modification of the trust radius in function of rho
   if (rho >= 0.75d0) then
      delta = 2d0 * delta
@@ -512,27 +514,32 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
      delta = 0.25d0 * delta
   endif
 
+  ! Maximum size of the trust region
   if (delta > 0.5d0 * n * pi) then
     delta = 0.5d0 * n * pi
     print*,'Delta > delta_max, delta = 0.5d0 * n * pi'
   endif
 
   print*, 'Delta :', delta
-    #+END_SRC 
+#+END_SRC 
   
 *** Calculation of the optimal lambda
 
-    We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
-    - If $||\textbf{x}|| > \Delta$  or $h_1 < 0$ we have to add a constant
-      $\lambda > 0 \quad \text{and} \quad \lambda > -h_1$
-    - If $||\textbf{x}|| \leq \Delta$ and $h_1 \geq 0$ the solution is the
-      unconstrained one, $\lambda = 0$
+We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
+- If $||\textbf{x}|| > \Delta$  or $h_1 < 0$ we have to add a constant
+  $\lambda > 0 \quad \text{and} \quad \lambda > -h_1$
+- If $||\textbf{x}|| \leq \Delta$ and $h_1 \geq 0$ the solution is the
+  unconstrained one, $\lambda = 0$
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+You will find more details at the beginning
+
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
   ! and not (||x||^2 - delta)^2 = 0
   
   ! Research of lambda to solve ||x(lambda)|| = Delta 
+
+  ! Display
   print*, 'e_val(1) = ', e_val(1)
   print*, 'w_1^T.g =', tmp_wtg(1)
   
@@ -586,37 +593,31 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
      
   endif
   
+  ! Recomputation of the norm^2 of the step x
   norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
   print*,''
   print*,'Summary after the trust region:'
   print*,'lambda:', lambda
   print*,'||x||:', dsqrt(norm2_x)
   print*,'delta:', delta
-    #+END_SRC
+#+END_SRC
 
 *** Calculation of the step x
 
-    x refers to $\textbf{x}^*$
-    We compute x in function of lambda using its formula :
-    \begin{align*}
-    \textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot \textbf{g}}{h_i 
-    + \lambda} \cdot \textbf{w}_i
-    \end{align*}
+x refers to $\textbf{x}^*$
+We compute x in function of lambda using its formula :
+\begin{align*}
+\textbf{x}^* = \textbf{x}(\lambda) = - \sum_{i=1}^n \frac{\textbf{w}_i^T \cdot \textbf{g}}{h_i 
++ \lambda} \cdot \textbf{w}_i
+\end{align*}
 
-    This part can be implemeted with matrix-vector multiplication, since
-    $\textbf{x}^*$ is: 
-    $\textbf{x}^* =(\textbf{H} + \lambda \textbf{1})^{-1} \cdot
-    \textbf{g}$
-    \begin{align*}
-    \textbf{x}^* = - \textbf{W} \cdot (\textbf{h} +\textbf{I} \lambda)^{-1} 
-    \cdot \textbf{W}^T \cdot \textbf{g}
-    \end{align*}
-
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Initialisation
   x = 0d0
 
   ! Calculation of the step x
+
+  ! Normal version
   if (.not. absolute_eig) then
 
     do i = 1, n 
@@ -627,6 +628,7 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
       endif
     enddo
 
+  ! Version to use the absolute value of the eigenvalues
   else
 
     do i = 1, n 
@@ -641,22 +643,36 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   double precision :: beta, norm_x
  
+  ! Test
+  ! If w_1^T.g = 0, the lim of ||x(lambda)|| when lambda tend to -e_val(1)
+  ! is not + infinity. So ||x(lambda=-e_val(1))|| < delta, we add the first 
+  ! eigenvectors multiply by a constant to ensure the condition
+  ! ||x(lambda=-e_val(1))|| = delta and escape the saddle point
   if (avoid_saddle .and. e_val(1) < - thresh_eig) then
     if (tmp_wtg(1) < 1d-15 .and. (1d0 - dsqrt(norm2_x)/delta) > 1d-3 ) then
+
+      ! norm of x
       norm_x = dnrm2(n,x,1)
+
+      ! Computes the coefficient for the w_1 
       beta = delta**2 - norm_x**2
+
+      ! Updates the step x
       x = x + W(:,1) * dsqrt(beta)
+
+      ! Recomputes the norm to check
       norm_x = dnrm2(n,x,1)
+
       print*, 'Add w_1 * dsqrt(delta^2 - ||x||^2):'
       print*, '||x||', norm_x 
     endif
   endif
-    #+END_SRC
+#+END_SRC
 
 *** Transformation of x
 
-    x is a vector of size n, so it can be write as a m by m
-    antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
+x is a vector of size n, so it can be write as a m by m
+antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
     #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
   ! Step transformation vector -> matrix
@@ -695,6 +711,6 @@ subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   print*,'======================'
   print*,''
 
-end program
+end
     #+END_SRC
  

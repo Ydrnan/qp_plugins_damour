@@ -28,7 +28,7 @@ program org_debug_grad_list
   integer                       :: n,m
   integer                       :: i
   double precision              :: threshold
-  double precision              :: max_error, max_elem
+  double precision              :: max_error, max_elem, norm
   integer                       :: nb_error
   
   m = dim_list_act_orb
@@ -45,7 +45,7 @@ program org_debug_grad_list
   call diagonalize_ci ! Vérifier pour suppression
 
   ! Gradient  
-  call org_gradient_list(n,m,list_act,v_grad,max_elem)
+  call org_gradient_list(n,m,list_act,v_grad,max_elem,norm)
   call first_gradient_list(n,m,list_act,v_grad2)
   
   

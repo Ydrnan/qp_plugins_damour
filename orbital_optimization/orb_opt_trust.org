@@ -22,7 +22,7 @@ end
 
 * Subroutine : run_orb_opt_trust
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
 #+END_SRC
 
 *Subroutine to optimize orbitals*
@@ -88,7 +88,7 @@ Variables:
 |                                 |                  | a Taylor series                                   |
 
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
 subroutine org_run_orb_opt_trust
 
   include 'constants.h'
@@ -121,7 +121,7 @@ subroutine org_run_orb_opt_trust
    - the "diagonal" hessian, which uses only the diagonal elements of the
      hessian, called "diag_hess" in "diagonal_hessian.irp.f"
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
   !Display the method
   print*, 'Method :', optimization_method
   if (optimization_method == 'full') then 
@@ -147,7 +147,7 @@ subroutine org_run_orb_opt_trust
 
    Cf. mat_to_vec_index and vec_to_mat_index
 
-   #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
   ! Definition of n
   n = mo_num*(mo_num-1)/2
 
@@ -226,7 +226,7 @@ subroutine org_run_orb_opt_trust
     If rho >= 0.1 the step is accepted and the algorithm goes back to
     the calculation of the gradient.
 
-    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
   ! Loop until the convergence of the optimization
   do while (.not.converged)
 
@@ -347,7 +347,7 @@ subroutine org_run_orb_opt_trust
     
 ** Deallocation, end
 
-    #+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust.irp.f
   deallocate(v_grad,H,R,e_val,w,x,m_x)
   deallocate(h_f,prev_mos,new_mos)
 

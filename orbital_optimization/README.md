@@ -12,15 +12,6 @@ ninja
 
 Please, use the ifort compiler
 
-To optimize the orbitals for this number of determinants:
-qp set determinants read_wf true
-qp set determinants mo_label MCSCF
-qp set mo_basis mo_label MCSCF
-qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write
-qp run org_orb_opt_trust > optimization.dat
-
-The ezfio directory now contains the optimized MOs
-
 Some parameters can be changed with qp edit in the Orbital_optimization section
 
 If you modify the .org files, don't forget to do
@@ -31,7 +22,67 @@ The documentation can be read using:
 Ctrl-C Ctrl-e l p
 after opening the filename.org in emacs. It will produce a 
 filename.pdf. 
+(Not available for all the files)
 !!! Warning: the documentation can contain some errors !!!
+
+# Orbital localisation
+To localize the MOs:
+qp run localization
+
+After that the ezfio directory contains the localized MOs
+
+But the mo_class must be defined before, run qp set_mo_class -q for more information
+
+## Foster-Boys & Pipek-Mezey
+Foster-Boys:
+qp set orbital_optimization localization_method boys
+
+Pipek-Mezey:
+qp set orbital_optimization localization_method pipek
+
+# Orbital optimization
+Please before the orbital optimization run:
+qp set determinants read_wf true
+qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write
+
+Different methods are available:
+- full hessian
+qp set orbital_optimization optimization_method full
+
+- diagonal hessian (not available with org_orb_opt_trust_v2)
+qp set orbital_optimization optimization_method diag
+
+- identity matrix
+qp set orbital_optimization optimization_method none
+
+## For a fixed number of determinants
+To optimize the MOs for the actual determinants:
+qp run org_orb_opt_trust
+or
+qp run org_orb_opt_trust_v2 (to compute the hessian only for the active MOs)
+
+## For a complete optimization, i.e, with a larger and larger wave function
+To optimize the MOs with a larger and larger wave function:
+qp run optimization
+
+The results are stored in the file "result_orbital_optimization.dat",
+with the following format:
+(1) (2) (3) (4)
+1: Number of determinants in the wf,
+2: Cispi energy before the optimization, 
+3: Cipsi energy after the optimization,
+4: Energy difference between (2) and (3)
+
+The optimization process if the following:
+- we do a first cipsi step to obtain a small number of determinants in the wf
+- we run an orbital optimization for this wf
+- we do a new cipsi step to double the number of determinants in the wf
+- we run an orbital optimization for this wf
+- ...
+- we do that until the energy difference between (2) and (3) is 
+  smaller than the targeted accuracy for the cispi (targeted_accuracy_cipsi in qp edit)
+  or the wf is larger than a given size (n_det_max_opt in qp_edit)
+- after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation
 
 ============================================
 Further improvements:
@@ -48,50 +99,3 @@ or
 But it will take a long time, so it's better to stop the tests after the tests on the benzene
 
 ===========================================
-# Orbital localisation
-qp run localization
-The mo_class must be defined before, run qp set_mo_class -q for more information
-
-## Foster-Boys & Pipek-Mezey
-qp set orbital_optimization localization_method boys
-or 
-qp set orbital_optimization localization_method pipek
-
-# Orbital optimization
-methods:
-- full hessian
-qp set orbital_optimization optimization_method full
-
-- diagonal hessian (not available with org_orb_opt_trust_v2)
-qp set orbital_optimization optimization_method diag
-
-- identity matrix
-qp set orbital_optimization optimization_method none
-
-
-## For a fixed number of determinants
-qp run org_orb_opt_trust
-or
-qp run org_orb_opt_trust_v2 (to compute the hessian only for the active MOs)
-
-## For a complete optimization, i.e, with a larger and larger wave function
-qp run optimization
-The results are stored in the file "result_orbital_optimization.dat",
-with the following format:
-(1) (2) (3) (4)
-1: Number of determinants in the wf,
-2: Cispi energy before the optimization, 
-3: Cipsi energy after the optimization,
-4: Energy difference between (2) and (3)
-
-The optimization process if the following:
-- we do a first cipsi step to obtain a small number of determinants in the wf
-- we run an orbital optimization for this wf
-- we do a new cipsi step to double the number of determinants in the wf
-- we run an orbital optimization for this wf
-- ...
-- we repeat the process until energy difference between (2) and (3) is 
-  smaller than the targeted accuracy for the cispi (targeted_accuracy_cipsi in qp edit)
-  or the wf is larger than a given size (n_det_max_opt in qp_edit)
-- after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation
-

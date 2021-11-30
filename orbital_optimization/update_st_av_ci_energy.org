@@ -21,8 +21,6 @@ subroutine update_st_av_ci_energy(energy)
     energy = energy + ci_energy(i) * state_average_weight(i)
   enddo
   
-  energy = energy / DBLE(N_states)
-  
   print*, 'ci_energy :', energy
 end
 #+END_SRC

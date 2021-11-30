@@ -22,7 +22,7 @@ end
 
 * Subroutine : run_orb_opt_trust
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
 #+END_SRC
 
 Subroutine to optimize the MOs using a trust region algorithm:
@@ -82,7 +82,7 @@ Variables:
 |                         |                  |                                                    |
 
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
 subroutine org_run_orb_opt_trust_v2
 
   include 'constants.h'
@@ -119,7 +119,7 @@ subroutine org_run_orb_opt_trust_v2
      hessian
    - without the hessian (hessian = identity matrix) 
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
   !Display the method
    print*, 'Method :', optimization_method
   if (optimization_method == 'full') then 
@@ -135,7 +135,7 @@ subroutine org_run_orb_opt_trust_v2
 
 ** Allocation
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
   allocate(R(mo_num,mo_num))  ! rotation matrix
   allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num)) ! old and new MOs
   
@@ -152,7 +152,7 @@ subroutine org_run_orb_opt_trust_v2
 ** Calculations
 *** Initialization
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
   ! Initialization of the CI energy
   call diagonalize_ci
 
@@ -173,7 +173,7 @@ Here is the main algorithm of the optimization:
 - We repeat the process until the convergence 
   NB: the convergence criterion can be changed
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
   ! Loop until the convergence of the optimization
 
   !### Initialization ###
@@ -340,7 +340,7 @@ Here is the main algorithm of the optimization:
     
 ** Deallocation, end
 
-#+BEGIN_SRC f90 :comments org :tangle org_orb_opt_trust_v2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle org_run_orb_opt_trust_v2.irp.f
   deallocate(v_grad,H,R,W,e_val)
   deallocate(h_f,prev_mos,new_mos)
 

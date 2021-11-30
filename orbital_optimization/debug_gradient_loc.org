@@ -51,12 +51,10 @@ program debug_gradient_loc
   enddo
 
   print*,'Threshold error', threshold
-  print*, 'Nb erro', nb_error
-  print*,'max error', max_elem
+  print*, 'Nb error', nb_error
+  print*,'Max error', max_elem
 
   deallocate(v_grad,v_grad2)
-  
-  
  
 end
 #+END_SRC

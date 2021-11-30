@@ -1,0 +1,12 @@
+Subroutine toupdate the parameters.
+Ex: TOUCH mo_coef ...
+
+#+BEGIN_SRC f90 :comments org :tangle update_parameters.irp.f
+subroutine update_parameters()
+
+  implicit none
+
+  !### TODO
+  ! Touch yours parameters
+end
+#+END_SRC

@@ -51,8 +51,8 @@ program debug_hessian_loc
   enddo
 
   print*,'Threshold error', threshold
-  print*, 'Nb erro', nb_error
-  print*,'max error', max_elem
+  print*, 'Nb error', nb_error
+  print*,'Max error', max_elem
 
   deallocate(H,H2)
   

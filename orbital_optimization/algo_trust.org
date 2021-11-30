@@ -23,7 +23,7 @@ the hessian and the gradient are recomputed to produce a new step.
 
 Example:
 
-#+BEGIN_SRC f90
+#+BEGIN_SRC f90 :comments org
   !### Initialization ###
   delta = 0d0
   nb_iter = 0 ! Must start at 0 !!!
@@ -250,4 +250,255 @@ subroutine is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criter
   endif
   
 end subroutine
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org
+subroutine algo_trust(tmp_n, tmp_list_size)
+
+  implicit none
+
+  ! Variables
+
+  ! In
+  integer, intent(in) :: tmp_n, tmp_list_size
+  ! condition if tmp_list_size==0 -> cartesian ?
+
+  ! Out
+  ! Rien ou un truc pour savoir si ça c'est bien passé
+  
+  ! Internal
+  double precision, allocatable :: e_val(:), W(:,:), tmp_R(:,:), R(:,:), tmp_x(:)
+  double precision, allocatable :: prev_mos(:,:)
+  double precision              :: criterion, prev_criterion, criterion_model
+  double precision              :: delta, rho
+  logical                       :: not_converged, cancel_step, must_exit
+  integer                       :: nb_iter
+  integer                       :: i,j,tmp_i,tmp_j
+
+  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n))
+  allocate(tmp_R(tmp_list_size,tmp_list_size), R(mo_num,mo_num))
+  allocate(prev_mos(mo_num,mo_num))
+
+  ! Necessary ?
+  PROVIDE H_PROVIDER g_PROVIDER C_PROVIDER 
+
+  if (.False.) then
+    PROVIDE X_PROVIDER
+  endif
+
+  ! Initialization
+  delta = 0d0 
+  nb_iter = 0 ! Must starts at 0 !!!
+  rho = 0.5d0 ! Must starts at 0.5 
+  not_converged = .True. ! Must be true
+
+  ! Compute the criterion before the loop
+  prev_criterion = C_PROVIDER
+
+  do while (not_converged)
+
+      ! Diagonalization of the hessian 
+      call org_diagonalization_hessian(tmp_n,H_PROVIDER,e_val,W)
+
+      cancel_step = .True. ! To enter in the loop just after 
+
+      ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+      do while (cancel_step)
+
+          ! Hessian,gradient,Criterion -> x 
+          call step_in_trust_region(tmp_n,tmp_list_size,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+
+          if (must_exit) then
+              ! if step_in_trust_region sets must_exit on true for numerical reasons
+              print*,'algo_trust1 sends the message : Exit'
+              exit
+          endif
+
+          ! 1D tmp -> 2D tmp 
+          call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
+
+          ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
+          call org_rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+
+          ! TODO subroutine ?
+          ! tmp_R to R, subspace to full space
+          R = 0d0
+          do i = 1, mo_num
+              R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
+          enddo
+          do tmp_j = 1, tmp_list_size
+              j = tmp_list(tmp_j)
+              do tmp_i = 1, tmp_list_size
+                  i = tmp_list(tmp_i)
+                  R(i,j) = tmp_R(tmp_i,tmp_j)
+              enddo
+          enddo
+
+          ! Rotation of the MOs
+          call org_apply_mo_rotation(R, prev_mos)
+
+          ! touch mo_coef 
+          TOUCH mo_coef
+
+          ! To update the other parameters if needed
+          call update_parameters()
+
+          ! New criterion
+          criterion = C_PROVIDER
+
+          ! Criterion -> step accepted or rejected 
+          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+
+          ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+          if (cancel_step) then
+              ! Replacement by the previous MOs
+              mo_coef = prev_mos
+
+              ! Avoid the recomputation of the hessian and the gradient
+              TOUCH H_PROVIDER g_PROVIDER 
+          endif      
+
+      enddo
+
+      call save_mos() !### depend of the time for 1 iteration
+
+      ! To exit the external loop if must_exit = .True.
+      if (must_exit) then
+          exit
+      endif 
+
+      ! Step accepted, nb iteration + 1
+      nb_iter = nb_iter + 1
+
+      ! To invalid the gradient and the hessian
+      FREE H_PROVIDER g_PROVIDER
+
+      ! Unnecessary
+      PROVIDE CC_PROVIDER
+
+      ! To exit
+      if (CC_PROVIDER) then
+        not_converged = .False.
+      endif
+
+      ! Unnecessary
+      FREE CC_PROVIDER
+
+  enddo
+  
+ deallocate(e_val, W, tmp_R, R, tmp_x, prev_mos)
+
+end
+#+END_SRC
+
+** Cartesian version
+#+BEGIN_SRC f90 :comments org
+subroutine algo_trust_cartesian(tmp_n)
+
+  implicit none
+
+  ! Variables
+
+  ! In
+  integer, intent(in) :: tmp_n
+  
+  ! Out
+  ! Rien ou un truc pour savoir si ça c'est bien passé
+  
+  ! Internal
+  double precision, allocatable :: e_val(:), W(:,:), tmp_x(:)
+  double precision              :: criterion, prev_criterion, criterion_model
+  double precision              :: delta, rho
+  logical                       :: not_converged, cancel_step, must_exit
+  integer                       :: nb_iter
+  integer                       :: i,j
+
+  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n))
+
+  ! Necessary ?
+  PROVIDE H_PROVIDER g_PROVIDER C_PROVIDER 
+
+  PROVIDE X_PROVIDER
+
+  ! Initialization
+  delta = 0d0 
+  nb_iter = 0 ! Must starts at 0 !!!
+  rho = 0.5d0 ! Must starts at 0.5 
+  not_converged = .True. ! Must be true
+
+  ! Compute the criterion before the loop
+  prev_criterion = C_PROVIDER
+
+  do while (not_converged)
+
+      ! Diagonalization of the hessian 
+      call org_diagonalization_hessian(tmp_n,H_PROVIDER,e_val,W)
+
+      cancel_step = .True. ! To enter in the loop just after 
+
+      ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+      do while (cancel_step)
+
+          ! Hessian,gradient,Criterion -> x 
+          call step_in_trust_region(tmp_n,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+
+          if (must_exit) then
+              ! if step_in_trust_region sets must_exit on true for numerical reasons
+              print*,'algo_trust1 sends the message : Exit'
+              exit
+          endif
+
+          ! New coordinates, check the sign 
+          X_PROVIDER = X_PROVIDER - tmp_x
+
+          ! touch X_PROVIDER
+          TOUCH X_PROVIDER
+
+          ! To update the other parameters if needed
+          call update_parameters()
+
+          ! New criterion
+          criterion = C_PROVIDER
+
+          ! Criterion -> step accepted or rejected 
+          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+
+          ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+          if (cancel_step) then
+              ! Replacement by the previous coordinates, check the sign 
+              X_PROVIDER = X_PROVIDER + tmp_x
+
+              ! Avoid the recomputation of the hessian and the gradient
+              TOUCH H_PROVIDER g_PROVIDER 
+          endif      
+
+      enddo
+
+      ! To exit the external loop if must_exit = .True.
+      if (must_exit) then
+          exit
+      endif 
+
+      ! Step accepted, nb iteration + 1
+      nb_iter = nb_iter + 1
+
+      ! To invalid the gradient and the hessian
+      FREE H_PROVIDER g_PROVIDER
+
+      ! Unnecessary
+      PROVIDE CC_PROVIDER
+
+      ! To exit
+      if (CC_PROVIDER) then
+        not_converged = .False.
+      endif
+
+      ! Unnecessary
+      FREE CC_PROVIDER
+
+  enddo
+  
+ deallocate(e_val, W, tmp_x)
+
+end
 #+END_SRC

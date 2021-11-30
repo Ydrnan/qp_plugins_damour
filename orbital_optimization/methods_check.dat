@@ -1,0 +1,50 @@
+h2_6_31g_doci_test.ezfio        scf                        SCF_energy          -1.126742700778075
+h2_6_31g_doci_test.ezfio        fci                        E_______________=   -1.143429134371716 
+h2_6_31g_doci_test.ezfio        org_debug_hessian_list     Max_error            0.0
+h2_6_31g_doci_test.ezfio        org_debug_gradient_list    Max_error            0.0
+h2_6_31g_doci_test.ezfio        debug_gradient_loc         Max_error            0.0
+h2_6_31g_doci_test.ezfio        debug_hessian_loc          Max_error            0.0
+h2_6_31g_doci_test.ezfio        org_orb_opt_trust_v2       Energy_of_state     -1.151679027350327 
+h2_6_31g_doci_test.ezfio        localization               Criterion           -7.98425090702555 (7)
+N2_fc_test.ezfio                diagonalize_h          Energy_of_state     -109.1185362459150
+N2_fc_test.ezfio                org_orb_opt_trust_v2       Energy_of_state     -109.1434578917262 
+N2_fc_test.ezfio                org_debug_hessian_list     Max_error            0.0
+N2_fc_test.ezfio                org_debug_gradient_list    Max_error            0.0
+N2_test.ezfio                   diagonalize_h          Energy_of_state     -109.1185362459154 
+N2_test.ezfio                   org_orb_opt_trust_v2       Energy_of_state     -109.1436821467061 
+N2_test.ezfio                   org_debug_hessian          Max_error            0.0
+N2_test.ezfio                   org_debug_gradient         Max_error            0.0
+N2_test.ezfio                   org_debug_hessian_list     Max_error            0.0
+N2_test.ezfio                   org_debug_gradient_list    Max_error            0.0
+benzene_boys_test.ezfio         debug_gradient_loc         Max_error            0.0 
+benzene_boys_core_test.ezfio    debug_gradient_loc         Max_error            0.0 
+benzene_boys_act_test.ezfio     debug_gradient_loc         Max_error            0.0 
+benzene_boys_virt_test.ezfio    debug_gradient_loc         Max_error            0.0 
+benzene_boys_test.ezfio         debug_hessian_loc          Max_error            0.0
+benzene_boys_core_test.ezfio    debug_hessian_loc          Max_error            0.0
+benzene_boys_act_test.ezfio     debug_hessian_loc          Max_error            0.0
+benzene_boys_virt_test.ezfio    debug_hessian_loc          Max_error            0.0
+benzene_pipek_test.ezfio        debug_gradient_loc         Max_error            0.0
+benzene_pipek_core_test.ezfio   debug_gradient_loc         Max_error            0.0
+benzene_pipek_act_test.ezfio    debug_gradient_loc         Max_error            0.0
+benzene_pipek_virt_test.ezfio   debug_gradient_loc         Max_error            0.0
+benzene_pipek_test.ezfio        debug_hessian_loc          Max_error            0.0    
+benzene_pipek_core_test.ezfio   debug_hessian_loc          Max_error            0.0    
+benzene_pipek_act_test.ezfio    debug_hessian_loc          Max_error            0.0    
+benzene_pipek_virt_test.ezfio   debug_hessian_loc          Max_error            0.0
+benzene_boys_test.ezfio         localization               Criterion           -646.301419561163
+benzene_boys_core_test.ezfio    localization               Criterion           -41.8105501307134 (6)
+benzene_boys_act_test.ezfio     localization               Criterion           -140.318283761765 (44) 
+benzene_boys_virt_test.ezfio    localization               Criterion           -646.301419561160 (96)
+benzene_pipek_test.ezfio        localization               Criterion           -146.109818621198 
+benzene_pipek_core_test.ezfio   localization               Criterion           -5.97348188544257 (9)    
+benzene_pipek_act_test.ezfio    localization               Criterion           -7.57944237815090 (1000)
+benzene_pipek_virt_test.ezfio   localization               Criterion           -146.109818621198 (1000) 
+h2co_cc_pvdz_test.ezfio         diagonalize_h              Energy_of_state     -113.9664814847783
+h2co_cc_pvdz_test.ezfio         org_orb_opt_trust_v2       Energy_of_state     -114.0324207512344 
+h2co_cc_pvdz_fc_test.ezfio      diagonalize_h              Energy_of_state     -113.9664814847781
+h2co_cc_pvdz_fc_test.ezfio      org_orb_opt_trust_v2       Energy_of_state     -114.0324139186217
+h2co_cc_pvdz_test.ezfio         org_debug_hessian_list     Max_error            0.0
+h2co_cc_pvdz_test.ezfio         org_debug_gradient_list    Max_error            0.0
+h2co_cc_pvdz_fc_test.ezfio      org_debug_hessian_list     Max_error            0.0
+h2co_cc_pvdz_fc_test.ezfio      org_debug_gradient_list    Max_error            0.0

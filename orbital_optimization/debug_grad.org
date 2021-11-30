@@ -44,8 +44,8 @@ program org_debug_grad
   call diagonalize_ci ! Vérifier pour suppression
 
   ! Gradient  
-  call first_gradient(n,v_grad,max_elem)
-  call gradient(n,v_grad2,max_elem)
+  call org_first_gradient(n,v_grad)
+  call org_gradient(n,v_grad2,max_elem)
   
   v_grad = v_grad - v_grad2
   nb_error = 0

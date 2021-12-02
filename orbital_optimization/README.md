@@ -6,7 +6,7 @@ cd plugins
 git clone -b dev https://github.com/Ydrnan/qp_plugins_damour  
 qp_plugins install orbital_optimization  
 cd qp_plugins_damour/orbital_optimization  
-./TANGLE_mode.sh  
+./TANGLE_org_mode.sh  
 cd $QP_ROOT  
 ninja  
   
@@ -15,7 +15,7 @@ Please, use the ifort compiler
 Some parameters can be changed with qp edit in the Orbital_optimization section 
  
 If you modify the .org files, don't forget to do:  
-./TANGLE_mode.sh  
+./TANGLE_org_mode.sh  
 ninja  
  
 The documentation can be read using:  

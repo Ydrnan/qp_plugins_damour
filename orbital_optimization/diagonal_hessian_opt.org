@@ -93,7 +93,7 @@ Internal:
 Function:
 | get_two_e_integral | double precision | bi-electronic integrals |
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
 subroutine diag_hessian_opt(n,H, h_tmpr)
  
   use omp_lib
@@ -156,7 +156,7 @@ subroutine diag_hessian_opt(n,H, h_tmpr)
 #+END_SRC
 
 ** Initialization of the arrays
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f 
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f 
   !$OMP DO
   do s = 1,mo_num
     do r = 1, mo_num
@@ -243,7 +243,7 @@ With optimization :
  =  
   mo_one_e_integrals(u,p) * one_e_dm_mo(u,p) 
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4) 
   !$OMP END MASTER
@@ -285,7 +285,7 @@ With optimization :
  =  
   mo_one_e_integrals(u,p) * one_e_dm_mo(u,p)    
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do p = 1, mo_num
     tmp_accu_1_shared(p) = 0d0
@@ -363,7 +363,7 @@ enddo
  = 
   mo_one_e_integrals(u,p) * one_e_dm_mo(u,p)
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER  
@@ -407,7 +407,7 @@ enddo
  = 
   mo_one_e_integrals(u,q) * one_e_dm_mo(u,q)
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do p = 1, mo_num
     tmp_accu_1_shared(p) = 0d0
@@ -481,7 +481,7 @@ hessian(p,q,r,s) -> hessian(p,q,p,q)
 = 
  - 2d0 mo_one_e_integrals(q,p) * one_e_dm_mo(p,q)
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER 
@@ -510,7 +510,7 @@ hessian(p,q,r,s) -> hessian(p,q,p,q)
 = 
  - 2d0 mo_one_e_integrals(q,p) * one_e_dm_mo(p,q)
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do q = 1, mo_num
     do p = 1, mo_num
@@ -583,7 +583,7 @@ With optimization :
 Just re-order the index and use 3D temporary arrays for optimal memory
 accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -659,7 +659,7 @@ accesses.
 Just re-order the index and use 3D temporary arrays for optimal memory
 accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do p = 1, mo_num
     tmp_accu_1_shared(p) = 0d0
@@ -776,7 +776,7 @@ With optimization :
 Just re-order the index and use 3D temporary arrays for optimal memory
 accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -852,7 +852,7 @@ accesses.
 Just re-order the index and use 3D temporary arrays for optimal memory
 accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do p = 1,mo_num
     tmp_accu_1_shared(p) = 0d0
@@ -965,7 +965,7 @@ Arrays of the kind (u,v,p,p) can be transform in 4D arrays (u,v,p).
 Using u,v as one variable a matrix multiplication appears.
 $$c_{p,q} = \sum_{uv} a_{p,uv} b_{uv,q}$$
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -1023,7 +1023,7 @@ $$c_{p,q} = \sum_{uv} a_{p,uv} b_{uv,q}$$
 Just re-order the indexes and use 3D temporary arrays for optimal
 memory accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   call wall_time(t4)
   !$OMP END MASTER
@@ -1133,7 +1133,7 @@ With optimization :
 Just re-order the indexes and use 3D temporary arrays for optimal
 memory accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -1204,7 +1204,7 @@ memory accesses.
 Just re-order the indexes and use 3D temporary arrays for optimal
 memory accesses.
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !--------
   ! Part 1.2
   !-------- 
@@ -1298,7 +1298,7 @@ Arrays of the kind (t,p,u,p) can be transformed in 3D arrays. By doing
 so and using t,u as one variable, a matrix multiplication appears :
 $$c_{p,q} = \sum_{tu} a_{p,tu} b_{tu,q}$$
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !----------
   ! Part 2.1
   !----------
@@ -1347,7 +1347,7 @@ Arrays of the kind (t,u,p,p) can be transformed in 3D arrays. By doing
 so and using t,u as one variable, a matrix multiplication appears :
 $$c_{p,q} = \sum_{tu} a_{p,tu} b_{tu,q}$$
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !--------
   ! Part 2.2 
   !--------
@@ -1406,7 +1406,7 @@ $$c_{p,q} = \sum_{tu} a_{p,tu} b_{tu,q}$$
 
 ** Deallocation of private arrays
 In the OMP section !
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   deallocate(tmp_2rdm_3,tmp_bi_int_3)
   deallocate(tmp_accu)
 #+END_SRC
@@ -1417,7 +1417,7 @@ formula :
 Hessian(p,q,r,s) = P_pq P_rs [...]
 => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP DO
   do p = 1, mo_num
     hessian(p,p,p,p) = hessian(p,p,p,p) + tmp_h_pppp(p)
@@ -1461,7 +1461,7 @@ We need a 2D matrix for the Newton method's. Since the Hessian is
 We can write it as a 2D matrix, N by N, with N = mo_num(mo_num-1)/2
 with p<q and r<s
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -1496,7 +1496,7 @@ with p<q and r<s
 
 ** Deallocation of shared arrays, end
 
-#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
   deallocate(hessian)!,h_tmpr)
   deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
   deallocate(tmp_accu_1_shared, tmp_accu_shared) 

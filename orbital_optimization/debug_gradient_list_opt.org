@@ -17,7 +17,7 @@ Internal:
 | max_error  | double precision | maximal error in the gradient      |
 | nb_error   | integer          | number of error in the gradient    |
 
-#+BEGIN_SRC f90 :comments org :tangle debug_gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle debug_gradient_list_opt.irp.f
 program debug_gradient_list
   
   implicit none

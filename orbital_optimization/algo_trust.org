@@ -277,14 +277,10 @@ subroutine algo_trust(tmp_n, tmp_list_size)
 
   allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n))
   allocate(tmp_R(tmp_list_size,tmp_list_size), R(mo_num,mo_num))
-  allocate(prev_mos(mo_num,mo_num))
+  allocate(prev_mos(ao_num,mo_num))
 
   ! Necessary ?
   PROVIDE H_PROVIDER g_PROVIDER C_PROVIDER 
-
-  if (.False.) then
-    PROVIDE X_PROVIDER
-  endif
 
   ! Initialization
   delta = 0d0 
@@ -306,7 +302,7 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       do while (cancel_step)
 
           ! Hessian,gradient,Criterion -> x 
-          call trust_region_step_w_expected_e(tmp_n,tmp_list_size,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+          call trust_region_step_w_expected_e(tmp_n,tmp_list_size, H_PROVIDER,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
           if (must_exit) then
               ! if step_in_trust_region sets must_exit on true for numerical reasons
@@ -380,6 +376,10 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       if (CC_PROVIDER) then
         not_converged = .False.
       endif
+
+      if (nb_iter > 10) then
+        not_converged = .False.
+      endif 
 
       ! Unnecessary
       FREE CC_PROVIDER

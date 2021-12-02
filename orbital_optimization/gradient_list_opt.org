@@ -76,7 +76,7 @@ Function:
 | get_two_e_integral | double precision | bi-electronic integrals |
 | dnrm2              | double precision | (Lapack) norm           |
 
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
 subroutine gradient_list_opt(n,m,list,v_grad,max_elem,norm)
   use omp_lib
   include 'constants.h'
@@ -130,7 +130,7 @@ subroutine gradient_list_opt(n,m,list,v_grad,max_elem,norm)
   
 ** Calculation
 *** Initialization
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   !$OMP DO
   do tmp_q = 1, m
     do tmp_p = 1, m
@@ -160,7 +160,7 @@ c_{ij} = \sum_k a_{ik}.b_{kj}
 \end{equation}
 The previous equation can be rewritten as a matrix multplication  
   
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   !****************
   ! Opt first term
   !****************
@@ -252,7 +252,7 @@ r,s can be seen as one index
 
 By doing so, a matrix multiplication appears 
 
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   !*****************
   ! Opt second term  
   !*****************
@@ -310,7 +310,7 @@ By doing so, a matrix multiplication appears
 #+END_SRC
 
 *** Deallocation of private arrays
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   deallocate(tmp_bi_int_3,tmp_2rdm_3,tmp_accu)
 
   !$OMP END PARALLEL
@@ -330,7 +330,7 @@ mo_num*(mo_num-1)/2.
 
 Here we do these two things at the same time.
 
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   do i=1,n
     call vec_to_mat_index(i,p,q)
     v_grad(i)=(grad(p,q) - grad(q,p))
@@ -345,7 +345,7 @@ Here we do these two things at the same time.
 
 *** Norm of the gradient
 The norm can be useful.
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   norm = dnrm2(n,v_grad,1)
   print*, 'Gradient norm : ', norm
 #+END_SRC
@@ -354,7 +354,7 @@ The norm can be useful.
 The maximum element in the gradient is very important for the
 convergence criterion of the Newton method.
 
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   ! Max element of the gradient
   max_elem = 0d0
   do i = 1, n
@@ -382,7 +382,7 @@ convergence criterion of the Newton method.
 #+END_SRC
 
 *** Deallocation of shared arrays and end
-#+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
+#+BEGIN_SRC f90 :comments org :tangle gradient_list_opt.irp.f
   deallocate(grad,A, tmp_mo_one_e_integrals,tmp_one_e_dm_mo)
 
   print*,'---End gradient---'

@@ -75,7 +75,7 @@ Function:
 | get_two_e_integral | double precision | bielectronic integrals |
 
 #+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
-subroutine hess(n,H,h_tmpr)
+subroutine hessian_opt(n,H,h_tmpr)
   use omp_lib
   include 'constants.h' 
 

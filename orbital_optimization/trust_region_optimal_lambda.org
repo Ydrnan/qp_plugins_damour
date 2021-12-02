@@ -149,7 +149,7 @@ Function:
 
 
 #+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
-subroutine trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
+subroutine trust_region_optimal_lambda(n,e_val,tmp_wtg,delta,lambda)
 
   include 'constants.h'
 

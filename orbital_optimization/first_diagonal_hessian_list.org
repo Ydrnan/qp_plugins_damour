@@ -1,7 +1,7 @@
 * First diagonal hessian
 
 #+BEGIN_SRC f90 :comments :tangle first_diagonal_hessian_list.irp.f
-subroutine first_diag_hess_list(tmp_n,m,list,H, h_tmpr)
+subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
 
   include 'constants.h' 
 

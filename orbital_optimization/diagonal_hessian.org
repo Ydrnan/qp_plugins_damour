@@ -94,7 +94,7 @@ Function:
 | get_two_e_integral | double precision | bi-electronic integrals |
 
 #+BEGIN_SRC f90 :comments org :tangle diagonal_hessian.irp.f
-subroutine diag_hess(n,H, h_tmpr)
+subroutine diag_hessian_opt(n,H, h_tmpr)
  
   use omp_lib
   

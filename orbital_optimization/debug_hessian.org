@@ -52,8 +52,8 @@ program debug_hessian
   if (optimization_method == 'full') then 
 
     print*,'Use the full hessian matrix'
-    call first_hess(n,H,h_f)
-    call hess(n,H2,h_f2)
+    call first_hessian_opt(n,H,h_f)
+    call hessian_opt(n,H2,h_f2)
 
     ! Difference
     h_f = h_f - h_f2
@@ -98,8 +98,8 @@ program debug_hessian
   elseif (optimization_method == 'diag') then
 
     print*, 'Use the diagonal hessian matrix'
-    call first_diag_hess(n,H,h_f)
-    call diag_hess(n,H2,h_f2)
+    call first_diag_hessian_opt(n,H,h_f)
+    call diag_hessian_opt(n,H2,h_f2)
     
     h_f = h_f - h_f2
     max_error = 0d0

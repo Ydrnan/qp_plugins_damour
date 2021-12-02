@@ -1,7 +1,7 @@
 * First hessian
 
 #+BEGIN_SRC f90 :comments :tangle first_hessian.irp.f
-subroutine first_hess(n,H,h_tmpr)
+subroutine first_hessian_opt(n,H,h_tmpr)
 
   include 'constants.h' 
 

@@ -17,23 +17,22 @@ Internal:
 | max_error  | double precision | maximal error in the gradient      |
 | nb_error   | integer          | number of error in the gradient    |
 
-#+BEGIN_SRC f90 :comments org :tangle debug_gradient_list.irp.f
-program debug_grad_list
+#+BEGIN_SRC f90 :comments org :tangle debug_gradient.irp.f
+program debug_gradient
   
   implicit none
 
   ! Variables
 
   double precision, allocatable :: v_grad(:), v_grad2(:)
-  integer                       :: n,m
+  integer                       :: n
   integer                       :: i
   double precision              :: threshold
-  double precision              :: max_error, max_elem, norm
+  double precision              :: max_error, max_elem
   integer                       :: nb_error
   
-  m = dim_list_act_orb
   ! Definition of n  
-  n = m*(m-1)/2
+  n = mo_num*(mo_num-1)/2
 
   PROVIDE mo_two_e_integrals_in_map ! Vérifier pour suppression
 
@@ -45,9 +44,8 @@ program debug_grad_list
   call diagonalize_ci ! Vérifier pour suppression
 
   ! Gradient  
-  call gradient_list(n,m,list_act,v_grad,max_elem,norm)
-  call first_gradient_list(n,m,list_act,v_grad2)
-  
+  call first_gradient_opt(n,v_grad)
+  call gradient_opt(n,v_grad2,max_elem)
   
   v_grad = v_grad - v_grad2
   nb_error = 0
@@ -56,7 +54,7 @@ program debug_grad_list
 
   do i = 1, n
     if (ABS(v_grad(i)) > threshold) then
-       print*,i,v_grad(i)
+       print*,v_grad(i)
        nb_error = nb_error + 1
 
        if (ABS(v_grad(i)) > max_error) then

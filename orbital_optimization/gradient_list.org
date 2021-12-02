@@ -77,7 +77,7 @@ Function:
 | dnrm2              | double precision | (Lapack) norm           |
 
 #+BEGIN_SRC f90 :comments org :tangle gradient_list.irp.f
-subroutine gradient_list(n,m,list,v_grad,max_elem,norm)
+subroutine gradient_list_opt(n,m,list,v_grad,max_elem,norm)
   use omp_lib
   include 'constants.h'
 

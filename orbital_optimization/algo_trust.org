@@ -50,7 +50,7 @@ Example:
     do while (cancel_step)
 
       ! Hessian,gradient,Criterion -> x 
-      call step_in_trust_region(tmp_n,tmp_list_size,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+      call trust_region_step_w_expected_e(tmp_n,tmp_list_size,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
       if (must_exit) then
         ! ### Message ###
@@ -75,7 +75,7 @@ Example:
       call #your_criterion(criterion)
 
       ! Criterion -> step accepted or rejected 
-      call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+      call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
       ! ### TODO ###
       !if (cancel_step) then
@@ -136,8 +136,8 @@ Output:
 ### TODO ### Sortir la diagonalisation
 
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-!subroutine step_in_trust_region(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
-subroutine step_in_trust_region(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+!subroutine trust_region_step_w_expected_e(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+subroutine trust_region_step_w_expected_e(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
   include 'constants.h'
 
@@ -165,12 +165,12 @@ subroutine step_in_trust_region(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,
   
   !call diagonalization_hessian(n,H,e_val,w)
 
-  call trust_region(n,m,nb_iter,v_grad,rho,e_val,W,x,m_x,delta)
+  call trust_region_step(n,m,nb_iter,v_grad,rho,e_val,W,x,m_x,delta)
   m_x = 0d0 ! Can't be used
   !call rotation_matrix(m_x,m,R,m,m,info)
   ! m_x et R dépende de l'ordre de remplissage....
 
-  call trust_e_model(n,v_grad,H,x,prev_criterion,criterion_model)
+  call trust_region_expected_e(n,v_grad,H,x,prev_criterion,criterion_model)
   ! exit if DABS(prev_criterion - criterion_model) < 1d-12
   if (DABS(prev_criterion - criterion_model) < thresh_model) then
     print*,''
@@ -214,7 +214,7 @@ Output:
 | cancel_step | logical          | If the step must be cancelled                                        |
 
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-subroutine is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+subroutine trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
   include 'constants.h'
 
@@ -231,7 +231,7 @@ subroutine is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criter
   double precision, intent(out) :: rho
 
   ! Computes rho
-  call rho_model(prev_criterion,criterion,criterion_model,rho)
+  call trust_region_rho(prev_criterion,criterion,criterion_model,rho)
   
   if (nb_iter == 0) then
     nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
@@ -306,7 +306,7 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       do while (cancel_step)
 
           ! Hessian,gradient,Criterion -> x 
-          call step_in_trust_region(tmp_n,tmp_list_size,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+          call trust_region_step_w_expected_e(tmp_n,tmp_list_size,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
           if (must_exit) then
               ! if step_in_trust_region sets must_exit on true for numerical reasons
@@ -347,7 +347,7 @@ subroutine algo_trust(tmp_n, tmp_list_size)
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
-          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+          call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
           ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
           if (cancel_step) then
@@ -440,7 +440,7 @@ subroutine algo_trust_cartesian(tmp_n)
       do while (cancel_step)
 
           ! Hessian,gradient,Criterion -> x 
-          call step_in_trust_region(tmp_n,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+          call trust_region_step_w_expected_e(tmp_n,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
           if (must_exit) then
               ! if step_in_trust_region sets must_exit on true for numerical reasons
@@ -461,7 +461,7 @@ subroutine algo_trust_cartesian(tmp_n)
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
-          call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+          call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
           ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
           if (cancel_step) then

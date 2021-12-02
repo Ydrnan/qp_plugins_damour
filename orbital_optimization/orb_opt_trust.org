@@ -237,13 +237,13 @@ subroutine run_orb_opt_trust
      !print *, 'CI energy : ', ci_energy
 
      ! Gradient
-     call gradient(n,v_grad,max_elem)
+     call gradient_opt(n,v_grad,max_elem)
 
      ! Hessian
      if (optimization_method == 'full') then
-        call hess(n,H,h_f)
+        call hessian_opt(n,H,h_f)
      elseif (optimization_method == 'diag') then
-        call diag_hess(n,H,h_f)
+        call diag_hessian_opt(n,H,h_f)
      else
         H = 0d0
         do i = 1, n
@@ -267,10 +267,10 @@ subroutine run_orb_opt_trust
      do while ( cancel_step )
 
         ! Step in the trust region
-        call trust_region(n,mo_num,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
+        call trust_region_step(n,mo_num,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
         
         ! Estimation of the energy after the rotation
-        call trust_e_model(n,v_grad,H,x,prev_energy,e_model)
+        call trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
 
         !  tmp bourrin
         if (DABS(prev_energy - e_model) < 1d-12) then
@@ -298,7 +298,7 @@ subroutine run_orb_opt_trust
         call update_st_av_ci_energy(energy)
  
         ! Calculation of rho 
-        call rho_model(prev_energy,energy,e_model,rho)
+        call trust_region_rho(prev_energy,energy,e_model,rho)
 
         ! TODO mettre ça dans uen subroutine
         if (nb_iter == 0) then

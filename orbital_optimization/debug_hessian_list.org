@@ -57,9 +57,9 @@ program debug_hessian_list
   if (method == 1) then 
 
     print*,'Use the full hessian matrix'
-    call hess_list(n,m,list_act,H,h_f)
-    call first_hess_list(n,m,list_act,H2,h_f2)
-    !call hess(n,H2,h_f2)
+    call hessian_list_opt(n,m,list_act,H,h_f)
+    call first_hessian_list_opt(n,m,list_act,H2,h_f2)
+    !call hessian_opt(n,H2,h_f2)
 
     ! Difference
     h_f = h_f - h_f2
@@ -104,8 +104,8 @@ program debug_hessian_list
   else
 
     print*, 'Use the diagonal hessian matrix'
-    call first_diag_hess(n,H,h_f)
-    call first_diag_hess_list(n,m,list_act,H2,h_f2)
+    call first_diag_hessian_opt(n,H,h_f)
+    call first_diag_hessian_list_opt(n,m,list_act,H2,h_f2)
     
     h_f = h_f - h_f2
     max_error = 0d0

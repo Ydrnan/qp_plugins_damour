@@ -42,8 +42,8 @@ Internal:
 | i      | integer          | index                            |
 | t*     | double precision | time                             |
 
-#+BEGIN_SRC f90 :comments org :tangle rho_model.irp.f
-subroutine rho_model(prev_energy, energy,e_model,rho)
+#+BEGIN_SRC f90 :comments org :tangle trust_region_rho.irp.f
+subroutine trust_region_rho(prev_energy, energy,e_model,rho)
 
   include 'constants.h'
 
@@ -77,7 +77,7 @@ With :
 $E_i$ energy of state i
 $w_i$ weight of state i
 
-#+BEGIN_SRC f90 :comments org :tangle rho_model.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region_rho.irp.f
 !  ! Energy of the actual step
 !  energy = 0d0
 !  do i = 1, N_states
@@ -100,7 +100,7 @@ If we cancel the last step (k+1), the previous energy (k) doesn't
 change!
 If the step (k+1) is accepted, then the "previous energy" becomes E(k+1) 
 
-#+BEGIN_SRC f90 :comments org :tangle rho_model.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region_rho.irp.f
   ! Already done in an other subroutine
   !if (ABS(prev_energy - e_model) < 1d-12) then
   !  print*,'WARNING: prev_energy - e_model < 1d-12'

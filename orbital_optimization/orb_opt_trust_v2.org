@@ -200,19 +200,19 @@ Here is the main algorithm of the optimization:
     ! Call you hessian
 
     ! Gradient
-    !call first_gradient_list(tmp_n,m,tmp_list,v_grad)
-    call gradient_list(tmp_n,m,tmp_list,v_grad,max_elem_grad,norm_grad)
+    !call first_gradient_list_opt(tmp_n,m,tmp_list,v_grad)
+    call gradient_list_opt(tmp_n,m,tmp_list,v_grad,max_elem_grad,norm_grad)
     
     ! Hessian
-    !call hess_list(tmp_n,m,tmp_list,H,h_f)
+    !call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     if (optimization_method == 'full') then
-       !call first_hess_list(tmp_n,m,tmp_list,H,h_f)
-       call hess_list(tmp_n,m,tmp_list,H,h_f)
+       !call first_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+       call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     elseif (optimization_method == 'diag') then
        print*,'Not available for the moment, abort'
        call abort
-       !call first_diag_hess_list(tmp_n,m,tmp_list,H,h_f)
-       !call diag_hess_list(tmp_n,m,tmp_list,H,h_f)
+       !call first_diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+       !call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     else 
       H = 0d0
       do tmp_i = 1, tmp_n
@@ -229,7 +229,7 @@ Here is the main algorithm of the optimization:
     do while (cancel_step)
 
       ! Hessian,gradient,Criterion -> x 
-      call step_in_trust_region(tmp_n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      call trust_region_step_w_expected_e(tmp_n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
       if (must_exit) then
         ! ### Message ###
         ! if algo_trust1 sets must_exit on true for numerical reasons
@@ -276,7 +276,7 @@ Here is the main algorithm of the optimization:
       call update_st_av_ci_energy(criterion)
 
       ! Criterion -> step accepted or rejected 
-      call is_step_cancel_trust_region(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+      call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
       ! ### TODO ###
       !if (cancel_step) then

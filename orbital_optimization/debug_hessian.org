@@ -23,8 +23,8 @@ Internal:
 | nb_error                          | integer          | number of errors in the 4D hessian |
 | nb_error_H                        | integer          | number of errors in the 2D hessian |
 
-#+BEGIN_SRC f90 :comments org :tangle org_debug_hessian.irp.f
-program org_debug_hessian
+#+BEGIN_SRC f90 :comments org :tangle debug_hessian.irp.f
+program debug_hessian
 
   implicit none
 
@@ -52,8 +52,8 @@ program org_debug_hessian
   if (optimization_method == 'full') then 
 
     print*,'Use the full hessian matrix'
-    call org_first_hess(n,H,h_f)
-    call org_hess(n,H2,h_f2)
+    call first_hess(n,H,h_f)
+    call hess(n,H2,h_f2)
 
     ! Difference
     h_f = h_f - h_f2
@@ -99,7 +99,7 @@ program org_debug_hessian
 
     print*, 'Use the diagonal hessian matrix'
     call first_diag_hess(n,H,h_f)
-    call org_diag_hess(n,H2,h_f2)
+    call diag_hess(n,H2,h_f2)
     
     h_f = h_f - h_f2
     max_error = 0d0

@@ -44,9 +44,9 @@ subroutine run_optimization
       print*,'********** optimization step **********'
       ! orbital optimization
       if (optimization_method == 'diag') then
-        call org_run_orb_opt_trust
+        call run_orb_opt_trust
       else
-        call org_run_orb_opt_trust_v2
+        call run_orb_opt_trust_v2
       endif
 
       ! State average energy after the orbital optimization

@@ -28,8 +28,8 @@ Internal:
 Function:
 | ddot | double precision | dot product (Lapack) |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_e_model.irp.f
-subroutine org_trust_e_model(n,v_grad,H,x,prev_energy,e_model)
+#+BEGIN_SRC f90 :comments org :tangle trust_e_model.irp.f
+subroutine trust_e_model(n,v_grad,H,x,prev_energy,e_model)
    
   include 'constants.h' 
 
@@ -71,7 +71,7 @@ part_2 corresponds to the product 0.5*(x^T.H.x)
 
 TODO: remove the dot products
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_e_model.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_e_model.irp.f
   ! Product v_grad.x
   part_1 = ddot(n,v_grad,1,x,1)
  

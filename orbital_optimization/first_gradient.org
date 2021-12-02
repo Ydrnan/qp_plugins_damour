@@ -1,6 +1,6 @@
 * First gradient
-#+BEGIN_SRC f90 :comments org :tangle org_first_gradient.irp.f
-subroutine org_first_gradient(n,v_grad)
+#+BEGIN_SRC f90 :comments org :tangle first_gradient.irp.f
+subroutine first_gradient(n,v_grad)
 
   include 'constants.h'
 

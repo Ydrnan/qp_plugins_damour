@@ -148,8 +148,8 @@ Function:
 | f_norm_trust_region          | double precision | value of norm(x)^2                                                      |
 
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
-subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
+subroutine trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
 
   include 'constants.h'
 
@@ -208,7 +208,7 @@ subroutine org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
 
 Resolution with the Newton method:
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
   ! Initialization
   epsilon = 1d-4
   lambda =MAX(0d0, -e_val(1))
@@ -498,7 +498,7 @@ Internal:
 Function:
 | d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   
   use omp_lib
@@ -631,7 +631,7 @@ Internal:
 Function:
 | d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2 |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   
   use omp_lib
@@ -775,7 +775,7 @@ Internal:
 | tmp_fN     | double precision | temporary array for the function |
 | i,j        | integer          | indexes                          |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
 
   use omp_lib
@@ -883,7 +883,7 @@ Function:
 | d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
 | ddot                 | double precision | blas dot product                                               |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
@@ -977,7 +977,7 @@ Function:
 | d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2       |
 | ddot                 | double precision | blas dot product                                               |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
@@ -1076,7 +1076,7 @@ Function:
 | ddot                | double precision | blas dot product   |
 
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function f_norm_trust_region(n,e_val,tmp_wtg,lambda)
 
   include 'constants.h'
@@ -1154,7 +1154,7 @@ Internal:
 Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   use omp_lib
@@ -1307,7 +1307,7 @@ Internal:
 Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   use omp_lib
@@ -1463,7 +1463,7 @@ Internal:
 Function:
 | d1_norm_inverse_trust_region | double precision | value of the first derivative |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
@@ -1554,7 +1554,7 @@ Internal:
 Function:
 | d2_norm_inverse_trust_region | double precision | value of the first derivative |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_newton.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_newton.irp.f
 function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'

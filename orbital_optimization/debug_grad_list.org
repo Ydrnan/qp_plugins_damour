@@ -17,8 +17,8 @@ Internal:
 | max_error  | double precision | maximal error in the gradient      |
 | nb_error   | integer          | number of error in the gradient    |
 
-#+BEGIN_SRC f90 :comments org :tangle org_debug_gradient_list.irp.f
-program org_debug_grad_list
+#+BEGIN_SRC f90 :comments org :tangle debug_gradient_list.irp.f
+program debug_grad_list
   
   implicit none
 
@@ -45,7 +45,7 @@ program org_debug_grad_list
   call diagonalize_ci ! Vérifier pour suppression
 
   ! Gradient  
-  call org_gradient_list(n,m,list_act,v_grad,max_elem,norm)
+  call gradient_list(n,m,list_act,v_grad,max_elem,norm)
   call first_gradient_list(n,m,list_act,v_grad2)
   
   

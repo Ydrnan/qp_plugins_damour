@@ -32,7 +32,7 @@ Input:
 Input:
 | i | integer | corresponding index in the vector |
 
-#+BEGIN_SRC f90 :comments org :tangle org_mat_to_vec_index.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mat_to_vec_index.irp.f
 subroutine mat_to_vec_index(p,q,i)
 
   include 'constants.h'

@@ -245,7 +245,7 @@ solution $\textbf{x}$ with the formula seen previously:
 The solution $\textbf{x}(\lambda)$ with the optimal $\lambda$ is our
 step to go from the (k)-th to the (k+1)-th iteration, is noted $\textbf{x}^*$.
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f 
 #+END_SRC
 
 ** Evolution of the trust region
@@ -270,7 +270,7 @@ mesure this agreement we use the ratio rho cf. "rho_model" and
 In addition, if $\rho < 0.1$ the iteration is cancelled, so it
 restarts with a smaller trust region until the energy decreases.
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f 
 #+END_SRC
 
 ** Summary
@@ -330,7 +330,7 @@ matrix $\textbf{R}= \exp(\textbf{X})$ in "rotation_matrix".
 NB: 
 An improvement can be done using a elleptical trust region.
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f 
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f 
 #+END_SRC
 
 ** Code
@@ -371,8 +371,8 @@ Function:
 | dnrm2                   | double precision | Blas function computing the norm       |
 | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
-subroutine org_trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
+subroutine trust_region(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
 
   include 'constants.h'
 
@@ -425,7 +425,7 @@ region will evolve during the optimization.
 
 avoid_saddle is actually a test to avoid saddle points
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f                                                                                                                                                                                            
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f                                                                                                                                                                                            
   ! Initialization of the Lagrange multiplier
   lambda = 0d0
 
@@ -484,7 +484,7 @@ avoid_saddle is actually a test to avoid saddle points
     we compute this norm using f_norm_trust_region_omp as explain just
     below) 
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   ! trust radius
   if (nb_iter == 0) then
      trust_radius2 = norm2_x 
@@ -502,7 +502,7 @@ delta (the radius of the trust region).
 
 To avoid too big trust region we put a maximum size.
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   ! Modification of the trust radius in function of rho
   if (rho >= 0.75d0) then
      delta = 2d0 * delta
@@ -533,7 +533,7 @@ We search the solution of $(||x||^2 - \Delta^2)^2 = 0$
 
 You will find more details at the beginning
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   ! By giving delta, we search (||x||^2 - delta^2)^2 = 0
   ! and not (||x||^2 - delta)^2 = 0
   
@@ -560,7 +560,7 @@ You will find more details at the beginning
       ! Constraint solution
       print*, 'H positive definite, ||x(lambda = 0)|| > Delta' 
       print*,'Computation of the optimal lambda...'
-      call org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
+      call trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
     endif
 
   ! H indefinite
@@ -588,7 +588,7 @@ You will find more details at the beginning
          print*, 'H indefinite, w_1^T.g =/= 0'
       endif
       print*, 'Computation of the optimal lambda...'
-      call org_trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
+      call trust_newton_omp(n,e_val,tmp_wtg,delta,lambda)
       endif
      
   endif
@@ -611,7 +611,7 @@ We compute x in function of lambda using its formula :
 + \lambda} \cdot \textbf{w}_i
 \end{align*}
 
-#+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+#+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   ! Initialisation
   x = 0d0
 
@@ -674,7 +674,7 @@ We compute x in function of lambda using its formula :
 x is a vector of size n, so it can be write as a m by m
 antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   ! Step transformation vector -> matrix
   ! Vector with n element -> mo_num by mo_num matrix
   do j = 1, m
@@ -700,7 +700,7 @@ antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
 *** Deallocation, end
 
-    #+BEGIN_SRC f90 :comments org :tangle org_trust_region.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle trust_region.irp.f
   deallocate(tmp_wtg)
 
   call wall_time(t2)

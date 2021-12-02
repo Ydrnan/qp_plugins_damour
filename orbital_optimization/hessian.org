@@ -74,8 +74,8 @@ Internal:
 Function:
 | get_two_e_integral | double precision | bielectronic integrals |
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
-subroutine org_hess(n,H,h_tmpr)
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
+subroutine hess(n,H,h_tmpr)
   use omp_lib
   include 'constants.h' 
 
@@ -133,7 +133,7 @@ subroutine org_hess(n,H,h_tmpr)
 #+END_SRC
 
 ** Initialization of the arrays
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER
   do q = 1, mo_num
     do p = 1, mo_num
@@ -194,7 +194,7 @@ enddo
 We can write the formula as matrix multiplication.
 $$c_{p,s} = \sum_u a_{p,u} b_{u,s}$$
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER    
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -255,7 +255,7 @@ enddo
 We can write the formula as matrix multiplication.
 $$c_{r,q} = \sum_u a_{r,u} b_{u,q}$$
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -313,7 +313,7 @@ enddo
 
 We can just re-order the indexes
  
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -384,7 +384,7 @@ $$c_{p,s} = \sum_{uv} a_{p,uv} b_{uv,s}$$
 There is a kroenecker delta $$\delta_{qr}$$, so we juste compute the
 terms like : hessian(p,r,r,s)
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER 
   call wall_TIME(t4)
   !$OMP END MASTER
@@ -487,7 +487,7 @@ $$c_{q,r} = \sum_uv a_{q,uv} b_{uv,r}$$
 There is a kroenecker delta $$\delta_{ps}$$, so we juste compute the
 terms like : hessian(s,q,r,s)
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !******************************
   ! Opt Second line, second term
   !******************************
@@ -587,7 +587,7 @@ taking p,r and q,s as one dimension a matrix multplication
 appears. $$c_{pr,qs} = \sum_u a_{pr,u} b_{u,qs}$$ 
 
 Part 1
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER 
   call wall_TIME(t4)
   !$OMP END MASTER 
@@ -648,7 +648,7 @@ taking q,s and p,r as one dimension a matrix multplication
 appears. $$c_{qs,pr} = \sum_u a_{qs,u}*b_{u,pr}$$ 
 
 Part 2
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !--------
   ! part 2
   ! get_two_e_integral(q,s,u,v,mo_integrals_map) * two_e_dm_mo(p,r,u,v)
@@ -733,7 +733,7 @@ and taking u,v as one variable, a matrix multiplication appears:
 $$c_{r,s} = \sum_{ut} a_{r,ut} b_{ut,s}$$
 
 Part 1
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !--------
   ! Part 1 
   ! - get_two_e_integral(s,t,p,u,mo_integrals_map) * two_e_dm_mo(r,t,q,u)
@@ -792,7 +792,7 @@ and taking u,v as one variable, a matrix multiplication appears:
 $$c_{r,s} = \sum_{ut} a_{r,ut} b_{ut,s}$$
 
 Part 2
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !--------
   ! Part 2
   !- get_two_e_integral(t,s,p,u,mo_integrals_map) * two_e_dm_mo(t,r,q,u)
@@ -847,7 +847,7 @@ and taking u,v as one variable, a matrix multiplication appears:
 $$c_{r,s} = \sum_{ut} a_{r,ut} b_{ut,s}$$
 
 Part 3
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !--------
   ! Part 3
   !- get_two_e_integral(q,u,r,t,mo_integrals_map) * two_e_dm_mo(p,u,s,t) 
@@ -903,7 +903,7 @@ and taking u,v as one variable, a matrix multiplication appears:
 $$c_{r,s} = \sum_{ut} a_{r,ut} b_{ut,s}$$
 
 Part 4
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !--------
   ! Part 4
   ! - get_two_e_integral(q,u,t,r,mo_integrals_map) * two_e_dm_mo(p,u,t,s)
@@ -967,7 +967,7 @@ Part 4
 
 ** Deallocation of private arrays
 In the omp section !
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
  deallocate(tmp_bi_int_3, tmp_2rdm_3, tmp_accu, tmp_accu_sym, ind_3)
 #+END_SRC
  
@@ -977,7 +977,7 @@ formula :
 Hessian(p,q,r,s) = P_pq P_rs [...]
 => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -1009,7 +1009,7 @@ We need a 2D matrix for the Newton method's. Since the Hessian is
 We can write it as a 2D matrix, N by N, with N = mo_num(mo_num-1)/2
 with p<q and r<s
 
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   !$OMP MASTER
   CALL wall_TIME(t4)
   !$OMP END MASTER
@@ -1043,7 +1043,7 @@ with p<q and r<s
 #+END_SRC
 
 ** Deallocation of shared arrays, end
-#+BEGIN_SRC f90 :comments org :tangle org_hessian.irp.f
+#+BEGIN_SRC f90 :comments org :tangle hessian.irp.f
   deallocate(hessian)!,h_tmpr)
 ! h_tmpr is intent out in order to debug the subroutine
 ! It's why we don't deallocate it

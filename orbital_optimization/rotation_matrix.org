@@ -56,8 +56,8 @@ Functions:
 | disnan | logical          | Lapack function, check if an element is NaN   |
 
 
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
-subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
+#+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
+subroutine rotation_matrix(A,LDA,R,LDR,n,info)
 
   implicit none
 
@@ -104,7 +104,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 #+END_SRC
 
 ** Pre-conditions
-#+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+#+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   info=0
 
   ! Size of matrix A must be at least 1 by 1
@@ -188,7 +188,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
     W, the eigenvectors
     e_val, the eigenvalues
 
-    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! Compute B=A.A
   
   call dgemm('N','N',n,n,n,1d0,A,size(A,1),A,size(A,1),0d0,B,size(B,1))
@@ -224,7 +224,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
     - Calculation of $\sin(\tau)$  $\Leftrightarrow$ $\sin(\sqrt{-x})$
     - Calculation of $\tau^{-1}$ $\Leftrightarrow$ $(\sqrt{-x})^{-1}$
     These matrices are diagonals
-    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! Diagonal matrix m_diag
   do j = 1, n
      if (e_val(j) >= 0.d0) then
@@ -327,7 +327,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
 
     If $R$ is a rotation matrix:
     $R.R^T=R^T.R=\textbf{1}$
-    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! part_1
   call dgemm('N','T',n,n,n,1d0,cos_tau,size(cos_tau,1),W,size(W,1),0d0,part_1a,size(part_1a,1))
   call dgemm('N','N',n,n,n,1d0,W,size(W,1),part_1a,size(part_1a,1),0d0,part_1,size(part_1,1))
@@ -368,7 +368,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
     #+END_SRC
 
 *** Post conditions
-    #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+    #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! Check if R.R^T=1
   max_elem = 0d0
   do j = 1, n
@@ -409,7 +409,7 @@ subroutine org_rotation_matrix(A,LDA,R,LDR,n,info)
     #+END_SRC
 
 ** Deallocation, end
-   #+BEGIN_SRC f90 :comments org :tangle org_rotation_matrix.irp.f
+   #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   deallocate(B)
   deallocate(m_diag,cos_tau,sin_tau,tau_m1)
   deallocate(W,e_val)

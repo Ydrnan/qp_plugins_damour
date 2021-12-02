@@ -17,8 +17,8 @@ Internal:
 | info           | integer          | if 0 -> ok, else problem in the diagonalization |
 | i              | integer          | index                                           |
 
-#+BEGIN_SRC f90 :comments org :tangle org_diagonalization_hessian.irp.f
-subroutine org_diagonalization_hessian(n,H,e_val,w)
+#+BEGIN_SRC f90 :comments org :tangle diagonalization_hessian.irp.f
+subroutine diagonalization_hessian(n,H,e_val,w)
 
   include 'constants.h'
 

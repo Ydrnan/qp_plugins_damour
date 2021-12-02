@@ -77,8 +77,8 @@ subroutine test_loc_rot_mo(x,index,energy)
 
   ! 1D tmp -> 2D tmp 
   call vec_to_mat_v2(n,mo_num,v_x,m_x)
-  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-  call org_apply_mo_rotation(R, prev_mos)
+  call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call apply_mo_rotation(R, prev_mos)
 
   ! Update the dipoles
   call ao_to_mo_no_sym(ao_dipole_x, ao_num, mo_dipole_x, mo_num)
@@ -129,8 +129,8 @@ subroutine test_e_ci_rot_mo(x,index,energy)
 
   ! 1D tmp -> 2D tmp 
   call vec_to_mat_v2(n,mo_num,v_x,m_x)
-  call org_rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
-  call org_apply_mo_rotation(R, prev_mos)
+  call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+  call apply_mo_rotation(R, prev_mos)
   
   call clear_mo_map
   TOUCH mo_coef psi_det psi_coef

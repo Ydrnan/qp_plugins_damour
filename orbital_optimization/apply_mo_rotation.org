@@ -20,8 +20,8 @@ Intent out:
 Internal:
 | new_mos(ao_num,mo_num) | double precision | MOs after the rotation |
 | i,j                    | integer          | indexes                      |
-#+BEGIN_SRC f90 :comments org :tangle org_apply_mo_rotation.irp.f
-subroutine org_apply_mo_rotation(R,prev_mos)
+#+BEGIN_SRC f90 :comments org :tangle apply_mo_rotation.irp.f
+subroutine apply_mo_rotation(R,prev_mos)
   
   include 'constants.h'
 

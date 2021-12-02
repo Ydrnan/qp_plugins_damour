@@ -6,7 +6,7 @@ cd plugins
 git clone -b dev https://github.com/Ydrnan/qp_plugins_damour  
 qp_plugins install orbital_optimization  
 cd qp_plugins_damour/orbital_optimization  
-./TANGLE_org_mode.sh  
+./TANGLE_mode.sh  
 cd $QP_ROOT  
 ninja  
   
@@ -15,7 +15,7 @@ Please, use the ifort compiler
 Some parameters can be changed with qp edit in the Orbital_optimization section 
  
 If you modify the .org files, don't forget to do:  
-./TANGLE_org_mode.sh  
+./TANGLE_mode.sh  
 ninja  
  
 The documentation can be read using:  
@@ -49,7 +49,7 @@ Different methods are available:
 - full hessian  
 qp set orbital_optimization optimization_method full  
  
-- diagonal hessian (not available with org_orb_opt_trust_v2)  
+- diagonal hessian (not available with orb_opt_trust_v2)  
 qp set orbital_optimization optimization_method diag  
  
 - identity matrix  
@@ -59,9 +59,9 @@ After the optimization the ezfio contains the optimized orbitals
  
 ## For a fixed number of determinants
 To optimize the MOs for the actual determinants:  
-qp run org_orb_opt_trust  
+qp run orb_opt_trust  
 or  
-qp run org_orb_opt_trust_v2 (to compute the hessian only for the active MOs)  
+qp run orb_opt_trust_v2 (to compute the hessian only for the active MOs)  
  
 ## For a complete optimization, i.e, with a larger and larger wave function
 To optimize the MOs with a larger and larger wave function:  

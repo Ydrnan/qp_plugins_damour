@@ -50,7 +50,7 @@ Example:
     do while (cancel_step)
 
       ! Hessian,gradient,Criterion -> x 
-      call trust_region_step_w_expected_e(tmp_n,tmp_list_size,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+      call trust_region_step_w_expected_e(tmp_n,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
 
       if (must_exit) then
         ! ### Message ###
@@ -132,19 +132,15 @@ Output:
 | x(n)            | double precision | Step                                                                            |
 | must_exit       | logical          | If the program must exit the loop                                               |
 
-
-### TODO ### Sortir la diagonalisation
-
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
-!subroutine trust_region_step_w_expected_e(n,m,H,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
-subroutine trust_region_step_w_expected_e(n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
+subroutine trust_region_step_w_expected_e(n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
   include 'constants.h'
 
   implicit none
 
   ! in
-  integer, intent(in)             :: n,m, nb_iter
+  integer, intent(in)             :: n, nb_iter
   double precision, intent(in)    :: H(n,n), W(n,n), v_grad(n)
   double precision, intent(in)    :: rho, prev_criterion
 
@@ -156,21 +152,14 @@ subroutine trust_region_step_w_expected_e(n,m,H,W,e_val,v_grad,prev_criterion,rh
   logical, intent(out)            :: must_exit
 
   ! internal
-  double precision, allocatable   :: m_x(:,:)
   integer :: info
 
-  allocate(m_x(m,m))
-  
   must_exit = .False.
   
-  !call diagonalization_hessian(n,H,e_val,w)
-
-  call trust_region_step(n,m,nb_iter,v_grad,rho,e_val,W,x,m_x,delta)
-  m_x = 0d0 ! Can't be used
-  !call rotation_matrix(m_x,m,R,m,m,info)
-  ! m_x et R dépende de l'ordre de remplissage....
+  call trust_region_step(n,nb_iter,v_grad,rho,e_val,W,x,delta)
 
   call trust_region_expected_e(n,v_grad,H,x,prev_criterion,criterion_model)
+
   ! exit if DABS(prev_criterion - criterion_model) < 1d-12
   if (DABS(prev_criterion - criterion_model) < thresh_model) then
     print*,''
@@ -195,8 +184,6 @@ subroutine trust_region_step_w_expected_e(n,m,H,W,e_val,v_grad,prev_criterion,rh
   !   exit
   ! endif"
   ! in order to exit the optimization loop
-
-  deallocate(m_x)
 
 end subroutine
 #+END_SRC
@@ -253,29 +240,28 @@ end subroutine
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org
-subroutine algo_trust(tmp_n, tmp_list_size)
+subroutine algo_trust(tmp_n, tmp_list_size, tmp_list)
 
   implicit none
 
   ! Variables
 
   ! In
-  integer, intent(in) :: tmp_n, tmp_list_size
-  ! condition if tmp_list_size==0 -> cartesian ?
+  integer, intent(in) :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
 
   ! Out
   ! Rien ou un truc pour savoir si ça c'est bien passé
   
   ! Internal
-  double precision, allocatable :: e_val(:), W(:,:), tmp_R(:,:), R(:,:), tmp_x(:)
+  double precision, allocatable :: e_val(:), W(:,:), tmp_R(:,:), R(:,:), tmp_x(:), tmp_m_x(:,:)
   double precision, allocatable :: prev_mos(:,:)
   double precision              :: criterion, prev_criterion, criterion_model
   double precision              :: delta, rho
   logical                       :: not_converged, cancel_step, must_exit
-  integer                       :: nb_iter
+  integer                       :: nb_iter, info
   integer                       :: i,j,tmp_i,tmp_j
 
-  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n))
+  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n),tmp_m_x(tmp_list_size,tmp_list_size))
   allocate(tmp_R(tmp_list_size,tmp_list_size), R(mo_num,mo_num))
   allocate(prev_mos(ao_num,mo_num))
 
@@ -293,8 +279,12 @@ subroutine algo_trust(tmp_n, tmp_list_size)
 
   do while (not_converged)
 
+      if (nb_iter > 0) then
+        PROVIDE H_PROVIDER g_PROVIDER
+      endif
+
       ! Diagonalization of the hessian 
-      call diagonalization_hessian(tmp_n,H_PROVIDER,e_val,W)
+      call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
 
       cancel_step = .True. ! To enter in the loop just after 
 
@@ -302,19 +292,20 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       do while (cancel_step)
 
           ! Hessian,gradient,Criterion -> x 
-          call trust_region_step_w_expected_e(tmp_n,tmp_list_size, H_PROVIDER,W,e_val,g_PROVIDER,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+          call trust_region_step_w_expected_e(tmp_n, H_PROVIDER, W, e_val, g_PROVIDER, &
+               prev_criterion, rho, nb_iter, delta, criterion_model, tmp_x, must_exit)
 
           if (must_exit) then
               ! if step_in_trust_region sets must_exit on true for numerical reasons
-              print*,'algo_trust1 sends the message : Exit'
+              print*,'trust_region_step_w_expected_e sent the message : Exit'
               exit
           endif
 
           ! 1D tmp -> 2D tmp 
-          call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
+          call vec_to_mat_v2(tmp_n, tmp_list_size, tmp_x, tmp_m_x)
 
           ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
-          call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+          call rotation_matrix(tmp_m_x, tmp_list_size, tmp_R, tmp_list_size, tmp_list_size, info)
 
           ! TODO subroutine ?
           ! tmp_R to R, subspace to full space
@@ -326,7 +317,7 @@ subroutine algo_trust(tmp_n, tmp_list_size)
               j = tmp_list(tmp_j)
               do tmp_i = 1, tmp_list_size
                   i = tmp_list(tmp_i)
-                  R(i,j) = tmp_R(tmp_i,tmp_j)
+                  R(i,j) = tmp_R(tmp_i, tmp_j)
               enddo
           enddo
 
@@ -334,16 +325,17 @@ subroutine algo_trust(tmp_n, tmp_list_size)
           call apply_mo_rotation(R, prev_mos)
 
           ! touch mo_coef 
-          TOUCH mo_coef
+          TOUCH mo_coef H_PROVIDER g_PROVIDER C_PROVIDER CC_PROVIDER
 
           ! To update the other parameters if needed
           call update_parameters()
 
           ! New criterion
+          PROVIDE C_PROVIDER
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
-          call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+          call trust_region_is_step_cancelled(nb_iter, prev_criterion, criterion, criterion_model, rho, cancel_step)
 
           ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
           if (cancel_step) then
@@ -351,7 +343,7 @@ subroutine algo_trust(tmp_n, tmp_list_size)
               mo_coef = prev_mos
 
               ! Avoid the recomputation of the hessian and the gradient
-              TOUCH H_PROVIDER g_PROVIDER 
+              TOUCH mo_coef H_PROVIDER g_PROVIDER CC_PROVIDER 
           endif      
 
       enddo
@@ -369,7 +361,6 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       ! To invalid the gradient and the hessian
       FREE H_PROVIDER g_PROVIDER
 
-      ! Unnecessary
       PROVIDE CC_PROVIDER
 
       ! To exit
@@ -380,9 +371,6 @@ subroutine algo_trust(tmp_n, tmp_list_size)
       if (nb_iter > 10) then
         not_converged = .False.
       endif 
-
-      ! Unnecessary
-      FREE CC_PROVIDER
 
   enddo
   

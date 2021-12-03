@@ -901,11 +901,11 @@ In order to give a little kick in the system
       do while (cancel_step)
 
         ! Hessian,gradient,Criterion -> x 
-        call trust_region_step_w_expected_e(tmp_n,tmp_list_size,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+        call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
         if (must_exit) then
           ! ### Message ###
           ! if step_in_trust_region sets must_exit on true for numerical reasons
-          print*,'step_in_trust_region sends the message : Exit'
+          print*,'trust_region_step_w_expected_e sent the message : Exit'
           exit 
         endif
 

@@ -267,7 +267,7 @@ subroutine run_orb_opt_trust
      do while ( cancel_step )
 
         ! Step in the trust region
-        call trust_region_step(n,mo_num,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
+        call trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
         
         ! Estimation of the energy after the rotation
         call trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
@@ -279,6 +279,9 @@ subroutine run_orb_opt_trust
           print*,'#########################################'
           return 
         endif
+        
+        ! 1D tmp -> 2D tmp 
+        call vec_to_mat_v2(n, mo_num, x, m_x)
 
         ! Calculation of the rotation matrix
         call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
@@ -353,3 +356,4 @@ subroutine run_orb_opt_trust
 
 end
     #+END_SRC
+    

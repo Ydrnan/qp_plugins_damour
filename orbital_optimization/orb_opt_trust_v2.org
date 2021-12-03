@@ -229,7 +229,8 @@ Here is the main algorithm of the optimization:
     do while (cancel_step)
 
       ! Hessian,gradient,Criterion -> x 
-      call trust_region_step_w_expected_e(tmp_n,m,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      
       if (must_exit) then
         ! ### Message ###
         ! if algo_trust1 sets must_exit on true for numerical reasons

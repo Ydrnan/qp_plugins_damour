@@ -355,7 +355,6 @@ Input/Ouput:
 | delta | double precision | radius of the trust region |
 
 Output:
-| m_x(m, m) | double precision | matrix containing the step |
 | x(n)      | double precision | vector containing the step |
 
 Internal:
@@ -372,7 +371,7 @@ Function:
 | f_norm_trust_region_omp | double precision | compute the value of norm(x(lambda)^2) |
 
 #+BEGIN_SRC f90 :comments org :tangle trust_region_step.irp.f
-subroutine trust_region_step(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
+subroutine trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
 
   include 'constants.h'
 
@@ -381,7 +380,7 @@ subroutine trust_region_step(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   ! Variables
 
   ! in
-  integer, intent(in)             :: n,m
+  integer, intent(in)             :: n
   double precision, intent(in)    :: v_grad(n), rho
   integer, intent(in)             :: nb_iter
   double precision, intent(in)    :: e_val(n), w(n,n)
@@ -390,7 +389,7 @@ subroutine trust_region_step(n,m,nb_iter,v_grad,rho,e_val,w,x,m_x,delta)
   double precision, intent(inout) :: delta
 
   ! out
-  double precision, intent(out)   :: m_x(m,m), x(n)
+  double precision, intent(out)   ::x(n)
 
   ! Internal
   double precision                :: accu, lambda, trust_radius2
@@ -675,27 +674,27 @@ x is a vector of size n, so it can be write as a m by m
 antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
 
     #+BEGIN_SRC f90 :comments org :tangle trust_region_step.irp.f
-  ! Step transformation vector -> matrix
-  ! Vector with n element -> mo_num by mo_num matrix
-  do j = 1, m
-     do i = 1, m
-        if (i>j) then
-           call mat_to_vec_index(i,j,k)
-           m_x(i,j) = x(k)
-        else
-           m_x(i,j) = 0d0
-        endif
-     enddo
-  enddo
-
-  ! Antisymmetrization of the previous matrix
-  do j = 1, m
-     do i = 1, m
-        if (i<j) then
-           m_x(i,j) = - m_x(j,i)
-        endif
-     enddo
-  enddo
+!  ! Step transformation vector -> matrix
+!  ! Vector with n element -> mo_num by mo_num matrix
+!  do j = 1, m
+!     do i = 1, m
+!        if (i>j) then
+!           call mat_to_vec_index(i,j,k)
+!           m_x(i,j) = x(k)
+!        else
+!           m_x(i,j) = 0d0
+!        endif
+!     enddo
+!  enddo
+!
+!  ! Antisymmetrization of the previous matrix
+!  do j = 1, m
+!     do i = 1, m
+!        if (i<j) then
+!           m_x(i,j) = - m_x(j,i)
+!        endif
+!     enddo
+!  enddo
     #+END_SRC
 
 *** Deallocation, end

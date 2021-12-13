@@ -257,7 +257,7 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
   double precision, allocatable :: prev_mos(:,:)
   double precision              :: criterion, prev_criterion, criterion_model
   double precision              :: delta, rho
-  logical                       :: not_converged, cancel_step, must_exit,enforce_step_cancellation
+  logical                       :: not_converged, cancel_step, must_exit, enforce_step_cancellation
   integer                       :: nb_iter, info
   integer                       :: i,j,tmp_i,tmp_j
 
@@ -308,7 +308,7 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
           call rotation_matrix(tmp_m_x, tmp_list_size, tmp_R, tmp_list_size, tmp_list_size, info, enforce_step_cancellation)
 
           if (enforce_step_cancellation) then
-            print*, 'Force the step cancellation, too big error in the rotation matrix'
+            print*, 'Forces the step cancellation, too large error in the rotation matrix'
             rho = 0d0
             cycle
           endif

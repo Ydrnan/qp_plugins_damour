@@ -74,8 +74,9 @@ subroutine algo_trust(tmp_n, tmp_list_size,tmp_list)
           ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
           call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info, enforce_step_cancellation)
 
+          ! In the case where the error in the rotation matrix is greater thazn 1d-12
           if (enforce_step_cancellation) then
-           print*, 'Force the step cancellation, too big error in the rotation matrix'
+           print*, 'Forces the step cancellation, too big error in the rotation matrix'
            rho = 0d0
            cycle
          endif

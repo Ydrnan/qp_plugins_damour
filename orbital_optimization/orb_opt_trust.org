@@ -85,7 +85,9 @@ Variables:
 |                                 |                  | the hessian with the Lapack routine                |
 | prev_energy                     | double precision | energy before the rotation                         |
 | e_model                         | double precision | estimated energy after the rotation using          |
-|                                 |                  | a Taylor series                                   |
+|                                 |                  | a Taylor series                                    |
+| enforce_step_cancellation       | logical          | To force the cancellation of the step if the       |
+|                                 |                  | error in the rotation matrix is too large          |
 
 
    #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
@@ -287,7 +289,7 @@ subroutine run_orb_opt_trust
         call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
 
         if (enforce_step_cancellation) then
-          print*, 'Force the step cancellation, too big error in the rotation matrix'
+          print*, 'Forces the step cancellation, too large error in the rotation matrix'
           rho = 0d0
           cycle
         endif

@@ -46,41 +46,41 @@ Provided:
 | state_average_weight(N_states) | double precision | Weight of the different states |
 
 Variables:
-| m                       | integer          | number of active MOs                               |
-| tmp_n                   | integer          | m*(m-1)/2, number of MO parameters                 |
-| v_grad(tmp_n)           | double precision | gradient                                           |
-| H(tmp_n,tmp_n)          | double precision | hessian (2D)                                       |
-| h_f(m,m,m,m)            | double precision | hessian (4D)                                       |
-| e_val(m)                | double precision | eigenvalues of the hessian                         |
-| w(m,m)                  | double precision | eigenvectors of the hessian                        |
-| x(m)                    | double precision | step given by the trust region                     |
-| m_x(m,m)                | double precision | step given by the trust region after               |
-| tmp_R(m,m)              | double precision | rotation matrix for active MOs                     |
-| R(mo_num,mo_num)        | double precision | full rotation matrix                               |
-| prev_mos(ao_num,mo_num) | double precision | previous MOs (before the rotation)                 |
-| new_mos(ao_num,mo_num)  | double precision | new MOs (after the roration)                       |
-| delta                   | double precision | radius of the trust region                         |
-| rho                     | double precision | agreement between the model and the exact function |
-| max_elem                | double precision | maximum element in the gradient                    |
-| i                       | integer          | index                                              |
-| tmp_i,tmp_j             | integer          | indexes in the subspace containing only            |
-|                         |                  | the active MOs                                     |
-| converged               | logical          | convergence of the algorithm                       |
-| cancel_step             | logical          | if the step must be cancelled                      |
-| nb_iter                 | integer          | number of iterations (accepted)                    |
-| nb_diag                 | integer          | number of diagonalizations of the CI matrix        |
-| nb_cancel               | integer          | number of cancelled steps for the actual iteration |
-| nb_cancel_tot           | integer          | total number of cancel steps                       |
-| info                    | integer          | if 0 ok, else problem in the diagonalization of    |
-|                         |                  | the hessian with the Lapack routine                |
-| criterion               | double precision | energy at a given step                             |
-| prev_criterion          | double precision | energy before the rotation                         |
-| criterion_model         | double precision | estimated energy after the rotation using          |
-|                         |                  | a Taylor series                                    |
-| must_exit               | logical          | To exit the trust region algorithm when            |
-|                         |                  | criterion - criterion_model is too small           |
-|                         |                  |                                                    |
-
+| m                         | integer          | number of active MOs                               |
+| tmp_n                     | integer          | m*(m-1)/2, number of MO parameters                 |
+| v_grad(tmp_n)             | double precision | gradient                                           |
+| H(tmp_n,tmp_n)            | double precision | hessian (2D)                                       |
+| h_f(m,m,m,m)              | double precision | hessian (4D)                                       |
+| e_val(m)                  | double precision | eigenvalues of the hessian                         |
+| w(m,m)                    | double precision | eigenvectors of the hessian                        |
+| x(m)                      | double precision | step given by the trust region                     |
+| m_x(m,m)                  | double precision | step given by the trust region after               |
+| tmp_R(m,m)                | double precision | rotation matrix for active MOs                     |
+| R(mo_num,mo_num)          | double precision | full rotation matrix                               |
+| prev_mos(ao_num,mo_num)   | double precision | previous MOs (before the rotation)                 |
+| new_mos(ao_num,mo_num)    | double precision | new MOs (after the roration)                       |
+| delta                     | double precision | radius of the trust region                         |
+| rho                       | double precision | agreement between the model and the exact function |
+| max_elem                  | double precision | maximum element in the gradient                    |
+| i                         | integer          | index                                              |
+| tmp_i,tmp_j               | integer          | indexes in the subspace containing only            |
+|                           |                  | the active MOs                                     |
+| converged                 | logical          | convergence of the algorithm                       |
+| cancel_step               | logical          | if the step must be cancelled                      |
+| nb_iter                   | integer          | number of iterations (accepted)                    |
+| nb_diag                   | integer          | number of diagonalizations of the CI matrix        |
+| nb_cancel                 | integer          | number of cancelled steps for the actual iteration |
+| nb_cancel_tot             | integer          | total number of cancel steps                       |
+| info                      | integer          | if 0 ok, else problem in the diagonalization of    |
+|                           |                  | the hessian with the Lapack routine                |
+| criterion                 | double precision | energy at a given step                             |
+| prev_criterion            | double precision | energy before the rotation                         |
+| criterion_model           | double precision | estimated energy after the rotation using          |
+|                           |                  | a Taylor series                                    |
+| must_exit                 | logical          | To exit the trust region algorithm when            |
+|                           |                  | criterion - criterion_model is too small           |
+| enforce_step_cancellation | logical          | To force the cancellation of the step if the       |
+|                           |                  | error in the rotation matrix is too large          |
 
 #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
 subroutine run_orb_opt_trust_v2
@@ -252,7 +252,7 @@ Here is the main algorithm of the optimization:
       call rotation_matrix(tmp_m_x,m,tmp_R,m,m,info,enforce_step_cancellation)
 
       if (enforce_step_cancellation) then
-        print*, 'Force the step cancellation, too big error in the rotation matrix'
+        print*, 'Forces the step cancellation, too large error in the rotation matrix'
         rho = 0d0
         cycle
       endif

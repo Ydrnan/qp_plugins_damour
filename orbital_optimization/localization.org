@@ -482,39 +482,39 @@ end
 
 
 Variables:
-| pre_rot(mo_num, mo_num)  | double precision | Matrix for the pre rotation                       |
-| R(mo_num,mo_num)         | double precision | Rotation matrix                                   |
-| tmp_R(:,:)               | double precision | Rottation matrix in a subsapce                    |
-| prev_mos(ao_num, mo_num) | double precision | Previous mo_coef                                  |
-| spatial_extent(mo_num)   | double precision | Spatial extent of the orbitals                    |
-| criterion                | double precision | Localization criterion                            |
-| prev_criterion           | double precision | Previous criterion                                |
-| criterion_model          | double precision | Estimated next criterion                          |
-| rho                      | double precision | Ratio to measure the agreement between the model  |
-|                          |                  | and the reality                                   |
-| delta                    | double precision | Radisu of the trust region                        |
-| norm_grad                | double precision | Norm of the gradient                              |
-| info                     | integer          | for dsyev from Lapack                             |
-| max_elem                 | double precision | maximal element in the gradient                   |
-| v_grad(:)                | double precision | Gradient                                          |
-| H(:,:)                   | double precision | Hessian (diagonal)                                |
-| e_val(:)                 | double precision | Eigenvalues of the hessian                        |
-| W(:,:)                   | double precision | Eigenvectors of the hessian                       |
-| tmp_x(:)                 | double precision | Step in 1D (in a subaspace)                       |
-| tmp_m_x(:,:)             | double precision | Step in 2D (in a subaspace)                       |
-| tmp_list(:)              | double precision | List of MOs in a mo_class                         |
-| i,j,k                    | integer          | Indexes in the full MO space                      |
-| tmp_i, tmp_j, tmp_k      | integer          | Indexes in a subspace                             |
-| l                        | integer          | Index for the mo_class                            |
-| key(:)                   | integer          | Key to sort the eigenvalues of the hessian        |
-| nb_iter                  | integer          | Number of iterations                              |
-| must_exit                | logical          | To exit the trust region loop                     |
-| cancel_step              | logical          | To cancel a step                                  |
-| not_*converged           | logical          | To localize the different mo classes              |
-| t*                       | double precision | To measure the time                               |
-| n                        | integer          | mo_num*(mo_num-1)/2, number of orbital parameters |
-| tmp_n                    | integer          | dim_subspace*(dim_subspace-1)/2                   |
-|                          |                  | Number of dimension in the subspace               |
+| pre_rot(mo_num, mo_num)   | double precision | Matrix for the pre rotation                       |
+| R(mo_num,mo_num)          | double precision | Rotation matrix                                   |
+| tmp_R(:,:)                | double precision | Rottation matrix in a subsapce                    |
+| prev_mos(ao_num, mo_num)  | double precision | Previous mo_coef                                  |
+| spatial_extent(mo_num)    | double precision | Spatial extent of the orbitals                    |
+| criterion                 | double precision | Localization criterion                            |
+| prev_criterion            | double precision | Previous criterion                                |
+| criterion_model           | double precision | Estimated next criterion                          |
+| rho                       | double precision | Ratio to measure the agreement between the model  |
+|                           |                  | and the reality                                   |
+| delta                     | double precision | Radisu of the trust region                        |
+| norm_grad                 | double precision | Norm of the gradient                              |
+| info                      | integer          | for dsyev from Lapack                             |
+| max_elem                  | double precision | maximal element in the gradient                   |
+| v_grad(:)                 | double precision | Gradient                                          |
+| H(:,:)                    | double precision | Hessian (diagonal)                                |
+| e_val(:)                  | double precision | Eigenvalues of the hessian                        |
+| W(:,:)                    | double precision | Eigenvectors of the hessian                       |
+| tmp_x(:)                  | double precision | Step in 1D (in a subaspace)                       |
+| tmp_m_x(:,:)              | double precision | Step in 2D (in a subaspace)                       |
+| tmp_list(:)               | double precision | List of MOs in a mo_class                         |
+| i,j,k                     | integer          | Indexes in the full MO space                      |
+| tmp_i, tmp_j, tmp_k       | integer          | Indexes in a subspace                             |
+| l                         | integer          | Index for the mo_class                            |
+| key(:)                    | integer          | Key to sort the eigenvalues of the hessian        |
+| nb_iter                   | integer          | Number of iterations                              |
+| must_exit                 | logical          | To exit the trust region loop                     |
+| cancel_step               | logical          | To cancel a step                                  |
+| not_*converged            | logical          | To localize the different mo classes              |
+| t*                        | double precision | To measure the time                               |
+| n                         | integer          | mo_num*(mo_num-1)/2, number of orbital parameters |
+| tmp_n                     | integer          | dim_subspace*(dim_subspace-1)/2                   |
+|                           |                  | Number of dimension in the subspace               |
 
 Variables in qp_edit for the localization:
 | localization_method      |
@@ -923,7 +923,7 @@ In order to give a little kick in the system
         call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info,enforce_step_cancellation)
 
         if (enforce_step_cancellation) then
-          print*, 'Force the step cancellation, too big error in the rotation matrix'
+          print*, 'Forces the step cancellation, too large error in the rotation matrix'
           rho = 0d0
           cycle
         endif

@@ -64,6 +64,7 @@ do b = 1, n_vir
   ! delta
   call compute_delta(n_occ,n_vir,delta)
   !print*,'delta',delta(:,:,:,:)
+
   ! Guess
   do b = 1, n_vir
     tmp_b = b + n_occ
@@ -72,7 +73,7 @@ do b = 1, n_vir
       do j = 1, n_occ
         do i = 1, n_occ
         
-          t2(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
+          t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
             delta(i,j,a,b)
 
         enddo
@@ -93,7 +94,7 @@ do b = 1, n_vir
     ! v
     call compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
     call compute_v_2(n_occ,n_vir,t2,v2)
-    print*,'v',v(:,:,:,:)
+    print*,'v',v2(:,:,:,:)
 
     ! r
     call compute_r(n_occ,n_vir,t2,delta,u,v,r)
@@ -526,7 +527,6 @@ function two_e_int_spin_orb(i,j,k,l)
   endif
   !print*,i,j,k,l
   !print*,'int',tmp_i,tmp_j,tmp_k,tmp_l,two_e_int_spin_orb, get_two_e_integral(tmp_i,tmp_j,tmp_k,tmp_l,mo_integrals_map),  get_two_e_integral(tmp_i,tmp_j,tmp_l,tmp_k,mo_integrals_map)
-
 end
 #+END_SRC
 

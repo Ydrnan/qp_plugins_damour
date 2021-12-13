@@ -1,0 +1,164 @@
+* pCCD
+
+cite Henderson 2014
+
+i,j,k,l: occupied
+a,b,c,d: virtual
+p,q,r,s: general
+
+pCCD energy:
+\begin{align*}
+E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
+\end{align*}
+
+\begin{align*}
+0 &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+- \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
+&-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
+&+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
++ \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
+\end{align*}
+with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
+bi-electronic integral.
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
+program pCCD
+  implicit none
+
+  call run_pCCD
+
+end program
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
+subroutine run_pCCD
+  implicit none
+
+  double precision, allocatable :: t2(:,:), rest(:,:)
+  integer :: n_occ, n_vir
+  integer :: i,j,a,b,tmp_a,tmp_b
+  integer :: nb_iter
+  double precision :: energy
+  double precision :: get_two_e_integral, dnrm2
+  double precision :: accu1, accu2, accu3, accu4, accu5
+
+  PROVIDE mo_two_e_integrals_in_map
+
+  n_occ = elec_alpha_num
+  n_vir = mo_num - n_occ
+
+  allocate(t2(n_occ,n_vir), rest(n_occ,n_vir))
+
+  t2 = 0d0
+
+  call pCCD_energy(t2,n_occ,n_vir,energy)
+  print*,'HF energy', energy
+
+  ! Guess for t2
+  do a = 1, n_vir
+    tmp_a = a + n_occ
+    do i = 1, n_occ
+      t2(i,a) = get_two_e_integral(i,i,tmp_a,tmp_a,mo_integrals_map) &
+     /(2d0*fock_matrix_mo(tmp_a,tmp_a) -2d0*fock_matrix_mo(i,i))
+    enddo
+  enddo
+
+  nb_iter = 0
+  do while (nb_iter < 10)
+
+    ! Rest
+    rest = 0d0
+
+    do a = 1, n_vir
+    tmp_a = a + n_occ
+      do i = 1, n_occ
+        accu1 = 0d0
+        do j = 1, n_occ
+          accu1 = accu1 + t2(j,a) * get_two_e_integral(tmp_a,tmp_a,j,j,mo_integrals_map)
+        enddo
+        
+        accu2 = 0d0
+        do b = 1, n_vir
+          tmp_b = b + n_occ
+          accu2 = accu2 + t2(i,b) * get_two_e_integral(tmp_b,tmp_b,i,i,mo_integrals_map)
+        enddo
+  
+        accu3 = 0d0
+        do b = 1, n_vir
+          tmp_b = b + n_occ
+          accu3 = accu3 + t2(i,b) * get_two_e_integral(tmp_b,tmp_b,tmp_a,tmp_a,mo_integrals_map)
+        enddo
+  
+        accu4 = 0d0
+        do j = 1, n_occ
+          accu4 = accu4 + t2(j,a) * get_two_e_integral(i,i,j,j,mo_integrals_map)
+        enddo
+       
+        accu5 = 0d0
+        do j = 1, n_occ
+          do b = 1, n_vir
+            tmp_b = b + n_occ
+            accu5 = accu5 + t2(j,a) * t2(i,b) * get_two_e_integral(tmp_b,tmp_b,j,j,mo_integrals_map)
+          enddo
+        enddo
+  
+        rest(i,a) = get_two_e_integral(i,i,tmp_a,tmp_a,mo_integrals_map) &
+          + 2d0 *(fock_matrix_mo(tmp_a,tmp_a) - fock_matrix_mo(i,i) - accu1 - accu2) * t2(i,a) &
+          - 2d0*(2d0 * get_two_e_integral(i,tmp_a,i,tmp_a,mo_integrals_map) &
+                 - get_two_e_integral(tmp_a,i,i,tmp_a,mo_integrals_map) &
+                 - get_two_e_integral(tmp_a,tmp_a,i,i,mo_integrals_map) * t2(i,a)) * t2(i,a) &
+          + accu3 + accu4 + accu5
+      enddo
+    enddo
+    
+    ! New amplitudes
+    do a = 1, n_vir
+      tmp_a = a + n_occ
+      do i = 1, n_occ
+        t2(i,a) = t2(i,a) - rest(i,a)/(2d0 * fock_matrix_mo(tmp_a,tmp_a) - 2d0 * fock_matrix_mo(i,i))
+      enddo
+    enddo
+   
+    nb_iter = nb_iter + 1
+
+    call pCCD_energy(t2,n_occ,n_vir,energy)
+    
+    print*, nb_iter, energy, dnrm2(n_occ*n_vir,rest,1)
+
+  enddo
+
+
+  ! Final energy
+  
+  call pCCD_energy(t2,n_occ,n_vir,energy)
+  print*, energy
+
+  deallocate(t2,rest)
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
+subroutine pCCD_energy(t2,n_occ,n_vir,energy)
+
+  implicit none
+
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: t2(n_occ,n_vir)
+  double precision :: energy, get_two_e_integral
+  integer :: i,a,tmp_a,tmp_b
+
+  ! Final energy
+  energy = 0d0
+  do a = 1, n_vir
+    tmp_a = a + n_occ
+    do i = 1, n_occ
+      energy = energy + t2(i,a) * get_two_e_integral(tmp_a,tmp_a,i,i,mo_integrals_map)
+    enddo
+  enddo 
+  
+  ! Add <0|H|0>
+  energy = energy + hf_energy
+
+end
+#+END_SRC

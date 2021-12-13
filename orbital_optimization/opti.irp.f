@@ -25,7 +25,7 @@ subroutine algo_trust(tmp_n, tmp_list_size,tmp_list)
   double precision, allocatable :: prev_mos(:,:)
   double precision              :: criterion, prev_criterion, criterion_model
   double precision              :: delta, rho
-  logical                       :: not_converged, cancel_step, must_exit
+  logical                       :: not_converged, cancel_step, must_exit,enforce_step_cancellation
   integer                       :: nb_iter, info
   integer                       :: i,j,tmp_i,tmp_j
 
@@ -72,7 +72,14 @@ subroutine algo_trust(tmp_n, tmp_list_size,tmp_list)
           call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
 
           ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
-          call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+          call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info, enforce_step_cancellation)
+
+          if (enforce_step_cancellation) then
+           print*, 'Force the step cancellation, too big error in the rotation matrix'
+           rho = 0d0
+           cycle
+         endif
+
 
           ! TODO subroutine ?
           ! tmp_R to R, subspace to full space

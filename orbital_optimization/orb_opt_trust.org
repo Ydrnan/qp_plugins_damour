@@ -106,7 +106,7 @@ subroutine run_orb_opt_trust
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: max_elem, delta, rho
-  logical :: converged, cancel_step
+  logical :: converged, cancel_step, enforce_step_cancellation
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: prev_energy, e_model, energy
   double precision :: t1, t2, t3
@@ -284,7 +284,13 @@ subroutine run_orb_opt_trust
         call vec_to_mat_v2(n, mo_num, x, m_x)
 
         ! Calculation of the rotation matrix
-        call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info)
+        call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
+
+        if (enforce_step_cancellation) then
+          print*, 'Force the step cancellation, too big error in the rotation matrix'
+          rho = 0d0
+          cycle
+        endif
 
         ! Calculation of the new MOs
         call apply_mo_rotation(R,prev_mos)

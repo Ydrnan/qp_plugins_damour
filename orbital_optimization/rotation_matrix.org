@@ -57,7 +57,7 @@ Functions:
 
 
 #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
-subroutine rotation_matrix(A,LDA,R,LDR,n,info)
+subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
 
   implicit none
 
@@ -72,6 +72,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info)
   ! out
   double precision, intent(out) :: R(LDR,n)
   integer, intent(out)          :: info
+  logical, intent(out)          :: enforce_step_cancellation
 
   ! internal
   double precision, allocatable :: B(:,:) 
@@ -105,7 +106,9 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info)
 
 ** Pre-conditions
 #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
+  ! Initialization
   info=0
+  enforce_step_cancellation = .False.
 
   ! Size of matrix A must be at least 1 by 1
   if (n<1) then
@@ -386,6 +389,8 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info)
 
   if (ABS(max_elem) > 1d-12) then
     print*, 'WARNING: max error in R.R^T > 1d-12'
+    print*, 'Enforce the step cancellation'
+    enforce_step_cancellation = .True.
   endif
 
   ! Matrix elements of R must by non-NaN

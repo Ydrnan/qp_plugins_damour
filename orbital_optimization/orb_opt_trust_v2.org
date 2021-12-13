@@ -103,7 +103,7 @@ subroutine run_orb_opt_trust_v2
   integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
   double precision :: t1, t2, t3
   double precision :: prev_criterion, criterion, criterion_model
-  logical :: not_converged, must_exit
+  logical :: not_converged, must_exit, enforce_step_cancellation
   integer :: m, tmp_n, tmp_i, tmp_j, tmp_k
   integer,allocatable :: tmp_list(:)
   double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:), W(:,:), e_val(:)
@@ -249,7 +249,13 @@ Here is the main algorithm of the optimization:
       call vec_to_mat_v2(tmp_n,m,tmp_x,tmp_m_x)
 
       ! Rotation matrix for the active MOs
-      call rotation_matrix(tmp_m_x,m,tmp_R,m,m,info)
+      call rotation_matrix(tmp_m_x,m,tmp_R,m,m,info,enforce_step_cancellation)
+
+      if (enforce_step_cancellation) then
+        print*, 'Force the step cancellation, too big error in the rotation matrix'
+        rho = 0d0
+        cycle
+      endif
 
       ! tmp_R to R, subspace to full space
       R = 0d0

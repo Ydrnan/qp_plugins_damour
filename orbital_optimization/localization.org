@@ -549,7 +549,7 @@ subroutine run_localization
   integer :: nb_iter
   logical :: not_converged, not_core_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
-  logical :: use_trust_region, must_exit, cancel_step
+  logical :: use_trust_region, must_exit, cancel_step,enforce_step_cancellation
 
   n = mo_num*(mo_num-1)/2
 
@@ -920,7 +920,15 @@ In order to give a little kick in the system
         call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
 
         ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
-        call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info)
+        call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info,enforce_step_cancellation)
+
+        if (enforce_step_cancellation) then
+          print*, 'Force the step cancellation, too big error in the rotation matrix'
+          rho = 0d0
+          cycle
+        endif
+
+
         ! tmp_R to R, subspace to full space
         R = 0d0
         do i = 1, mo_num

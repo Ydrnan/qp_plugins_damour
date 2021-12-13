@@ -6,11 +6,11 @@ program ccd
   PROVIDE mo_two_e_integrals_in_map
 
   if (elec_alpha_num == elec_beta_num) then
-    print*,'Closed shell CCD'
-    call run_open_shell_ccd
+    print*,'Spatial orbital CCD'
+    call run_space_orb_ccd
   else
-    print*,'Open shell CCD'
-    call run_open_shell_ccd
+    print*,'Spin orbital CCD'
+    call run_spin_orb_ccd
   endif
   
 
@@ -18,7 +18,7 @@ end program
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
-subroutine run_open_shell_ccd
+subroutine run_spin_orb_ccd
   implicit none
 
   ! Pople
@@ -160,7 +160,6 @@ subroutine compute_delta(n_occ,n_vir,delta)
   implicit none
 
   integer, intent(in) :: n_occ, n_vir
-  
   double precision, intent(out) :: delta(n_occ,n_occ,n_vir,n_vir)
   integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,tmp_i,tmp_j
   integer :: index_in_space

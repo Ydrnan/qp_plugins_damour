@@ -1,0 +1,6 @@
+TODO:
+** TODO Diagonal hessian for orbital optimization with a list of MOs
+** TODO Something to force the step cancellation if R.R^T > treshold
+** TODO Test trust region with polynomial functions
+** TODO Optimization/Localization program using the template
+** TODO Correction OMP hessian shared/private arrays

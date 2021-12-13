@@ -10,7 +10,7 @@ $f(x) = \sum_i**n x_i**2$
   ! poly dim
   END_DOC
 
-  poly_dim = 10
+  poly_dim = 2
 
 END_PROVIDER
 #+END_SRC
@@ -36,7 +36,7 @@ END_PROVIDER
   ! f(x) = x**2
   END_DOC
 
-  integer :: i
+  double precision :: i
 
   do i = 1, poly_dim
     fx = x_position(i)**2
@@ -52,7 +52,7 @@ END_PROVIDER
   BEGIN_DOC
   ! gradient f(x)=x**2, f'(x) = 2x
   END_DOC
-  integer :: i
+  double precision :: i
   
   ndf = 0d0
   do i = 1, poly_dim
@@ -72,7 +72,7 @@ END_PROVIDER
   ! hessian f(x)=x**2, f''(x)=2
   END_DOC
 
-  integer :: i 
+  double precision :: i 
   df2 = 0d0
 
   do i = 1, poly_dim
@@ -94,7 +94,7 @@ f_gp(x,y):=(1+(x+y+1)^2*(19-14*x+3*x^2+(-14)*y+6*x*y+3*y^2))*
 (30+(2*x-3*y)^2*(18-32*x+12*x^2+48*y+(-36)*x*y+27*y^2))
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_gp ]
+  BEGIN_PROVIDER [ double precision, f_gp ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -110,8 +110,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_gp, (2) ]
-&BEGIN_PROVIDER [ integer, cc_gp ]
+  BEGIN_PROVIDER [ double precision, df_gp, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_gp ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -136,7 +136,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_gp, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_gp, (2,2) ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -187,7 +187,7 @@ wxmaxima:
 f_b(x,y) :=(1.5-x+x*y)^2+(2.25-x+x*y^2)^2+(2.625-x+x*y^3)^2;
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_beale ]
+  BEGIN_PROVIDER [ double precision, f_beale ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -202,8 +202,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_beale, (2) ]
-&BEGIN_PROVIDER [ integer, cc_beale ]
+  BEGIN_PROVIDER [ double precision, df_beale, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_beale ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -221,7 +221,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_beale, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_beale, (2,2) ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -249,7 +249,7 @@ wxmaxima:
 f(x,y):=(x+2*y-7)^2+(2*x+y-5)^2
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_booth ]
+  BEGIN_PROVIDER [ double precision, f_booth ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -264,8 +264,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_booth, (2) ]
-&BEGIN_PROVIDER [ integer, cc_booth ]
+  BEGIN_PROVIDER [ double precision, df_booth, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_booth ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -283,7 +283,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_booth, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_booth, (2,2) ]
 
   implicit none
   BEGIN_DOC
@@ -310,7 +310,7 @@ $f(0,0) = 0$, $-10 \leq x,y \leq 10$
 wxmaxima:
 f(x,y) := 0.26*(x^2+y^2)-0.48*x*y
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_mat ]
+  BEGIN_PROVIDER [ double precision, f_mat ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -325,8 +325,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_mat, (2) ]
-&BEGIN_PROVIDER [ integer, cc_mat]
+  BEGIN_PROVIDER [ double precision, df_mat, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_mat]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -344,7 +344,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_mat, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_mat, (2,2) ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -374,7 +374,7 @@ $-5 \leq x,y \leq 5$
 wxmaxima:
 f(x,y):=(x^2+y-11)^2+(x+y^2-7)^2
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_him ]
+  BEGIN_PROVIDER [ double precision, f_him ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -389,8 +389,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_him, (2) ]
-&BEGIN_PROVIDER [ integer, cc_him]
+  BEGIN_PROVIDER [ double precision, df_him, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_him]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -408,7 +408,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_him, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_him, (2,2) ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -436,7 +436,7 @@ wxmaxima:
 f(x,y):=sin(x+y)+(x-y)^2+(-1.5)*x+2.5*y+1
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, f_mc ]
+  BEGIN_PROVIDER [ double precision, f_mc ]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -451,8 +451,8 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df_mc, (2) ]
-&BEGIN_PROVIDER [ integer, cc_mc]
+  BEGIN_PROVIDER [ double precision, df_mc, (2) ]
+&BEGIN_PROVIDER [ double precision, cc_mc]
   implicit none
   BEGIN_DOC
   END_DOC
@@ -470,7 +470,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle test_functions.irp.f
-  BEGIN_PROVIDER [ integer, df2_mc, (2,2) ]
+  BEGIN_PROVIDER [ double precision, df2_mc, (2,2) ]
   implicit none
   BEGIN_DOC
   END_DOC

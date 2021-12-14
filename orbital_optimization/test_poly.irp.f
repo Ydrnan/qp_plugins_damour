@@ -33,6 +33,8 @@ subroutine algo_trust_cartesian_template(tmp_n)
   print*,'g',df
   print*,'pos',x_position
 
+  write(*,'(A,100E15.5)') 'new pos:',x_position, fx
+
   ! Initialization
   delta = 0d0 
   nb_iter = 0 ! Must starts at 0 !!!
@@ -70,7 +72,6 @@ subroutine algo_trust_cartesian_template(tmp_n)
           print*,'prev_pos', x_position
           x_position = x_position + tmp_x
           print*,'dx', tmp_x
-          print*,'new pos:',x_position
 
           ! touch x_position
           TOUCH x_position
@@ -78,6 +79,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
           ! New criterion
           PROVIDE fx
           criterion = fx
+          write(*,'(A,100E15.5)') 'new pos:',x_position, fx
 
           ! Criterion -> step accepted or rejected 
           call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)

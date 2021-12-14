@@ -24,7 +24,7 @@ END_PROVIDER
 
   x_position = 2d0
   call random_number(x_position)
-  x_position = x_position * 10d0
+  x_position = (x_position-0.5d0) * 2d0 * 10d0
 
 END_PROVIDER
 #+END_SRC
@@ -36,10 +36,11 @@ END_PROVIDER
   ! f(x) = x**2
   END_DOC
 
-  double precision :: i
+  integer :: i
 
+  fx = 0d0
   do i = 1, poly_dim
-    fx = x_position(i)**2
+    fx = fx + x_position(i)**4
   enddo
 
 END_PROVIDER
@@ -52,11 +53,12 @@ END_PROVIDER
   BEGIN_DOC
   ! gradient f(x)=x**2, f'(x) = 2x
   END_DOC
-  double precision :: i
+  integer :: i
   
   ndf = 0d0
   do i = 1, poly_dim
-    df(i) = 2d0*x_position(i)
+    df(i) = 4d0*x_position(i)**3
+
     if (abs(df(i)) > ndf) then
       ndf = df(i)
     endif
@@ -72,11 +74,11 @@ END_PROVIDER
   ! hessian f(x)=x**2, f''(x)=2
   END_DOC
 
-  double precision :: i 
+  integer :: i 
   df2 = 0d0
 
   do i = 1, poly_dim
-    df2(i,i) = 2d0
+    df2(i,i) = 12d0*x_position(i)**2
   enddo
 END_PROVIDER
 #+END_SRC
@@ -429,7 +431,7 @@ END_PROVIDER
 \begin{align*}
 f(x,y) = \sin(x+y) + (x-y)^2 - 1.5x + 2.5y +1 
 \end{align*}
-$f(-0.54719,-1.54719)=-1.9133$
+$(-0.54719,-1.54719)=-1.9133$
 $-1.5\leq x \leq 4$, $-3 \leq y \leq 4$
 
 wxmaxima:

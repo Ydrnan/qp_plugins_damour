@@ -546,7 +546,7 @@ subroutine run_localization
   double precision :: max_elem, t1, t2, t3, t4, t5, t6
   integer, allocatable :: tmp_list(:), key(:)
   double precision :: prev_criterion, rho, delta, criterion_model
-  integer :: nb_iter
+  integer :: nb_iter, nb_sub_iter
   logical :: not_converged, not_core_converged
   logical :: not_act_converged, not_inact_converged, not_virt_converged
   logical :: use_trust_region, must_exit, cancel_step,enforce_step_cancellation
@@ -709,7 +709,13 @@ In order to give a little kick in the system
     ! Nothing for deleted ones
   
     ! Compute pre rotation matrix from pre_rot
-    call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info)
+    call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
+   
+    if (enforce_step_cancellation) then
+      print*, 'Cancellation of the pre rotation, too big error in the rotation matrix'
+      print*, 'Reduce the angle for the pre rotation, abort'
+      call abort
+    endif
   
     ! New Mos (we don't car eabout the previous MOs prev_mos)
     call apply_mo_rotation(R,prev_mos)
@@ -850,17 +856,11 @@ In order to give a little kick in the system
     nb_iter = 0 ! Must start at 0 !!!
     rho = 0.5d0 ! Must be 0.5
 
-    ! ### TODO ###
     ! Compute the criterion before the loop
-    !call compute_criterion(prev_criterion) 
     call criterion_localization(tmp_list_size, tmp_list,prev_criterion)
 
     ! Loop until the convergence
     do while (not_converged)
-      ! ### TODO ## 
-      ! Call your gradient
-      ! Call you hessian
-      ! Diagonalize the hessian
 
       print*,''
       print*,'***********************'
@@ -895,26 +895,27 @@ In order to give a little kick in the system
       enddo
 
       ! To enter in the loop just after
-      cancel_step = .True. 
+      cancel_step = .True.
+      nb_sub_iter = 0 
 
       ! Loop to reduce the trust radius until the criterion decreases and rho >= thresh_rho
       do while (cancel_step)
+        print*,'-----------------------------'
+        print*, mo_class(tmp_list(1))
+        print*,'Iteration:', nb_iter
+        print*,'Sub iteration:', nb_sub_iter
+        print*,'-----------------------------'
 
         ! Hessian,gradient,Criterion -> x 
-        call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+        call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+
+        ! Internal loop exit condition
         if (must_exit) then
           ! ### Message ###
           ! if step_in_trust_region sets must_exit on true for numerical reasons
           print*,'trust_region_step_w_expected_e sent the message : Exit'
           exit 
         endif
-
-        !### TODO ###  
-        ! Compute x -> m_x (1D -> 2D)
-        ! Compute m_x -> R (R = exp(m_x))
-        ! Apply R and keep the previous MOs... (new_mo_coef = mo_coef . R)
-        ! Update/touch 
-        ! Compute the new criterion/energy -> criterion
 
         ! 1D tmp -> 2D tmp 
         call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
@@ -928,20 +929,9 @@ In order to give a little kick in the system
           cycle
         endif
 
-
         ! tmp_R to R, subspace to full space
-        R = 0d0
-        do i = 1, mo_num
-          R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-        enddo
-        do tmp_j = 1, tmp_list_size
-          j = tmp_list(tmp_j)
-          do tmp_i = 1, tmp_list_size
-            i = tmp_list(tmp_i)
-            R(i,j) = tmp_R(tmp_i,tmp_j)
-          enddo
-        enddo
-
+        call sub_to_full_rotation_matrix(tmp_list_size,tmp_list,tmp_R,R)
+      
         ! Rotation of the MOs
         call apply_mo_rotation(R, prev_mos)   
 
@@ -954,15 +944,13 @@ In order to give a little kick in the system
 
         ! Criterion -> step accepted or rejected 
         call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
-        ! ### TODO ###
-        !if (cancel_step) then
-        ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
-        !endif
 
-        ! Previous MOs
+        ! Cancellation of the step, previous MOs
         if (cancel_step) then
           mo_coef = prev_mos
         endif
+
+        nb_sub_iter = nb_sub_iter + 1
       enddo
       !call save_mos() !### depend of the time for 1 iteration
 
@@ -974,10 +962,7 @@ In order to give a little kick in the system
       ! Step accepted, nb iteration + 1
       nb_iter = nb_iter + 1
 
-      ! ### TODO ###
-      !if (###Conditions###) then
-      ! no_converged = .False.
-      !endif
+      ! External loop exit conditions
       if (DABS(max_elem) < thresh_loc_max_elem_grad) then
         not_converged = .False.
       endif
@@ -991,7 +976,8 @@ In order to give a little kick in the system
     
     ! Save the MOs
     call save_mos()
-    TOUCH mo_coef 
+    TOUCH mo_coef
+ 
     ! Debug
     !print*,'HF', HF_energy
     

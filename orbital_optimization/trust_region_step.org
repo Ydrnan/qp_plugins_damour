@@ -382,14 +382,14 @@ subroutine trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
   ! in
   integer, intent(in)             :: n
   double precision, intent(in)    :: v_grad(n), rho
-  integer, intent(in)             :: nb_iter
+  integer, intent(inout)          :: nb_iter
   double precision, intent(in)    :: e_val(n), w(n,n)
 
   ! inout
   double precision, intent(inout) :: delta
 
   ! out
-  double precision, intent(out)   ::x(n)
+  double precision, intent(out)   :: x(n)
 
   ! Internal
   double precision                :: accu, lambda, trust_radius2
@@ -487,6 +487,9 @@ avoid_saddle is actually a test to avoid saddle points
   ! trust radius
   if (nb_iter == 0) then
      trust_radius2 = norm2_x 
+     ! To avoid infinite loop of cancellation of this first step
+     ! without changing delta
+     nb_iter = 1
 
      ! Compute delta, delta = sqrt(trust_radius)
      delta = dsqrt(trust_radius2)
@@ -514,9 +517,13 @@ To avoid too big trust region we put a maximum size.
   endif
 
   ! Maximum size of the trust region
-  if (delta > 0.5d0 * n * pi) then
-    delta = 0.5d0 * n * pi
-    print*,'Delta > delta_max, delta = 0.5d0 * n * pi'
+  !if (delta > 0.5d0 * n * pi) then
+  !  delta = 0.5d0 * n * pi
+  !  print*,'Delta > delta_max, delta = 0.5d0 * n * pi'
+  !endif
+
+  if (delta > 1d300) then
+    delta = 1d300
   endif
 
   print*, 'Delta :', delta

@@ -22,9 +22,9 @@ END_PROVIDER
   ! x=(x1,x2,...,xpoly_dim)
   END_DOC
 
-  x_position = 2d0
-  call random_number(x_position)
-  x_position = (x_position-0.5d0) * 2d0 * 10d0
+  x_position = 0.1d0
+  !call random_number(x_position)
+  !x_position = (x_position-0.5d0) * 2d0 * 10d0
 
 END_PROVIDER
 #+END_SRC

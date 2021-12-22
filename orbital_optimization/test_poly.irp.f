@@ -59,7 +59,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
       do while (cancel_step)
 
           ! Hessian,gradient,Criterion -> x 
-          call trust_region_step_w_expected_e(tmp_n, df2, W, e_val, df, &
+          call trust_region_step_w_expected_e(tmp_n,df2, W, e_val,df, &
                prev_criterion, rho, nb_iter, delta, criterion_model, tmp_x, must_exit)
 
           if (must_exit) then

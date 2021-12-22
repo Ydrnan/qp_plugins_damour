@@ -100,7 +100,7 @@ subroutine run_orb_opt_trust_v2
   integer                       :: i,j,p,q,k
   double precision              :: max_elem_grad, delta, rho, norm_grad
   logical :: cancel_step
-  integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
+  integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot, nb_sub_iter
   double precision :: t1, t2, t3
   double precision :: prev_criterion, criterion, criterion_model
   logical :: not_converged, must_exit, enforce_step_cancellation
@@ -112,7 +112,7 @@ subroutine run_orb_opt_trust_v2
 #+END_SRC
    
 ** Method
-   There are thress different methods : 
+   There are three different methods : 
    - the "full" hessian, which uses all the elements of the hessian
      matrix"
    - the "diagonal" hessian, which uses only the diagonal elements of the
@@ -156,8 +156,6 @@ subroutine run_orb_opt_trust_v2
   ! Initialization of the CI energy
   call diagonalize_ci
 
-  print *, 'CI energy : ', ci_energy
-
 #+END_SRC
 
 *** Algorithm
@@ -180,13 +178,11 @@ Here is the main algorithm of the optimization:
   nb_iter = 0
   rho = 0.5d0
   not_converged = .True.
-  tmp_list = list_act
+  tmp_list = list_act ! Optimization of the active MOs
   nb_cancel_tot = 0
-  
-  ! ### TODO ###
+
   ! Compute the criterion before the loop
-  call update_st_av_ci_energy(prev_criterion)
-  print*, 'State av energy :', prev_criterion
+  call state_average_energy(prev_criterion)
 
   do while (not_converged)
     print*,''
@@ -195,55 +191,48 @@ Here is the main algorithm of the optimization:
     print*,'******************'
     print*,''
 
-    ! ### TODO ## 
-    ! Call your gradient
-    ! Call you hessian
-
     ! Gradient
-    !call first_gradient_list_opt(tmp_n,m,tmp_list,v_grad)
     call gradient_list_opt(tmp_n,m,tmp_list,v_grad,max_elem_grad,norm_grad)
     
     ! Hessian
-    !call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     if (optimization_method == 'full') then
-       !call first_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
-       call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+      ! Full hessian
+      call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     elseif (optimization_method == 'diag') then
-       print*,'Not available for the moment, abort'
-       call abort
-       !call first_diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
-       !call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
-    else 
+      ! Diagonal hessian 
+      print*,'Not available for the moment, abort'
+      call abort
+      !call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+    else
+      ! Identity matrix 
       H = 0d0
       do tmp_i = 1, tmp_n
         H(tmp_i,tmp_i) = 1d0
       enddo
     endif
-  
+ 
+    ! Diagonalization of the hessian 
     call diagonalization_hessian(tmp_n,H,e_val,w)
 
+    ! Init before the internal loop
     cancel_step = .True. ! To enter in the loop just after 
     nb_cancel = 0
+    nb_sub_iter = 0
 
-    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+    ! Loop to reduce the trust radius until the criterion decreases and rho >= thresh_rho
     do while (cancel_step)
+      print*,'-----------------------------'
+      print*,'Iteration:', nb_iter
+      print*,'Sub iteration:', nb_sub_iter
+      print*,'-----------------------------'
 
       ! Hessian,gradient,Criterion -> x 
       call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
       
       if (must_exit) then
-        ! ### Message ###
-        ! if algo_trust1 sets must_exit on true for numerical reasons
         print*,'step_in_trust_region sends the message : Exit'
         exit
       endif
-
-      !### TODO ###  
-      ! Compute x -> m_x
-      ! Compute m_x -> R
-      ! Apply R and keep the previous MOs...
-      ! Update/touch 
-      ! Compute the new criterion/energy -> criterion
 
       ! 1D tmp -> 2D tmp 
       call vec_to_mat_v2(tmp_n,m,tmp_x,tmp_m_x)
@@ -251,6 +240,7 @@ Here is the main algorithm of the optimization:
       ! Rotation matrix for the active MOs
       call rotation_matrix(tmp_m_x,m,tmp_R,m,m,info,enforce_step_cancellation)
 
+      ! Security to ensure an unitary transformation
       if (enforce_step_cancellation) then
         print*, 'Forces the step cancellation, too large error in the rotation matrix'
         rho = 0d0
@@ -258,45 +248,36 @@ Here is the main algorithm of the optimization:
       endif
 
       ! tmp_R to R, subspace to full space
-      R = 0d0
-      do i = 1, mo_num
-        R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-      enddo
-      do tmp_j = 1, m
-        j = tmp_list(tmp_j)
-        do tmp_i = 1, m
-          i = tmp_list(tmp_i)
-          R(i,j) = tmp_R(tmp_i,tmp_j)
-        enddo
-      enddo
+      call sub_to_full_rotation_matrix(m,tmp_list,tmp_R,R)
     
       ! MO rotations
       call apply_mo_rotation(R, prev_mos)   
 
-      ! Update and diagonalization of the hamiltonian
+      ! Update of the energy before the diagonalization of the hamiltonian
       call clear_mo_map
-      TOUCH mo_coef psi_det psi_coef
-      call diagonalize_ci
-      call save_wavefunction_unsorted
-
-      ! Energy of the actual step
-      call update_st_av_ci_energy(criterion)
+      TOUCH mo_coef psi_det psi_coef ci_energy
+      call state_average_energy(criterion)
 
       ! Criterion -> step accepted or rejected 
       call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
-      ! ### TODO ###
-      !if (cancel_step) then
-      ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
-      !endif
-
+      ! Cancellation of the step if necessary
       if (cancel_step) then
         mo_coef = prev_mos
         call save_mos()
         nb_cancel = nb_cancel + 1
         nb_cancel_tot = nb_cancel_tot + 1
+      else
+        ! Diagonalization of the hamiltonian
+        TOUCH psi_det psi_coef
+        call diagonalize_ci
+        call save_wavefunction_unsorted
+
+        ! Energy obtained after the diagonalization of the CI matrix
+        call state_average_energy(prev_criterion)
       endif
 
+      ! Internal loop exit conditions
       if (nb_cancel > nb_cancel_max) then
         print*,'###################################'
         print*,'nb_cancel >', nb_cancel_max,', exit'
@@ -313,10 +294,11 @@ Here is the main algorithm of the optimization:
         exit
       endif
 
+      nb_sub_iter = nb_sub_iter + 1
     enddo
     call save_mos() !### depend of the time for 1 iteration
 
-    ! To exit the external loop if must_exti = .True.
+    ! To exit the external loop if must_exit = .True.
     if (must_exit) then
       exit
     endif 
@@ -324,16 +306,14 @@ Here is the main algorithm of the optimization:
     ! Step accepted, nb iteration + 1
     nb_iter = nb_iter + 1
 
-    ! ### TODO ###
-    !if (###Conditions###) then
-    ! no_converged = .False.
-    !endif
+    ! External loop exit conditions
     if (DABS(max_elem_grad) < thresh_opt_max_elem_grad) then
       not_converged = .False.
     endif
     if (nb_iter > optimization_max_nb_iter) then
       not_converged = .False. 
     endif
+
     if (.not. not_converged) then
       print*,'#############################'
       print*,'   End of the optimization'
@@ -341,7 +321,6 @@ Here is the main algorithm of the optimization:
     endif
   enddo
 
-  ! Why ?
   call diagonalize_ci
 #+END_SRC
     
@@ -353,3 +332,4 @@ Here is the main algorithm of the optimization:
 
 end
 #+END_SRC
+

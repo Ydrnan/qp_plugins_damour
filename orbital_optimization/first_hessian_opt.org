@@ -158,10 +158,15 @@ subroutine first_hessian_opt(n,H,h_tmpr)
 
   CALL wall_time(t4)
 
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
+  do s = 1, mo_num
+    do r = 1, mo_num
+      do q = 1, mo_num
+        do p = 1, mo_num
+
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!      do r = 1, mo_num
+!        do s = 1, mo_num
 
            if (q==r) then
              do t = 1, mo_num
@@ -192,10 +197,15 @@ subroutine first_hessian_opt(n,H,h_tmpr)
 
   CALL wall_time(t4)
 
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
+  do s = 1, mo_num
+    do r = 1, mo_num
+      do q = 1, mo_num
+        do p = 1, mo_num
+
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!      do r = 1, mo_num
+!        do s = 1, mo_num
 
           if (p==s) then
             do t = 1, mo_num
@@ -226,10 +236,15 @@ subroutine first_hessian_opt(n,H,h_tmpr)
 
   CALL wall_time(t4)
 
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
+      do s = 1, mo_num
+        do r = 1, mo_num
+          do q = 1, mo_num
+            do p = 1, mo_num
+
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!      do r = 1, mo_num
+!        do s = 1, mo_num
 
           do u = 1, mo_num
             do v = 1, mo_num
@@ -256,10 +271,15 @@ subroutine first_hessian_opt(n,H,h_tmpr)
 
   CALL wall_time(t4)
 
-  do p = 1, mo_num
-    do q = 1, mo_num
-      do r = 1, mo_num
-        do s = 1, mo_num
+      do s = 1, mo_num
+        do r = 1, mo_num
+          do q = 1, mo_num
+            do p = 1, mo_num
+
+!  do p = 1, mo_num
+!    do q = 1, mo_num
+!      do r = 1, mo_num
+!        do s = 1, mo_num
 
           do t = 1, mo_num
             do u = 1, mo_num

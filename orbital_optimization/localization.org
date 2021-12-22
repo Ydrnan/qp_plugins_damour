@@ -631,102 +631,11 @@ subroutine run_localization
   endif
 #+END_SRC
 
-** Pre rotation
-In order to give a little kick in the system
-#+BEGIN_SRC f90 :comments org :tangle localization.irp.f
-  ! Initialization of the matrix
-  pre_rot = 0d0
-
-  if (kick_in_mos) then
-    ! Pre rotation for core MOs
-    if (dim_list_core_orb >= 2) then
-      do tmp_j = 1, dim_list_core_orb
-        j = list_core(tmp_j)
-        do tmp_i = 1, dim_list_core_orb
-          i = list_core(tmp_i)
-          if (i > j) then
-            pre_rot(i,j) = angle_pre_rot
-          elseif (i < j) then
-            pre_rot(i,j) = - angle_pre_rot
-          else
-            pre_rot(i,j) = 0d0
-          endif
-        enddo
-      enddo
-    endif
-    
-    ! Pre rotation for active MOs
-    if (dim_list_act_orb >= 2) then
-      do tmp_j = 1, dim_list_act_orb
-        j = list_act(tmp_j)
-        do tmp_i = 1, dim_list_act_orb
-          i = list_act(tmp_i)
-          if (i > j) then
-            pre_rot(i,j) = angle_pre_rot
-          elseif (i < j) then
-            pre_rot(i,j) = - angle_pre_rot
-          else
-            pre_rot(i,j) = 0d0
-          endif
-        enddo
-      enddo
-    endif
-  
-    ! Pre rotation for inactive MOs
-    if (dim_list_inact_orb >= 2) then
-      do tmp_j = 1, dim_list_inact_orb
-        j = list_inact(tmp_j)
-        do tmp_i = 1, dim_list_inact_orb
-          i = list_inact(tmp_i)
-          if (i > j) then
-            pre_rot(i,j) = angle_pre_rot
-          elseif (i < j) then
-            pre_rot(i,j) = - angle_pre_rot
-          else
-            pre_rot(i,j) = 0d0
-          endif
-        enddo
-      enddo
-    endif
-  
-    ! Pre rotation for virtual MOs
-    if (dim_list_virt_orb >= 2) then
-      do tmp_j = 1, dim_list_virt_orb
-        j = list_virt(tmp_j)
-        do tmp_i = 1, dim_list_virt_orb
-          i = list_virt(tmp_i)
-          if (i > j) then
-            pre_rot(i,j) = angle_pre_rot
-          elseif (i < j) then
-            pre_rot(i,j) = - angle_pre_rot
-          else
-            pre_rot(i,j) = 0d0
-          endif
-        enddo
-      enddo
-    endif
-  
-    ! Nothing for deleted ones
-  
-    ! Compute pre rotation matrix from pre_rot
-    call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
-   
-    if (enforce_step_cancellation) then
-      print*, 'Cancellation of the pre rotation, too big error in the rotation matrix'
-      print*, 'Reduce the angle for the pre rotation, abort'
-      call abort
-    endif
-  
-    ! New Mos (we don't car eabout the previous MOs prev_mos)
-    call apply_mo_rotation(R,prev_mos)
-  
-    ! Update the things related to mo_coef
-    TOUCH mo_coef
-  endif
-#+END_SRC
-
 ** Loc
 #+BEGIN_SRC f90 :comments org :tangle localization.irp.f
+  ! Pre rotation, to give a little kick in the MOs
+  call apply_pre_rotation()
+
   ! Criterion after the pre rotation
   ! Localization criterion (FB, PM, ...) for each mo_class
   print*,'### After the pre rotation'
@@ -757,7 +666,7 @@ In order to give a little kick in the system
 
     if (tmp_list_size >= 2) then
       call criterion_localization(tmp_list_size, tmp_list,criterion)
-      print*,'Criterion:', criterion, mo_class(tmp_list(1))
+      print*,'Criterion:', criterion, trim(mo_class(tmp_list(1)))
     endif
     
     deallocate(tmp_list)    
@@ -840,7 +749,7 @@ In order to give a little kick in the system
     ! Display
     if (not_converged) then
       print*,''
-      print*,'###', mo_class(tmp_list(1)), 'MOs ###'
+      print*,'###', trim(mo_class(tmp_list(1))), 'MOs ###'
       print*,''
     endif
 
@@ -848,8 +757,9 @@ In order to give a little kick in the system
     tmp_n = tmp_list_size * (tmp_list_size - 1)/2
   
     ! Allocation of temporary arrays
-    allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size), tmp_R(tmp_list_size, tmp_list_size))
-    allocate(tmp_x(tmp_n),W(tmp_n,tmp_n),e_val(tmp_n),key(tmp_n))
+    allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size))
+    allocate(tmp_R(tmp_list_size, tmp_list_size))
+    allocate(tmp_x(tmp_n), W(tmp_n,tmp_n), e_val(tmp_n), key(tmp_n))
 
     ! ### Initialization ###
     delta = 0d0 ! can be deleted (normally)
@@ -857,7 +767,7 @@ In order to give a little kick in the system
     rho = 0.5d0 ! Must be 0.5
 
     ! Compute the criterion before the loop
-    call criterion_localization(tmp_list_size, tmp_list,prev_criterion)
+    call criterion_localization(tmp_list_size, tmp_list, prev_criterion)
 
     ! Loop until the convergence
     do while (not_converged)
@@ -907,21 +817,21 @@ In order to give a little kick in the system
         print*,'-----------------------------'
 
         ! Hessian,gradient,Criterion -> x 
-        call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+        call trust_region_step_w_expected_e(tmp_n, H, W, e_val, v_grad, prev_criterion, &
+             rho, nb_iter, delta, criterion_model, tmp_x, must_exit)
 
         ! Internal loop exit condition
         if (must_exit) then
-          ! ### Message ###
-          ! if step_in_trust_region sets must_exit on true for numerical reasons
           print*,'trust_region_step_w_expected_e sent the message : Exit'
           exit 
         endif
 
         ! 1D tmp -> 2D tmp 
-        call vec_to_mat_v2(tmp_n,tmp_list_size,tmp_x,tmp_m_x)
+        call vec_to_mat_v2(tmp_n, tmp_list_size, tmp_x, tmp_m_x)
 
         ! Rotation submatrix (square matrix tmp_list_size by tmp_list_size)
-        call rotation_matrix(tmp_m_x,tmp_list_size,tmp_R,tmp_list_size,tmp_list_size,info,enforce_step_cancellation)
+        call rotation_matrix(tmp_m_x, tmp_list_size, tmp_R, tmp_list_size, tmp_list_size, &
+             info, enforce_step_cancellation)
 
         if (enforce_step_cancellation) then
           print*, 'Forces the step cancellation, too large error in the rotation matrix'
@@ -930,7 +840,7 @@ In order to give a little kick in the system
         endif
 
         ! tmp_R to R, subspace to full space
-        call sub_to_full_rotation_matrix(tmp_list_size,tmp_list,tmp_R,R)
+        call sub_to_full_rotation_matrix(tmp_list_size, tmp_list, tmp_R, R)
       
         ! Rotation of the MOs
         call apply_mo_rotation(R, prev_mos)   
@@ -943,7 +853,8 @@ In order to give a little kick in the system
         print*,'Criterion:', trim(mo_class(tmp_list(1))), nb_iter, criterion
 
         ! Criterion -> step accepted or rejected 
-        call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+        call trust_region_is_step_cancelled(nb_iter, prev_criterion, criterion, &
+             criterion_model, rho, cancel_step)
 
         ! Cancellation of the step, previous MOs
         if (cancel_step) then
@@ -972,7 +883,7 @@ In order to give a little kick in the system
     enddo
 
     ! Deallocation of temporary arrays
-    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list,tmp_x,W,e_val,key)
+    deallocate(v_grad, H, tmp_m_x, tmp_R, tmp_list, tmp_x, W, e_val, key)
     
     ! Save the MOs
     call save_mos()
@@ -1088,11 +999,11 @@ subroutine criterion_localization(tmp_list_size, tmp_list,criterion)
   double precision, intent(out) :: criterion
 
   if (localization_method == 'boys') then
-    call criterion_FB(tmp_list_size, tmp_list,criterion)
+    call criterion_FB(tmp_list_size, tmp_list, criterion)
   elseif (localization_method == 'pipek') then
     !call criterion_PM(tmp_list_size, tmp_list,criterion)
     !print*,'v1', criterion
-    call criterion_PM_v3(tmp_list_size, tmp_list,criterion)
+    call criterion_PM_v3(tmp_list_size, tmp_list, criterion)
     !print*,'v3', criterion
   else
     criterion = 0d0
@@ -2632,6 +2543,122 @@ end subroutine
 #+END_SRC
 
 ** Utils
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
+subroutine apply_pre_rotation()
+
+  implicit none
+
+  double precision, allocatable :: pre_rot(:,:), prev_mos(:,:), R(:,:)
+  double precision :: t1,t2,t3
+  integer :: i,j,tmp_i,tmp_j
+  integer :: info
+  logical :: enforce_step_cancellation
+
+  print*,'---Enter in apply_pre_rotation---'
+  call wall_time(t1)
+
+  allocate(pre_rot(mo_num,mo_num), prev_mos(ao_num,mo_num), R(mo_num,mo_num))
+
+  ! Initialization of the matrix
+  pre_rot = 0d0
+
+  if (kick_in_mos) then
+    ! Pre rotation for core MOs
+    if (dim_list_core_orb >= 2) then
+      do tmp_j = 1, dim_list_core_orb
+        j = list_core(tmp_j)
+        do tmp_i = 1, dim_list_core_orb
+          i = list_core(tmp_i)
+          if (i > j) then
+            pre_rot(i,j) = angle_pre_rot
+          elseif (i < j) then
+            pre_rot(i,j) = - angle_pre_rot
+          else
+            pre_rot(i,j) = 0d0
+          endif
+        enddo
+      enddo
+    endif
+    
+    ! Pre rotation for active MOs
+    if (dim_list_act_orb >= 2) then
+      do tmp_j = 1, dim_list_act_orb
+        j = list_act(tmp_j)
+        do tmp_i = 1, dim_list_act_orb
+          i = list_act(tmp_i)
+          if (i > j) then
+            pre_rot(i,j) = angle_pre_rot
+          elseif (i < j) then
+            pre_rot(i,j) = - angle_pre_rot
+          else
+            pre_rot(i,j) = 0d0
+          endif
+        enddo
+      enddo
+    endif
+  
+    ! Pre rotation for inactive MOs
+    if (dim_list_inact_orb >= 2) then
+      do tmp_j = 1, dim_list_inact_orb
+        j = list_inact(tmp_j)
+        do tmp_i = 1, dim_list_inact_orb
+          i = list_inact(tmp_i)
+          if (i > j) then
+            pre_rot(i,j) = angle_pre_rot
+          elseif (i < j) then
+            pre_rot(i,j) = - angle_pre_rot
+          else
+            pre_rot(i,j) = 0d0
+          endif
+        enddo
+      enddo
+    endif
+  
+    ! Pre rotation for virtual MOs
+    if (dim_list_virt_orb >= 2) then
+      do tmp_j = 1, dim_list_virt_orb
+        j = list_virt(tmp_j)
+        do tmp_i = 1, dim_list_virt_orb
+          i = list_virt(tmp_i)
+          if (i > j) then
+            pre_rot(i,j) = angle_pre_rot
+          elseif (i < j) then
+            pre_rot(i,j) = - angle_pre_rot
+          else
+            pre_rot(i,j) = 0d0
+          endif
+        enddo
+      enddo
+    endif
+  
+    ! Nothing for deleted ones
+  
+    ! Compute pre rotation matrix from pre_rot
+    call rotation_matrix(pre_rot,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
+   
+    if (enforce_step_cancellation) then
+      print*, 'Cancellation of the pre rotation, too big error in the rotation matrix'
+      print*, 'Reduce the angle for the pre rotation, abort'
+      call abort
+    endif
+  
+    ! New Mos (we don't car eabout the previous MOs prev_mos)
+    call apply_mo_rotation(R,prev_mos)
+  
+    ! Update the things related to mo_coef
+    TOUCH mo_coef
+  endif
+
+  deallocate(pre_rot, prev_mos, R)
+
+  call wall_time(t2)
+  t3 = t2-t1
+  print*,'Time in apply_pre_rotation:', t3
+  print*,'---End apply_pre_rotation---'
+
+end
+#+END_SRC
 
 #+BEGIN_SRC  f90 :comments org :tangle localization_sub.irp.f
 subroutine x_tmp_orb_loc_v2(tmp_n, tmp_list_size, tmp_list, v_grad, H,tmp_x, tmp_m_x)

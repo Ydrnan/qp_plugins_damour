@@ -9,4 +9,5 @@ TODO:
 ** DONE Correction of Rho
 ** TODO Check the PROVIDE/FREE/TOUCH
 ** TODO research of lambda without the power 2
+** TODO Clean the OMP sections
 

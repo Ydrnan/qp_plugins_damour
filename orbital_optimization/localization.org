@@ -2555,7 +2555,7 @@ subroutine apply_pre_rotation()
   integer :: info
   logical :: enforce_step_cancellation
 
-  print*,'---Enter in apply_pre_rotation---'
+  print*,'---apply_pre_rotation---'
   call wall_time(t1)
 
   allocate(pre_rot(mo_num,mo_num), prev_mos(ao_num,mo_num), R(mo_num,mo_num))

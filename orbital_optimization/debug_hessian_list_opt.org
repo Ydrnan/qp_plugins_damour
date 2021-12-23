@@ -107,8 +107,8 @@ program debug_hessian_list_opt
   else
 
     print*, 'Use the diagonal hessian matrix'
-    call first_diag_hessian_list_opt(n,m,list_act,H,h_f)
-    call diag_hessian_list_opt(n,m,list_act,H2,h_f2)
+    call diag_hessian_list_opt(n,m,list_act,H,h_f)
+    call first_diag_hessian_list_opt(n,m,list_act,H2,h_f2)
     
     h_f = h_f - h_f2
     max_error = 0d0

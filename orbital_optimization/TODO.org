@@ -1,10 +1,10 @@
 TODO:
-** TODO Diagonal hessian for orbital optimization with a list of MOs
+** DONE Diagonal hessian for orbital optimization with a list of MOs
 ** DONE Something to force the step cancellation if R.R^T > treshold
 ** TODO Iterative method to compute the rotation matrix
 ** DONE Test trust region with polynomial functions
 ** TODO Optimization/Localization program using the template
-** TODO Correction OMP hessian shared/private arrays
+** DONE Correction OMP hessian shared/private arrays
 ** DONE State average energy
 ** DONE Correction of Rho
 ** TODO Check the PROVIDE/FREE/TOUCH

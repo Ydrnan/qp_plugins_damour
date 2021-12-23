@@ -99,7 +99,7 @@ subroutine hessian_opt(n,H,h_tmpr)
   ! H_test   : monum**2 by mo_num**2 double precision matrix to debug the H matrix
 
   double precision, allocatable :: tmp_bi_int_3(:,:,:), tmp_2rdm_3(:,:,:), ind_3(:,:,:)
-  double precision, allocatable :: tmp_accu(:,:), tmp_accu_sym(:,:)
+  double precision, allocatable :: tmp_accu(:,:), tmp_accu_sym(:,:), tmp_accu_shared(:,:),tmp_accu_sym_shared(:,:)
 
   ! Function 
   double precision              :: get_two_e_integral
@@ -110,6 +110,7 @@ subroutine hessian_opt(n,H,h_tmpr)
 
   ! Allocation of shared arrays
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
+  allocate(tmp_accu_shared(mo_num,mo_num)tmp_accu_sym_shared(mo_num,mo_num))
 
   ! Calculations
 
@@ -137,7 +138,7 @@ subroutine hessian_opt(n,H,h_tmpr)
   !$OMP MASTER
   do q = 1, mo_num
     do p = 1, mo_num
-      tmp_accu(p,q) = 0d0
+      tmp_accu_shared(p,q) = 0d0
     enddo
   enddo
   !$OMP END MASTER
@@ -201,13 +202,13 @@ $$c_{p,s} = \sum_u a_{p,u} b_{u,s}$$
 
   call dgemm('T','N', mo_num, mo_num, mo_num, 1d0, mo_one_e_integrals,&
              size(mo_one_e_integrals,1), one_e_dm_mo, size(one_e_dm_mo,1),&
-             0d0, tmp_accu, size(tmp_accu,1))
+             0d0, tmp_accu_shared, size(tmp_accu_shared,1))
 
   !$OMP DO
   do s = 1, mo_num
     do p = 1, mo_num
 
-      tmp_accu_sym(p,s) = 0.5d0 * (tmp_accu(p,s) + tmp_accu(s,p))
+      tmp_accu_sym_shared(p,s) = 0.5d0 * (tmp_accu_shared(p,s) + tmp_accu_shared(s,p))
 
     enddo
   enddo 
@@ -218,7 +219,7 @@ $$c_{p,s} = \sum_u a_{p,u} b_{u,s}$$
     do p = 1, mo_num
       do r = 1, mo_num
 
-        hessian(p,r,r,s) = hessian(p,r,r,s) + tmp_accu_sym(p,s)
+        hessian(p,r,r,s) = hessian(p,r,r,s) + tmp_accu_sym_shared(p,s)
 
       enddo
     enddo
@@ -262,13 +263,13 @@ $$c_{r,q} = \sum_u a_{r,u} b_{u,q}$$
 
   call dgemm('T','N', mo_num, mo_num, mo_num, 1d0, mo_one_e_integrals,&
              size(mo_one_e_integrals,1), one_e_dm_mo, size(one_e_dm_mo,1),&
-             0d0, tmp_accu, size(tmp_accu,1))
+             0d0, tmp_accu_shared, size(tmp_accu_shared,1))
 
   !$OMP DO
   do r = 1, mo_num
     do q = 1, mo_num
 
-      tmp_accu_sym(q,r) = 0.5d0 * (tmp_accu(q,r) + tmp_accu(r,q))
+      tmp_accu_sym_shared(q,r) = 0.5d0 * (tmp_accu_shared(q,r) + tmp_accu_shared(r,q))
 
     enddo
   enddo
@@ -279,7 +280,7 @@ $$c_{r,q} = \sum_u a_{r,u} b_{u,q}$$
     do q = 1, mo_num
       do s = 1, mo_num
 
-        hessian(s,q,r,s) = hessian(s,q,r,s) + tmp_accu_sym(q,r)
+        hessian(s,q,r,s) = hessian(s,q,r,s) + tmp_accu_sym_shared(q,r)
 
       enddo
     enddo

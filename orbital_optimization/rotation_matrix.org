@@ -67,7 +67,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
 
   ! in
   integer, intent(in)           :: n,LDA,LDR
-  double precision, intent(in)  :: A(LDA,n)
+  double precision, intent(inout)  :: A(LDA,n)
 
   ! out
   double precision, intent(out) :: R(LDR,n)
@@ -165,6 +165,16 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
     enddo
   enddo
 
+  ! Fix for too big elements
+  do j = 1, n
+    do i = 1, n
+      A(i,j) = mod(A(i,j),2d0*pi)
+      if (dabs(A(i,j)) > pi) then
+        A(i,j) = 0d0
+      endif
+    enddo
+  enddo
+
   max_elem_A = 0d0
   do j = 1, n
     do i = 1, n
@@ -193,7 +203,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
 
     #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! Compute B=A.A
-  
+
   call dgemm('N','N',n,n,n,1d0,A,size(A,1),A,size(A,1),0d0,B,size(B,1))
 
   ! Copy B in W, diagonalization will put the eigenvectors in W
@@ -230,7 +240,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
     #+BEGIN_SRC f90 :comments org :tangle rotation_matrix.irp.f
   ! Diagonal matrix m_diag
   do j = 1, n
-     if (e_val(j) >= 0.d0) then
+     if (e_val(j) >= -1d-12) then !0.d0) then !!! e_avl(i) must be < -1d-12 to avoid numerical problems
         e_val(j) = 0.d0
      else
         e_val(j) = - e_val(j)
@@ -279,7 +289,7 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
   ! tau^-1
   do j = 1, n
      do i = 1, n
-        if ((i==j).and.(e_val(i) > 1d-16)) then!0d0)) then !!! Convergence problem can come from here if the threshold is too big/small
+        if ((i==j) .and. (e_val(i) > 1d-16)) then!0d0)) then !!! Convergence problem can come from here if the threshold is too big/small
            tau_m1(i,j) = 1d0/(dsqrt(e_val(i)))
         else
            tau_m1(i,j) = 0d0
@@ -294,6 +304,10 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
      endif
   enddo
   print*,'max elem tau^-1:', max_elem
+  print*,'eigenvalues:'
+  do i = 1, n 
+    print*, e_val(i)
+  enddo
 
   !Debug, display tau^-1
   if (debug) then

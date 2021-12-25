@@ -239,7 +239,8 @@ subroutine trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, cri
 end subroutine
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments 
+** Template for MOs
+#+BEGIN_SRC f90 :comments org :tangle trust_region_template_mos.txt
 subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
 
   implicit none
@@ -258,20 +259,20 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
   double precision              :: criterion, prev_criterion, criterion_model
   double precision              :: delta, rho
   logical                       :: not_converged, cancel_step, must_exit, enforce_step_cancellation
-  integer                       :: nb_iter, info
+  integer                       :: nb_iter, info, nb_sub_iter
   integer                       :: i,j,tmp_i,tmp_j
 
-  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n),tmp_m_x(tmp_list_size,tmp_list_size))
-  allocate(tmp_R(tmp_list_size,tmp_list_size), R(mo_num,mo_num))
-  allocate(prev_mos(ao_num,mo_num))
+  allocate(W(tmp_n, tmp_n),e_val(tmp_n),tmp_x(tmp_n),tmp_m_x(tmp_list_size, tmp_list_size))
+  allocate(tmp_R(tmp_list_size, tmp_list_size), R(mo_num, mo_num))
+  allocate(prev_mos(ao_num, mo_num))
 
-  ! Necessary ?
-  PROVIDE H_PROVIDER g_PROVIDER C_PROVIDER 
+  ! Provide the criterion
+  PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER
 
   ! Initialization
   delta = 0d0 
-  nb_iter = 0 ! Must starts at 0 !!!
-  rho = 0.5d0 ! Must starts at 0.5 
+  nb_iter = 0 ! Must start at 0 !!!
+  rho = 0.5d0 ! Must start at 0.5 
   not_converged = .True. ! Must be true
 
   ! Compute the criterion before the loop
@@ -279,6 +280,14 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
 
   do while (not_converged)
 
+      print*,''
+      print*,'******************'
+      print*,'Iteration', nb_iter
+      print*,'******************'
+      print*,''
+
+      ! Provide the hessian and the gradient (only if nb_iter > 0,
+      ! else it's already provided)
       if (nb_iter > 0) then
         PROVIDE H_PROVIDER g_PROVIDER
       endif
@@ -286,10 +295,16 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
       ! Diagonalization of the hessian 
       call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
 
-      cancel_step = .True. ! To enter in the loop just after 
+      cancel_step = .True. ! To enter in the loop just after
+      nb_sub_iter = 0
 
       ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
       do while (cancel_step)
+
+          print*,'-----------------------------'
+          print*,'Iteration:', nb_iter
+          print*,'Sub iteration:', nb_sub_iter
+          print*,'-----------------------------'
 
           ! Hessian,gradient,Criterion -> x 
           call trust_region_step_w_expected_e(tmp_n, H_PROVIDER, W, e_val, g_PROVIDER, &
@@ -313,48 +328,59 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
             cycle
           endif
 
-          ! TODO subroutine ?
           ! tmp_R to R, subspace to full space
-          R = 0d0
-          do i = 1, mo_num
-              R(i,i) = 1d0 ! 1 on the diagonal because it is a rotation matrix, 1 = nothing change for the corresponding orbital
-          enddo
-          do tmp_j = 1, tmp_list_size
-              j = tmp_list(tmp_j)
-              do tmp_i = 1, tmp_list_size
-                  i = tmp_list(tmp_i)
-                  R(i,j) = tmp_R(tmp_i, tmp_j)
-              enddo
-          enddo
+          call sub_to_full_rotation_matrix(tmp_list_size, tmp_list, tmp_R, R)
 
           ! Rotation of the MOs
           call apply_mo_rotation(R, prev_mos)
 
-          ! touch mo_coef 
-          TOUCH mo_coef H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER
+          ! touch mo_coef
+          call clear_mo_map ! Only if you are using the bi-electronic integrals
+          ! mo_coef becomes valid
+          ! And avoid the recomputation of the providers which depend of mo_coef
+          ! except the criterion 
+          TOUCH mo_coef H_PROVIDER g_PROVIDER cc_PROVIDER
 
           ! To update the other parameters if needed
           call update_parameters()
 
           ! New criterion
-          PROVIDE C_PROVIDER
+          PROVIDE C_PROVIDER ! unnecessary
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
           call trust_region_is_step_cancelled(nb_iter, prev_criterion, criterion, criterion_model, rho, cancel_step)
 
-          ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+          ! Cancellation of the step ?
           if (cancel_step) then
               ! Replacement by the previous MOs
               mo_coef = prev_mos
+              ! call save_mos() ! depends of the time for 1 iteration
 
-              ! Avoid the recomputation of the hessian and the gradient
-              TOUCH mo_coef H_PROVIDER g_PROVIDER cc_PROVIDER 
+              ! No need to clear_mo_map since we don't recompute the gradient and the hessian
+              ! mo_coef becomes valid
+              ! Avoid the recomputation of the providers which depend of mo_coef
+              TOUCH mo_coef H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER
+          else
+              ! The step is accepted:
+              ! Criterion -> prev criterion
+
+              ! Provide the new value of the criterion if it has a reason to change
+              ! in this if loop (cf. orbital optimization program)
+              PROVIDE C_PROVIDER
+              prev_criterion = C_PROVIDER
+              
+              ! If the value of the criterion here has no reason to change
+              ! in this if loop (cf. orbital localization program) 
+              ! prev_criterion = criterion
+              ! But it's already done by trust_region_rho in
+              ! trust_region_is_step_cancelled
           endif      
 
+          nb_sub_iter = nb_sub_iter + 1
       enddo
 
-      call save_mos() !### depend of the time for 1 iteration
+      ! call save_mos() ! depends of the time for 1 iteration
 
       ! To exit the external loop if must_exit = .True.
       if (must_exit) then
@@ -364,13 +390,12 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
       ! Step accepted, nb iteration + 1
       nb_iter = nb_iter + 1
 
-      ! To invalid the gradient and the hessian
-      FREE H_PROVIDER g_PROVIDER
-
+      ! Provide the convergence criterion
+      ! Provide the gradient and the hessian for the next iteration
       PROVIDE cc_PROVIDER
 
       ! To exit
-      if (dabs(CC_PROVIDER) < thresh_opt_max_elem_grad) then
+      if (dabs(cc_PROVIDER) < thresh_opt_max_elem_grad) then
         not_converged = .False.
       endif
 
@@ -383,14 +408,17 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
       endif
 
   enddo
+
+  ! Save the final MOs
+  call save_mos()
   
- deallocate(e_val, W, tmp_R, R, tmp_x, prev_mos)
+  deallocate(e_val, W, tmp_R, R, tmp_x, prev_mos)
 
 end
 #+END_SRC
 
 ** Cartesian version
-#+BEGIN_SRC f90 :comments org 
+#+BEGIN_SRC f90 :comments org :tangle trust_region_template_xyz.txt
 subroutine algo_trust_cartesian_template(tmp_n)
 
   implicit none
@@ -408,17 +436,17 @@ subroutine algo_trust_cartesian_template(tmp_n)
   double precision              :: criterion, prev_criterion, criterion_model
   double precision              :: delta, rho
   logical                       :: not_converged, cancel_step, must_exit
-  integer                       :: nb_iter
+  integer                       :: nb_iter, nb_sub_iter
   integer                       :: i,j
 
-  allocate(W(tmp_n,tmp_n),e_val(tmp_n),tmp_x(tmp_n))
+  allocate(W(tmp_n, tmp_n),e_val(tmp_n),tmp_x(tmp_n))
 
-  PROVIDE H_PROVIDER g_PROVIDER C_PROVIDER X_PROVIDER
+  PROVIDE C_PROVIDER X_PROVIDER
 
   ! Initialization
   delta = 0d0 
-  nb_iter = 0 ! Must starts at 0 !!!
-  rho = 0.5d0 ! Must starts at 0.5 
+  nb_iter = 0 ! Must start at 0 !!!
+  rho = 0.5d0 ! Must start at 0.5 
   not_converged = .True. ! Must be true
 
   ! Compute the criterion before the loop
@@ -426,17 +454,27 @@ subroutine algo_trust_cartesian_template(tmp_n)
 
   do while (not_converged)
 
-      if (nb_iter > 0) then
-        PROVIDE H_PROVIDER g_PROVIDER
-      endif
+      print*,''
+      print*,'******************'
+      print*,'Iteration', nb_iter
+      print*,'******************'
+      print*,''
+
+      PROVIDE H_PROVIDER g_PROVIDER
 
       ! Diagonalization of the hessian 
-      call diagonalization_hessian(tmp_n,H_PROVIDER,e_val,W)
+      call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
 
-      cancel_step = .True. ! To enter in the loop just after 
+      cancel_step = .True. ! To enter in the loop just after
+      nb_sub_iter = 0
 
       ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
       do while (cancel_step)
+
+          print*,'-----------------------------'
+          print*,'Iteration:', nb_iter
+          print*,'Sub iteration:', nb_sub_iter
+          print*,'-----------------------------'
 
           ! Hessian,gradient,Criterion -> x 
           call trust_region_step_w_expected_e(tmp_n, H_PROVIDER, W, e_val, g_PROVIDER, &
@@ -452,7 +490,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
           X_PROVIDER = X_PROVIDER - tmp_x
 
           ! touch X_PROVIDER
-          TOUCH X_PROVIDER H_PROVIDER g_PROVIDER C_PROVIDER CC_PROVIDER 
+          TOUCH X_PROVIDER H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER 
 
           ! To update the other parameters if needed
           call update_parameters_()
@@ -462,7 +500,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
-          call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+          call trust_region_is_step_cancelled(nb_iter, prev_criterion, criterion, criterion_model, rho, cancel_step)
 
           ! Cancel the previous step
           if (cancel_step) then
@@ -470,9 +508,10 @@ subroutine algo_trust_cartesian_template(tmp_n)
               X_PROVIDER = X_PROVIDER + tmp_x
 
               ! Avoid the recomputation of the hessian and the gradient
-              TOUCH X_PROVIDER H_PROVIDER g_PROVIDER C_PROVIDER CC_PROVIDER
+              TOUCH X_PROVIDER H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER
           endif      
 
+          nb_sub_iter = nb_sub_iter + 1
       enddo
 
       ! To exit the external loop if must_exit = .True.
@@ -483,14 +522,10 @@ subroutine algo_trust_cartesian_template(tmp_n)
       ! Step accepted, nb iteration + 1
       nb_iter = nb_iter + 1
 
-      ! To invalid the gradient and the hessian
-      FREE H_PROVIDER g_PROVIDER
-
-      ! Unnecessary
-      PROVIDE CC_PROVIDER
+      PROVIDE cc_PROVIDER
 
       ! To exit
-      if (dabs(CC_PROVIDER) < thresh_opt_max_elem_grad) then
+      if (dabs(cc_PROVIDER) < thresh_opt_max_elem_grad) then
         not_converged = .False.
       endif
 
@@ -508,3 +543,39 @@ subroutine algo_trust_cartesian_template(tmp_n)
 
 end
 #+END_SRC
+
+** Script template
+#+BEGIN_SRC bash :tangle script_template_mos.sh
+#!/bin/bash
+
+your_file=
+
+your_C_PROVIDER=
+your_H_PROVIDER=
+your_g_PROVIDER=
+your_cc_PROVIDER=
+
+sed "s/C_PROVIDER/$your_C_PROVIDER/g" trust_region_template_mos.txt > $your_file
+sed -i "s/H_PROVIDER/$your_H_PROVIDER/g" $your_file
+sed -i "s/g_PROVIDER/$your_g_PROVIDER/g" $your_file
+sed -i "s/cc_PROVIDER/$your_cc_PROVIDER/g" $your_file
+#+END_SRC
+
+#+BEGIN_SRC bash :tangle script_template_xyz.sh
+#!/bin/bash
+
+your_file=
+
+your_C_PROVIDER=
+your_X_PROVIDER=
+your_H_PROVIDER=
+your_g_PROVIDER=
+your_cc_PROVIDER=
+
+sed "s/C_PROVIDER/$your_C_PROVIDER/g" trust_region_template_xyz.txt > $your_file
+sed -i "s/X_PROVIDER/$your_X_PROVIDER/g" $your_file
+sed -i "s/H_PROVIDER/$your_H_PROVIDER/g" $your_file
+sed -i "s/g_PROVIDER/$your_g_PROVIDER/g" $your_file
+sed -i "s/cc_PROVIDER/$your_cc_PROVIDER/g" $your_file
+#+END_SRC
+

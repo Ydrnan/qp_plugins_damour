@@ -74,7 +74,8 @@ BEGIN_PROVIDER [ double precision, my_st_av_energy ]
   ! State average CI energy
   END_DOC
 
-  call update_st_av_ci_energy(my_st_av_energy)
+  !call update_st_av_ci_energy(my_st_av_energy)
+  call state_average_energy(my_st_av_energy)
 
 END_PROVIDER
 #+END_SRC

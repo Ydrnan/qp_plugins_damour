@@ -172,10 +172,7 @@ program debug_hessian_list_opt
   print*,'Max error_H :', max_error_H
  
   ! Deallocation
-  deallocate(H)
-  deallocate(H2)
-  deallocate(h_f)
-  deallocate(h_f2)
+  deallocate(H, H2, h_f, h_f2)
 
 end program
 #+END_SRC

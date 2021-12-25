@@ -68,27 +68,6 @@ subroutine trust_region_rho(prev_energy, energy,e_model,rho)
   call wall_time(t1)
 #+END_SRC
 
-** State average energy
-The state average energy $E$, is defined as :
-\begin{equation}
-E = \sum_i E_i w_i
-\end{equation}
-With :
-$E_i$ energy of state i
-$w_i$ weight of state i
-
-#+BEGIN_SRC f90 :comments org :tangle trust_region_rho.irp.f
-!  ! Energy of the actual step
-!  energy = 0d0
-!  do i = 1, N_states
-!    energy = energy + ci_energy(i) * state_average_weight(i)
-!  enddo
-!
-!  energy = energy / DBLE(N_states)
-!
-!  print*, 'ci_energy :', energy
-#+END_SRC
-
 ** Rho
 \begin{equation}
 \rho^{k+1} = \frac{E^{k} - E^{k+1}}{E^{k} - m^{k+1}}
@@ -120,18 +99,18 @@ If the step (k+1) is accepted, then the "previous energy" becomes E(k+1)
 
   ! Modification of prev_energy in function of rho
   if (rho < thresh_rho) then !0.1) then
-    ! the step is accepted  
+    ! the step is cancelled  
     print*, 'Rho <', thresh_rho,', the previous energy does not changed'
     print*, 'prev_energy :', prev_energy  
   else
-    ! the step will is cancelled
+    ! the step is accepted
     prev_energy = energy
     print*, 'Rho >=', thresh_rho,', energy -> prev_energy :', energy
   endif
 
   call wall_time(t2)
   t3 = t2 - t1
-  print*,'Time in rho model', t3
+  print*,'Time in rho model:', t3
 
   print*,'---End rho_model---'
   print*,''

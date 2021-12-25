@@ -50,7 +50,7 @@ h2co_cc_pvdz_fc_test.ezfio           orb_opt_trust_v2           Energy_of_state 
 h2co_cc_pvdz_test.ezfio              debug_hessian_list_opt     Max_error            0.0
 h2co_cc_pvdz_test.ezfio              debug_gradient_list_opt    Max_error            0.0
 h2co_cc_pvdz_fc_test.ezfio           debug_hessian_list_opt     Max_error            0.0
-h2co_cc_pvdz_fc_test.iezfio          debug_gradient_list_opt    Max_error            0.0
+h2co_cc_pvdz_fc_test.ezfio           debug_gradient_list_opt    Max_error            0.0
 h2co_cc_pvdz_diag_test.ezfio         debug_hessian_list_opt     Max_error            0.0
 h2co_cc_pvdz_fc_diag_test.ezfio      debug_hessian_list_opt     Max_error            0.0
 h2co_cc_pvdz_test.ezfio              debug_hessian_opt          Max_error            0.0

@@ -849,7 +849,7 @@ subroutine run_localization
         call update_data_localization()
 
         ! Update the criterion
-        call criterion_localization(tmp_list_size, tmp_list,criterion)
+        call criterion_localization(tmp_list_size, tmp_list, criterion)
         print*,'Criterion:', trim(mo_class(tmp_list(1))), nb_iter, criterion
 
         ! Criterion -> step accepted or rejected 
@@ -986,7 +986,7 @@ end
 Criterion:
 
 Output:
-| criterion | double precision | Criterion fr the localization |
+| criterion | double precision | Criterion for the orbital localization |
 
 #+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
 subroutine criterion_localization(tmp_list_size, tmp_list,criterion)
@@ -2763,7 +2763,7 @@ subroutine run_sort_by_fock_energies()
   integer, allocatable           :: iorder(:)
   double precision, allocatable  :: fock_energies_tmp(:), new_mo_coef(:,:)
 
-  allocate(iorder(mo_num), fock_energies_tmp(mo_num),new_mo_coef(ao_num,mo_num))
+  allocate(iorder(mo_num), fock_energies_tmp(mo_num), new_mo_coef(ao_num, mo_num))
 
   do i = 1, mo_num
     fock_energies_tmp(i) = Fock_matrix_diag_mo(i)
@@ -2775,7 +2775,7 @@ subroutine run_sort_by_fock_energies()
   print*,'Sorting by Fock energies'
   print*,''
 
-  call dsort(fock_energies_tmp,iorder,mo_num)
+  call dsort(fock_energies_tmp, iorder, mo_num)
 
   do i = 1, mo_num
     k = iorder(i)

@@ -147,8 +147,7 @@ subroutine diag_hessian_list_opt(n, m, list, H, h_tmpr)
       !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
       !$OMP  mo_num,n,m, mo_one_e_integrals, one_e_dm_mo, list,                &
       !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,           &
-      !$OMP  tmp_accu_1_shared,two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6, &
-      !$OMP  tmp_accu_shared,tmp_accu_sym_shared) &
+      !$OMP  tmp_accu_1_shared,two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6) &
       !$OMP DEFAULT(NONE)
 
   ! Allocation of the private arrays

@@ -181,6 +181,17 @@ Here is the main algorithm of the optimization:
   tmp_list = list_act ! Optimization of the active MOs
   nb_cancel_tot = 0
 
+  ! Renormalization of the weight of the states
+  if (normalized_st_av_weight) then
+    do i = 1, N_states
+      state_average_weight(i) = 1d0/DBLE(N_states)
+    enddo
+    TOUCH state_average_weight
+  endif
+  print*, 'Number of states:', N_states
+  print*, 'State average weights:'
+  print*, state_average_weight(:)
+
   ! Compute the criterion before the loop
   call state_average_energy(prev_criterion)
 
@@ -200,9 +211,7 @@ Here is the main algorithm of the optimization:
       call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     elseif (optimization_method == 'diag') then
       ! Diagonal hessian 
-      print*,'Not available for the moment, abort'
-      call abort
-      !call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+      call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
     else
       ! Identity matrix 
       H = 0d0

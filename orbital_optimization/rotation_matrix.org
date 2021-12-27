@@ -304,10 +304,10 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
      endif
   enddo
   print*,'max elem tau^-1:', max_elem
-  print*,'eigenvalues:'
-  do i = 1, n 
-    print*, e_val(i)
-  enddo
+  !print*,'eigenvalues:'
+  !do i = 1, n 
+  !  print*, e_val(i)
+  !enddo
 
   !Debug, display tau^-1
   if (debug) then

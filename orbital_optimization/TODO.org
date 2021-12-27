@@ -1,9 +1,11 @@
 TODO:
-** TODO Keep under surveillance the peformance of rotation matrix
+** TODO Keep under surveillance the performance of rotation matrix
 - is the fix ok ?
+** TODO Provider state_average_weight
 ** DONE Diagonal hessian for orbital optimization with a list of MOs
 ** DONE Something to force the step cancellation if R.R^T > treshold
 ** TODO Iterative method to compute the rotation matrix
+- doesn't work actually
 ** DONE Test trust region with polynomial functions
 ** TODO Optimization/Localization program using the template
 ** DONE Correction OMP hessian shared/private arrays

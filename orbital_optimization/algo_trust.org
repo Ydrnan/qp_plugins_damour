@@ -266,8 +266,9 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
   allocate(tmp_R(tmp_list_size, tmp_list_size), R(mo_num, mo_num))
   allocate(prev_mos(ao_num, mo_num))
 
-  ! Provide the criterion
-  PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER
+  ! Provide the criterion, but unnecessary because it's done 
+  ! automatically
+  PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVDIDER
 
   ! Initialization
   delta = 0d0 
@@ -286,12 +287,7 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
       print*,'******************'
       print*,''
 
-      ! Provide the hessian and the gradient (only if nb_iter > 0,
-      ! else it's already provided)
-      if (nb_iter > 0) then
-        PROVIDE H_PROVIDER g_PROVIDER
-      endif
-
+      ! The new hessian and gradient are computed at the end of the previous iteration
       ! Diagonalization of the hessian 
       call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
 
@@ -338,14 +334,15 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
           call clear_mo_map ! Only if you are using the bi-electronic integrals
           ! mo_coef becomes valid
           ! And avoid the recomputation of the providers which depend of mo_coef
-          ! except the criterion 
-          TOUCH mo_coef H_PROVIDER g_PROVIDER cc_PROVIDER
+          TOUCH mo_coef C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER
 
           ! To update the other parameters if needed
           call update_parameters()
 
-          ! New criterion
-          PROVIDE C_PROVIDER ! unnecessary
+          ! To enforce the program to provide new criterion after the update
+          ! of the parameters
+          FREE C_PROVIDER
+          PROVIDE C_PROVIDER
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 
@@ -363,18 +360,20 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
               TOUCH mo_coef H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER
           else
               ! The step is accepted:
-              ! Criterion -> prev criterion
+              ! criterion -> prev criterion
 
-              ! Provide the new value of the criterion if it has a reason to change
-              ! in this if loop (cf. orbital optimization program)
-              PROVIDE C_PROVIDER
+              ! The replacement "criterion -> prev criterion" is already done
+              ! in trust_region_rho, so if the criterion does not have a reason
+              ! to change, it will change nothing for the criterion and will 
+              ! force the program to provide the new hessian, gradient and 
+              ! convergence criterion for the next iteration.
+              ! But in the case of orbital optimization we diagonalize the CI 
+              ! matrix after the "FREE" statement, so the criterion will change
+      
+              FREE C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER
+              PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER
               prev_criterion = C_PROVIDER
               
-              ! If the value of the criterion here has no reason to change
-              ! in this if loop (cf. orbital localization program) 
-              ! prev_criterion = criterion
-              ! But it's already done by trust_region_rho in
-              ! trust_region_is_step_cancelled
           endif      
 
           nb_sub_iter = nb_sub_iter + 1
@@ -411,6 +410,10 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
 
   ! Save the final MOs
   call save_mos()
+
+  ! Diagonalization of the hessian 
+  ! (To see the eigenvalues at the end of the optimization)
+  call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
   
   deallocate(e_val, W, tmp_R, R, tmp_x, prev_mos)
 
@@ -441,7 +444,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
 
   allocate(W(tmp_n, tmp_n),e_val(tmp_n),tmp_x(tmp_n))
 
-  PROVIDE C_PROVIDER X_PROVIDER
+  PROVIDE C_PROVIDER X_PROVIDER H_PROVIDER g_PROVIDER
 
   ! Initialization
   delta = 0d0 
@@ -460,7 +463,9 @@ subroutine algo_trust_cartesian_template(tmp_n)
       print*,'******************'
       print*,''
 
-      PROVIDE H_PROVIDER g_PROVIDER
+      if (nb_iter > 0) then
+        PROVIDE H_PROVIDER g_PROVIDER
+      endif
 
       ! Diagonalization of the hessian 
       call diagonalization_hessian(tmp_n, H_PROVIDER, e_val, W)
@@ -490,13 +495,13 @@ subroutine algo_trust_cartesian_template(tmp_n)
           X_PROVIDER = X_PROVIDER - tmp_x
 
           ! touch X_PROVIDER
-          TOUCH X_PROVIDER H_PROVIDER g_PROVIDER C_PROVIDER cc_PROVIDER 
+          TOUCH X_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER 
 
           ! To update the other parameters if needed
-          call update_parameters_()
+          call update_parameters()
 
           ! New criterion
-          PROVIDE C_PROVIDER
+          PROVIDE C_PROVIDER ! Unnecessary
           criterion = C_PROVIDER
 
           ! Criterion -> step accepted or rejected 

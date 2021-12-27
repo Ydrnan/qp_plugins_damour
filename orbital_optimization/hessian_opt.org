@@ -110,7 +110,7 @@ subroutine hessian_opt(n,H,h_tmpr)
 
   ! Allocation of shared arrays
   allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
-  allocate(tmp_accu_shared(mo_num,mo_num)tmp_accu_sym_shared(mo_num,mo_num))
+  allocate(tmp_accu_shared(mo_num,mo_num),tmp_accu_sym_shared(mo_num,mo_num))
 
   ! Calculations
 
@@ -123,7 +123,7 @@ subroutine hessian_opt(n,H,h_tmpr)
       !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3, ind_3)                       &
       !$OMP SHARED(hessian,h_tmpr,H, mo_num,n, & 
       !$OMP mo_one_e_integrals, one_e_dm_mo, &
-      !$OMP two_e_dm_mo,mo_integrals_map, &
+      !$OMP two_e_dm_mo,mo_integrals_map,tmp_accu_sym_shared, tmp_accu_shared,   &
       !$OMP t1,t2,t3,t4,t5,t6)&
       !$OMP DEFAULT(NONE)
  

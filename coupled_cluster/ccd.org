@@ -1,24 +1,24 @@
-* CCD
+* CCD with spin orbitals
 
 #+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
-program ccd
-  implicit none
-  PROVIDE mo_two_e_integrals_in_map
-
-  if (elec_alpha_num == elec_beta_num) then
-    print*,'Spatial orbital CCD'
-    call run_space_orb_ccd
-  else
-    print*,'Spin orbital CCD'
-    call run_spin_orb_ccd
-  endif
-  
-
-end program
+!program ccd
+!  implicit none
+!  PROVIDE mo_two_e_integrals_in_map
+!
+!  if (elec_alpha_num == elec_beta_num) then
+!    print*,'Spatial orbital CCD'
+!    call run_space_orb_ccd
+!  else
+!    print*,'Spin orbital CCD'
+!    call run_spin_orb_ccd
+!  endif
+!  
+!
+!end program
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
-subroutine run_spin_orb_ccd
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+program spin_orb_ccd
   implicit none
 
   ! Pople
@@ -38,14 +38,18 @@ subroutine run_spin_orb_ccd
 
   print*,'HF energy', hf_energy
 
+  ! Alloc
   allocate(t2(n_occ,n_occ,n_vir,n_vir),r(n_occ,n_occ,n_vir,n_vir))
   allocate(delta(n_occ,n_occ,n_vir,n_vir),u(n_occ,n_occ,n_vir,n_vir),v(n_occ,n_occ,n_vir,n_vir))
   allocate(x1(n_occ,n_occ,n_occ,n_occ), x2(n_vir,n_vir), x3(n_occ,n_occ), x4(n_occ,n_occ,n_vir,n_vir))
   allocate(v2(n_occ,n_occ,n_vir,n_vir))
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
   t2 = 0d0
 
-  
-do b = 1, n_vir
+  ! Debug, print integrals
+  do b = 1, n_vir
     tmp_b = b + n_occ
     do a = 1, n_vir
       tmp_a = a + n_occ 
@@ -59,59 +63,34 @@ do b = 1, n_vir
       enddo
     enddo
   enddo
-  print*,'int',delta(:,:,:,:)
+  !print*,'int',delta(:,:,:,:)
 
   ! delta
-  call compute_delta(n_occ,n_vir,delta)
+  call compute_delta(n_occ, n_vir, delta)
   !print*,'delta',delta(:,:,:,:)
 
-  ! Guess
-  do b = 1, n_vir
-    tmp_b = b + n_occ
-    do a = 1, n_vir
-      tmp_a = a + n_occ 
-      do j = 1, n_occ
-        do i = 1, n_occ
-        
-          t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
-            delta(i,j,a,b)
+  call guess_t2(n_occ, n_vir, delta, t2)
 
-        enddo
-      enddo
-    enddo
-  enddo
-
-  nb_iter = 0
-  do while (nb_iter < 5)
-    print*,'t2',t2(:,:,:,:)
+  nb_iter = 1
+  do while (nb_iter < 10)
+    !print*,'t2',t2(:,:,:,:)
     ! x for v 
     call compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
 
     ! u
     call compute_u(n_occ,n_vir,t2,u)
-    print*,'u',u(:,:,:,:)
+    !print*,'u',u(:,:,:,:)
 
     ! v
     call compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
-    call compute_v_2(n_occ,n_vir,t2,v2)
-    print*,'v',v2(:,:,:,:)
+    !call compute_v_2(n_occ,n_vir,t2,v2)
+    !print*,'v',v(:,:,:,:)
 
     ! r
     call compute_r(n_occ,n_vir,t2,delta,u,v,r)
-    print*,'r',r(:,:,:,:)
+    !print*,'r',r(:,:,:,:)
 
-    ! New amplitudes
-    do b = 1, n_vir
-      do a = 1, n_vir
-        do j = 1, n_occ
-          do i = 1, n_occ
-            t2(i,j,a,b) = t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
-            !t2(i,j,a,b) =- 1d0 / delta(i,j,a,b) * &
-            !  (get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
-          enddo
-        enddo
-      enddo
-    enddo 
+    call update_t2(n_occ, n_vir, r, delta, t2)
 
     call ccd_energy(t2,n_occ,n_vir,energy)
     print*,nb_iter,energy,dnrm2(n_occ*n_occ*n_vir*n_vir,r,1)
@@ -124,7 +103,7 @@ do b = 1, n_vir
 end
 #+END_SRC
 
-#+BEGIN_SRC  f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine ccd_energy(t2,n_occ,n_vir,energy)
 
   implicit none
@@ -154,7 +133,75 @@ subroutine ccd_energy(t2,n_occ,n_vir,energy)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine guess_t2(n_occ, n_vir, delta, t2)
+
+  implicit none
+
+  ! in
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+
+  ! out
+  double precision, intent(out) :: t2(n_occ, n_occ, n_vir, n_vir)
+
+  integer :: i,j,a,b,tmp_a, tmp_b
+  
+  ! function
+  double precision :: two_e_int_spin_orb
+  
+  ! Guess
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+        
+          t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
+            delta(i,j,a,b)
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine update_t2(n_occ, n_vir, r, delta, t2)
+
+  implicit none
+  
+  ! in
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: r(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+
+  ! inout 
+  double precision, intent(inout) :: t2(n_occ, n_occ, n_vir, n_vir)
+
+  ! internal
+  integer :: i,j,a,b
+
+  ! New amplitudes
+    do b = 1, n_vir
+      do a = 1, n_vir
+        do j = 1, n_occ
+          do i = 1, n_occ
+            t2(i,j,a,b) = t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
+            !t2(i,j,a,b) =- 1d0 / delta(i,j,a,b) * &
+            !  (get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
+          enddo
+        enddo
+      enddo
+    enddo
+  
+end 
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_delta(n_occ,n_vir,delta)
 
   implicit none
@@ -188,7 +235,7 @@ subroutine compute_delta(n_occ,n_vir,delta)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
   
   implicit none
@@ -283,7 +330,7 @@ subroutine compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
 
   implicit none
@@ -338,7 +385,7 @@ subroutine compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_v_2(n_occ,n_vir,t2,v)
 
   implicit none
@@ -378,7 +425,7 @@ subroutine compute_v_2(n_occ,n_vir,t2,v)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_u(n_occ,n_vir,t2,u)
 
   implicit none
@@ -441,7 +488,7 @@ subroutine compute_u(n_occ,n_vir,t2,u)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine compute_r(n_occ,n_vir,t2,delta,u,v,r)
 
   implicit none
@@ -472,7 +519,7 @@ subroutine compute_r(n_occ,n_vir,t2,delta,u,v,r)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 function two_e_int_spin_orb(i,j,k,l)
 
   implicit none
@@ -529,7 +576,7 @@ function two_e_int_spin_orb(i,j,k,l)
 end
 #+END_SRC
 
-#+BEGIN_SRC  f90 :comments org :tangle ccd.irp.f
+#+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
 function index_in_space(i)
 
   implicit none

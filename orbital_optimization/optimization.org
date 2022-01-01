@@ -16,11 +16,13 @@ subroutine run_optimization
   double precision :: e_cipsi, e_opt, delta_e
   integer :: nb_iter,i
   logical :: not_converged
-  character (len=50) :: filename
+  character (len=100) :: filename
 
   PROVIDE psi_det psi_coef mo_two_e_integrals_in_map
 
-  filename = trim(ezfio_filename)//'.opt.dat'
+  filename ='results_opt.dat'
+  filename = trim(filename)
+  !trim(ezfio_filename)//'.opt.dat'
 
   not_converged = .True.
   nb_iter = 0

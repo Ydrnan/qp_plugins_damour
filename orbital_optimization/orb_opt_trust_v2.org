@@ -155,7 +155,7 @@ subroutine run_orb_opt_trust_v2
 
 #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
   ! Initialization of the CI energy
-  call diagonalize_ci
+!  call diagonalize_ci
 
 #+END_SRC
 
@@ -265,7 +265,7 @@ Here is the main algorithm of the optimization:
 
       ! Update of the energy before the diagonalization of the hamiltonian
       call clear_mo_map
-      TOUCH mo_coef psi_det psi_coef ci_energy
+      TOUCH mo_coef psi_det psi_coef ci_energy ! two_e_dm_mo 
       call state_average_energy(criterion)
 
       ! Criterion -> step accepted or rejected 
@@ -320,7 +320,7 @@ Here is the main algorithm of the optimization:
     if (DABS(max_elem_grad) < thresh_opt_max_elem_grad) then
       not_converged = .False.
     endif
-    if (nb_iter > optimization_max_nb_iter) then
+    if (nb_iter >= optimization_max_nb_iter) then
       not_converged = .False. 
     endif
 
@@ -331,7 +331,7 @@ Here is the main algorithm of the optimization:
     endif
   enddo
 
-  call diagonalize_ci
+!  call diagonalize_ci
 #+END_SRC
     
 ** Deallocation, end

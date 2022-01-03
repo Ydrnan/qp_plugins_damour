@@ -17,6 +17,60 @@
 !end program
 #+END_SRC
 
+Pople 1978.
+$i,j,k,l,...$: occupied spin-orbitals
+$a,b,c,d,...$: virtual spin-orbitals
+$p,q,r,s,...$: general spin-orbitals
+$$ E_{CCD} = E_{HF} + \frac{1}{2} \sum_{ijab} <ij||ab>
+{t_{2}}_{ij}^{ab}$$
+with
+$$ <pq||rs> = \int \int \chi_p^*(1) \chi_q^*(2) \frac{1}{r_{12}}
+\left[ \chi_r(1) \chi_s(2) - \chi_s(1) \chi_r(2) \right] d\tau_1
+d\tau_2 $$
+We have to solve:
+$$ <ab||ij> + \Delta_{ij}^{ab} {t_2}_{ij}^{ab} + u_{ij}^{ab} +
+v_{ij}^{ab} = 0 $$
+with:
+$$\Delta_{ij}^{ab} = \epsilon_a + \epsilon_b - \epsilon_i -
+\epsilon_j$$
+\begin{align*}
+u_{ij}^{ab} =& \frac{1}{2} \sum_{cd} <ab||cd> {t_2}_{ij}^{cd} +
+\frac{1}{2} \sum_{kl} <kl||ij> {t_2}_{kl}^{ij} \\ &+ \sum{kc} \left(
+-<kb||jc> {t_2}_{ik}^{ac} + <ka||jc> {t_2}_{ik}^{bc} + <ka||ic>
+{t_2}_{jk}^{bc} + <kb||ic> {t_2}_{jk}^{ac} \right)
+\end{align*}
+
+\begin{align*}
+v_{ij}^{ab} = \frac{1}{4} \sum_{klcd} <kl||cd> \left[ {t_2}_{ij}^{cd} {t_2}_{kl}^{ab}
+ - 2( {t_2}_{ij}^{ac} {t_2}_{kl}^{bd} + {t_2}_{ij}^{bd} {t_2}_{kl}^{ac}) 
+-2( {t_2}_{ik}^{ab} {t_2}_{jl}^{cd} + {t_2}_{ik}^{ad} {t_2}_{jl}^{ab}) 
++4( {t_2}_{ik}^{ac} {t_2}_{jl}^{bd} + {t_2}_{ik}^{bd} {t_2}_{jl}^{ac}) \right]
+\end{align*}
+
+$v_{ij}^{ab}$ can be computed more efficiently as:
+\begin{align*}
+v_{ij}^{ab} =& \frac{1}{4} \sum_{kl} <kl|X_1|ij> {t_2}_{kl}^{ab} 
+- \frac{1}{2} \sum_c \left[ <b|X_2|c> {t_2}_{ij}^{ac} + <a|X_2|c> {t_2}_{ij}^{cb} \right] \\
+&- \frac{1}{2} \sum_k \left[ <k|X_3|j> {t_2}_{ik}^{ab} + <k|X_3|i> {t_2}_{kj}^{ab} \right] \\
+&+ \sum_{kc} \left[ <ik|X_4|ac> {t_2}_{jk}^{bc} + <ik|X_4|bc> {t_2}_{kj}^{ac} \right]
+\end{align*}
+with:
+$$<kl|X_1|ij> = \sum_{cd} <kl||cd> {t_2}_{ij}^{cd}$$
+
+$$<b|X_2|c> = \sum_{kld} <kl||cd> {t_2}_{kl}^{bd}$$
+
+$$<k|X_3|j> = \sum_{lcd} <kl||cd> {t_2}_{jl}^{cd}$$
+
+$$<il|X_1|ad> = \sum_{kc} <kl||cd> {t_2}_{ik}^{ac}$$
+
+The equation can be solved iteratively by updating the $t_2$ amplitudes:
+$$ {t_2}_{ij}^{ab} = -(\Delta_{ij}^{ab})^{-1} \left[ <ab||ij> +
+u_{ij}^{ab} + v_{ij}^{ab} \right]$$
+or
+$$ {t_2}_{ij}^{ab} \leftarrow {t_2}_{ij}^{ab} - \frac{r_{ij}^{ab}}{\Delta_{ij}^{ab}}$$
+with $$ r_{ij}^{ab} = <ab||ij> + \Delta_{ij}^{ab} {t_2}_{ij}^{ab} + u_{ij}^{ab} +
+v_{ij}^{ab} $$
+
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 program spin_orb_ccd
   implicit none
@@ -57,7 +111,7 @@ program spin_orb_ccd
         do i = 1, n_occ
           !print*,i,j,tmp_a,tmp_b, index_in_space(i), index_in_space(j), index_in_space(tmp_a), index_in_space(tmp_b)        
           delta(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b)
-          ! print*,i,j,a,b,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+          !print*,i,j,a,b,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
 
         enddo
       enddo
@@ -73,7 +127,6 @@ program spin_orb_ccd
 
   nb_iter = 1
   do while (nb_iter < 10)
-    !print*,'t2',t2(:,:,:,:)
     ! x for v 
     call compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
 
@@ -89,8 +142,8 @@ program spin_orb_ccd
     ! r
     call compute_r(n_occ,n_vir,t2,delta,u,v,r)
     !print*,'r',r(:,:,:,:)
-
-    call update_t2(n_occ, n_vir, r, delta, t2)
+    
+    call update_t2(n_occ, n_vir, r, delta,u,v, t2)
 
     call ccd_energy(t2,n_occ,n_vir,energy)
     print*,nb_iter,energy,dnrm2(n_occ*n_occ*n_vir*n_vir,r,1)
@@ -170,34 +223,37 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-subroutine update_t2(n_occ, n_vir, r, delta, t2)
+subroutine update_t2(n_occ, n_vir, r, delta,u,v, t2)
 
   implicit none
   
   ! in
   integer, intent(in) :: n_occ, n_vir
-  double precision, intent(in) :: r(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in) :: r(n_occ, n_occ, n_vir, n_vir),u(n_occ, n_occ, n_vir, n_vir),v(n_occ, n_occ, n_vir, n_vir)
   double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
 
   ! inout 
   double precision, intent(inout) :: t2(n_occ, n_occ, n_vir, n_vir)
 
   ! internal
-  integer :: i,j,a,b
+  integer :: i,j,a,b,tmp_a,tmp_b
+  double precision :: two_e_int_spin_orb
 
   ! New amplitudes
     do b = 1, n_vir
+      !tmp_b = b + n_occ
       do a = 1, n_vir
+        !tmp_a = a + n_occ
         do j = 1, n_occ
           do i = 1, n_occ
             t2(i,j,a,b) = t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
             !t2(i,j,a,b) =- 1d0 / delta(i,j,a,b) * &
-            !  (get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
+            !  (two_e_int_spin_orb(i,j,tmp_a,tmp_b,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
           enddo
         enddo
       enddo
     enddo
-  
+
 end 
 #+END_SRC
 

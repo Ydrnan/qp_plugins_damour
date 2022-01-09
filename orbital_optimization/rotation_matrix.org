@@ -165,15 +165,15 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
     enddo
   enddo
 
-  ! Fix for too big elements
-  do j = 1, n
-    do i = 1, n
-      A(i,j) = mod(A(i,j),2d0*pi)
-      if (dabs(A(i,j)) > pi) then
-        A(i,j) = 0d0
-      endif
-    enddo
-  enddo
+  ! Fix for too big elements ! bad idea better to cancel if the error is too big
+  !do j = 1, n
+  !  do i = 1, n
+  !    A(i,j) = mod(A(i,j),2d0*pi)
+  !    if (dabs(A(i,j)) > pi) then
+  !      A(i,j) = 0d0
+  !    endif
+  !  enddo
+  !enddo
 
   max_elem_A = 0d0
   do j = 1, n
@@ -275,16 +275,16 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
   enddo
 
   ! Debug, display the cos_tau and sin_tau matrix
-  if (debug) then
-     print*, 'cos_tau'
-     do i = 1, n
-        print*, cos_tau(i,:)
-     enddo
-     print*, 'sin_tau'
-     do i = 1, n
-        print*, sin_tau(i,:)
-     enddo
-  endif
+  !if (debug) then
+  !   print*, 'cos_tau'
+  !   do i = 1, n
+  !      print*, cos_tau(i,:)
+  !   enddo
+  !   print*, 'sin_tau'
+  !   do i = 1, n
+  !      print*, sin_tau(i,:)
+  !   enddo
+  !endif
 
   ! tau^-1
   do j = 1, n
@@ -304,18 +304,20 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
      endif
   enddo
   print*,'max elem tau^-1:', max_elem
+
+  ! Debug
   !print*,'eigenvalues:'
   !do i = 1, n 
   !  print*, e_val(i)
   !enddo
 
   !Debug, display tau^-1
-  if (debug) then
-     print*, 'tau^-1'
-     do i = 1, n
-        print*,tau_m1(i,:)
-     enddo
-  endif
+  !if (debug) then
+  !   print*, 'tau^-1'
+  !   do i = 1, n
+  !      print*,tau_m1(i,:)
+  !   enddo
+  !endif
     #+END_SRC
 
 *** Rotation matrix 
@@ -376,12 +378,12 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
   print*, 'Rotation matrix check, norm R.R^T = ', norm 
 
   ! Debug
-  if (debug) then
-     print*, 'RR_t'
-     do i = 1, n
-        print*, RR_t(i,:)
-     enddo
-  endif
+  !if (debug) then
+  !   print*, 'RR_t'
+  !   do i = 1, n
+  !      print*, RR_t(i,:)
+  !   enddo
+  !endif
     #+END_SRC
 
 *** Post conditions
@@ -419,12 +421,12 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
   enddo
 
   ! Display
-  if (debug) then
-     print*,'Rotation matrix :'
-     do i = 1, n
-        write(*,'(100(F10.5))') R(i,:)
-     enddo
-  endif
+  !if (debug) then
+  !   print*,'Rotation matrix :'
+  !   do i = 1, n
+  !      write(*,'(100(F10.5))') R(i,:)
+  !   enddo
+  !endif
     #+END_SRC
 
 ** Deallocation, end

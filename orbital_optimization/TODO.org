@@ -1,7 +1,7 @@
 TODO:
 ** TODO Keep under surveillance the performance of rotation matrix
 - is the fix ok ?
-** TODO Provider state_average_weight
+** DONE Provider state_average_weight
 ** DONE Diagonal hessian for orbital optimization with a list of MOs
 ** DONE Something to force the step cancellation if R.R^T > treshold
 ** TODO Iterative method to compute the rotation matrix
@@ -13,5 +13,5 @@ TODO:
 ** DONE Correction of Rho
 ** TODO Check the PROVIDE/FREE/TOUCH
 ** TODO research of lambda without the power 2
-** TODO Clean the OMP sections
+** DONE Clean the OMP sections
 

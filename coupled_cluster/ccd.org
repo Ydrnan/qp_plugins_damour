@@ -21,7 +21,7 @@ Pople 1978.
 $i,j,k,l,...$: occupied spin-orbitals
 $a,b,c,d,...$: virtual spin-orbitals
 $p,q,r,s,...$: general spin-orbitals
-$$ E_{CCD} = E_{HF} + \frac{1}{2} \sum_{ijab} <ij||ab>
+$$ E_{CCD} = E_{HF} + \frac{1}{4} \sum_{ijab} <ij||ab>
 {t_{2}}_{ij}^{ab}$$
 with
 $$ <pq||rs> = \int \int \chi_p^*(1) \chi_q^*(2) \frac{1}{r_{12}}
@@ -35,8 +35,8 @@ $$\Delta_{ij}^{ab} = \epsilon_a + \epsilon_b - \epsilon_i -
 \epsilon_j$$
 \begin{align*}
 u_{ij}^{ab} =& \frac{1}{2} \sum_{cd} <ab||cd> {t_2}_{ij}^{cd} +
-\frac{1}{2} \sum_{kl} <kl||ij> {t_2}_{kl}^{ij} \\ &+ \sum{kc} \left(
--<kb||jc> {t_2}_{ik}^{ac} + <ka||jc> {t_2}_{ik}^{bc} + <ka||ic>
+\frac{1}{2} \sum_{kl} <kl||ij> {t_2}_{kl}^{ij} \\ &+ \sum_{kc} \left(
+-<kb||jc> {t_2}_{ik}^{ac} + <ka||jc> {t_2}_{ik}^{bc} - <ka||ic>
 {t_2}_{jk}^{bc} + <kb||ic> {t_2}_{jk}^{ac} \right)
 \end{align*}
 
@@ -80,10 +80,13 @@ program spin_orb_ccd
   double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:)
   double precision, allocatable :: delta(:,:,:,:), u(:,:,:,:), v(:,:,:,:), v2(:,:,:,:)
   double precision, allocatable :: x1(:,:,:,:), x2(:,:), x3(:,:), x4(:,:,:,:)
-  double precision :: energy, two_e_int_spin_orb, dnrm2
+  double precision :: energy, two_e_int_spin_orb, dnrm2, epsilon, thresh_conv
   double precision :: accu1, accu2, accu3, accu4,get_two_e_integral
   integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
-  integer :: nb_iter, index_in_space
+  integer :: nb_iter, index_in_space,nb_parameters
+  logical :: not_converged
+  integer, allocatable :: key(:)
+  double precision, allocatable :: sorted_t2(:), unsorted_int(:), sorted_int(:)
   
   PROVIDE mo_two_e_integrals_in_map
 
@@ -97,6 +100,8 @@ program spin_orb_ccd
   allocate(delta(n_occ,n_occ,n_vir,n_vir),u(n_occ,n_occ,n_vir,n_vir),v(n_occ,n_occ,n_vir,n_vir))
   allocate(x1(n_occ,n_occ,n_occ,n_occ), x2(n_vir,n_vir), x3(n_occ,n_occ), x4(n_occ,n_occ,n_vir,n_vir))
   allocate(v2(n_occ,n_occ,n_vir,n_vir))
+
+  allocate(sorted_t2(n_occ**2*n_vir**2), unsorted_int(n_occ**2*n_vir**2), sorted_int(n_occ**2*n_vir**2),key(n_occ**2*n_vir**2))
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
@@ -110,7 +115,7 @@ program spin_orb_ccd
       do j = 1, n_occ
         do i = 1, n_occ
           !print*,i,j,tmp_a,tmp_b, index_in_space(i), index_in_space(j), index_in_space(tmp_a), index_in_space(tmp_b)        
-          delta(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+          !delta(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b)
           !print*,i,j,a,b,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
 
         enddo
@@ -119,39 +124,102 @@ program spin_orb_ccd
   enddo
   !print*,'int',delta(:,:,:,:)
 
+  epsilon = 0d0
+
+!do while (epsilon > 1d-8)   
+!
+!  print*, 'epsilon:', epsilon
+
   ! delta
   call compute_delta(n_occ, n_vir, delta)
   !print*,'delta',delta(:,:,:,:)
+  
+  call guess_t2(n_occ, n_vir, delta, epsilon, t2)
 
-  call guess_t2(n_occ, n_vir, delta, t2)
+  call ccd_energy(t2, n_occ, n_vir, energy)
+  !print*,energy
 
   nb_iter = 1
-  do while (nb_iter < 10)
+  not_converged = .True.
+  thresh_conv = 1d-6
+
+  do while (not_converged)
+
+    !print*,'t2',t2(:,:,:,:)
+
     ! x for v 
-    call compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
+    call compute_x(n_occ, n_vir, t2, x1, x2, x3, x4)
 
     ! u
-    call compute_u(n_occ,n_vir,t2,u)
+    call compute_u(n_occ, n_vir, t2, u)
     !print*,'u',u(:,:,:,:)
 
     ! v
-    call compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
+    call compute_v(n_occ, n_vir, t2, x1, x2, x3, x4, v)
     !call compute_v_2(n_occ,n_vir,t2,v2)
     !print*,'v',v(:,:,:,:)
+    !print*,'v2',v2(:,:,:,:)
 
     ! r
-    call compute_r(n_occ,n_vir,t2,delta,u,v,r)
+    call compute_r(n_occ, n_vir, t2, delta, u, v, epsilon, r)
     !print*,'r',r(:,:,:,:)
     
-    call update_t2(n_occ, n_vir, r, delta,u,v, t2)
+    call update_t2(n_occ, n_vir, r, delta, u, v, epsilon, t2)
 
     call ccd_energy(t2,n_occ,n_vir,energy)
     print*,nb_iter,energy,dnrm2(n_occ*n_occ*n_vir*n_vir,r,1)
 
+    if (dnrm2(n_occ*n_occ*n_vir*n_vir,r,1) < thresh_conv ) then
+     ! nb_parameters = 0
+     ! k = 1
+     ! do b = 1, n_vir
+     !   tmp_b = n_occ + b
+     !   do a = 1, n_vir
+     !     tmp_a = n_occ + a
+     !     do j = 1, n_occ
+     !       do i = 1, n_occ
+     !          sorted_t2(k) = -dabs(t2(i,j,a,b)*two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+     !          unsorted_int(k) = -dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+     !          k = k+1
+     !          nb_parameters =  nb_parameters + 1
+     !       enddo
+     !     enddo
+     !   enddo
+     ! enddo
+     ! do k = 1, n_occ**2*n_vir**2
+     !   key(k) = k
+     ! enddo
+     ! call dsort(sorted_t2, key, n_occ**2*n_vir**2)
+     ! do k = 1, n_occ**2*n_vir**2
+     !   l = key(k)
+     !   sorted_int(k) = unsorted_int(l)
+     ! enddo
+     ! print*,''
+     ! print*,' k    t2*int    int' 
+     ! do k = 1, n_occ**2*n_vir**2
+     !   print*, k, sorted_t2(k), sorted_int(k)
+     ! enddo
+     ! print*,''
+      not_converged = .False.
+      print*,'Result:', epsilon, energy, nb_parameters
+    endif
+
     nb_iter = nb_iter + 1
+
+    if (nb_iter >= 100 .and. not_converged) then
+      print*,'######################'
+      print*,'  Convergence failed  '
+      print*,'######################'
+      exit
+    endif
+
   enddo
 
-  deallocate(t2,r,delta,u,v,x1,x2,x3,x4)
+!  epsilon = epsilon * 0.25d0
+!
+!enddo
+
+  deallocate(t2,r,delta,u,v,v2,x1,x2,x3,x4)
 
 end
 #+END_SRC
@@ -175,30 +243,32 @@ subroutine ccd_energy(t2,n_occ,n_vir,energy)
       tmp_a = a + n_occ 
       do j = 1, n_occ
         do i = 1, n_occ
+
           energy = energy + t2(i,j,a,b) * two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+
         enddo
       enddo
     enddo
   enddo
 
   energy = 0.25d0 * energy + hf_energy
-  
+ 
 end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-subroutine guess_t2(n_occ, n_vir, delta, t2)
+subroutine guess_t2(n_occ, n_vir, delta, epsilon, t2)
 
   implicit none
 
   ! in
   integer, intent(in) :: n_occ, n_vir
-  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir), epsilon
 
   ! out
   double precision, intent(out) :: t2(n_occ, n_occ, n_vir, n_vir)
 
-  integer :: i,j,a,b,tmp_a, tmp_b
+  integer :: i,j,a,b,tmp_a, tmp_b,index_in_space
   
   ! function
   double precision :: two_e_int_spin_orb
@@ -211,8 +281,16 @@ subroutine guess_t2(n_occ, n_vir, delta, t2)
       do j = 1, n_occ
         do i = 1, n_occ
         
-          t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
-            delta(i,j,a,b)
+          if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) /delta(i,j,a,b) >= epsilon) then
+            t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) /&
+              delta(i,j,a,b)
+          else
+            t2(i,j,a,b) = 0d0
+          endif
+          !print*,t2(i,j,a,b), dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+          !if (dabs(t2(i,j,a,b)) >1d-12) then
+          !print*,index_in_space(i),index_in_space(j),index_in_space(tmp_a),index_in_space(tmp_b),-two_e_int_spin_orb(i,j,tmp_a,tmp_b),delta(i,j,a,b)
+          !endif
 
         enddo
       enddo
@@ -223,14 +301,14 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-subroutine update_t2(n_occ, n_vir, r, delta,u,v, t2)
+subroutine update_t2(n_occ, n_vir, r, delta, u, v, epsilon, t2)
 
   implicit none
   
   ! in
   integer, intent(in) :: n_occ, n_vir
-  double precision, intent(in) :: r(n_occ, n_occ, n_vir, n_vir),u(n_occ, n_occ, n_vir, n_vir),v(n_occ, n_occ, n_vir, n_vir)
-  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in) :: r(n_occ, n_occ, n_vir, n_vir), u(n_occ, n_occ, n_vir, n_vir), v(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir), epsilon
 
   ! inout 
   double precision, intent(inout) :: t2(n_occ, n_occ, n_vir, n_vir)
@@ -241,14 +319,23 @@ subroutine update_t2(n_occ, n_vir, r, delta,u,v, t2)
 
   ! New amplitudes
     do b = 1, n_vir
-      !tmp_b = b + n_occ
+      tmp_b = b + n_occ
       do a = 1, n_vir
-        !tmp_a = a + n_occ
+        tmp_a = a + n_occ
         do j = 1, n_occ
           do i = 1, n_occ
-            t2(i,j,a,b) = t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
-            !t2(i,j,a,b) =- 1d0 / delta(i,j,a,b) * &
-            !  (two_e_int_spin_orb(i,j,tmp_a,tmp_b,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
+    
+            if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) /delta(i,j,a,b) >= epsilon) then
+              t2(i,j,a,b) = t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
+              !t2(i,j,a,b) =- 1d0 / delta(i,j,a,b) * &
+              !  (two_e_int_spin_orb(i,j,tmp_a,tmp_b,mo_integrals_map) + u(i,j,a,b) + v(i,j,a,b))
+            else
+              t2(i,j,a,b) = 0d0
+            endif 
+            !if (t2(i,j,a,b) /= 0d0) then 
+            !  print*, t2(i,j,a,b), two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+            !endif
+
           enddo
         enddo
       enddo
@@ -429,9 +516,8 @@ subroutine compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
               accu4 = accu4 + x4(i,k,a,c) * t2(j,k,b,c) + x4(i,k,b,c) * t2(k,j,a,c)
             enddo
           enddo
-
+ 
           v(i,j,a,b) = accu1 + accu2 +accu3 + accu4
-
 
           enddo
         enddo
@@ -450,6 +536,8 @@ subroutine compute_v_2(n_occ,n_vir,t2,v)
   double precision, intent(out) :: v(n_occ,n_occ,n_vir,n_vir)
   integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
   double precision :: accu1, accu2, accu3, accu4, two_e_int_spin_orb
+
+  v = 0d0
 
   ! v
   do b = 1, n_vir
@@ -478,6 +566,7 @@ subroutine compute_v_2(n_occ,n_vir,t2,v)
       enddo
     enddo
   enddo
+
 end
 #+END_SRC
 
@@ -507,10 +596,10 @@ subroutine compute_u(n_occ,n_vir,t2,u)
               tmp_d = d + n_occ
         
               accu1 = accu1 + two_e_int_spin_orb(tmp_a,tmp_b,tmp_c,tmp_d) * t2(i,j,c,d)
-        
+
             enddo
           enddo
-        
+
           !term 2
           accu2 = 0d0
           do k = 1, n_occ 
@@ -519,23 +608,25 @@ subroutine compute_u(n_occ,n_vir,t2,u)
               accu2 = accu2 + two_e_int_spin_orb(k,l,i,j) * t2(k,l,a,b) 
         
             enddo
-          enddo 
-        
+          enddo        
+ 
           ! term 3
           accu3 = 0d0
           do k = 1, n_occ
             do c = 1, n_vir
               tmp_c = c + n_occ
-        
+              
               accu3 = accu3 - two_e_int_spin_orb(k,tmp_b,j,tmp_c) * t2(i,k,a,c) &
                             + two_e_int_spin_orb(k,tmp_a,j,tmp_c) * t2(i,k,b,c) &
                             - two_e_int_spin_orb(k,tmp_a,i,tmp_c) * t2(j,k,b,c) &
                             + two_e_int_spin_orb(k,tmp_b,i,tmp_c) * t2(j,k,a,c) 
+
             enddo
           enddo
           
           u(i,j,a,b) = 0.5d0*accu1 + 0.5d0*accu2 + accu3
 
+       
         enddo
       enddo
     enddo
@@ -545,11 +636,11 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-subroutine compute_r(n_occ,n_vir,t2,delta,u,v,r)
+subroutine compute_r(n_occ,n_vir,t2,delta,u,v,epsilon,r)
 
   implicit none
   integer, intent(in) :: n_occ, n_vir
-  double precision, intent(in) :: t2(n_occ,n_occ,n_vir,n_vir)
+  double precision, intent(in) :: t2(n_occ,n_occ,n_vir,n_vir), epsilon
   double precision, intent(in) :: u(n_occ,n_occ,n_vir,n_vir)
   double precision, intent(in) :: v(n_occ,n_occ,n_vir,n_vir)
   double precision, intent(in) :: delta(n_occ,n_occ,n_vir,n_vir)
@@ -564,9 +655,15 @@ subroutine compute_r(n_occ,n_vir,t2,delta,u,v,r)
       do j = 1, n_occ
         do i = 1, n_occ
 
-          r(i,j,a,b) =  two_e_int_spin_orb(i,j,tmp_a,tmp_b) &
+          if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) /delta(i,j,a,b) >= epsilon) then
+          r(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b) &
                         + delta(i,j,a,b) * t2(i,j,a,b) &
                         + u(i,j,a,b) + v(i,j,a,b)
+          else 
+          r(i,j,a,b) = 0d0
+          endif
+          !print*,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+
         enddo
       enddo
     enddo
@@ -629,6 +726,7 @@ function two_e_int_spin_orb(i,j,k,l)
   endif
   !print*,i,j,k,l
   !print*,'int',tmp_i,tmp_j,tmp_k,tmp_l,two_e_int_spin_orb, get_two_e_integral(tmp_i,tmp_j,tmp_k,tmp_l,mo_integrals_map),  get_two_e_integral(tmp_i,tmp_j,tmp_l,tmp_k,mo_integrals_map)
+  
 end
 #+END_SRC
 

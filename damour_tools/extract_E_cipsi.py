@@ -66,11 +66,11 @@ f = open(out_file,"w")
 f.write('{:14s}'.format("    Ndet"))
 for i in range(len(E[0])):
     f.write('{:3s}'.format(" E_"))
-    f.write('{:12s}'.format(str(i+1)))
+    f.write('{:12s}'.format(str(i)))
     f.write('{:12s}'.format('PT2'))
-    f.write('{:12s}'.format('Error PT2'))
+    f.write('{:12s}'.format('Error_PT2'))
     f.write('{:12s}'.format('rPT2'))
-    f.write('{:12s}'.format('Error rPT2'))
+    f.write('{:12s}'.format('Error_rPT2'))
 f.write("\n")
 # data
 for i in range(len(Ndet)):

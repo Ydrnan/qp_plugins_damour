@@ -49,16 +49,16 @@ for state in range(0,n_states):
 
         # f(x) = a * x + b
         # with weights
-        reg = lin_reg_v2(PT2,E,weight,nb_points)
-        a = reg[0] 
-        b = reg[1]
-        R2 = reg[2]
+        #reg = lin_reg_v2(PT2,E,weight,nb_points)
+        #a = reg[0] 
+        #b = reg[1]
+        #R2 = reg[2]
 
         # without
-        #reg = lin_reg(PT2,E,nb_points)
-        #a=reg[0]
-        #b=reg[1]
-        #R2=reg[2]
+        reg = lin_reg(PT2,E,nb_points)
+        a=reg[0]
+        b=reg[1]
+        R2=reg[2]
 
         if (state == 0):
             ref.append(b)

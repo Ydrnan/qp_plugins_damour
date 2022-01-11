@@ -100,13 +100,13 @@ subroutine run_orb_opt_trust_v2
   integer                       :: n
   integer                       :: i,j,p,q,k
   double precision              :: max_elem_grad, delta, rho, norm_grad
-  logical :: cancel_step
-  integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot, nb_sub_iter
-  double precision :: t1, t2, t3
-  double precision :: prev_criterion, criterion, criterion_model
-  logical :: not_converged, must_exit, enforce_step_cancellation
-  integer :: m, tmp_n, tmp_i, tmp_j, tmp_k
-  integer,allocatable :: tmp_list(:)
+  logical                       :: cancel_step
+  integer                       :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot, nb_sub_iter
+  double precision              :: t1, t2, t3
+  double precision              :: prev_criterion, criterion, criterion_model
+  logical                       :: not_converged, must_exit, enforce_step_cancellation
+  integer                       :: m, tmp_n, tmp_i, tmp_j, tmp_k
+  integer,allocatable           :: tmp_list(:)
   double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:), W(:,:), e_val(:)
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
@@ -138,7 +138,7 @@ subroutine run_orb_opt_trust_v2
 
 #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
   allocate(R(mo_num,mo_num))  ! rotation matrix
-  allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num)) ! old and new MOs
+  allocate(prev_mos(ao_num,mo_num), new_mos(ao_num,mo_num)) ! old and new MOs
   
   ! Definition of m and tmp_n
   m = dim_list_act_orb
@@ -204,15 +204,15 @@ Here is the main algorithm of the optimization:
     print*,''
 
     ! Gradient
-    call gradient_list_opt(tmp_n,m,tmp_list,v_grad,max_elem_grad,norm_grad)
+    call gradient_list_opt(tmp_n, m, tmp_list, v_grad, max_elem_grad, norm_grad)
     
     ! Hessian
     if (optimization_method == 'full') then
       ! Full hessian
-      call hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+      call hessian_list_opt(tmp_n, m, tmp_list, H, h_f)
     elseif (optimization_method == 'diag') then
       ! Diagonal hessian 
-      call diag_hessian_list_opt(tmp_n,m,tmp_list,H,h_f)
+      call diag_hessian_list_opt(tmp_n, m, tmp_list, H, h_f)
     else
       ! Identity matrix 
       H = 0d0
@@ -222,7 +222,7 @@ Here is the main algorithm of the optimization:
     endif
  
     ! Diagonalization of the hessian 
-    call diagonalization_hessian(tmp_n,H,e_val,w)
+    call diagonalization_hessian(tmp_n, H, e_val, w)
 
     ! Init before the internal loop
     cancel_step = .True. ! To enter in the loop just after 
@@ -245,10 +245,10 @@ Here is the main algorithm of the optimization:
       endif
 
       ! 1D tmp -> 2D tmp 
-      call vec_to_mat_v2(tmp_n,m,tmp_x,tmp_m_x)
+      call vec_to_mat_v2(tmp_n, m, tmp_x, tmp_m_x)
 
       ! Rotation matrix for the active MOs
-      call rotation_matrix(tmp_m_x,m,tmp_R,m,m,info,enforce_step_cancellation)
+      call rotation_matrix(tmp_m_x, m, tmp_R, m, m, info, enforce_step_cancellation)
 
       ! Security to ensure an unitary transformation
       if (enforce_step_cancellation) then
@@ -258,7 +258,7 @@ Here is the main algorithm of the optimization:
       endif
 
       ! tmp_R to R, subspace to full space
-      call sub_to_full_rotation_matrix(m,tmp_list,tmp_R,R)
+      call sub_to_full_rotation_matrix(m, tmp_list, tmp_R, R)
     
       ! MO rotations
       call apply_mo_rotation(R, prev_mos)   
@@ -269,7 +269,7 @@ Here is the main algorithm of the optimization:
       call state_average_energy(criterion)
 
       ! Criterion -> step accepted or rejected 
-      call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+      call trust_region_is_step_cancelled(nb_iter, prev_criterion, criterion, criterion_model, rho, cancel_step)
 
       ! Cancellation of the step if necessary
       if (cancel_step) then

@@ -84,7 +84,7 @@ program spin_orb_ccd
   double precision              :: accu1, accu2, accu3, accu4, get_two_e_integral, max_elem
   integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
   integer                       :: nb_iter, index_in_space, nb_parameters
-  logical                       :: not_converged
+  logical                       :: not_converged, is_selected
   integer, allocatable          :: key(:)
   double precision, allocatable :: sorted_t2(:), unsorted_int(:), sorted_int(:)
   
@@ -117,7 +117,6 @@ program spin_orb_ccd
           !print*,i,j,tmp_a,tmp_b, index_in_space(i), index_in_space(j), index_in_space(tmp_a), index_in_space(tmp_b)        
           !delta(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b)
           !print*,i,j,a,b,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
-
         enddo
       enddo
     enddo
@@ -127,7 +126,7 @@ program spin_orb_ccd
   ! test S-CCD
   if (sccd_method == 'none') then
     print*,'Normal CCD'
-  elseif (sccd_method == 'int') then
+  elseif (sccd_method == 'bi_int') then
     print*,'Selected CCD on: |<ij|ab>| > e'
   elseif (sccd_method == 'guess_mp2') then
     print*,'Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e' 
@@ -139,7 +138,7 @@ program spin_orb_ccd
     call abort
   endif
 
-  epsilon = 0d0
+  epsilon = 1d-1
 
 !do while (epsilon > 1d-8)   
 !
@@ -148,6 +147,11 @@ program spin_orb_ccd
   ! delta
   call compute_delta(n_occ, n_vir, delta)
   !print*,'delta',delta(:,:,:,:)
+
+  call normalized_epsilon(n_occ, n_vir, delta)
+  print*,'Max int:', max_int
+  print*,'Max int over delta:', max_int_over_delta
+  print*,'Max int2 over delta:', max_int2_over_delta
   
   call guess_t2(n_occ, n_vir, delta, epsilon, t2)
 
@@ -186,22 +190,24 @@ program spin_orb_ccd
     print*,nb_iter,energy, max_elem
 
     if (max_elem < thresh_conv ) then
-      !nb_parameters = 0
+      nb_parameters = 0
       !k = 1
-      !do b = 1, n_vir
-      !  tmp_b = n_occ + b
-      !  do a = 1, n_vir
-      !    tmp_a = n_occ + a
-      !    do j = 1, n_occ
-      !      do i = 1, n_occ
-      !         sorted_t2(k) = -dabs(0.25d0*t2(i,j,a,b)*two_e_int_spin_orb(i,j,tmp_a,tmp_b))
-      !         unsorted_int(k) = -dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
-      !         k = k+1
-      !         nb_parameters =  nb_parameters + 1
-      !      enddo
-      !    enddo
-      !  enddo
-      !enddo
+      do b = 1, n_vir
+        tmp_b = n_occ + b
+        do a = 1, n_vir
+          tmp_a = n_occ + a
+          do j = 1, n_occ
+            do i = 1, n_occ
+               !sorted_t2(k) = -dabs(0.25d0*t2(i,j,a,b)*two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+               !unsorted_int(k) = -dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+               !k = k+1
+               if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
+                 nb_parameters =  nb_parameters + 1
+               endif
+            enddo
+          enddo
+        enddo
+      enddo
       !do k = 1, n_occ**2*n_vir**2
       !  key(k) = k
       !enddo
@@ -375,22 +381,22 @@ function is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)
   if (sccd_method == 'none') then
     is_selected = .True.
   ! Selected CCD on: |<ij|ab>| > e
-  elseif (sccd_method == 'int') then
-    if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) >= epsilon) then
+  elseif (sccd_method == 'bi_int') then
+    if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/max_int >= epsilon) then
       is_selected = .True.
     else
       is_selected = .False.
     endif
   ! Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e
   elseif (sccd_method == 'guess_mp2') then
-    if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b) >= epsilon) then
+    if ((dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b))/max_int_over_delta >= epsilon) then
       is_selected = .True.
     else
       is_selected = .False.
     endif
   ! Selected CCD on: |<ij|ab>|^2/(f_aa+f_bb-f_ii-f_jj) > e
   elseif (sccd_method == 'estimated_e') then
-    if ((two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b) >= epsilon) then
+    if (dsqrt((two_e_int_spin_orb(i,j,tmp_a,tmp_b)**2/delta(i,j,a,b))/max_int2_over_delta) >= epsilon) then
       is_selected = .True.
     else
       is_selected = .False.
@@ -881,10 +887,11 @@ function two_e_int_spin_orb(i,j,k,l)
 end
 #+END_SRC
 
-#+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
 function index_in_space(i)
 
   implicit none
+
   integer :: i, index_in_space
 
   index_in_space = i
@@ -895,5 +902,51 @@ function index_in_space(i)
     index_in_space = i - mo_num 
   endif
   
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine normalized_epsilon(n_occ, n_vir, delta)
+
+  implicit none
+
+  ! in
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+  
+  ! internal
+  integer :: i,j,a,b,tmp_a,tmp_b
+
+  ! functions
+  double precision :: two_e_int_spin_orb
+  
+  !max_int = 0d0
+  !max_int_over_delta = 0d0
+  !max_int2_over_delta = 0d0
+
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) > max_int) then
+            max_int = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+          endif
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b) > max_int_over_delta) then
+            max_int_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b)
+          endif
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b) > max_int2_over_delta) then
+            max_int2_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b)
+          endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  TOUCH max_int max_int_over_delta max_int2_over_delta
+
 end
 #+END_SRC

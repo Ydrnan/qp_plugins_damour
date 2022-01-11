@@ -4,8 +4,7 @@
 #GREEN='\033[1;32m'
 #NC='\033[0m' # No Color
 
-#	source $QP_ROOT/quantum_package.rc
-source ~/Documents/Stage-M2/qp2/quantum_package.rc
+source $QP_ROOT/quantum_package.rc
 
 # script to check the results and compare them with the result of reference
 

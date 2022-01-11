@@ -265,7 +265,7 @@ Here is the main algorithm of the optimization:
 
       ! Update of the energy before the diagonalization of the hamiltonian
       call clear_mo_map
-      TOUCH mo_coef psi_det psi_coef ci_energy ! two_e_dm_mo 
+      TOUCH mo_coef psi_det psi_coef ci_energy two_e_dm_mo 
       call state_average_energy(criterion)
 
       ! Criterion -> step accepted or rejected 
@@ -279,7 +279,7 @@ Here is the main algorithm of the optimization:
         nb_cancel_tot = nb_cancel_tot + 1
       else
         ! Diagonalization of the hamiltonian
-        TOUCH psi_det psi_coef
+        FREE ci_energy! To enforce the recomputation
         call diagonalize_ci
         call save_wavefunction_unsorted
 

@@ -27,8 +27,12 @@ subroutine run_optimization
   not_converged = .True.
   nb_iter = 0
 
-  N_det_max = n_det_start
-  TOUCH N_det_max
+  ! To start the optimization with a given wf without deleting the determinants
+  ! with a ci coeff smaller or equal to the n_det_start-th determinant
+  if (.not. start_from_wf) then
+    N_det_max = n_det_start
+    TOUCH N_det_max
+  endif
 
   open(unit=10, file=filename)
   write(10,*) "   Ndet        E_cipsi         E_opt          Delta_e"

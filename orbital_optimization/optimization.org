@@ -32,6 +32,9 @@ subroutine run_optimization
   if (.not. start_from_wf) then
     N_det_max = n_det_start
     TOUCH N_det_max
+  else
+    N_det_max = n_det
+    TOUCH N_det_max
   endif
 
   open(unit=10, file=filename)
@@ -56,7 +59,7 @@ subroutine run_optimization
       print*,''
       print*,'********** optimization step **********'
       ! orbital optimization
-     call run_orb_opt_trust_v2
+      call run_orb_opt_trust_v2
 
       ! State average energy after the orbital optimization
       call state_average_energy(e_opt)

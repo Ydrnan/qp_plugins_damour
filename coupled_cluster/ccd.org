@@ -138,11 +138,11 @@ program spin_orb_ccd
     call abort
   endif
 
-  epsilon = 1d-1
+  epsilon = 1d-0
 
-!do while (epsilon > 1d-8)   
-!
-!  print*, 'epsilon:', epsilon
+do while (epsilon > 1d-4)   
+
+  print*, 'epsilon:', epsilon
 
   ! delta
   call compute_delta(n_occ, n_vir, delta)
@@ -237,9 +237,9 @@ program spin_orb_ccd
 
   enddo
 
-!  epsilon = epsilon * 0.25d0
-!
-!enddo
+  epsilon = epsilon * 0.75d0
+
+enddo
 
   deallocate(t2,r,delta,u,v,v2,x1,x2,x3,x4)
 

@@ -9,7 +9,7 @@ print(fname)
 out_file = fname + ".tdat"
 
 # wall time after each cipsi iteration (davidson + pt2)
-stream = os.popen("grep -i '# E ' -B 14 nitroxyl_singlet_natorb_2_st_av_0_1.nofci.out | grep 'WALL' | awk '{print $6}'")
+stream = os.popen("grep -i 'Summary' -B 24 "+fname+" | grep 'WALL' | awk '{if(NR % 2)print $6}'")
 output = stream.readlines()
 
 time = []

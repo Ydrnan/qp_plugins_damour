@@ -45,7 +45,7 @@ for state in range(0,n_states):
     i = 0
     for nb_points in range(3,min(8,len(lines))+1):
         for w in range(len(PT2)):
-            weight.append(1/PT2[w])
+            weight.append(1/PT2[w]**2)
 
         # f(x) = a * x + b
         # with weights

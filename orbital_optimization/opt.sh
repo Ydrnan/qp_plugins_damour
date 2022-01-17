@@ -1,8 +1,11 @@
+#!/bin/bash
+
+source $QP_ROOT/quantum_package.rc
 
 FILE=
-EZFIO1=${FILE}.ezfio
+EZFIO=${FILE}.ezfio
 
-qp set_file $EZFIO1
+qp set_file $EZFIO
 qp set orbital_optimization optimization_method diag
 qp set orbital_optimization normalized_st_av_weight true
 qp set orbital_optimization start_from_wf true
@@ -20,9 +23,9 @@ qp run cis > $FILE.cis.out
 qp run optimization > $FILE.opt.out
 
 qp reset -d
-tar zcf $EZFIO1 ${EZFIO1}_save_opt_mos.tar.gz
+tar zcf $EZFIO ${EZFIO}_save_opt_mos.tar.gz
 
 qp run cis > $FILE.opt_cis.out
 qp run fci > $FILE.oipt_fci.out
 
-tar zcf $EZFIO1 ${EZFIO1}_save_opt_res.tar.gz
+tar zcf ${EZFIO}_save_opt_res.tar.gz $EZFIO

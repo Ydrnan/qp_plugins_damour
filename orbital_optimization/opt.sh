@@ -9,7 +9,7 @@ qp set orbital_optimization start_from_wf true
 #qp set orbital_optimization n_det_start 5
 qp set orbital_optimization n_det_max_opt 2e5
 qp set orbital_optimization targeted_accuracy_cipsi 1e-5
-qp set orbital_optimization optimization max_nb_iter 20
+qp set orbital_optimization optimization_max_nb_iter 20
 qp set orbital_optimization thresh_opt_max_elem_grad 1e-4
 
 qp set determinants read_wf true

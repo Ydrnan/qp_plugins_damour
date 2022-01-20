@@ -323,6 +323,9 @@ Here is the main algorithm of the optimization:
     if (nb_iter >= optimization_max_nb_iter) then
       not_converged = .False. 
     endif
+    if (prev_criterion - criterion < thresh_opt_energy_gain .and. DABS(max_elem_grad) < thresh_opt_max_elem_grad * 10d0) then
+      not_converged = .False.
+    endif
 
     if (.not. not_converged) then
       print*,'#############################'

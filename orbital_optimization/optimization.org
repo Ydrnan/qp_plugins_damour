@@ -20,6 +20,16 @@ subroutine run_optimization
 
   PROVIDE psi_det psi_coef mo_two_e_integrals_in_map
 
+  if (n_det_start <= 1) then
+    print*,'n_det_start <= 1, not possible, abort'
+    call abort
+  endif
+
+  if (n_det_max_opt <= n_det_start) then
+    print*,'n_det_max_opt <= n_det_start , not possible, abort'
+    call abort
+  endif
+  
   filename ='results_opt.dat'
   filename = trim(filename)
   !trim(ezfio_filename)//'.opt.dat'
@@ -29,7 +39,7 @@ subroutine run_optimization
 
   ! To start the optimization with a given wf without deleting the determinants
   ! with a ci coeff smaller or equal to the n_det_start-th determinant
-  if (.not. start_from_wf) then
+  if (.not. start_from_wf .or. n_det == 1) then
     N_det_max = n_det_start
     TOUCH N_det_max
   else

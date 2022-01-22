@@ -318,12 +318,15 @@ Here is the main algorithm of the optimization:
 
     ! External loop exit conditions
     if (DABS(max_elem_grad) < thresh_opt_max_elem_grad) then
+      print*,'Converged: DABS(max_elem_grad) < thresh_opt_max_elem_grad'
       not_converged = .False.
     endif
     if (nb_iter >= optimization_max_nb_iter) then
+      print*,'Not converged: nb_iter >= optimization_max_nb_iter'
       not_converged = .False. 
     endif
     if (prev_criterion - criterion < thresh_opt_energy_gain .and. DABS(max_elem_grad) < thresh_opt_max_elem_grad * 10d0) then
+      print*,'Converged: prev_criterion - criterion < thresh_opt_energy_gain .and. DABS(max_elem_grad) < thresh_opt_max_elem_grad * 10d0'
       not_converged = .False.
     endif
 

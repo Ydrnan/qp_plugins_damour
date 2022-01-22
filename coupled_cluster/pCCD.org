@@ -60,6 +60,7 @@ subroutine run_pCCD
     do i = 1, n_occ
       t2(i,a) = get_two_e_integral(i,i,tmp_a,tmp_a,mo_integrals_map) &
      /(2d0*fock_matrix_mo(tmp_a,tmp_a) -2d0*fock_matrix_mo(i,i))
+       print*,i,a,t2(i,a)
     enddo
   enddo
 
@@ -108,6 +109,7 @@ subroutine run_pCCD
                  - get_two_e_integral(tmp_a,i,i,tmp_a,mo_integrals_map) &
                  - get_two_e_integral(tmp_a,tmp_a,i,i,mo_integrals_map) * t2(i,a)) * t2(i,a) &
           + accu3 + accu4 + accu5
+        
       enddo
     enddo
     

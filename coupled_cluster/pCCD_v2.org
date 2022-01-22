@@ -1,0 +1,174 @@
+* pCCD
+
+cite Henderson 2014
+
+i,j,k,l: occupied
+a,b,c,d: virtual
+p,q,r,s: general
+
+pCCD energy:
+\begin{align*}
+E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
+\end{align*}
+
+\begin{align*}
+0 &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+- \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
+&-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
+&+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
++ \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
+\end{align*}
+with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
+bi-electronic integral.
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+program pCCD
+  implicit none
+
+  call run_pCCD
+
+end program
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine run_pCCD
+  implicit none
+
+  double precision, allocatable :: t2(:,:), residue(:,:), fock_matrix_pp(:)
+  integer :: p,q,i,j,a,b,tmp_a,tmp_b
+  integer :: nb_iter
+  double precision :: energy, max_residue
+  double precision :: accu1, accu2, accu3, accu4, accu5
+
+  allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), fock_matrix_pp(dim_list_act_virt_orb))
+
+  t2 = 0d0
+  !print*,dim_list_act_orb,dim_list_virt_orb
+  call pCCD_energy(t2, energy)
+  print*,'HF energy', energy
+
+  ! tmp matrix for the diagonal element of the fock matrix
+  fock_matrix_pp = 0d0
+  do p = 1, dim_list_act_virt_orb
+    fock_matrix_pp(p) = fock_matrix_mo(p,p)
+  enddo
+
+  ! Guess for t2
+  do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
+    do i = 1, dim_list_act_orb
+      t2(i,a) = two_e_ints_ppqq(i,tmp_a) &
+        /(2d0 * fock_matrix_pp(tmp_a) - 2d0 * fock_matrix_pp(i))
+      print*,i,a,t2(i,a)
+    enddo
+  enddo
+
+  nb_iter = 0
+  do while (nb_iter < 10)
+
+    ! Residue
+    residue = 0d0
+
+    do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
+      do i = 1, dim_list_act_orb
+        accu1 = 0d0
+        do j = 1, dim_list_act_orb
+          accu1 = accu1 + t2(j,a) * two_e_ints_ppqq(tmp_a,j)
+        enddo
+        
+        accu2 = 0d0
+        do b = 1, dim_list_virt_orb
+          tmp_b = b + dim_list_act_orb
+          accu2 = accu2 + t2(i,b) * two_e_ints_ppqq(tmp_b,i)
+        enddo
+  
+        accu3 = 0d0
+        do b = 1, dim_list_virt_orb
+          tmp_b = b + dim_list_act_orb
+          accu3 = accu3 + t2(i,b) * two_e_ints_ppqq(tmp_b,tmp_a)
+        enddo
+  
+        accu4 = 0d0
+        do j = 1, dim_list_act_orb
+          accu4 = accu4 + t2(j,a) * two_e_ints_ppqq(i,j)
+        enddo
+       
+        accu5 = 0d0
+        do j = 1, dim_list_act_orb
+          do b = 1, dim_list_virt_orb
+            tmp_b = b + dim_list_act_orb
+            accu5 = accu5 + t2(j,a) * t2(i,b) * two_e_ints_ppqq(tmp_b,j)
+          enddo
+        enddo
+  
+        residue(i,a) = two_e_ints_ppqq(i,tmp_a) &
+          + 2d0 *(fock_matrix_pp(tmp_a) - fock_matrix_pp(i) - accu1 - accu2) * t2(i,a) &
+          - 2d0*(2d0 * two_e_ints(i,tmp_a,i,tmp_a) &
+                 - two_e_ints(tmp_a,i,i,tmp_a) &
+                 - two_e_ints(tmp_a,tmp_a,i,i) * t2(i,a)) * t2(i,a) &
+          + accu3 + accu4 + accu5
+        
+      enddo
+    enddo
+    
+    ! New amplitudes
+    do a = 1, dim_list_virt_orb
+      tmp_a = a + dim_list_act_orb
+      do i = 1, dim_list_act_orb
+        t2(i,a) = t2(i,a) - residue(i,a)/(2d0 * fock_matrix_pp(tmp_a) - 2d0 * fock_matrix_pp(i))
+      enddo
+    enddo
+   
+    nb_iter = nb_iter + 1
+
+    call pCCD_energy(t2,energy)
+
+    ! max element in residue
+    max_residue = 0d0
+    do q = 1, dim_list_act_virt_orb
+      do p = 1, dim_list_act_virt_orb
+        if (dabs(residue(q,p)) > max_residue) then
+          max_residue = dabs(residue(q,p))
+        endif
+      enddo
+    enddo
+    
+    print*, nb_iter, energy, max_residue
+
+  enddo
+
+
+  ! Final energy
+  
+  call pCCD_energy(t2,energy)
+  print*, energy
+
+  deallocate(t2,residue)
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine pCCD_energy(t2,energy)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision :: energy
+  integer :: i,a,tmp_a,tmp_b
+
+  ! Final energy
+  energy = 0d0
+  do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
+    do i = 1, dim_list_act_orb
+      energy = energy + t2(i,a) * two_e_ints_ppqq(tmp_a,i)
+    enddo
+  enddo 
+  
+  ! Add <0|H|0>
+  energy = energy + hf_energy
+
+end
+#+END_SRC

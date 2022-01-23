@@ -621,7 +621,7 @@ subroutine run_localization
 
     print*, 'WARNING'
     print*, 'You must set different mo_class with qp set_mo_class'
-    print*, 'If you want to localize all the orbital:'
+    print*, 'If you want to localize all the orbitals:'
     print*, 'qp set Orbital_optimization security_mo_class false'
     print*, ''
     print*, 'abort'
@@ -2648,6 +2648,7 @@ subroutine apply_pre_rotation()
   
     ! Update the things related to mo_coef
     TOUCH mo_coef
+    call save_mos
   endif
 
   deallocate(pre_rot, prev_mos, R)

@@ -106,7 +106,24 @@ The optimization process if the following:
   smaller than the targeted accuracy for the cispi (targeted_accuracy_cipsi in qp edit) 
   or the wf is larger than a given size (n_det_max_opt in qp_edit) 
 - after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation 
- 
+
+# Break the spatial symmetry of the MOs
+To break the spatial symmetry of the MOs:  
+```
+qp run break_spatial_sym
+```
+You have to defined your MO classes or set security_mo_class to false
+with:  
+```
+qp set orbital_optimization security_mo_class false
+```
+The default angle for the rotations is too big for this kind of
+application, a value between 1e-3 and 1e-6 should break the spatial
+symimetry with just a small change in the energy:
+```
+qp set orbital_optimization angle_pre_rot 1e-3
+``` 
+
 # Tests
 To run the tests:  
 ``` 

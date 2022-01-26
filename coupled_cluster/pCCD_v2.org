@@ -21,6 +21,36 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
+
+Ideas:
+| a | b | c | d |
+|   | e |   | f |
+| g |   | h |   |
+|   |   | i | j |
+A.B = C
+- vertically shifted matrix: A
+- horizontally shifted matrix: B
+=> conserves the sum for matrix products with smaller matrices since
+the zero elements have the same place in both matrices (only if we
+have the same number of non zero elements on each line...)
+Left shift -> matrix product -> enforce zero with the decrompression
+(m,k).(k,n) -> (m,k-x).(k-x,n)
+O(mnk) -> O(nm(k-x))
+
+SVD on shifted matrix before matrix-matrix product ?
+
+Matrix multiplication:
+C = A.B
+$$c_{ij} = \sum_k a_{ik} b_{kj}$$
+k multiplications
+k-1 summations
+(2k-1)mn flops
+
+svd A O(mn^2) m >= n
+
+
+
+
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 program pCCD
   implicit none

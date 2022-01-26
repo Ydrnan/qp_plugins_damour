@@ -1,7 +1,7 @@
 ! One line command:
 ! echo "yourfile.fci.out" | qp run extract_E_cipsi 
 ! or
-! qp run extract_E_cipsi <<< yorfile.fci.out
+! qp run extract_E_cipsi <<< yourfile.fci.out
 
 program extract_E_cipsi
 
@@ -13,9 +13,6 @@ program extract_E_cipsi
   write(*,*) 'file name ?'
   read(*,*) filename
 
-  !path_hf = adjustl(adjustr(ezfio_dir)//'/hartree_fock/energy')
-  !call execute_command_line('echo '//filename)
-  
   ! on utilise une variable logique
   logical::existe
   

@@ -25,12 +25,14 @@ def f_search_str(search_str,fname):
     res = []
     load_file = open(fname,"r")
     read_file = load_file.readlines()
+    #read_file.pop(0)
 
     # Research of the lines
     for line in read_file:
         if line.startswith(search_str):
             res.append(line)
     load_file.close()
+    res.pop(0) # remove first line to avoid having 1 state with 1 det
 
     for i in range(len(res)):
         # transformation lines to lists

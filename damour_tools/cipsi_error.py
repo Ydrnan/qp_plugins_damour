@@ -119,7 +119,10 @@ def compute(data):
         sigma = sigma * to_eV
         bias = bias * to_eV
         n = len(data[i:])
-        beta = student(0.5*(1.+target/p) ,n)
+        if p!=0.:
+            beta = student(0.5*(1.+target/p) ,n)
+        else:
+            continue
         err = sigma * beta + 0.5*abs(bias)
         print("| %2d | %8.3f | %8.3f | %8.3f | %8.3f | %8.3f |"%( n, mu, err, bias, p, jb))
         if n < 3 :

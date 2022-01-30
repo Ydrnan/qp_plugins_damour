@@ -27,7 +27,7 @@ STATE_0=0
 STATE_1=1
 
 # To select the states if they are close 
-SELECTED_STATES=true    # if the states are close
+SELECT_STATES=true       # if the states are close
 N_MAX_STATES=4           # In this case, how many states ?
 N_DET_MAX_SELECT=1e5     # And with how many determinants ?
 

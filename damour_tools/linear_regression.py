@@ -62,42 +62,36 @@ def lin_reg(x,y,nb_points):
     return(a,b,R2)
 
 def lin_reg_v2(x,y,weight,nb_points):
-    import numpy  
-    tmp_x=[]
-    for i in range(nb_points):
-        tmp_x.append(x[len(x)-1-i])
+    import numpy as np  
 
-    tmp_y=[]
-    for i in range(nb_points):
-        tmp_y.append(y[len(y)-1-i])
+    # last n points and reverse their order
+    tmp_x = np.array(x[-nb_points:])
+    tmp_x = tmp_x[::-1]
 
-    tmp_w = []
-    for i in range(nb_points):
-        tmp_w.append(weight[len(weight)-1-i])
+    tmp_y = np.array(y[-nb_points:])
+    tmp_y = tmp_y[::-1]
 
-    #fit = numpy.polynomial.polynomial.Polynomial.fit(tmp_x, tmp_y, deg=1, domain=None, rcond=None, full=False, w=tmp_w, window=None) 
-    #print(fit)
-    fit = numpy.polynomial.polynomial.polyfit(tmp_x, tmp_y, deg=1, rcond=None, full=False, w=tmp_w)
-    #print(fit)
-    a = fit[1]
+    tmp_w = np.array(weight[-nb_points:])
+    tmp_w = tmp_w[::-1]
+
+    # linear regression
+    fit = np.polynomial.polynomial.polyfit(tmp_x, tmp_y, deg=1, rcond=None, full=False, w=tmp_w)
+
+    # f(x) = ax + b
+    a = fit[1] 
     b = fit[0]
 
-    bar_y = 0.0
-    for i in range(len(tmp_y)):
-        bar_y = bar_y + tmp_y[i]
-    bar_y = bar_y / len(tmp_y)
+    # bar_y = \sum_i^n tmp_y[i]/n
+    bar_y = np.sum(tmp_y) / len(tmp_y)
 
-    hat_y = []
-    for i in range(len(tmp_x)):
-        hat_y.append(a * tmp_x[i] + b)
+    # hat_y[i] = a*tmp_x[i] + b 
+    hat_y = a * tmp_x + b
+   
+    # SSR = \sum_i (tmp_y[i] - hat_y[i])**2
+    SSR = np.sum((tmp_y-hat_y)**2)
 
-    SSR = 0.0
-    for i in range(len(tmp_x)):
-        SSR = SSR + (tmp_y[i] - hat_y[i])**2
-
-    SST = 0.0
-    for i in range(len(tmp_x)):
-        SST = SST + (tmp_y[i] - bar_y)**2
+    # SST = \sum_i (tmp_y[i] - bar_y)**2
+    SST = np.sum((tmp_y - bar_y)**2)
 
     R2 = 1.0 - SSR/SST
 

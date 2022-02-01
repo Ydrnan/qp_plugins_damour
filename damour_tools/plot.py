@@ -11,13 +11,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
-import matplotlib.font_manager
+from convert_units import *
 
 def parse_boolean(s):
     return s == 'True'
-
-def Ha_to_eV(e):
-    return e*27.211382543519
 
 def import_data(filename, **kwargs):
     last = int(kwargs.get('last', 0))
@@ -151,12 +148,12 @@ show=False
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hs:t:o:",["help","n_states=","title=","output=","grid=","mticks=","show="])
 except getopt.GetoptError:
-    print("plot.py -h")
+    print("python3 plot.py -h")
     exit()
 
 for opt, arg in opts:
     if opt == "-h":
-        print(" plot.py [options] <files>")
+        print(" python3 plot.py [options] <files>")
         print("         -s <Number of states>   , default=", n_states)
         print("         -t <Title>              , default=", title)
         print("         -o <Output name>        , default=", basename)
@@ -208,18 +205,22 @@ for arg in sys.argv:
 list_files.pop(0) # 1st time to remove the name of the prog
 
 # remove options in list_files
-i = 0
-l = len(list_files)
-while i < l:
-    if list_files[i][:2] == '--':
-        list_files.pop(i)
-        l = l-1
-    elif list_files[i][:1] == '-':
-        list_files.pop(i)
-        list_files.pop(i)
-        l = l-2
-    else:
-        i = i+1
+def remove_options_in_list(list_files):
+    i = 0
+    l = len(list_files)
+    while i < l:
+        if list_files[i][:2] == '--':
+            list_files.pop(i)
+            l = l-1
+        elif list_files[i][:1] == '-':
+            list_files.pop(i)
+            list_files.pop(i)
+            l = l-2
+        else:
+            i = i+1
+    return list_files
+
+list_files = remove_options_in_list(list_files)
 
 print("Files:", list_files)
 print("N states:", n_states)

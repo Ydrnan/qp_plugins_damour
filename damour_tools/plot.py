@@ -1,12 +1,17 @@
 #!/bin/python3
 
+# Prog to generate plots:
+
+# files=$(ls -R */*fci.out)
+# python extract_E_cispi $files
+# files=$(ls -R */*.dat)
+# python plot.py -s <Number of states> $files
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 import matplotlib.font_manager
-
-infile = 'cn3_loc_fb_opt.opt_fci.out.dat'
 
 def parse_boolean(s):
     return s == 'True'
@@ -72,7 +77,7 @@ def my_plot(ax, data, kind, **kwargs):
         for i in range(n_states):
             x.append(data[states[i]*5+2])
             y.append(data[states[i]*5+1])
-            p_label.append(mo+"s st "+str(states[i]))
+            p_label.append(mo+" st "+str(states[i]))
         x_label = 'PT2 energy (E$_h$)'
         y_label = 'Variational energy (E$_h$)'
         n_plots = n_states
@@ -84,7 +89,7 @@ def my_plot(ax, data, kind, **kwargs):
         for i in range(n_states):
             x.append(data[states[i]*5+4])
             y.append(data[states[i]*5+1])
-            p_label.append(mo+"s st "+str(states[i]))
+            p_label.append(mo+" st "+str(states[i]))
         x_label = 'rPT2 energy (E$_h)$'
         y_label = 'Variational energy (E$_h$)'
         n_plots = n_states
@@ -219,7 +224,10 @@ while i < l:
 print("Files:", list_files)
 print("N states:", n_states)
 
-list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)', 'exc=f(ndet)']
+if n_states >= 2:
+    list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)', 'exc=f(ndet)']
+else:
+    list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)']
 
 # 0 -> takes all points, n /= 0 -> takes the n last points
 zoom = [0,7]

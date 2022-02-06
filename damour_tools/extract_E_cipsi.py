@@ -2,23 +2,6 @@
 import copy
 import sys
 
-# Doc
-# After a cispi calculation
-# Execute:
-#
-# python3 extract_E_cipsi.py your_file.fci.out
-#
-# To create a file your_file.fci.out.dat with:
-# Ndet  E_1  PT2  Error_PT2  rPT2 Error_rPT2 E_2 ...
-
-
-#in
-fname = sys.argv[1]
-print(fname)
-
-# out
-out_file = fname + ".dat"
-
 def f_search_str(search_str,fname):
 
     # init
@@ -56,32 +39,78 @@ def f_search_str(search_str,fname):
 
     return res
 
-# call the function to search the string
-Ndet = f_search_str("Summary",fname)
-E    = f_search_str("# E ",fname)
-PT2  = f_search_str("# PT2",fname)
-rPT2 = f_search_str("# rPT2",fname)
+# Prog
 
-# write the output
-f = open(out_file,"w")
-# first line
-f.write('{:14s}'.format("    Ndet"))
-for i in range(len(E[0])):
-    f.write('{:3s}'.format(" E_"))
-    f.write('{:12s}'.format(str(i)))
-    f.write('{:12s}'.format('PT2'))
-    f.write('{:12s}'.format('Error_PT2'))
-    f.write('{:12s}'.format('rPT2'))
-    f.write('{:12s}'.format('Error_rPT2'))
-f.write("\n")
-# data
-for i in range(len(Ndet)):
-    f.write('{:10d}'.format(int(Ndet[i][0])))
-    for j in range(len(E[0])):
-        f.write('{:15f}'.format(float(E[i][j])))
-        f.write('{:12f}'.format(float(PT2[i][2*j])))
-        f.write('{:12f}'.format(float(PT2[i][2*j+1])))
-        f.write('{:12f}'.format(float(rPT2[i][2*j])))
-        f.write('{:12f}'.format(float(rPT2[i][2*j+1])))
+# Doc
+# After a cispi calculation
+# Execute:
+#
+# python3 extract_E_cipsi.py your_file.fci.out
+#
+# To create a file your_file.fci.out.dat with:
+# Ndet  E_1  PT2  Error_PT2  rPT2 Error_rPT2 E_2 ...
+
+if __name__ == "__main__":
+    import getopt
+
+    # read the command line arguments
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hf:o:",["help","file=","output="])
+    except getopt.GetoptError:
+        print("python3 extract_E_cipsi.py -h")
+        sys.exit()
+
+    for opt, arg in opts:
+        if opt == "-h":
+            print(" extrapolation_fci [options] <files>")
+            print("         -f <File>          , default=", None)
+            print("         --file=<File>      , default=", None)
+            print("         -o <String>        , default=", "<File>.dat")
+            print("         --output=<String>  , default=", "<File>.dat")
+            sys.exit()
+
+        elif opt in ("-f", "--file"):
+            fname = arg
+            # default
+            out_file = fname + ".dat"
+        elif opt in ("-o", "--output"):
+            out_file = arg
+
+    #in
+    #fname = sys.argv[1]
+    #print(fname)
+    
+    # out
+    #out_file = fname + ".dat"
+    
+    # call the function to search the string
+    Ndet = f_search_str("Summary",fname)
+    E    = f_search_str("# E ",fname)
+    PT2  = f_search_str("# PT2",fname)
+    rPT2 = f_search_str("# rPT2",fname)
+    
+    # write the output
+    f = open(out_file,"w")
+    # first line
+    f.write('{:14s}'.format("    Ndet"))
+    for i in range(len(E[0])):
+        f.write('{:3s}'.format(" E_"))
+        f.write('{:12s}'.format(str(i)))
+        f.write('{:12s}'.format('PT2'))
+        f.write('{:12s}'.format('Error_PT2'))
+        f.write('{:12s}'.format('rPT2'))
+        f.write('{:12s}'.format('Error_rPT2'))
     f.write("\n")
-f.close()
+    # data
+    for i in range(len(Ndet)):
+        f.write('{:10d}'.format(int(Ndet[i][0])))
+        for j in range(len(E[0])):
+            f.write('{:15f}'.format(float(E[i][j])))
+            f.write('{:12f}'.format(float(PT2[i][2*j])))
+            f.write('{:12f}'.format(float(PT2[i][2*j+1])))
+            f.write('{:12f}'.format(float(rPT2[i][2*j])))
+            f.write('{:12f}'.format(float(rPT2[i][2*j+1])))
+        f.write("\n")
+    f.close()
+
+    print("Done")

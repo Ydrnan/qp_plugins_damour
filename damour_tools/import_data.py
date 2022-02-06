@@ -2,6 +2,7 @@
 
 import numpy as np
 
+# reads a file and transforms it into an numpy array
 def import_data(filename, **kwargs):
     last = int(kwargs.get('last', 0))
     with open(filename,'r') as f:

@@ -1,4 +1,5 @@
-# for direct extrapolation from an input file
+#!/bin/python3
+
 import sys
 from linear_regression import *
 from convert_units import *
@@ -70,34 +71,42 @@ def extrapolation_fci(filename, **kwargs):
     # Energy with 4 points
     return n_data,a,b,R2,exc
 
-# main for extrapolation
-import getopt
-
-# init/ default
-weight_type = 'none'
-
-# read the command line arguments 
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"hf:w:",["help","file=","weight="])
-except getopt.GetoptError:
-    print("python3 extrapolation_fci.py -h")
-    sys.exit()
-
-for opt, arg in opts:
-    if opt == "-h":
-        print(" extrapolation_fci [options] <files>")
-        print("         -f <File>          , default=", None)
-        print("         --file=<File>      , default=", None)
-        print("         -w <String>        , default=", weight_type)
-        print("         --weight=<String>  , default=", weight_type)
+if __name__ == "__main__":
+    # for direct extrapolation from an input file
+    import sys
+    from linear_regression import *
+    from convert_units import *
+    from import_data import *
+    
+    # main for extrapolation
+    import getopt
+    
+    # init/ default
+    weight_type = 'none'
+    
+    # read the command line arguments 
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hf:w:",["help","file=","weight="])
+    except getopt.GetoptError:
+        print("python3 extrapolation_fci.py -h")
         sys.exit()
+    
+    for opt, arg in opts:
+        if opt == "-h":
+            print(" extrapolation_fci [options] <files>")
+            print("         -f <File>          , default=", None)
+            print("         --file=<File>      , default=", None)
+            print("         -w <String>        , default=", weight_type)
+            print("         --weight=<String>  , default=", weight_type)
+            sys.exit()
+    
+        elif opt in ("-w", "--weight"):
+            weight_type = arg
+        elif opt in ("-f", "--file"):
+            filename = arg
+    
+    print("Filename:",filename)
+    
+    res = extrapolation_fci(filename,weight=weight_type)
+    print("\nFinished")
 
-    elif opt in ("-w", "--weight"):
-        weight_type = arg
-    elif opt in ("-f", "--file"):
-        filename = arg
-
-print("Filename:",filename)
-
-res = extrapolation_fci(filename,weight=weight_type)
-print("\nFinished")

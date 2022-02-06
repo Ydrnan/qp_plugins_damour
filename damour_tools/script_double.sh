@@ -69,7 +69,8 @@ echo "Frozen core"
 qp set_frozen_core > ${FILE1}.fc.out
 
 # Save HFOs
-tar zcf ${FILE1}_save_mos.ezfio.tar.gz ${EZFIO1}
+cp -r ${EZFIO1} ${FILE1}_save_mos.ezfio
+tar zcf ${FILE1}_save_mos.ezfio.tar.gz ${FILE1}_save_mos.ezfio
 
 # Selection of the states
 if [[ ${SELECT_STATES} == true ]]
@@ -100,7 +101,8 @@ qp set_file ${EZFIO2}
 echo "Computes NOs"
 qp run save_natorb > ${FILE2}.save_natorb.out
 
-tar zcf ${FILE2}_save_mos.tar.gz ${EZFIO2}
+cp -r ${EZFIO2} ${FILE2}_save_mos.ezfio
+tar zcf ${FILE2}_save_mos.tar.gz ${FILE2}_save_mos.ezfio
 cp -r ${EZFIO2} ${EZFIO3}
 
 # cipsi w NOs

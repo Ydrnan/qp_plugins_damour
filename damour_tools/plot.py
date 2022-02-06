@@ -114,79 +114,6 @@ def my_plot(ax, data, kind, **kwargs):
     
     return ax
 
-import sys
-
-# test
-import getopt
-
-# init/ default
-n_states = 1
-basename = "plot"
-title = ""
-grid = True
-mticks = True
-show=False
-
-# read the command line arguments 
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"hs:t:o:",["help","n_states=","title=","output=","grid=","mticks=","show="])
-except getopt.GetoptError:
-    print("python3 plot.py -h")
-    exit()
-
-for opt, arg in opts:
-    if opt == "-h":
-        print(" python3 plot.py [options] <files>")
-        print("         -s <Number of states>   , default=", n_states)
-        print("         -t <Title>              , default=", title)
-        print("         -o <Output name>        , default=", basename)
-        print("         --grid=<Boolean>        , default=", grid)
-        print("         --mticks=<Boolean>      , default=", mticks)
-        print("         --show=<Boolean>        , default=", show)
-        sys.exit()
-    #elif opt in ("-x", "--mol"):
-    #    mol = arg
-    #elif opt in ("-b", "--basis"):
-    #    basis = arg
-    elif opt in ("-s", "--n_states"):
-        try:
-            n_states = int(arg)
-        except ValueError: 
-            print("The number of states must be an integer")
-            sys.exit()
-        if n_states < 1:
-            print("The number of states must be > 1")
-            sys.exit()
-    elif opt in ("-t", "--title"):
-        title = arg
-    elif opt in ("-o", "--output"):
-        basename = arg
-    elif opt in ("--grid"):
-        try:
-            grid = parse_boolean(arg)            
-        except ValueError:
-            print("The argument for the grib must be a boolean")
-            sys.exit()
-    elif opt in ("--mticks"):
-        try:
-            mticks = parse_boolean(arg)
-        except ValueError:
-            print("The argument for the mticks must be a boolean")
-            sys.exit()
-    elif opt in ("--show"):
-        try:
-            show = parse_boolean(arg)
-        except ValueError:
-            print("The argument for show must be a boolean")
-            sys.exit()
-
-# files
-list_files = []
-
-for arg in sys.argv:
-    list_files.append(arg)
-list_files.pop(0) # 1st time to remove the name of the prog
-
 # remove options in list_files
 def remove_options_in_list(list_files):
     i = 0
@@ -203,64 +130,140 @@ def remove_options_in_list(list_files):
             i = i+1
     return list_files
 
-list_files = remove_options_in_list(list_files)
 
-print("Files:", list_files)
-print("N states:", n_states)
-
-if n_states >= 2:
-    list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)', 'exc=f(ndet)']
-else:
-    list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)']
-
-# 0 -> takes all points, n /= 0 -> takes the n last points
-zoom = [0,7]
-
-# loop over the methods/kinds
-for method in list_methods:
-
-    # loop to zoom
-    for last in zoom:
-        if (last == 0):
-            figname = basename+'_'+method+'.png'
-        else:
-            figname = basename+'_'+method+'_'+'zoom'+str(last)+'.png'
-
-        # Font
-        #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-        rc('font',**{'family':'serif','serif':['Times']})
-        rc('text', usetex=True)
-
-        # init
-        fig, ax = plt.subplots(figsize=(9, 6), constrained_layout=False)
-
-        # loop over the files to add the plots
-        for infile in list_files:
-            mo = infile.replace(".fci.out.dat","")
-            mo = mo.replace(".opt_fci.out.dat","")
-            mo = mo.replace("_"," ")
-            title = title.replace("_"," ")
-            data = import_data(infile, last=last)
-            ax = my_plot(ax, data, kind=method, n_states=n_states, st_0=0, st_1=1, mo=mo, title=title)
- 
-        ax.legend(loc='best', fontsize=10)
-        if (mticks):
-            ax.minorticks_on()
-        if (title != None):
-            ax.set_title(title, fontsize=30)#, fontname='Times New Roman')
-        ax.grid(visible=grid, which='major', axis='both', linewidth=0.5, linestyle='dashed')
-        # margins
-        plt.subplots_adjust(left  = 0.17,  # The position of the left edge of the subplots, as a fraction of the figure width
-            right = 0.98,   # The position of the right edge of the subplots, as a fraction of the figure width
-            bottom = 0.125,  # The position of the bottom edge of the subplots, as a fraction of the figure height
-            top = 0.9,      # The position of the top edge of the subplots, as a fraction of the figure height
-            wspace = None,   # The width of the padding between subplots, as a fraction of the average Axes width
-            hspace = None)   # The height of the padding between subplots, as a fraction of the average Axes width)
-        # Save
-        plt.savefig(figname, dpi='figure', format='png', metadata=None,
-                bbox_inches=None, pad_inches=0.1,
-                backend=None)
-        if (show):
-            plt.show()
+if __name__ == "__main__":
+    import sys
+    
+    # test
+    import getopt
+    
+    # init/ default
+    n_states = 1
+    basename = "plot"
+    title = ""
+    grid = True
+    mticks = True
+    show=False
+    
+    # read the command line arguments 
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hs:t:o:",["help","n_states=","title=","output=","grid=","mticks=","show="])
+    except getopt.GetoptError:
+        print("python3 plot.py -h")
+        exit()
+    
+    for opt, arg in opts:
+        if opt == "-h":
+            print(" python3 plot.py [options] <files>")
+            print("         -s <Number of states>   , default=", n_states)
+            print("         -t <Title>              , default=", title)
+            print("         -o <Output name>        , default=", basename)
+            print("         --grid=<Boolean>        , default=", grid)
+            print("         --mticks=<Boolean>      , default=", mticks)
+            print("         --show=<Boolean>        , default=", show)
+            sys.exit()
+        #elif opt in ("-x", "--mol"):
+        #    mol = arg
+        #elif opt in ("-b", "--basis"):
+        #    basis = arg
+        elif opt in ("-s", "--n_states"):
+            try:
+                n_states = int(arg)
+            except ValueError: 
+                print("The number of states must be an integer")
+                sys.exit()
+            if n_states < 1:
+                print("The number of states must be > 1")
+                sys.exit()
+        elif opt in ("-t", "--title"):
+            title = arg
+        elif opt in ("-o", "--output"):
+            basename = arg
+        elif opt in ("--grid"):
+            try:
+                grid = parse_boolean(arg)            
+            except ValueError:
+                print("The argument for the grib must be a boolean")
+                sys.exit()
+        elif opt in ("--mticks"):
+            try:
+                mticks = parse_boolean(arg)
+            except ValueError:
+                print("The argument for the mticks must be a boolean")
+                sys.exit()
+        elif opt in ("--show"):
+            try:
+                show = parse_boolean(arg)
+            except ValueError:
+                print("The argument for show must be a boolean")
+                sys.exit()
+    
+    # files
+    list_files = []
+    
+    for arg in sys.argv:
+        list_files.append(arg)
+    list_files.pop(0) # 1st time to remove the name of the prog
+    
+    # remove options
+    list_files = remove_options_in_list(list_files)
+    
+    print("Files:", list_files)
+    print("N states:", n_states)
+    
+    if n_states >= 2:
+        list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)', 'exc=f(ndet)']
+    else:
+        list_methods = ['e=f(ndet)', 'e=f(pt2)', 'e=f(rpt2)']
+    
+    # 0 -> takes all points, n /= 0 -> takes the n last points
+    zoom = [0,7]
+    
+    # loop over the methods/kinds
+    for method in list_methods:
+    
+        # loop to zoom
+        for last in zoom:
+            if (last == 0):
+                figname = basename+'_'+method+'.png'
+            else:
+                figname = basename+'_'+method+'_'+'zoom'+str(last)+'.png'
+    
+            # Font
+            #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+            rc('font',**{'family':'serif','serif':['Times']})
+            rc('text', usetex=True)
+    
+            # init
+            fig, ax = plt.subplots(figsize=(9, 6), constrained_layout=False)
+    
+            # loop over the files to add the plots
+            for infile in list_files:
+                mo = infile.replace(".fci.out.dat","")
+                mo = mo.replace(".opt_fci.out.dat","")
+                mo = mo.replace("_"," ")
+                title = title.replace("_"," ")
+                data = import_data(infile, last=last)
+                ax = my_plot(ax, data, kind=method, n_states=n_states, st_0=0, st_1=1, mo=mo, title=title)
+     
+            ax.legend(loc='best', fontsize=10)
+            if (mticks):
+                ax.minorticks_on()
+            if (title != None):
+                ax.set_title(title, fontsize=30)#, fontname='Times New Roman')
+            ax.grid(visible=grid, which='major', axis='both', linewidth=0.5, linestyle='dashed')
+            # margins
+            plt.subplots_adjust(left  = 0.17,  # The position of the left edge of the subplots, as a fraction of the figure width
+                right = 0.98,   # The position of the right edge of the subplots, as a fraction of the figure width
+                bottom = 0.125,  # The position of the bottom edge of the subplots, as a fraction of the figure height
+                top = 0.9,      # The position of the top edge of the subplots, as a fraction of the figure height
+                wspace = None,   # The width of the padding between subplots, as a fraction of the average Axes width
+                hspace = None)   # The height of the padding between subplots, as a fraction of the average Axes width)
+            # Save
+            plt.savefig(figname, dpi='figure', format='png', metadata=None,
+                    bbox_inches=None, pad_inches=0.1,
+                    backend=None)
+            if (show):
+                plt.show()
 
 

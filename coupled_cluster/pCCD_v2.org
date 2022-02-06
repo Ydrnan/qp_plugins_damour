@@ -18,13 +18,23 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 &+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
 + \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
 \end{align*}
+\begin{align*}
+&= v_{ii}^{aa} + 2(f_a^a - f_i^i - U_{1_a} - U_{2_i}) t_i^a \\
+&- 2(2v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
+&+ U_{3_i}^a + U_{4_i}^a + U_{5_i}^a
+\end{align*}
+
+$$\sum_j t_j^a v_{aa}^{jj} = U_{1_a}$$
+$$\sum_b t_i^b v_{bb}^{ii} = U_{2_i}$$
+$$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a$$
+$$\sum_j t_j^a v_{ii}^{jj} = U_{4_i}^a$$
 $$\sum_{b} v_{bb}^{jj} t_i^b = X_{i}^{j}$$
-$$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a$$
+$$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a = U_{5_i}^a$$
 with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
 
-Ideas:
+** Ideas:
 | a | b | c | d |
 |   | e |   | f |
 | g |   | h |   |
@@ -95,11 +105,11 @@ $\textbf{A}^{(l)}$ is the closest matrix of rank $l$ to $\textbf{A}$
 If the eigenvalues $\left\{s_k\right\}_{k=l+1}^m$ are small enought
 $\textbf{A}^{(l)}$ is a good approximation of $\textbf{A}$
 
-\begin{align*}
-| \Psi_{FCI} >  &\approx e^{T_2} | \Psi_{HF} > 
-\end{align*}
+
+
 $T_2 = \frac{1}{2} \sum_{ia} t_{ii}^{aa} a^\dagger a^\dagger i i$
 
+** Code
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 program pCCD
   implicit none
@@ -126,13 +136,13 @@ subroutine run_pCCD
   call pCCD_energy(t2, energy)
   print*,'HF energy', energy
 
-  ! tmp matrix for the diagonal element of the fock matrix
+  ! f_p^p, tmp matrix for the diagonal element of the fock matrix
   fock_matrix_pp = 0d0
   do p = 1, dim_list_act_virt_orb
     fock_matrix_pp(p) = fock_matrix_mo(p,p)
   enddo
 
-  ! Guess for t2
+  ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
   do a = 1, dim_list_virt_orb
     tmp_a = a + dim_list_act_orb
     do i = 1, dim_list_act_orb
@@ -151,28 +161,34 @@ subroutine run_pCCD
     do a = 1, dim_list_virt_orb
     tmp_a = a + dim_list_act_orb
       do i = 1, dim_list_act_orb
+         
+        ! \sum_j t_j^a v_{aa}^{jj}
         accu1 = 0d0
         do j = 1, dim_list_act_orb
           accu1 = accu1 + t2(j,a) * two_e_ints_ppqq(tmp_a,j)
         enddo
-        
+
+        ! \sum_b t_i^b v_{bb}^{ii} 
         accu2 = 0d0
         do b = 1, dim_list_virt_orb
           tmp_b = b + dim_list_act_orb
           accu2 = accu2 + t2(i,b) * two_e_ints_ppqq(tmp_b,i)
         enddo
-  
+
+        ! \sum_b t_i^b v_{bb}^{aa}
         accu3 = 0d0
         do b = 1, dim_list_virt_orb
           tmp_b = b + dim_list_act_orb
           accu3 = accu3 + t2(i,b) * two_e_ints_ppqq(tmp_b,tmp_a)
         enddo
-  
+
+        ! \sum_j t_j^a v_{ii}^{jj}
         accu4 = 0d0
         do j = 1, dim_list_act_orb
           accu4 = accu4 + t2(j,a) * two_e_ints_ppqq(i,j)
         enddo
-       
+
+        ! \sum_{jb} t_j^a t_i^b v_{bb}^{jj} 
         accu5 = 0d0
         do j = 1, dim_list_act_orb
           do b = 1, dim_list_virt_orb
@@ -250,4 +266,28 @@ subroutine pCCD_energy(t2,energy)
   energy = energy + hf_energy
 
 end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine guess_amplitudes_pccd()
+  
+  implicit none
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine update_amplitudes_pccd()
+  
+  implicit none
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine residue_pccd()
+  
+  implicit none
+
+end  
 #+END_SRC

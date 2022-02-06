@@ -80,7 +80,135 @@ BEGIN_PROVIDER [double precision, two_e_ints_ppqq, (dim_list_act_virt_orb, dim_l
   do q = 1, dim_list_act_virt_orb
     do p = 1, dim_list_act_virt_orb
       two_e_ints_ppqq(p,q) = two_e_ints(p,p,q,q)
-      print*,p,q,get_two_e_integral(p,p,q,q,mo_integrals_map), two_e_ints_ppqq(p,q)
+      !print*,p,q,get_two_e_integral(p,p,q,q,mo_integrals_map), two_e_ints_ppqq(p,q)
+    enddo
+  enddo
+
+END_PROVIDER
+
+BEGIN_PROVIDER [double precision, two_e_ints_aaii, (dim_list_virt_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <aa|ii> integrals for active + virtual MOs
+  ! a: virtual MO
+  ! i: active MO
+  END_DOC
+
+  integer :: a,i
+  double precision :: get_two_e_integral
+
+  do i = 1, dim_list_act_orb
+    do a = 1, dim_list_virt_orb
+      two_e_ints_aaii(a,i) = two_e_ints(a,a,i,i)
+      !print*,a,i,get_two_e_integral(a,a,i,i,mo_integrals_map), two_e_ints_aaii(a,i)
+    enddo
+  enddo
+
+END_PROVIDER
+
+BEGIN_PROVIDER [double precision, two_e_ints_iiaa, (dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ii|aa> integrals for active + virtual MOs
+  ! a: virtual MO
+  ! i: active MO
+  END_DOC
+
+  integer :: a,i
+  double precision :: get_two_e_integral
+
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      two_e_ints_iiaa(i,a) = two_e_ints(i,i,a,a)
+      !print*,i,a,get_two_e_integral(i,i,a,a,mo_integrals_map), two_e_ints_iiaa(i,a)
+    enddo
+  enddo
+
+END_PROVIDER
+
+BEGIN_PROVIDER [double precision, two_e_ints_iijj, (dim_list_act_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ii|jj> integrals for active MOs
+  ! i,j: active MO
+  END_DOC
+
+  integer :: i,j
+  double precision :: get_two_e_integral
+
+  do j = 1, dim_list_act_orb
+    do i = 1, dim_list_act_orb
+      two_e_ints_iijj(i,j) = two_e_ints(i,i,j,j)
+      !print*,i,j,get_two_e_integral(i,i,j,j,mo_integrals_map), two_e_ints_iijj(i,j)
+    enddo
+  enddo
+
+END_PROVIDER
+
+BEGIN_PROVIDER [double precision, two_e_ints_aabb, (dim_list_virt_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <aa|bb> integrals for  virtual MOs
+  ! a,b: virtual MO
+  END_DOC
+
+  integer :: a,b
+  double precision :: get_two_e_integral
+
+  do b = 1, dim_list_virt_orb
+    do a = 1, dim_list_virt_orb
+      two_e_ints_aabb(a,b) = two_e_ints(a,a,b,b)
+      !print*,a,b,get_two_e_integral(a,a,b,b,mo_integrals_map), two_e_ints_aabb(a,b)
+    enddo
+  enddo
+
+BEGIN_PROVIDER [double precision, two_e_ints_iaia, (dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ia|ia> integrals for active + virtual MOs
+  ! a: virtual MO
+  ! i: active MO
+  END_DOC
+
+  integer :: a,i
+  double precision :: get_two_e_integral
+
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      two_e_ints_iaia(i,a) = two_e_ints(i,a,i,a)
+      !print*,i,a,get_two_e_integral(i,a,i,a,mo_integrals_map), two_e_ints_iaia(i,a)
+    enddo
+  enddo
+
+END_PROVIDER
+
+BEGIN_PROVIDER [double precision, two_e_ints_aiia, (dim_list_virt_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ai|ia> integrals for active + virtual MOs
+  ! a: virtual MO
+  ! i: active MO
+  END_DOC
+
+  integer :: a,i
+  double precision :: get_two_e_integral
+
+  do i = 1, dim_list_act_orb
+    do a = 1, dim_list_virt_orb
+      two_e_ints_aiia(a,i) = two_e_ints(a,i,i,a)
+      !print*,a,i,get_two_e_integral(a,i,i,a,mo_integrals_map), two_e_ints_aiia(a,i)
     enddo
   enddo
 

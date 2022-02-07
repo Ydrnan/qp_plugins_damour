@@ -3,9 +3,10 @@ program percentage_excitations
   implicit none
 
   double precision, allocatable :: percentage(:), T(:,:)
+  double precision :: accu
   integer :: state, excitation_degree, max_exc_degree
 
-  max_exc_degree = 4
+  max_exc_degree = 10
 
   allocate(percentage(n_states), T(n_states, max_exc_degree))
 
@@ -19,11 +20,15 @@ program percentage_excitations
   do state = 1, n_states
     print*,''
     write(*,'(A7,I2)') 'State:', state  
+    print*,'Exc      %Exc        sum%     100%-sum%'
+    accu = 100d0*psi_coef_sorted(1,state)**2
+    write (*, '(A2,I2,1pE12.4,1pE12.4,1pE12.4)') '%T', 0, 100d0*psi_coef_sorted(1,state)**2, accu, 100d0 - accu
     do excitation_degree = 1, max_exc_degree 
-      write (*, '(A12,I2,F10.4)') 'Percentage T', excitation_degree, T(state, excitation_degree)
+      accu = accu + T(state, excitation_degree)
+      write (*, '(A2,I2,1pE12.4,1pE12.4,1pE12.4)') '%T', excitation_degree, T(state, excitation_degree), accu, 100d0-accu
     enddo
   enddo
-  deallocate(percentage)
+  deallocate(percentage,T)
 
 end
 
@@ -61,7 +66,8 @@ subroutine percentage_excitation(excitation_degree, percentage)
       endif
     enddo
   enddo
+  percentage = percentage * 100d0
   call wall_time(t2)
-  print*,'Total time', t2-t1
+  write(*,'(A12,I2,1pE12.4)') 'Total time T', excitation_degree, t2-t1
 
 end

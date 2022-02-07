@@ -2,33 +2,45 @@ program percentage_excitations
 
   implicit none
 
-  double precision :: percentage
-  integer :: state, excitation_degree
+  double precision, allocatable :: percentage(:), T(:,:)
+  integer :: state, excitation_degree, max_exc_degree
 
- 
-  do state = 1, n_states
-    print*,'State:', state
-    do excitation_degree = 1, 2
-      call percentage_excitation(excitation_degree, state, percentage)
-      write (*, "(A12,I1,F10.4)") 'Percentage T',excitation_degree,percentage
+  max_exc_degree = 4
+
+  allocate(percentage(n_states), T(n_states, max_exc_degree))
+
+  do excitation_degree = 1, max_exc_degree
+    call percentage_excitation(excitation_degree, percentage)
+    do state = 1, n_states
+      T(state, excitation_degree) = percentage(state)
     enddo
-    print*,''
   enddo
+
+  do state = 1, n_states
+    print*,''
+    write(*,'(A7,I2)') 'State:', state  
+    do excitation_degree = 1, max_exc_degree 
+      write (*, '(A12,I2,F10.4)') 'Percentage T', excitation_degree, T(state, excitation_degree)
+    enddo
+  enddo
+  deallocate(percentage)
 
 end
 
-subroutine percentage_excitation(excitation_degree, state, percentage)
+subroutine percentage_excitation(excitation_degree, percentage)
 
   implicit none
 
   integer :: i,j
   integer :: degree
   integer, intent(in) :: excitation_degree
-  integer, intent(in) :: state
-  double precision, intent(out) :: percentage
+  integer :: state
+  double precision, intent(out) :: percentage(n_states)
+  double precision :: t1, t2
 
   ! state 1 -> ground state
 
+  call wall_time(t1)
   percentage = 0d0
 
   do i = 2, n_det
@@ -43,9 +55,13 @@ subroutine percentage_excitation(excitation_degree, state, percentage)
     !print*,i,degree
 
     ! Sum the corresponding psi_coef**2
-    if (degree == excitation_degree) then
-      percentage = percentage + psi_coef_sorted(i,state)**2
-    endif
+    do state = 1, n_states
+      if (degree == excitation_degree) then
+        percentage(state) = percentage(state) + psi_coef_sorted(i,state)**2
+      endif
+    enddo
   enddo
+  call wall_time(t2)
+  print*,'Total time', t2-t1
 
 end

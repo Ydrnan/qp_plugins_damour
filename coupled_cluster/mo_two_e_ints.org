@@ -104,13 +104,14 @@ BEGIN_PROVIDER [double precision, two_e_ints_aaii, (dim_list_virt_orb, dim_list_
   ! i: active MO
   END_DOC
 
-  integer :: a,i
+  integer :: a,tmp_a,i
   double precision :: get_two_e_integral
 
   do i = 1, dim_list_act_orb
     do a = 1, dim_list_virt_orb
-      two_e_ints_aaii(a,i) = two_e_ints(a,a,i,i)
-      !print*,a,i,get_two_e_integral(a,a,i,i,mo_integrals_map), two_e_ints_aaii(a,i)
+      tmp_a = a + dim_list_act_orb
+      two_e_ints_aaii(a,i) = two_e_ints(tmp_a,tmp_a,i,i)
+      !print*,a,i,get_two_e_integral(tmp_a,tmp_a,i,i,mo_integrals_map), two_e_ints_aaii(a,i)
     enddo
   enddo
 
@@ -128,13 +129,14 @@ BEGIN_PROVIDER [double precision, two_e_ints_iiaa, (dim_list_act_orb, dim_list_v
   ! i: active MO
   END_DOC
 
-  integer :: a,i
+  integer :: a,tmp_a,i
   double precision :: get_two_e_integral
 
   do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
     do i = 1, dim_list_act_orb
-      two_e_ints_iiaa(i,a) = two_e_ints(i,i,a,a)
-      !print*,i,a,get_two_e_integral(i,i,a,a,mo_integrals_map), two_e_ints_iiaa(i,a)
+      two_e_ints_iiaa(i,a) = two_e_ints(i,i,tmp_a,tmp_a)
+      !print*,i,a,get_two_e_integral(i,i,tmp_a,tmp_a,mo_integrals_map), two_e_ints_iiaa(i,a)
     enddo
   enddo
 
@@ -174,13 +176,15 @@ BEGIN_PROVIDER [double precision, two_e_ints_aabb, (dim_list_virt_orb, dim_list_
   ! a,b: virtual MO
   END_DOC
 
-  integer :: a,b
+  integer :: a,b,tmp_a,tmp_b
   double precision :: get_two_e_integral
 
   do b = 1, dim_list_virt_orb
+    tmp_b = b + dim_list_act_orb
     do a = 1, dim_list_virt_orb
-      two_e_ints_aabb(a,b) = two_e_ints(a,a,b,b)
-      !print*,a,b,get_two_e_integral(a,a,b,b,mo_integrals_map), two_e_ints_aabb(a,b)
+      tmp_a = a + dim_list_act_orb
+      two_e_ints_aabb(a,b) = two_e_ints(tmp_a,tmp_a,tmp_b,tmp_b)
+      !print*,a,b,get_two_e_integral(tmp_a,tmp_a,tmp_b,tmp_b,mo_integrals_map), two_e_ints_aabb(a,b)
     enddo
   enddo
 END_PROVIDER
@@ -197,13 +201,14 @@ BEGIN_PROVIDER [double precision, two_e_ints_iaia, (dim_list_act_orb, dim_list_v
   ! i: active MO
   END_DOC
 
-  integer :: a,i
+  integer :: a,tmp_a,i
   double precision :: get_two_e_integral
 
   do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
     do i = 1, dim_list_act_orb
-      two_e_ints_iaia(i,a) = two_e_ints(i,a,i,a)
-      !print*,i,a,get_two_e_integral(i,a,i,a,mo_integrals_map), two_e_ints_iaia(i,a)
+      two_e_ints_iaia(i,a) = two_e_ints(i,tmp_a,i,tmp_a)
+      !print*,i,a,get_two_e_integral(i,tmp_a,i,tmp_a,mo_integrals_map), two_e_ints_iaia(i,a)
     enddo
   enddo
 
@@ -221,13 +226,14 @@ BEGIN_PROVIDER [double precision, two_e_ints_aiia, (dim_list_virt_orb, dim_list_
   ! i: active MO
   END_DOC
 
-  integer :: a,i
+  integer :: a,tmp_a,i
   double precision :: get_two_e_integral
 
   do i = 1, dim_list_act_orb
     do a = 1, dim_list_virt_orb
-      two_e_ints_aiia(a,i) = two_e_ints(a,i,i,a)
-      !print*,a,i,get_two_e_integral(a,i,i,a,mo_integrals_map), two_e_ints_aiia(a,i)
+      tmp_a = a + dim_list_act_orb
+      two_e_ints_aiia(a,i) = two_e_ints(tmp_a,i,i,tmp_a)
+      !print*,a,i,get_two_e_integral(tmp_a,i,i,tmp_a,mo_integrals_map), two_e_ints_aiia(a,i)
     enddo
   enddo
 

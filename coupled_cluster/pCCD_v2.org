@@ -131,6 +131,7 @@ subroutine run_pCCD
 
   double precision, allocatable :: t2(:,:), residue(:,:), fock_matrix_pp(:)
   double precision, allocatable :: fock_matrix_aa(:), fock_matrix_ii(:)
+  double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:)
   integer :: p,q,i,j,a,b,tmp_a,tmp_b
   integer :: nb_iter
   double precision :: energy, max_residue
@@ -138,6 +139,8 @@ subroutine run_pCCD
 
   allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), fock_matrix_pp(dim_list_act_virt_orb))
   allocate(fock_matrix_ii(dim_list_act_orb), fock_matrix_aa(dim_list_virt_orb))
+  allocate(U1(dim_list_virt_orb), U2(dim_list_act_orb), U3(dim_list_act_orb, dim_list_virt_orb))
+  allocate(U4(dim_list_act_orb, dim_list_virt_orb), U5(dim_list_act_orb, dim_list_virt_orb), X(dim_list_act_orb, dim_list_act_orb))
 
   t2 = 0d0
   !print*,dim_list_act_orb,dim_list_virt_orb
@@ -157,7 +160,8 @@ subroutine run_pCCD
 
   fock_matrix_aa = 0d0
   do a = 1, dim_list_virt_orb
-    fock_matrix_aa(a) = fock_matrix_mo(a,a)
+    tmp_a = a + dim_list_act_orb
+    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
   enddo
 
   ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
@@ -169,6 +173,8 @@ subroutine run_pCCD
       print*,i,a,t2(i,a)
     enddo
   enddo
+
+  call guess_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, t2)
 
   nb_iter = 0
   do while (nb_iter < 10)
@@ -294,6 +300,8 @@ subroutine guess_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, t2)
   double precision, intent(in) :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
   double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
   integer :: i, a
+
+  print*,'subroutine'
   
   ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
   do a = 1, dim_list_virt_orb

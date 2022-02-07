@@ -12,7 +12,7 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 \end{align*}
 
 \begin{align*}
-0 &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+r_i^a &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
 - \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
 &-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
 &+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
@@ -32,6 +32,12 @@ $$\sum_{b} v_{bb}^{jj} t_i^b = X_{i}^{j}$$
 $$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a = U_{5_i}^a$$
 with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
+
+Guess for $t$
+$$t_i^a = \frac{v_{ii}^{aa}}{(2f_a^a - 2f_i^i)}$$
+
+Update:
+$$t_i^a \leftarrow t_i^a - \frac{r_i^a}{2f_a^a - 2f_i^i}$$
 
 
 ** Ideas:
@@ -124,12 +130,14 @@ subroutine run_pCCD
   implicit none
 
   double precision, allocatable :: t2(:,:), residue(:,:), fock_matrix_pp(:)
+  double precision, allocatable :: fock_matrix_aa(:), fock_matrix_ii(:)
   integer :: p,q,i,j,a,b,tmp_a,tmp_b
   integer :: nb_iter
   double precision :: energy, max_residue
   double precision :: accu1, accu2, accu3, accu4, accu5
 
   allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), fock_matrix_pp(dim_list_act_virt_orb))
+  allocate(fock_matrix_ii(dim_list_act_orb), fock_matrix_aa(dim_list_virt_orb))
 
   t2 = 0d0
   !print*,dim_list_act_orb,dim_list_virt_orb
@@ -140,6 +148,16 @@ subroutine run_pCCD
   fock_matrix_pp = 0d0
   do p = 1, dim_list_act_virt_orb
     fock_matrix_pp(p) = fock_matrix_mo(p,p)
+  enddo
+
+  fock_matrix_ii= 0d0
+  do i = 1, dim_list_act_orb
+    fock_matrix_ii(i) = fock_matrix_mo(i,i)
+  enddo
+
+  fock_matrix_aa = 0d0
+  do a = 1, dim_list_virt_orb
+    fock_matrix_aa(a) = fock_matrix_mo(a,a)
   enddo
 
   ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
@@ -162,7 +180,7 @@ subroutine run_pCCD
     tmp_a = a + dim_list_act_orb
       do i = 1, dim_list_act_orb
          
-        ! \sum_j t_j^a v_{aa}^{jj}
+        ! U1(a) = \sum_j t_j^a v_{aa}^{jj}
         accu1 = 0d0
         do j = 1, dim_list_act_orb
           accu1 = accu1 + t2(j,a) * two_e_ints_ppqq(tmp_a,j)
@@ -269,25 +287,203 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine guess_amplitudes_pccd()
+subroutine guess_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, t2)
   
   implicit none
+
+  double precision, intent(in) :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
+  double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
+  integer :: i, a
+  
+  ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      t2(i,a) = two_e_ints_iiaa(i,a) &
+        /(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i))
+      print*,i,a,t2(i,a)
+    enddo
+  enddo
 
 end  
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine update_amplitudes_pccd()
+subroutine update_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, residue, t2)
   
   implicit none
+
+  double precision, intent(in) :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
+  double precision, intent(in) :: residue(dim_list_act_orb, dim_list_virt_orb) 
+  double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
+  integer :: i, a
+  
+  ! New amplitudes
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      t2(i,a) = t2(i,a) - residue(i,a)/(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i))
+    enddo
+  enddo
 
 end  
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine residue_pccd()
+subroutine residue_pccd(fock_matrix_aa, fock_matrix_ii, t2, U1, U2, U3, U4, U5, residue)
   
   implicit none
 
+  double precision, intent(in)  :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
+  double precision, intent(in)  :: U1(dim_list_virt_orb), U2(dim_list_act_orb)
+  double precision, intent(in)  :: U3(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: U4(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: U5(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: residue(dim_list_act_orb, dim_list_virt_orb)
+  integer                       :: i,a
+
+  do a = 1, dim_list_virt_orb
+     do i = 1, dim_list_act_orb
+        residue(i,a) = two_e_ints_iiaa(i,a) &
+          + 2d0 *(fock_matrix_aa(a) - fock_matrix_ii(i) - U1(a) - U2(i)) * t2(i,a) &
+          - 2d0*(2d0 * two_e_ints_iaia(i,a) &
+          - two_e_ints_aiia(a,i) &
+          - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &
+          + U3(i,a) + U4(i,a) + U5(i,a)
+     enddo
+   enddo
+  
 end  
 #+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine U1_pccd(t2, U1)
+  
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: U1(dim_list_virt_orb)
+  integer                       :: j,a
+
+  ! U1(a) = \sum_j t_j^a v_{aa}^{jj}
+  U1 = 0d0
+  do a = 1, dim_list_virt_orb
+    do j = 1, dim_list_act_orb
+      U1(a) = U1(a) + t2(j,a) * two_e_ints_aaii(a,j)
+    enddo
+  enddo
+
+  
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine U2_pccd(t2, U2)
+  
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: U2(dim_list_act_orb)
+  integer                       :: i,b
+
+  ! U2(i) = \sum_b t_i^b v_{bb}^{ii} 
+  U2 = 0d0
+  do i = 1, dim_list_act_orb
+    do b = 1, dim_list_virt_orb
+      U2(i) = U2(i) + t2(i,b) * two_e_ints_aaii(b,i)
+    enddo
+  enddo
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine U3_pccd(t2, U3)
+  
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: U3(dim_list_act_orb, dim_list_virt_orb)
+  integer                       :: i,a,b
+
+  ! U3(i,a) = \sum_b t_i^b v_{bb}^{aa}
+  U3 = 0d0
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      do b = 1, dim_list_virt_orb
+         U3(i,a) = U3(i,a) + t2(i,b) * two_e_ints_aabb(b,a)
+      enddo
+    enddo
+  enddo
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine U4_pccd(t2, U4)
+  
+  implicit none
+  
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: U4(dim_list_act_orb, dim_list_virt_orb)
+  integer                       :: i,j,a
+
+  ! U4(i,a) = \sum_j t_j^a v_{ii}^{jj}
+  U4 = 0d0
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      do j = 1, dim_list_act_orb
+        U4(i,a) = U4(i,a) + t2(j,a) * two_e_ints_iijj(i,j)
+      enddo
+    enddo
+  enddo
+  
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine U5_pccd(t2, X, U5)
+  
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: X(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(out) :: U5(dim_list_act_orb, dim_list_virt_orb)
+  integer                       :: i,j,a
+
+  ! U5(i,a) = \sum_{jb} t_j^a t_i^b v_{bb}^{jj}
+  !         = \sum_j X(i,j) t_j^a
+  U5 = 0d0
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      do j = 1, dim_list_act_orb
+        U5(i,a) = U5(i,a) + t2(j,a) * X(i,j)
+      enddo
+    enddo
+  enddo
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine X_pccd(t2,X)
+  
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out)  :: X(dim_list_act_orb, dim_list_act_orb)
+  integer                       :: i,j,b
+
+  ! X(i,j) = \sum_b t_i^b v_{bb}^{jj}
+  X = 0d0
+  do b = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      do j = 1, dim_list_act_orb
+        X(i,j) = X(i,j) + t2(i,b) * two_e_ints_aaii(b,j)
+      enddo
+    enddo
+  enddo  
+
+end  
+#+END_SRC
+

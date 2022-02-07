@@ -13,7 +13,9 @@ BEGIN_PROVIDER [integer, dim_list_act_virt_orb]
   dim_list_act_virt_orb = dim_list_act_orb + dim_list_virt_orb
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, list_act_virt, (dim_list_act_virt_orb)]
 
   implicit none
@@ -33,7 +35,9 @@ BEGIN_PROVIDER [double precision, list_act_virt, (dim_list_act_virt_orb)]
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints, (dim_list_act_virt_orb, dim_list_act_virt_orb, dim_list_act_virt_orb, dim_list_act_virt_orb)]
 
   implicit none
@@ -65,7 +69,9 @@ BEGIN_PROVIDER [double precision, two_e_ints, (dim_list_act_virt_orb, dim_list_a
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_ppqq, (dim_list_act_virt_orb, dim_list_act_virt_orb)]
 
   implicit none
@@ -85,7 +91,9 @@ BEGIN_PROVIDER [double precision, two_e_ints_ppqq, (dim_list_act_virt_orb, dim_l
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_aaii, (dim_list_virt_orb, dim_list_act_orb)]
 
   implicit none
@@ -107,7 +115,9 @@ BEGIN_PROVIDER [double precision, two_e_ints_aaii, (dim_list_virt_orb, dim_list_
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_iiaa, (dim_list_act_orb, dim_list_virt_orb)]
 
   implicit none
@@ -129,7 +139,9 @@ BEGIN_PROVIDER [double precision, two_e_ints_iiaa, (dim_list_act_orb, dim_list_v
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_iijj, (dim_list_act_orb, dim_list_act_orb)]
 
   implicit none
@@ -150,7 +162,9 @@ BEGIN_PROVIDER [double precision, two_e_ints_iijj, (dim_list_act_orb, dim_list_a
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_aabb, (dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -169,7 +183,10 @@ BEGIN_PROVIDER [double precision, two_e_ints_aabb, (dim_list_virt_orb, dim_list_
       !print*,a,b,get_two_e_integral(a,a,b,b,mo_integrals_map), two_e_ints_aabb(a,b)
     enddo
   enddo
+END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_iaia, (dim_list_act_orb, dim_list_virt_orb)]
 
   implicit none
@@ -191,7 +208,9 @@ BEGIN_PROVIDER [double precision, two_e_ints_iaia, (dim_list_act_orb, dim_list_v
   enddo
 
 END_PROVIDER
+#+END_SRC
 
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_aiia, (dim_list_virt_orb, dim_list_act_orb)]
 
   implicit none

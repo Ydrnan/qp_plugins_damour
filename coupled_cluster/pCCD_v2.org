@@ -38,6 +38,31 @@ $$t_i^a = \frac{v_{ii}^{aa}}{(2f_a^a - 2f_i^i)}$$
 
 Update:
 $$t_i^a \leftarrow t_i^a - \frac{r_i^a}{2f_a^a - 2f_i^i}$$
+** S-pCCD
+*** Naive way
+  - criterion (<ii|aa> integrals, divided or not by the f elements) in
+    a list (must be normalized in order to have to max value = 1)
+  - sort the list
+  - cut with respect to the threshold
+  - compute the indexes vec -> mat for the back transformation
+  - store the indexes in a n (depends of the threshold) by 2 array
+  - use the list to keep at zero the zero values after each operation
+
+*** Sparse matrix
+  - Same but use sparse matrices
+  - copy the true non-zero elements in a new sparse array after each
+    operation
+
+*** 3
+  - Same but with smaller matrices
+    
+** Bottleneck 
+
+$$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a \rightarrow OV^2 $$ 
+
+$$U_{3_i}^a = \sum_b t_i^b v_{bb}^{aa} \approx \sum_{b'} t_i^{b'}
+v_{b'b'}^{aa}$$
+where $\left\{b'\right\} = \left\{b\left\} \ | \ t_i^b \geq \epsilon$
 
 
 ** Ideas:
@@ -119,22 +144,31 @@ $T_2 = \frac{1}{2} \sum_{ia} t_{ii}^{aa} a^\dagger a^\dagger i i$
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 program pCCD
   implicit none
-  
-  call run_pCCD_v2
+
+  double precision :: energy
+  call run_pCCD_v2(energy)
+  print*,'#######################################################'
+  double precision :: epsilon
+  epsilon = 1d0
+  do while (epsilon > 1d-4)
+    call run_S1pCCD(epsilon, energy)
+    epsilon = epsilon * 0.9d0
+  enddo
   
 end program
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine run_pCCD_v2
+subroutine run_pCCD_v2(energy)
+  
   implicit none
 
-  double precision, allocatable :: t2(:,:), residue(:,:), fock_matrix_pp(:)
-  double precision, allocatable :: fock_matrix_aa(:), fock_matrix_ii(:)
+  double precision, allocatable :: t2(:,:), residue(:,:)
   double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:)
   integer :: p,q,i,j,a,b,tmp_a,tmp_b
   integer :: nb_iter
-  double precision :: energy, max_residue, ta, tb
+  double precision :: max_residue, ta, tb !, energy
+  double precision, intent(out) :: energy
   double precision :: accu1, accu2, accu3, accu4, accu5
   logical :: not_converged
 
@@ -142,8 +176,8 @@ subroutine run_pCCD_v2
   print*,'---run_pCCD_v2---'
   call wall_time(ta)
   
-  allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), fock_matrix_pp(dim_list_act_virt_orb))
-  allocate(fock_matrix_ii(dim_list_act_orb), fock_matrix_aa(dim_list_virt_orb))
+  allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb))!, fock_matrix_pp(dim_list_act_virt_orb))
+!  allocate(fock_matrix_ii(dim_list_act_orb), fock_matrix_aa(dim_list_virt_orb))
   allocate(U1(dim_list_virt_orb), U2(dim_list_act_orb), U3(dim_list_act_orb, dim_list_virt_orb))
   allocate(U4(dim_list_act_orb, dim_list_virt_orb), U5(dim_list_act_orb, dim_list_virt_orb), X(dim_list_act_orb, dim_list_act_orb))
 
@@ -158,22 +192,22 @@ subroutine run_pCCD_v2
   call pCCD_energy(t2, energy)
   print*,'HF energy', energy
 
-  ! f_p^p, tmp matrix for the diagonal element of the fock matrix
-  fock_matrix_pp = 0d0
-  do p = 1, dim_list_act_virt_orb
-    fock_matrix_pp(p) = fock_matrix_mo(p,p)
-  enddo
-
-  fock_matrix_ii= 0d0
-  do i = 1, dim_list_act_orb
-    fock_matrix_ii(i) = fock_matrix_mo(i,i)
-  enddo
-
-  fock_matrix_aa = 0d0
-  do a = 1, dim_list_virt_orb
-    tmp_a = a + dim_list_act_orb
-    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
-  enddo
+!  ! f_p^p, tmp matrix for the diagonal element of the fock matrix
+!  fock_matrix_pp = 0d0
+!  do p = 1, dim_list_act_virt_orb
+!    fock_matrix_pp(p) = fock_matrix_mo(p,p)
+!  enddo
+!
+!  fock_matrix_ii= 0d0
+!  do i = 1, dim_list_act_orb
+!    fock_matrix_ii(i) = fock_matrix_mo(i,i)
+!  enddo
+!
+!  fock_matrix_aa = 0d0
+!  do a = 1, dim_list_virt_orb
+!    tmp_a = a + dim_list_act_orb
+!    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
+!  enddo
 
   ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
   !print*,dim_list_act_orb, dim_list_virt_orb
@@ -186,7 +220,7 @@ subroutine run_pCCD_v2
   !  enddo
   !enddo
 
-  call guess_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, t2)
+  call guess_amplitudes_pccd(t2)
 
   print*,''
   print*,'     Nb iter        Energy                  Residue'
@@ -276,7 +310,7 @@ subroutine run_pCCD_v2
     !enddo
 
     ! New amplitudes
-    call update_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, residue, t2)
+    call update_amplitudes_pccd(residue, t2)
    
     nb_iter = nb_iter + 1
 
@@ -313,7 +347,7 @@ subroutine run_pCCD_v2
 
   enddo
 
-  deallocate(t2,residue,X,U1,U2,U3,U4,U5,fock_matrix_aa,fock_matrix_ii,fock_matrix_pp)
+  deallocate(t2,residue,X,U1,U2,U3,U4,U5)
 
   call wall_time(tb)
   print*,'Time in run_pCCD_v2:', tb-ta
@@ -324,6 +358,7 @@ subroutine run_pCCD_v2
 end
 #+END_SRC
 
+** Routines
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 subroutine pCCD_energy(t2,energy)
 
@@ -349,11 +384,10 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine guess_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, t2)
+subroutine guess_amplitudes_pccd(t2)
   
   implicit none
 
-  double precision, intent(in) :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
   double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
   integer :: i, a
 
@@ -370,11 +404,10 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine update_amplitudes_pccd(fock_matrix_aa, fock_matrix_ii, residue, t2)
+subroutine update_amplitudes_pccd(residue, t2)
   
   implicit none
 
-  double precision, intent(in) :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
   double precision, intent(in) :: residue(dim_list_act_orb, dim_list_virt_orb) 
   double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
   integer :: i, a
@@ -390,11 +423,10 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
-subroutine residue_pccd(fock_matrix_aa, fock_matrix_ii, t2, U1, U2, U3, U4, U5, residue)
+subroutine residue_pccd(t2, U1, U2, U3, U4, U5, residue)
   
   implicit none
 
-  double precision, intent(in)  :: fock_matrix_aa(dim_list_virt_orb), fock_matrix_ii(dim_list_act_orb)
   double precision, intent(in)  :: U1(dim_list_virt_orb), U2(dim_list_act_orb)
   double precision, intent(in)  :: U3(dim_list_act_orb, dim_list_virt_orb)
   double precision, intent(in)  :: U4(dim_list_act_orb, dim_list_virt_orb)
@@ -469,14 +501,19 @@ subroutine U3_pccd(t2, U3)
   integer                       :: i,a,b
 
   ! U3(i,a) = \sum_b t_i^b v_{bb}^{aa}
-  U3 = 0d0
-  do a = 1, dim_list_virt_orb
-    do i = 1, dim_list_act_orb
-      do b = 1, dim_list_virt_orb
-         U3(i,a) = U3(i,a) + t2(i,b) * two_e_ints_aabb(b,a)
-      enddo
-    enddo
-  enddo
+  !U3 = 0d0
+  !do a = 1, dim_list_virt_orb
+  !  do i = 1, dim_list_act_orb
+  !    do b = 1, dim_list_virt_orb
+  !       U3(i,a) = U3(i,a) + t2(i,b) * two_e_ints_aabb(b,a)
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, &
+             1d0, t2, size(t2,1), &
+                  two_e_ints_aabb, size(two_e_ints_aabb,1), &
+             0d0, U3, size(U3,1))
 
 end  
 #+END_SRC
@@ -503,7 +540,7 @@ subroutine U4_pccd(t2, U4)
   !enddo
 
   call dgemm('N','N', dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, &
-             1d0, two_e_ints_iijj, size(two_e_ints_iijj, 1), &
+             1d0, two_e_ints_iijj, size(two_e_ints_iijj,1), &
                   t2, size(t2,1), &
              0d0, U4, size(U4,1))
   
@@ -548,9 +585,9 @@ subroutine X_pccd(t2,X)
 
   ! X(i,j) = \sum_b t_i^b v_{bb}^{jj}
   X = 0d0
-  do b = 1, dim_list_virt_orb
-    do i = 1, dim_list_act_orb
-      do j = 1, dim_list_act_orb
+  do i = 1, dim_list_act_orb
+    do j = 1, dim_list_act_orb
+      do b = 1, dim_list_virt_orb
         X(i,j) = X(i,j) + t2(i,b) * two_e_ints_aaii(b,j)
       enddo
     enddo
@@ -559,3 +596,208 @@ subroutine X_pccd(t2,X)
 end  
 #+END_SRC
 
+* Naive way
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine run_S1pCCD(epsilon,real_e)
+
+  implicit none
+
+  double precision, intent(in) :: epsilon, real_e
+  double precision, allocatable :: list_crit(:)
+  integer, allocatable :: list_key(:)
+  integer, allocatable :: list_2d_key(:,:)
+  integer :: i,j,a,b,p,q,nb_t2
+
+  double precision, allocatable :: t2(:,:), residue(:,:), tmp_residue(:,:)
+  double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:)
+  integer :: nb_iter
+  double precision :: energy, max_residue, ta, tb, normalization_factor
+  logical :: not_converged
+
+  print*,''
+  print*,'---run_S1pCCD_v2---'
+  call wall_time(ta)
+  
+  allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), tmp_residue(dim_list_act_orb, dim_list_virt_orb))
+  allocate(U1(dim_list_virt_orb), U2(dim_list_act_orb), U3(dim_list_act_orb, dim_list_virt_orb))
+  allocate(U4(dim_list_act_orb, dim_list_virt_orb), U5(dim_list_act_orb, dim_list_virt_orb), X(dim_list_act_orb, dim_list_act_orb))
+
+  if (dim_list_act_orb == mo_num) then
+     print*,'Set the mo classes before, abort'
+     call abort
+  endif
+
+  allocate(list_crit(dim_list_act_orb * dim_list_virt_orb), list_key(dim_list_act_orb * dim_list_virt_orb))
+  
+  ! 2D -> 1D
+  p = 1
+  do a = 1, dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+       if (sccd_method == 'bi_int') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a))
+       elseif (sccd_method == 'guess_mp2') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)/(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i)))
+       elseif (sccd_method == 'estimated_e') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)**2/(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i)))
+       else
+          print*,'Nothing to do, abort'
+          call abort
+       endif
+       list_key(p) = p
+       p = p + 1
+    enddo
+  enddo
+
+  ! Sort by ascending order
+  call dsort(list_crit, list_key, dim_list_act_orb * dim_list_virt_orb)
+
+  ! Normalization of the biggest criterion
+  normalization_factor = 1d0/list_crit(dim_list_act_orb * dim_list_virt_orb)
+
+  ! Normalized and sorted list
+  list_crit = list_crit * normalization_factor
+
+  ! Number of selected elements
+  p = dim_list_act_orb * dim_list_virt_orb
+  do while ((list_crit(p) >= epsilon) .and. (p >= 1))
+     p = p-1
+  enddo
+  nb_t2 = dim_list_act_orb * dim_list_virt_orb - p
+
+  ! Debug
+  !do p = 1, dim_list_act_orb * dim_list_virt_orb
+  !  print*, list_crit(p)
+  !enddo
+  !print*,'nb',nb_t2
+  
+  allocate(list_2d_key(nb_t2,2))
+
+  ! Row
+  do p = 1, nb_t2
+    q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    call index_1d_to_2d(dim_list_act_orb, q, i, a)
+    list_2d_key(p,1) = i
+  enddo
+
+  ! Column
+  do p = 1, nb_t2
+    q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    call index_1d_to_2d(dim_list_act_orb, q, i, a)
+    list_2d_key(p,2) = a
+  enddo
+
+  ! Guess t2
+  t2 = 0d0
+  do p = 1, nb_t2
+     i = list_2d_key(p,1)
+     a = list_2d_key(p,2)
+     t2(i,a) = two_e_ints_iiaa(i,a) &
+        /(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i))
+     !print*,i,a,t2(i,a), t2(i,a)*normalization_factor
+  enddo
+
+  print*,''
+  print*,'Epsilon:', epsilon
+  print*,'     Nb iter        Energy                  Residue'
+
+  nb_iter = 0
+  not_converged = .True.
+  
+  do while (not_converged)
+     
+    ! tmp arrays
+    call U1_pccd(t2, U1)
+    call U2_pccd(t2, U2)
+    call U3_pccd(t2, U3)
+    call U4_pccd(t2, U4)
+    call X_pccd(t2,X)
+    call U5_pccd(t2, X, U5)
+    
+    ! Residue
+    residue = 0d0
+
+    do a = 1, dim_list_virt_orb
+      do i = 1, dim_list_act_orb
+         tmp_residue(i,a) = two_e_ints_iiaa(i,a) + 2d0*(fock_matrix_aa(a) - fock_matrix_ii(i) - U1(a) - U2(i)) * t2(i,a) &
+              - 2d0*(2d0 * two_e_ints_iaia(i,a) - two_e_ints_aiia(a,i) - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &
+              + U3(i,a) + U4(i,a) + U5(i,a)
+         !print*,'r',i,a,residue(i,a)
+      enddo
+    enddo
+
+    ! Put to 0 the non selected amplitudes
+    residue = 0d0
+    do p = 1, nb_t2
+      i = list_2d_key(p,1)
+      a = list_2d_key(p,2)
+      residue(i,a) = tmp_residue(i,a)
+    enddo
+    
+    ! New amplitudes
+    call update_amplitudes_pccd(residue, t2)
+   
+    nb_iter = nb_iter + 1
+
+    ! New energy
+    call pCCD_energy(t2,energy)
+
+    ! max element in residue
+    max_residue = 0d0
+    do a = 1, dim_list_virt_orb
+      do i = 1, dim_list_act_orb
+        if (dabs(residue(i,a)) > max_residue) then
+          max_residue = dabs(residue(i,a))
+        endif
+      enddo
+    enddo
+    
+    print*, nb_iter, energy, max_residue
+
+    ! Exit criterion
+    if (max_residue < 1e-6) then
+       not_converged = .False.
+       print*,''
+       print*,'******************************'
+       write(*,'(A7,1pE15.5,I10,1pE15.5,1pE15.5)'),' E_pCCD:', epsilon, nb_t2, energy, energy - real_e
+       print*,'******************************' 
+    endif
+
+    if (nb_iter >= 100) then
+       print*,'#########################'
+       print*,'   Convergence failed'
+       print*,'#########################'
+       exit
+    endif
+
+  enddo
+
+  deallocate(t2,residue,tmp_residue,X,U1,U2,U3,U4,U5,list_2d_key,list_key,list_crit)
+
+  call wall_time(tb)
+  print*,'Time in run_S1pCCD:', tb-ta
+  print*,''
+  print*,'---End run_S1pCCD---'
+  print*,''
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine index_1d_to_2d(n,k,i,j)
+
+  implicit none
+
+  integer, intent(in) :: n,k
+  integer, intent(out) :: i,j
+
+  ! k index in the list, list ordered column
+  ! 1  p   ...
+  ! 2  p+1 ...
+  ! 3  p+2 ...
+  ! :  :   ...  
+
+  j = ((k-1)/n) + 1
+  i = modulo((k-1),n) + 1
+  
+end
+#+END_SRC

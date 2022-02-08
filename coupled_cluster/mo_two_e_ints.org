@@ -1,7 +1,6 @@
 * mo two e integrals
 
 #+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
-
 BEGIN_PROVIDER [integer, dim_list_act_virt_orb]
 
   implicit none
@@ -235,6 +234,67 @@ BEGIN_PROVIDER [double precision, two_e_ints_aiia, (dim_list_virt_orb, dim_list_
       two_e_ints_aiia(a,i) = two_e_ints(tmp_a,i,i,tmp_a)
       !print*,a,i,get_two_e_integral(tmp_a,i,i,tmp_a,mo_integrals_map), two_e_ints_aiia(a,i)
     enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_act_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my fock matrix elements f_p^p in mo for active + virtual MOs
+  ! p: active or virtual MO
+  END_DOC
+
+  integer :: p
+
+  fock_matrix_pp = 0d0
+  do p = 1, dim_list_act_virt_orb
+    fock_matrix_pp(p) = fock_matrix_mo(p,p)
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my fock matrix elements f_i^i in mo for active MOs
+  ! i: active MO
+  END_DOC
+
+  integer :: i
+
+  fock_matrix_ii = 0d0
+  do i = 1, dim_list_act_orb
+    fock_matrix_ii(i) = fock_matrix_mo(i,i)
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, fock_matrix_aa, (dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my fock matrix elements f_a^a in mo for virtual MOs
+  ! a: virtual MO
+  END_DOC
+
+  integer :: a, tmp_a
+
+  fock_matrix_aa = 0d0
+  do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
+    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
   enddo
 
 END_PROVIDER

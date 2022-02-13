@@ -49,48 +49,15 @@ $$t_i^a \leftarrow t_i^a - \frac{r_i^a}{2f_a^a - 2f_i^i}$$
   - use the list to keep at zero the zero values after each operation
 
 *** Sparse matrix
-  - Same but use sparse matrices
-  - copy the true non-zero elements in a new sparse array after each
-    operation
-
-*** 3
-  - Same but with smaller matrices
+  - Same but use a sparse matrix for the t2
+  - create a new sparse array with true non-zero elements after each
+    operation 
     
 ** Bottleneck 
 
 $$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a \rightarrow OV^2 $$ 
 
-$$U_{3_i}^a = \sum_b t_i^b v_{bb}^{aa} \approx \sum_{b'} t_i^{b'}
-v_{b'b'}^{aa}$$
-where $\left\{b'\right\} = \left\{b\left\} \ | \ t_i^b \geq \epsilon$
-
-
-** Ideas:
-| a | b | c | d |
-|   | e |   | f |
-| g |   | h |   |
-|   |   | i | j |
-A.B = C
-- vertically shifted matrix: A
-- horizontally shifted matrix: B
-=> conserves the sum for matrix products with smaller matrices since
-the zero elements have the same place in both matrices (only if we
-have the same number of non zero elements on each line...)
-Left shift -> matrix product -> enforce zero with the decrompression
-(m,k).(k,n) -> (m,k-x).(k-x,n)
-O(mnk) -> O(nm(k-x))
-
-SVD on shifted matrix before matrix-matrix product ?
-
-Matrix multiplication:
-C = A.B
-$$c_{ij} = \sum_k a_{ik} b_{kj}$$
-k multiplications
-k-1 summations
-(2k-1)mn flops
-
-svd A O(mn^2) m >= n
-
+** 4D -> 2D:
 (i,j,k,l) -> (ij,kl)
    11 12 13 14 21 22 23 24 31 32 33 34 41 42 43 44
 1 1
@@ -111,6 +78,16 @@ svd A O(mn^2) m >= n
 4 4
 
 ** SVD
+
+Matrix multiplication:
+C = A.B
+$$c_{ij} = \sum_k a_{ik} b_{kj}$$
+k multiplications
+k-1 summations
+(2k-1)mn flops
+
+svd A: O(mn^2), m >= n
+
 ref tomoko 2003
 Consider a $m$ by $n$ matrix $\textbf{A}$ with $m \leq n$ s.t. $A_{ij} \in \mathbb{R}$
 $\forall \quad i \in (1,...,m), \quad j \in (1,...,n)$
@@ -149,11 +126,14 @@ program pCCD
   call run_pCCD_v2(energy)
   print*,'#######################################################'
   double precision :: epsilon
-  epsilon = 1d0
-  do while (epsilon > 1d-4)
-    call run_S1pCCD(epsilon, energy)
-    epsilon = epsilon * 0.9d0
-  enddo
+  epsilon = 1d-1
+  call run_S1pCCD(epsilon, energy)
+  
+  !epsilon = 1d0
+  !do while (epsilon > 1d-4)
+  !  call run_S1pCCD(epsilon, energy)
+  !  epsilon = epsilon * 0.9d0
+  !enddo
   
 end program
 #+END_SRC
@@ -647,22 +627,29 @@ subroutine run_S1pCCD(epsilon,real_e)
        p = p + 1
     enddo
   enddo
+  ! -, to change the ordering after the sort
+  list_crit = - list_crit
 
   ! Sort by ascending order
   call dsort(list_crit, list_key, dim_list_act_orb * dim_list_virt_orb)
-
+  
   ! Normalization of the biggest criterion
-  normalization_factor = 1d0/list_crit(dim_list_act_orb * dim_list_virt_orb)
+  normalization_factor = 1d0/list_crit(1) !(dim_list_act_orb * dim_list_virt_orb)
 
   ! Normalized and sorted list
   list_crit = list_crit * normalization_factor
 
   ! Number of selected elements
-  p = dim_list_act_orb * dim_list_virt_orb
-  do while ((list_crit(p) >= epsilon) .and. (p >= 1))
-     p = p-1
+  !p = dim_list_act_orb * dim_list_virt_orb
+  !do while ((list_crit(p) >= epsilon) .and. (p >= 1))
+  !   p = p-1
+  !enddo
+  !nb_t2 = dim_list_act_orb * dim_list_virt_orb - p
+  p = 1
+  do while ((list_crit(p) >= epsilon) .and. (p <= dim_list_act_orb * dim_list_virt_orb))
+    p = p + 1
   enddo
-  nb_t2 = dim_list_act_orb * dim_list_virt_orb - p
+  nb_t2 = p - 1 
 
   ! Debug
   !do p = 1, dim_list_act_orb * dim_list_virt_orb
@@ -672,16 +659,18 @@ subroutine run_S1pCCD(epsilon,real_e)
   
   allocate(list_2d_key(nb_t2,2))
 
-  ! Row
+  ! Row indexes
   do p = 1, nb_t2
-    q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    !q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    q = list_key(p)
     call index_1d_to_2d(dim_list_act_orb, q, i, a)
     list_2d_key(p,1) = i
   enddo
 
-  ! Column
+  ! Column indexes
   do p = 1, nb_t2
-    q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    !q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    q = list_key(p)
     call index_1d_to_2d(dim_list_act_orb, q, i, a)
     list_2d_key(p,2) = a
   enddo
@@ -801,3 +790,5 @@ subroutine index_1d_to_2d(n,k,i,j)
   
 end
 #+END_SRC
+
+* Sparse way

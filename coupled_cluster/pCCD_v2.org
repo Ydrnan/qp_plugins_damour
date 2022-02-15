@@ -128,22 +128,21 @@ program pCCD
   double precision :: epsilon
   epsilon = 0d0
   call run_S1pCCD(epsilon, energy)
-  call run_S2pCCD(epsilon, energy)
-  epsilon = 1d-1
-  call run_S2pCCD(epsilon, energy)
-  epsilon = 5d-2
-  call run_S2pCCD(epsilon, energy)
-  epsilon = 1d-2
-  call run_S2pCCD(epsilon, energy)
-  epsilon = 1d-3
-  call run_S2pCCD(epsilon, energy)
+  !call run_S2pCCD(epsilon, energy)
+  !epsilon = 1d-1
+  !call run_S2pCCD(epsilon, energy)
+  !epsilon = 5d-2
+  !call run_S2pCCD(epsilon, energy)
+  !epsilon = 1d-2
+  !call run_S2pCCD(epsilon, energy)
+  !epsilon = 1d-3
+  !call run_S2pCCD(epsilon, energy)
 
-  
-  !epsilon = 1d0
-  !do while (epsilon > 1d-4)
-  !  call run_S1pCCD(epsilon, energy)
-  !  epsilon = epsilon * 0.9d0
-  !enddo
+  epsilon = 1d0
+  do while (epsilon > 1d-8)
+    call run_S1pCCD(epsilon, energy)
+    epsilon = epsilon * 0.9d0
+  enddo
   
 end program
 #+END_SRC
@@ -761,8 +760,9 @@ subroutine run_S1pCCD(epsilon,real_e)
        not_converged = .False.
        print*,''
        print*,'******************************'
-       write(*,'(A7,1pE15.5,I10,1pE15.5,1pE15.5)'),' E_pCCD:', epsilon, nb_t2, energy, energy - real_e
-       print*,'******************************' 
+       write(*,'(A7,1pE15.5,I10,1pE15.5,1pE15.5,1pE15.5)'),' E_pCCD:', epsilon, nb_t2, dble(nb_t2)/dble(dim_list_virt_orb*dim_list_act_orb), &
+                                                           energy, energy - real_e
+       print*,'******************************'
     endif
 
     if (nb_iter >= 100) then

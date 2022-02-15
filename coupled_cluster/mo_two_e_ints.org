@@ -51,6 +51,8 @@ BEGIN_PROVIDER [double precision, two_e_ints, (dim_list_act_virt_orb, dim_list_a
   ! function
   double precision :: get_two_e_integral
 
+  PROVIDE mo_two_e_integrals_in_map
+  
   do sa = 1, dim_list_act_virt_orb
     s = list_act_virt(sa)
     do ra = 1, dim_list_act_virt_orb

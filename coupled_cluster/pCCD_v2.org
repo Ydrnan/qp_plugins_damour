@@ -633,7 +633,7 @@ subroutine run_S1pCCD(epsilon,real_e)
        elseif (sccd_method == 'estimated_e') then
          list_crit(p) = dabs(two_e_ints_iiaa(i,a)**2/(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i)))
        else
-          print*,'Nothing to do, abort'
+          print*,'Select the selection method, abort'
           call abort
        endif
        list_key(p) = p

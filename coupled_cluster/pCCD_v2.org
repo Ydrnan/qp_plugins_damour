@@ -117,7 +117,7 @@ $\textbf{A}^{(l)}$ is a good approximation of $\textbf{A}$
 
 $T_2 = \frac{1}{2} \sum_{ia} t_{ii}^{aa} a^\dagger a^\dagger i i$
 
-** Code
+** Prog
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 program pCCD
   implicit none
@@ -137,16 +137,16 @@ program pCCD
   !call run_S2pCCD(epsilon, energy)
   !epsilon = 1d-3
   !call run_S2pCCD(epsilon, energy)
-
-  epsilon = 1d0
-  do while (epsilon > 1d-8)
-    call run_S1pCCD(epsilon, energy)
-    epsilon = epsilon * 0.9d0
-  enddo
+  
+  !epsilon = 1d0
+  !do while (epsilon > 1d-8)
+  !  call run_S1pCCD(epsilon, energy)
+  !  epsilon = epsilon * 0.9d0
+  !enddo
   
 end program
 #+END_SRC
-
+** first code
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 subroutine run_pCCD_v2(energy)
   
@@ -412,6 +412,30 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine update_amplitudes_pccd_w_J(residue,Jm1, t2)
+  
+  implicit none
+
+  double precision, intent(in) :: residue(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in) :: Jm1(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: t2(dim_list_act_orb, dim_list_virt_orb)
+  integer :: i, a, j, b
+
+  ! New amplitudes
+  do b = 1, dim_list_virt_orb
+    do j = 1, dim_list_act_orb
+      do a = 1, dim_list_virt_orb
+        do i = 1, dim_list_act_orb
+          t2(i,a) = t2(i,a) - Jm1(i,a,j,b) * residue(j,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 subroutine residue_pccd(t2, U1, U2, U3, U4, U5, residue)
   
   implicit none
@@ -588,6 +612,266 @@ subroutine X_pccd(t2,X)
 
 end  
 #+END_SRC
+** Jacobian
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine pccd_jacobian(t2,t2_jacobian)
+
+  implicit none
+  
+  double precision,intent(in)   :: t2(dim_list_act_orb,dim_list_virt_orb)
+
+! Output variables
+  double precision,intent(out)  :: t2_jacobian(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb)
+
+! Local variables
+  integer                       :: i,j,k,l
+  integer                       :: a,b,c,d
+  double precision,allocatable  :: yO1(:)
+  double precision,allocatable  :: yV1(:)
+  double precision,allocatable  :: yO2(:,:)
+  double precision,allocatable  :: yV2(:,:)
+
+  t2_jacobian = 0d0
+  
+  allocate( yO1(dim_list_act_orb) )
+  yO1 = 0d0
+  do a = 1, dim_list_virt_orb
+    do i=1,dim_list_act_orb
+      yO1(i) = yO1(i) + two_e_ints_iiaa(i,a) * t2(i,a)
+    !yO1(i) = sum( two_e_ints_iiaa(i,:) * t2(i,:) )
+    enddo
+  enddo
+  !print*,'yo1', yO1(:)
+
+  allocate( yV1(dim_list_virt_orb) )
+  yV1 = 0d0
+  do a=1,dim_list_virt_orb
+    do i = 1, dim_list_act_orb
+      yV1(a) = yV1(a) + two_e_ints_iiaa(i,a) * t2(i,a)
+    enddo
+    !yV1(a) = sum( two_e_ints_iiaa(:,a) * t2(:,a) )
+  end do
+  !print*,'yv1', yv1(:)
+
+  allocate( yO2(dim_list_act_orb,dim_list_act_orb) )
+  yO2 = 0d0
+  do j=1,dim_list_act_orb
+    do i=1,dim_list_act_orb
+      do b=1,dim_list_virt_orb
+        yO2(i,j) = yO2(i,j) + two_e_ints_iiaa(j,b) * t2(i,b)
+      end do
+    end do
+  end do
+  !print*,'yO2', yO2(:,:)
+
+  allocate( yV2(dim_list_virt_orb,dim_list_virt_orb) )
+  yV2 = 0d0
+  do b=1,dim_list_virt_orb
+    do a=1,dim_list_virt_orb
+      do j=1,dim_list_act_orb
+        yV2(a,b) = yV2(a,b) + two_e_ints_iiaa(j,b) * t2(j,a)
+      end do
+    end do
+  end do
+  !print*,'yV2', yV2(:,:)
+
+  do a=1,dim_list_virt_orb
+    do i=1,dim_list_act_orb
+      t2_jacobian(i,a,i,a) = 2d0*(fock_matrix_aa(a) - fock_matrix_ii(i)) &
+      - 4.0d0*two_e_ints_iaia(i,a) + 2.0d0*two_e_ints_iaai(i,a) + two_e_ints_aabb(a,a) + two_e_ints_iijj(i,i) &
+      - yV1(a) - yO1(i) 
+    end do
+  end do
+
+  do b=1,dim_list_virt_orb
+    do a=1,dim_list_virt_orb
+    if( a.eq.b ) cycle
+      do i=1,dim_list_act_orb
+        t2_jacobian(i,a,i,b) = two_e_ints_aabb(a,b) - 2.0d0 * two_e_ints_iiaa(i,b) * t2(i,a) + yV2(a,b)
+      end do
+    end do
+  end do
+
+  do j=1,dim_list_act_orb
+    do i=1,dim_list_act_orb
+    if( i.eq.j ) cycle
+      do a=1,dim_list_virt_orb
+        t2_jacobian(i,a,j,a) = two_e_ints_iijj(i,j) - 2.0d0 * two_e_ints_iiaa(j,a) * t2(i,a) + yO2(i,j)
+      end do
+    end do
+  end do
+
+  deallocate(yO1,yO2,yV1,yV2)
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine inverse_jacobian(t2_jacobian,Jm1)
+
+  implicit none
+  
+  ! in
+  double precision, intent(in) :: t2_jacobian(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: Jm1(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb)
+
+  ! internal
+  double precision, allocatable :: e_val(:), W(:,:), e_val_2d(:,:), accu(:,:), Jm1_2d(:,:)
+  double precision, allocatable :: work(:,:)
+integer                       :: info, lwork, i,j,k,l
+
+  ! For Lapack
+  lwork=3*(dim_list_act_orb*dim_list_virt_orb)-1
+
+  allocate(work(lwork,dim_list_act_orb*dim_list_virt_orb),e_val(dim_list_act_orb*dim_list_virt_orb), W(dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb))
+  allocate(e_val_2d(dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb),accu(dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb),Jm1_2d(dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb))
+
+  ! Calculation
+  call convert_4d_to_2d(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb,t2_jacobian,dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,W)
+
+  ! Debug
+  !call get_inverse(W,dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,Jm1_2d,dim_list_act_orb*dim_list_virt_orb)
+  !
+  !print*,'2d'
+  !do i = 1, dim_list_act_orb*dim_list_virt_orb
+  !  write(*,'(I2,100(1pE12.5))') i, Jm1_2d(i,:)
+  !enddo
+
+  ! Diagonalization of the hessian
+  call dsyev('V','U',dim_list_act_orb*dim_list_virt_orb,W,size(W,1),e_val,work,lwork,info)
+
+  if (info /= 0) then
+      print*, 'Error diagonalization : diagonalization_hessian'
+      print*, 'info = ', info
+      call ABORT
+  endif
+
+  do i = 1, dim_list_act_orb*dim_list_virt_orb
+    if (dabs(e_val(i)) >= 1d-6) then
+      e_val(i) = 1d0/e_val(i)
+    else
+      e_val(i) = 0d0
+    endif
+  enddo
+  
+  e_val_2d = 0d0
+  do i = 1, dim_list_act_orb*dim_list_virt_orb
+    e_val_2d(i,i) = e_val(i)
+  enddo
+
+  call dgemm('N','N',dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,1d0,W,size(W,1),e_val_2d,size(e_val_2d,1), 0d0, accu, size(accu,1))
+  call dgemm('N','T',dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,1d0,accu,size(accu,1),W,size(W,1), 0d0, Jm1_2d, size(Jm1_2d,1))
+  
+! Debug
+!  print*,'Jm1_2d'
+!  do i = 1, dim_list_act_orb*dim_list_virt_orb
+!    write(*,'(I2,100(1pE12.5))') i, Jm1_2d(i,:)
+!  enddo
+
+  call convert_2d_to_4d(dim_list_act_orb*dim_list_virt_orb,dim_list_act_orb*dim_list_virt_orb,Jm1_2d,dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb,Jm1)
+  
+  deallocate(work,e_val,W,e_val_2d,accu,Jm1_2d)
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine index_4d_to_2d(nj,nl,i,j,k,l,p,q)
+
+  implicit none
+
+  ! in
+  integer, intent(in) :: nj,nl,i,j,k,l
+
+  ! out
+  integer, intent(out) :: p,q
+
+  p = (i-1) * nj + j
+  q = (k-1) * nl + l
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine index_2d_to_4d(nj,nl,p,q,i,j,k,l)
+
+  implicit none
+
+  ! in
+  integer, intent(in)  :: nj,nl,p,q
+
+  ! out
+  integer, intent(out) :: i,j,k,l
+
+  i = (p-1)/nj + 1
+  j = p - (i-1) * nj
+
+  k = (q-1)/nl + 1
+  l = q - (k-1) * nl
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine convert_2d_to_4d(dim1_A2, dim2_A2, A2, dim1_A4, dim2_A4, dim3_A4, dim4_A4, A4)
+
+  implicit none
+
+  ! in
+  integer, intent(in)  :: dim1_A2, dim2_A2, dim1_A4, dim2_A4, dim3_A4, dim4_A4
+  double precision, intent(in)  :: A2(dim1_A2, dim2_A2)
+  
+  ! out
+  double precision, intent(out) :: A4(dim1_A4, dim2_A4, dim3_A4, dim4_A4)
+
+  ! internal
+  integer :: i,j,k,l,nj,nl,p,q
+
+  nj = dim2_A4
+  nl = dim4_A4
+  
+  do q = 1, dim2_A2
+    do p = 1, dim1_A2
+      call index_2d_to_4d(nj,nl, p,q, i,j,k,l)
+      A4(i,j,k,l) = A2(p,q)
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+subroutine convert_4d_to_2d(dim1_A4, dim2_A4, dim3_A4, dim4_A4, A4,dim1_A2, dim2_A2, A2)
+
+  implicit none
+
+  ! in
+  integer, intent(in)  :: dim1_A2, dim2_A2, dim1_A4, dim2_A4, dim3_A4, dim4_A4
+  double precision, intent(in) :: A4(dim1_A4, dim2_A4, dim3_A4, dim4_A4)
+  
+  ! out
+  double precision, intent(out)  :: A2(dim1_A2, dim2_A2)
+
+  ! internal
+  integer :: i,j,k,l,nj,nl,p,q
+
+  nj = dim2_A4
+  nl = dim4_A4
+
+  do l = 1, dim4_A4
+    do k = 1, dim3_A4
+      do j = 1, dim2_A4
+        do i = 1, dim1_A4
+          call index_4d_to_2d(nj,nl,i,j,k,l,p,q)
+          A2(p,q) = A4(i,j,k,l)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
 
 * Naive way
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
@@ -602,6 +886,7 @@ subroutine run_S1pCCD(epsilon,real_e)
   integer :: i,j,a,b,p,q,nb_t2
 
   double precision, allocatable :: t2(:,:), residue(:,:), tmp_residue(:,:)
+  double precision, allocatable :: t2_jacobian(:,:,:,:), Jm1(:,:,:,:)
   double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:)
   integer :: nb_iter
   double precision :: energy, max_residue, ta, tb, normalization_factor
@@ -614,6 +899,8 @@ subroutine run_S1pCCD(epsilon,real_e)
   allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb), tmp_residue(dim_list_act_orb, dim_list_virt_orb))
   allocate(U1(dim_list_virt_orb), U2(dim_list_act_orb), U3(dim_list_act_orb, dim_list_virt_orb))
   allocate(U4(dim_list_act_orb, dim_list_virt_orb), U5(dim_list_act_orb, dim_list_virt_orb), X(dim_list_act_orb, dim_list_act_orb))
+  allocate(t2_jacobian(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
+  allocate(Jm1(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
 
   if (dim_list_act_orb == mo_num) then
      print*,'Set the mo classes before, abort'
@@ -693,7 +980,7 @@ subroutine run_S1pCCD(epsilon,real_e)
   do p = 1, nb_t2
      i = list_2d_key(p,1)
      a = list_2d_key(p,2)
-     t2(i,a) = two_e_ints_iiaa(i,a) &
+     t2(i,a) = - two_e_ints_iiaa(i,a) &
         /(2d0 * fock_matrix_aa(a) - 2d0 * fock_matrix_ii(i))
      !print*,i,a,t2(i,a), t2(i,a)*normalization_factor
   enddo
@@ -706,7 +993,7 @@ subroutine run_S1pCCD(epsilon,real_e)
   not_converged = .True.
   
   do while (not_converged)
-     
+    
     ! tmp arrays
     call U1_pccd(t2, U1)
     call U2_pccd(t2, U2)
@@ -736,8 +1023,10 @@ subroutine run_S1pCCD(epsilon,real_e)
     enddo
     
     ! New amplitudes
-    call update_amplitudes_pccd(residue, t2)
-   
+    !call update_amplitudes_pccd(residue, t2)
+    call pccd_jacobian(t2,t2_jacobian)
+    call inverse_jacobian(t2_jacobian,Jm1)
+    call update_amplitudes_pccd_w_J(residue, Jm1, t2)
     nb_iter = nb_iter + 1
 
     ! New energy
@@ -774,7 +1063,7 @@ subroutine run_S1pCCD(epsilon,real_e)
 
   enddo
 
-  deallocate(t2,residue,tmp_residue,X,U1,U2,U3,U4,U5,list_2d_key,list_key,list_crit)
+  deallocate(t2,residue,tmp_residue,X,U1,U2,U3,U4,U5,list_2d_key,list_key,list_crit,t2_jacobian,Jm1)
 
   call wall_time(tb)
   print*,'Time in run_S1pCCD:', tb-ta
@@ -848,7 +1137,8 @@ end
 #+END_SRC
 
 * Sparse way
-#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle pCCD_v2.irp.f
 subroutine run_S2pCCD(epsilon,real_e)
 
   use mkl_spblas
@@ -1134,7 +1424,8 @@ subroutine run_S2pCCD(epsilon,real_e)
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle idk.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle idk.irp.f
 program test_spblas
 
   use mkl_spblas
@@ -1238,7 +1529,8 @@ subroutine list_U2_pccd(nb_t2, nb_row, list_index_row, nb_val_row,list_t2, U2)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle pCCD_v2.irp.f
 subroutine U3_sp_pccd(nb_t2, list_2d_key, list_t2, U3)
   
   use mkl_spblas
@@ -1282,7 +1574,8 @@ subroutine U3_sp_pccd(nb_t2, list_2d_key, list_t2, U3)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle pCCD_v2.irp.f
 subroutine U4_sp_pccd(nb_t2, list_2d_key, list_t2, U4)
   
   use mkl_spblas
@@ -1338,7 +1631,8 @@ subroutine U4_sp_pccd(nb_t2, list_2d_key, list_t2, U4)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle pCCD_v2.irp.f
 subroutine U5_sp_pccd(nb_t2, list_2d_key, list_t2, X, U5)
 
   use mkl_spblas
@@ -1392,7 +1686,8 @@ subroutine U5_sp_pccd(nb_t2, list_2d_key, list_t2, X, U5)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
+#+BEGIN_SRC f90 :comments org
+!:tangle pCCD_v2.irp.f
 subroutine X_sp_pccd(nb_t2, list_2d_key, list_t2, X)
 
   use mkl_spblas

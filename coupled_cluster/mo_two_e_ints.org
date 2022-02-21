@@ -217,6 +217,31 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, two_e_ints_iaai, (dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ia|ai> integrals for active + virtual MOs
+  ! a: virtual MO
+  ! i: active MO
+  END_DOC
+
+  integer :: a,tmp_a,i
+  double precision :: get_two_e_integral
+
+  do a = 1, dim_list_virt_orb
+    tmp_a = a + dim_list_act_orb
+    do i = 1, dim_list_act_orb
+      two_e_ints_iaai(i,a) = two_e_ints(i,tmp_a,tmp_a,i)
+      !print*,i,a,get_two_e_integral(i,tmp_a,tmp_a,i,mo_integrals_map), two_e_ints_iaai(i,a)
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, two_e_ints_aiia, (dim_list_virt_orb, dim_list_act_orb)]
 
   implicit none

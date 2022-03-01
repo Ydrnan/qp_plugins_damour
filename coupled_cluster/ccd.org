@@ -951,40 +951,17 @@ subroutine normalized_epsilon(n_occ, n_vir, delta)
 end
 #+END_SRC
 
-* Not working: CCD with space orbitals
+* Working: CCD O(N^6) with spatial orbitals
+
+Scuseria, Gustavo E.; Janssen, Curtis L.; Schaefer, Henry
+F. (1988). An efficient reformulation of the closed-shell coupled
+cluster single and double excitation (CCSD) equations. The Journal of
+Chemical Physics, 89(12), 7382–. doi:10.1063/1.455269
 
 \begin{align*}
 r_{ij}^{ab} &= v_{ij}^{ab} + \sum_{kl} v_{ij}^{kl} t_{kl}^{ab} + \sum_{cd} v_{cd}^{ab} t_{ij}^{cd} \\
 &+ \sum_{klcd} v_{cd}^{kl} t_{ij}^{cd} t_{kl}^{ab} \\
-&+ \Omega_{ij}^{ab} [g_c^a t_{ij}^{cb} - g_i^k t_{kj}^{ab} + j_{ic}^{ak}(2 t_{kj}^{cb} - t_{kj}^{bc}) - k_{ic}^{ka} t_{kj}^{cb} - k{ic}^{kb} t_{kj}^{ac}]
-\end{align*}
-** 2
-\begin{align*}
-\Omega_{ij}^{ab} [g_c^a t_{ij}^{cb} - g_i^k t_{kj}^{ab}] =&
-g_c^a t_{ij}^{cb} + g_c^b t_{ji}^{ca} - g_i^k t_{kj}^{ab} - g_j^k t_{ki}^{ba} \\
-=& \sum_c f_c^a t_{ij}^{cb} - \sum_{klcd} \omega_{cd}^{kl} t_{il}^{cd} t_{ij}^{cb} \\
-+& \sum_c f_c^b t_{ji}^{ca} - \sum_{klcd} \omega_{cd}^{kl} t_{jl}^{cd} t_{ji}^{ca} \\
--& \sum_k f_i^k t_{kj}^{ab} + \sum_{klcd} \omega_{cd}^{kl} t_{il}^{cd} t_{kj}^{ab} \\
--& \sum_k f_j^k t_{ki}^{ba} + \sum_{klcd} \omega_{cd}^{kl} t_{jl}^{cd} t_{ki}^{ba} 
-\end{align*}
-** 3
-\begin{align*}
-\Omega_{ij}^{ab} j_{ic}^{ak} (2t_{kj}^{cb} - t_{kj}^{bc}) =&
-\sum_{kc} v_{ic}^{ak} (2 t_{kj}^{cb} - t_{kj}^{bc}) + \sum_{kc} v_{jc}^{bk} (2 t_{ki}^{ca} - t_{ki}^{ac}) \\
--& \frac{1}{2} \sum_{klcd} v_{cd}^{kl} t_{il}^{da} (2 t_{kj}^{cb} - t_{kj}^{bc}) - \frac{1}{2} \sum_{klcd} v_{cd}^{kl} t_{jl}^{db} (2 t_{ki}^{ca} - t_{ki}^{ac}) \\
-+& \frac{1}{2} \sum_{klcd} \omega_{cd}^{kl} t_{il}^{ad} (2 t_{kj}^{cb} - t_{kj}^{bc}) + \frac{1}{2} \sum_{klcd} \omega_{cd}^{kl} t_{jl}^{bd} (2 t_{ki}^{ca} - t_{ki}^{ac})
-\end{align*}
-** 4
-\begin{align*}
-\omega_{ij}^{ab} k_{ic}^{ka} t_{kj}^{cb}=&
-\sum_{kc} v_{ic}^{ka} t_{kj}^{cb} + \sum_{kc} v_{jc}^{kb} t_{ki}^{ca}\\
--& \frac{1}{2} \sum_{klcd} v_{dc}^{kl} t_{il}^{da} t_{kj}^{cb} - \frac{1}{2} \sum_{klcd} v_{dc}^{kl} t_{jl}^{db} t_{ki}^{ca}
-\end{align*}
-** 5
-\begin{align*}
-\omega_{ij}^{ab} k_{ic}^{kb} t_{kj}^{ac}=&
-\sum_{kc} v_{ic}^{kb} t_{kj}^{ac} + \sum_{kc} v_{jc}^{ka} t_{ki}^{bc} \\
--& \frac{1}{2} \sum_{klcd} v_{dc}^{kl} t_{il}^{db} t_{kj}^{ac} - \frac{1}{2} \sum_{klcd} v_{dc}^{kl} t_{jl}^{da} t_{ki}^{bc}
+&+ \Omega_{ij}^{ab} [g_c^a t_{ij}^{cb} - g_i^k t_{kj}^{ab} + j_{ic}^{ak}(2 t_{kj}^{cb} - t_{kj}^{bc}) - k_{ic}^{ka} t_{kj}^{cb} - k_{ic}^{kb} t_{kj}^{ac}]
 \end{align*}
 
 ** Code
@@ -1002,11 +979,14 @@ program space_orb_ccd
   logical :: not_converged
 
   double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:), delta(:,:,:,:)
+  double precision, allocatable :: g_occ(:,:), g_vir(:,:), the_J(:,:,:,:), the_K(:,:,:,:)
   
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
   
   allocate(t2(nO,nO,nV,nV), r(nO,nO,nV,nV), delta(nO,nO,nV,nV))
+  allocate(g_occ(nO,nO), g_vir(nV,nV))
+  allocate(the_J(nO,nV,nV,nO), the_K(nO,nV,nO,nV))
   
   PROVIDE mo_two_e_integrals_in_map
 
@@ -1058,9 +1038,12 @@ program space_orb_ccd
     enddo
     energy = energy + hf_energy
     print*, 'E_CCD', energy
-#+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+    call compute_g_occ(t2,g_occ)
+    call compute_g_vir(t2,g_vir)
+    call compute_j(t2,the_J)
+    call compute_k(t2,the_K)
+
     ! Residual
     r = 0d0
     do b = 1, nV
@@ -1071,12 +1054,12 @@ program space_orb_ccd
           do i = 1, nO
 
             r(i,j,a,b) = r(i,j,a,b) &
-            + get_two_e_integral(i,j,tmp_a,tmp_b,mo_integrals_map)
+            + two_e_ints(i,j,tmp_a,tmp_b)
 
             do l = 1, nO
               do k = 1, nO
                 r(i,j,a,b) = r(i,j,a,b) &
-                + get_two_e_integral(i,j,k,l,mo_integrals_map) * t2(k,l,a,b)
+                + two_e_ints(i,j,k,l) * t2(k,l,a,b)
               enddo
             enddo
 
@@ -1085,35 +1068,8 @@ program space_orb_ccd
               do c = 1, nV
                 tmp_c = c + nO
                 r(i,j,a,b) = r(i,j,a,b) &
-                + get_two_e_integral(tmp_c,tmp_d,tmp_a,tmp_b,mo_integrals_map) * t2(i,j,c,d)
+                + two_e_ints(tmp_c,tmp_d,tmp_a,tmp_b) * t2(i,j,c,d)
               enddo
-            enddo
-
-            do d = 1, nV
-              tmp_d = d + nO
-              do c = 1, nV
-                tmp_c = c + nO
-                do l = 1, nO
-                  do k = 1, nO
-                    r(i,j,a,b) = r(i,j,a,b) &
-                    + get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) * t2(i,j,c,d) * t2(k,l,a,b)
-                  enddo
-                enddo
-              enddo
-            enddo
-#+END_SRC
-
-#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
-            ! 2
-            do c = 1, nV
-              tmp_c = c + nO
-              r(i,j,a,b) = r(i,j,a,b) + fock_matrix_mo(tmp_c,tmp_a) * t2(i,j,c,b) &
-                                      + fock_matrix_mo(tmp_c,tmp_b) * t2(j,i,c,a)
-            enddo
-
-            do k = 1, nO
-              r(i,j,a,b) = r(i,j,a,b) - fock_matrix_mo(i,k) * t2(k,j,a,b) &
-                                      - fock_matrix_mo(j,k) * t2(k,i,b,a)
             enddo
 
              do d = 1, nV
@@ -1123,92 +1079,33 @@ program space_orb_ccd
                 do l = 1, nO
                   do k = 1, nO
                     r(i,j,a,b) = r(i,j,a,b) &
-                    - (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) - get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(i,l,c,d) * t2(i,j,c,b) &
-                    - (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) - get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(j,l,c,d) * t2(j,i,c,a) &
-                    + (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) - get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(i,l,c,d) * t2(k,j,a,b) &
-                    + (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) - get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(j,l,c,d) * t2(k,i,b,a)
+                    + two_e_ints(tmp_c,tmp_d,k,l) * t2(i,j,c,d) * t2(k,l,a,b)
                   enddo
                 enddo
               enddo
             enddo
-#+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
-           ! 3
-           do c = 1, nV
-             tmp_c = c + nO
-             do k = 1, nO
-               r(i,j,a,b) = r(i,j,a,b) &
-               + get_two_e_integral(i,tmp_c,tmp_a,k,mo_integrals_map) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) &
-               + get_two_e_integral(j,tmp_c,tmp_b,k,mo_integrals_map) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c))
-             enddo
-           enddo
-           
-           do d = 1, nV
-             tmp_d = d + nO
-             do c = 1, nV
-               tmp_c = c + nO
-               do l = 1, nO
-                 do k = 1, nO
-                   r(i,j,a,b) = r(i,j,a,b) &
-                   - 0.5d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) * t2(i,l,d,a) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) &
-                   - 0.5d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) * t2(j,l,d,b) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c)) &
-                   + 0.5d0 * (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) -  get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(i,l,a,d) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) &
-                   + 0.5d0 * (2d0 * get_two_e_integral(tmp_c,tmp_d,k,l,mo_integrals_map) -  get_two_e_integral(tmp_c,tmp_d,l,k,mo_integrals_map)) * t2(j,l,b,d) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c))
-                  enddo
-                enddo
-              enddo
+            do c = 1, nV
+              tmp_c = c + nO
+              r(i,j,a,b) = r(i,j,a,b) &
+              + g_vir(c,a) * t2(i,j,c,b) + g_vir(c,b) * t2(j,i,c,a)
             enddo
-#+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
-           !4
-           do c = 1, nV
-             tmp_c = c + nO
-             do k = 1, nO
-               r(i,j,a,b) = r(i,j,a,b) &
-               + get_two_e_integral(i,tmp_c,k,tmp_a,mo_integrals_map) * t2(k,j,c,b) &
-               + get_two_e_integral(j,tmp_c,k,tmp_b,mo_integrals_map) * t2(k,i,c,a)
-             enddo
-           enddo
-           
-           do d = 1, nV
-             tmp_d = d + nO
-             do c = 1, nV
-               tmp_c = c + nO
-               do l = 1, nO
-                 do k = 1, nO
-                   r(i,j,a,b) = r(i,j,a,b) &
-                   - 0.5d0 * get_two_e_integral(tmp_d,tmp_c,k,l,mo_integrals_map) * t2(i,l,d,a) * t2(k,j,c,b) &
-                   - 0.5d0 * get_two_e_integral(tmp_d,tmp_c,k,l,mo_integrals_map) * t2(j,l,d,b) * t2(k,i,c,a)
-                  enddo
-                enddo
-              enddo
+            do k = 1, nO
+              r(i,j,a,b) = r(i,j,a,b) &
+              - g_occ(i,k) * t2(k,j,a,b) - g_occ(j,k) * t2(k,i,b,a)
             enddo
-#+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
-           !5
-           do c = 1, nV
-             tmp_c = c + nO
-             do k = 1, nO
-               r(i,j,a,b) = r(i,j,a,b) &
-               + get_two_e_integral(i,tmp_c,k,tmp_b,mo_integrals_map) * t2(k,j,a,c) &
-               + get_two_e_integral(j,tmp_c,k,tmp_a,mo_integrals_map) * t2(k,i,b,c)
-             enddo
-           enddo
-
-           do d = 1, nV
-             tmp_d = d + nO
-             do c = 1, nV
-               tmp_c = c + nO
-               do l = 1, nO
-                 do k = 1, nO
-                   r(i,j,a,b) = r(i,j,a,b) &
-                   - 0.5d0 * get_two_e_integral(tmp_d,tmp_c,k,l,mo_integrals_map) * t2(i,l,d,b) * t2(k,j,a,c) &
-                   - 0.5d0 * get_two_e_integral(tmp_d,tmp_c,k,l,mo_integrals_map) * t2(j,l,d,a) * t2(k,i,b,c)
-                  enddo
-                enddo
+            do c = 1, nV
+              tmp_c = c + nO
+              do k = 1, nO
+                r(i,j,a,b) = r(i,j,a,b) &
+                + the_J(i,c,a,k) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) &
+                + the_J(j,c,b,k) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c)) &
+                - the_K(i,c,k,a) * t2(k,j,c,b) &
+                - the_K(j,c,k,b) * t2(k,i,c,a) &
+                - the_K(i,c,k,b) * t2(k,j,a,c) &
+                - the_K(j,c,k,a) * t2(k,i,b,c)
               enddo
             enddo
            
@@ -1245,8 +1142,169 @@ program space_orb_ccd
     nb_iter = nb_iter + 1
   enddo 
 
-  deallocate(t2,r,delta) 
+  deallocate(t2,r,delta)
+  deallocate(g_occ,g_vir,the_J, the_K)
 
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine compute_g_occ(t2,g_occ)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_occ(dim_list_act_orb, dim_list_act_orb)
+
+  integer :: i,j,k,l,c,d,tmp_c,tmp_d
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_occ = 0d0
+  
+  do k = 1, nO
+    do i = 1, nO
+
+      g_occ(i,k) = g_occ(i,k) + fock_matrix_mo(i,k)
+
+      do d = 1, nV
+        tmp_d = d + nO
+        do c = 1, nV
+          tmp_c = c + nO
+          do l = 1, nO
+            g_occ(i,k) = g_occ(i,k) &
+            + (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,c,d)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine compute_g_vir(t2,g_vir)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_vir = 0d0
+  
+  do a = 1, nV
+    tmp_a = a + nO
+    do c = 1, nV
+      tmp_c = c + nO
+
+      g_vir(c,a) = g_vir(c,a) + fock_matrix_mo(tmp_c,tmp_a)
+
+      do d = 1, nV
+        tmp_d = d + nO
+        do l = 1, nO
+          do k = 1, nO
+            g_vir(c,a) = g_vir(c,a) &
+            - (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(k,l,a,d)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine compute_j(t2,the_J)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: the_j(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  the_J = 0d0
+
+  do k = 1, nO
+    do a = 1, nV
+      tmp_a = a + nO
+      do c = 1, nV
+        tmp_c = c + nO
+        do i = 1, nO
+          the_J(i,c,a,k) = the_J(i,c,a,k) &
+          + two_e_ints(i,tmp_c,tmp_a,k)
+
+          do d = 1, nV
+            tmp_d = d + nO
+            do l = 1, nO
+              the_J(i,c,a,k) = the_J(i,c,a,k) &
+              - 0.5d0 * two_e_ints(tmp_c,tmp_d,k,l) * t2(i,l,d,a) &
+              + 0.5d0 * (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,a,d)
+            enddo
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine compute_k(t2,the_K)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: the_K(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  the_K = 0d0
+
+  do a = 1, nV
+    tmp_a = a + nO
+    do k = 1, nO
+      do c = 1, nV
+        tmp_c = c + nO
+        do i = 1, nO
+          the_K(i,c,k,a) = the_K(i,c,k,a) &
+          + two_e_ints(i,tmp_c,k,tmp_a)
+
+          do d = 1, nV
+            tmp_d = d + nO
+            do l = 1, nO
+              the_K(i,c,k,a) = the_K(i,c,k,a) &
+              - 0.5d0 * two_e_ints(tmp_d,tmp_c,k,l) * t2(i,l,d,a)
+            enddo
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+  
 end
 #+END_SRC
 

@@ -452,6 +452,274 @@ subroutine space_ccd_X3(t2,X3)
 end
 #+END_SRC
 
+** G1
+\begin{align*}
+G1_{ij}^{ab} &= \sum_k gocc_{i}^{k} t2_{kj}^{ab} \\
+&= \text{reshape}((nO,nO*nV*nV) \rightarrow (nO,nO,nV,nV)) \sum_k gocc_{i}^{k} t2_{k}^{jab}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_G1(t2,g_occ,G1)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(out) :: G1(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_G1(:,:)
+
+  allocate(tmp_G1(nO,nO*nV*nV))
+
+  ! G1_{ij}^{ab} &= \sum_k gocc_{i}^{k} t2_{kj}^{ab}
+  !G1 = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          G1(i,j,a,b) = G1(i,j,a,b) + g_occ(i,k) * t2(k,j,a,b)
+  !         enddo
+  !       enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO, nO*nV*nV, nO,&
+             1d0, g_occ, size(g_occ,1), &
+             t2, size(t2,1), &
+             0d0, tmp_G1, size(tmp_G1,1))
+
+  ! (nO,nO*nV*nV) ->  (nO,nO,nV,nV)
+  G1 = reshape(tmp_G1,(/nO,nO,nV,nV/))
+  
+  deallocate(tmp_G1)
+
+end
+#+END_SRC
+
+** G2
+\begin{align*}
+G2_{ij}^{ab} &= \sum_k gocc_j^k t2_{ki}^{ba} \\
+accu_{ji}^{ab} &= ( \text{reshape}((nO,nO*nV*nV) \rightarrow (nO,nO,nV,nV)) \sum_k gocc_j^k tmpt2_{k}^{iba} ) \\
+G2_{ij}^{ab} &= accu_{ji}^{ab}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_G2(t2,g_occ,G2)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(out) :: G2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_G2(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:) 
+
+  allocate(tmp_G2(nO,nO*nV*nV), tmp_t2(nO,nO,nV,nV), accu(nO,nO,nV,nV))
+
+  ! a <-> b
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          tmp_t2(i,j,a,b) = t2(i,j,b,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! G2_{i,j}^{a,b} &= \sum_k gocc_j^k t2_{ki}^{ba}
+  !G2 = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do i = 1, nO
+  !      do j = 1, nO
+  !        do k = 1, nO
+  !          G2(i,j,a,b) = G2(i,j,a,b) + g_occ(j,k) * t2(k,i,b,a)
+  !          !G2(i,j,a,b) = G2(i,j,a,b) + g_occ(j,k) * tmp_t2(k,i,a,b)
+  !         enddo
+  !       enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nO, nO*nV*nV, nO,&
+             1d0, g_occ, size(g_occ,1), &
+             tmp_t2, size(tmp_t2,1), &
+             0d0, tmp_G2, size(tmp_G2,1))
+
+  ! (nO,nO*nV*nV) ->  (nO,nO,nV,nV)
+  accu = reshape(tmp_G2,(/nO,nO,nV,nV/))
+
+  !! i <-> j
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          G2(i,j,a,b) = accu(j,i,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  deallocate(tmp_G2,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** G3
+\begin{align*}
+G3_{ij}^{ab} &= \sum_c gvir_c^a * t2_{ij}^{cb} \\
+accu_{ij}^{ba} &= \text{reshape}((nO*nO*nV,nV) \leftrightarrow (nO,nO,nV,nV)), \sum_c tmpt2_{ijb}^{c} gvir_{c}^{a}) \\
+G3_{ij}^{ab} &= accu_{ij}^{ba} 
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_G3(t2,g_vir,G3)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: G3(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_G3(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_G3(nO*nO*nV,nV), accu(nO,nO,nV,nV), tmp_t2(nO,nO,nV,nV))
+
+  ! b <-> a
+  do a = 1, nV
+    do b = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+         tmp_t2(i,j,b,a) = t2(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  ! G3_{ij}^{ab} &= \sum_c gvir_c^a * t2_{ij}^{cb}
+  !G3 = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do c = 1, nV
+  !          !G3(i,j,a,b) = G3(i,j,a,b) + g_vir(c,a) * t2(i,j,c,b)
+  !          G3(i,j,a,b) = G3(i,j,a,b) + tmp_t2(i,j,b,c) * g_vir(c,a)
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nO*nV, nV, nV,&
+             1d0, tmp_t2, size(tmp_t2,1) * size(tmp_t2,2) * size(tmp_t2,3), &
+             g_vir, size(g_vir,1), &
+             0d0, tmp_G3, size(tmp_G3,1))
+
+  ! (nO,nO*nV*nV) ->  (nO,nO,nV,nV)
+  accu = reshape(tmp_G3,(/nO,nO,nV,nV/))
+
+  ! a <-> b
+  do a = 1, nV
+    do b = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          G3(i,j,a,b) = accu(i,j,b,a)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  deallocate(tmp_G3,accu,tmp_t2)
+
+end
+#+END_SRC
+
+** G4
+\begin{align*}
+G4_{ij}^{ab} &= \sum_c gvir_c^b * t2_{ji}^{ca} \\
+G4_{ij}^{ab} &= \text{reshape}((nO*nO*nV,nV) \leftrightarrow (nO,nO,nV,nV)), \sum_c tmpt2_{ija}^{c} gvir_c^b) \\
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_G4(t2,g_vir,G4)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: G4(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_G4(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_G4(nO*nO*nV,nV), accu(nO,nO,nV,nV), tmp_t2(nO,nO,nV,nV))
+
+  ! b <-> a
+  do a = 1, nV
+    do b = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+         tmp_t2(i,j,a,b) = t2(j,i,b,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! 
+  !G4 = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do c = 1, nV
+  !          !G4(i,j,a,b) = G4(i,j,a,b) + g_vir(c,b) * t2(j,i,c,a)
+  !          G4(i,j,a,b) = G4(i,j,a,b) + tmp_t2(i,j,a,c) * g_vir(c,b)
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nO*nV, nV, nV,&
+             1d0, tmp_t2, size(tmp_t2,1) * size(tmp_t2,2) * size(tmp_t2,3), &
+             g_vir, size(g_vir,1), &
+             0d0, tmp_G4, size(tmp_G4,1))
+
+  ! (nO,nO*nV*nV) ->  (nO,nO,nV,nV)
+  G4 = reshape(tmp_G4,(/nO,nO,nV,nV/))
+
+  deallocate(tmp_G4,accu,tmp_t2)
+
+end
+#+END_SRC
+
 ** Residue
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
@@ -470,15 +738,22 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
   integer :: nO, nV
 
   double precision, allocatable :: X1(:,:,:,:), X2(:,:,:,:), X3(:,:,:,:)
+  double precision, allocatable :: G1(:,:,:,:), G2(:,:,:,:), G3(:,:,:,:), G4(:,:,:,:)
   
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  allocate(X1(nO,nO,nV,nV),X2(nO,nO,nV,nV),X3(nO,nO,nV,nV))
+  allocate(X1(nO,nO,nV,nV), X2(nO,nO,nV,nV),X3(nO,nO,nV,nV))
+  allocate(G1(nO,nO,nV,nV), G2(nO,nO,nV,nV))
+  allocate(G3(nO,nO,nV,nV), G4(nO,nO,nV,nV))
 
   call space_ccd_X1(t2,X1)
   call space_ccd_X2(t2,X2)
   call space_ccd_X3(t2,X3)
+  call space_ccd_G1(t2,g_occ,G1)
+  call space_ccd_G2(t2,g_occ,G2)
+  call space_ccd_G3(t2,g_vir,G3)
+  call space_ccd_G4(t2,g_vir,G4)
   
   r = 0d0 
 
@@ -528,16 +803,22 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
           !  enddo
           !enddo
 
-          do c = 1, nV
-            tmp_c = c + nO
-            r(i,j,a,b) = r(i,j,a,b) &
-            + g_vir(c,a) * t2(i,j,c,b) + g_vir(c,b) * t2(j,i,c,a)
-          enddo
+          ! G3, G4
+          r(i,j,a,b) = r(i,j,a,b) + G3(i,j,a,b) + G4(i,j,a,b)
+          !do c = 1, nV
+          !  tmp_c = c + nO
+          !  r(i,j,a,b) = r(i,j,a,b) &
+          !  + g_vir(c,a) * t2(i,j,c,b) &
+          !  + g_vir(c,b) * t2(j,i,c,a)
+          !enddo
 
-          do k = 1, nO
-            r(i,j,a,b) = r(i,j,a,b) &
-            - g_occ(i,k) * t2(k,j,a,b) - g_occ(j,k) * t2(k,i,b,a)
-          enddo
+          ! G1, G2
+          r(i,j,a,b) = r(i,j,a,b) - G1(i,j,a,b) - G2(i,j,a,b)
+          !do k = 1, nO
+          !  r(i,j,a,b) = r(i,j,a,b) &
+          !  - g_occ(i,k) * t2(k,j,a,b)
+          !  - g_occ(j,k) * t2(k,i,b,a)
+          !enddo
 
           do c = 1, nV
             tmp_c = c + nO
@@ -557,7 +838,8 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
     enddo
   enddo
 
-  deallocate(X1)
+  deallocate(X1,X2,X3)
+  deallocate(G1,G2,G3,G4)
   
 end
 #+END_SRC

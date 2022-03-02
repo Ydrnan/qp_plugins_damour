@@ -720,6 +720,491 @@ subroutine space_ccd_G4(t2,g_vir,G4)
 end
 #+END_SRC
 
+** J1a
+\begin{align*}
+J1a_{ij}^{ab} = J1_{ic}^{ak} (2 t2_{kj}^{cb} - t2_{kj}^{bc})
+\end{align*}
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_J1a(t2,J1,J1a)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+  double precision, intent(out) :: J1a(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_J1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_J1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do a = 1, nV
+        do i = 1, nO
+           tmp_J1(i,a,k,c) = J1(i,c,a,k) 
+         enddo
+      enddo
+    enddo
+  enddo
+
+  do b = 1, nV
+    do j = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,j,b) = 2d0 * t2(k,j,c,b) - t2(k,j,b,c)
+         enddo
+      enddo
+    enddo
+  enddo  
+
+  ! J1a_{ij}^{ab} = J1_{ic}^{ak} (2 t2_{kj}^{cb} - t2_{kj}^{bc})
+  !J1a = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            !J1a(i,j,a,b) = J1a(i,j,a,b) + J1(i,c,a,k) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c))
+  !            J1a(i,j,a,b) = J1a(i,j,a,b) + tmp_J1(i,a,k,c) * tmp_t2(k,c,j,b)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_J1, size(tmp_J1,1) * size(tmp_J1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          J1a(i,j,a,b) = accu(i,a,j,b)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_J1,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** J1b
+\begin{align*}
+J1b_{ij}^{ab} = \sum_{kc} J1_{jc}^{bk} (2 t2_{ki}^{ca} - t2_{ki}^{ac})
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_J1b(t2,J1,J1b)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+  double precision, intent(out) :: J1b(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_J1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_J1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do b = 1, nV
+        do j = 1, nO
+           tmp_J1(j,b,k,c) =  J1(j,c,b,k)
+         enddo
+      enddo
+    enddo
+  enddo
+
+  do a = 1, nV
+    do i = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,i,a) = 2d0 * t2(k,i,c,a) - t2(k,i,a,c)
+         enddo
+      enddo
+    enddo
+  enddo  
+
+  ! J1b_{ij}^{ab} = \sum_{kc} J1_{jc}^{bk} (2 t2_{ki}^{ca} - t2_{ki}^{ac})
+  !J1b = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            J1b(i,j,a,b) = J1b(i,j,a,b) + J1(j,c,b,k) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c))
+  !            !J1b(i,j,a,b) = J1b(i,j,a,b) + tmp_J1(j,b,k,c) * tmp_t2(k,c,i,a)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_J1, size(tmp_J1,1) * size(tmp_J1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          J1b(i,j,a,b) = accu(j,b,i,a)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_J1,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** K1a
+\begin{align*}
+K1a_{ij}^{ab} = \sum_{ck} K1_{ic}^{ka} * t2_{kj}^{cb}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_K1a(t2,K1,K1a)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1a(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_K1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do a = 1, nV
+        do i = 1, nO
+          tmp_k1(i,a,k,c) = K1(i,c,k,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do b = 1, nV
+    do j = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,j,b) = t2(k,j,c,b)
+         enddo
+      enddo
+    enddo
+  enddo  
+
+  ! K1a_{ij}^{ab} = \sum_{ck} K1_{ic}^{ka} * t2_{kj}^{cb}
+  !K1a = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            !K1a(i,j,a,b) = K1a(i,j,a,b) + K1(i,c,k,a) * t2(k,j,c,b)
+  !            K1a(i,j,a,b) = K1a(i,j,a,b) + tmp_k1(i,a,k,c) * tmp_t2(k,c,j,b)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_K1, size(tmp_K1,1) * size(tmp_K1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          K1a(i,j,a,b) = accu(i,a,j,b)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_K1,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** K1b
+\begin{align*}
+K1b_{ij}^{ab} = \sum_{kc} K1_{jc}^{kb} t2_{ki}^{ca}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_K1b(t2,K1,K1b)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1b(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_K1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do b = 1, nV
+        do j = 1, nO
+          tmp_k1(j,b,k,c) = K1(j,c,k,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do a = 1, nV
+    do i = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,i,a) = t2(k,i,c,a)
+         enddo
+      enddo
+    enddo
+  enddo  
+
+  ! K1b_{ij}^{ab} = \sum_{kc} K1_{jc}^{kb} t2_{ki}^{ca}
+  !K1b = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            !K1b(i,j,a,b) = K1b(i,j,a,b) + K1(j,c,k,b) * t2(k,i,c,a)
+  !            K1b(i,j,a,b) = K1b(i,j,a,b) + tmp_k1(j,b,k,c) * tmp_t2(k,c,i,a)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_K1, size(tmp_K1,1) * size(tmp_K1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          K1b(i,j,a,b) = accu(j,b,i,a)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_K1,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** K1c
+\begin{align*}
+K1c_{ij}^{ab} = \sum_{kc} K1_{ic}^{kb} t2_{kj}^{ac}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_K1c(t2,K1,K1c)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1c(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_K1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do b = 1, nV
+        do i = 1, nO
+          tmp_k1(i,b,k,c) = K1(i,c,k,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do a = 1, nV
+    do j = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,j,a) = t2(k,j,a,c)
+         enddo
+      enddo
+    enddo
+  enddo  
+
+  ! K1c_{ij}^{ab} = \sum_{kc} K1_{ic}^{kb} t2_{kj}^{ac}
+  !K1c = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            !K1c(i,j,a,b) = K1c(i,j,a,b) +  K1(i,c,k,b) * t2(k,j,a,c)
+  !            K1c(i,j,a,b) = K1c(i,j,a,b) + tmp_k1(i,b,k,c) * tmp_t2(k,c,j,a)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_K1, size(tmp_K1,1) * size(tmp_K1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          K1c(i,j,a,b) = accu(i,b,j,a)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_K1,tmp_t2,accu)
+
+end
+#+END_SRC
+
+** K1d
+\begin{align*}
+K1d_{ij}^{ab} = \sum_{kc} K1_{jc}^{ka} t2_{ki}^{bc}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
+subroutine space_ccd_K1d(t2,K1,K1d)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1d(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: i,j,k,l,a,b,c,d
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+
+  allocate(tmp_K1(nO,nV,nO,nV), tmp_t2(nO,nV,nO,nV), accu(nO,nV,nO,nV))
+
+  do c = 1, nV
+    do k = 1, nO
+      do a = 1, nV
+        do j = 1, nO
+          tmp_k1(j,a,k,c) = K1(j,c,k,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do b = 1, nV
+    do i = 1, nO
+      do c = 1, nV
+        do k = 1, nO
+           tmp_t2(k,c,i,b) = t2(k,i,b,c)
+        enddo
+      enddo
+    enddo
+  enddo  
+
+  ! K1d_{ij}^{ab} = \sum_{kc} K1_{jc}^{ka} t2_{ki}^{bc}
+  !K1d = 0d0
+  !do b = 1, nV
+  !  do a = 1, nV
+  !    do j = 1, nO
+  !      do i = 1, nO
+  !        do k = 1, nO
+  !          do c = 1, nV
+  !            !K1d(i,j,a,b) = K1d(i,j,a,b) + K1(j,c,k,a) * t2(k,i,b,c)
+  !            K1d(i,j,a,b) = K1d(i,j,a,b) + tmp_k1(j,a,k,c) * tmp_t2(k,c,i,b)
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N', nO*nV, nO*nV, nO*nV, &
+             1d0, tmp_K1, size(tmp_K1,1) * size(tmp_K1,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          K1d(i,j,a,b) = accu(j,a,i,b)
+        enddo
+      enddo
+    enddo
+  enddo
+        
+  deallocate(tmp_K1,tmp_t2,accu)
+
+end
+#+END_SRC
+
 ** Residue
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
@@ -739,13 +1224,18 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
 
   double precision, allocatable :: X1(:,:,:,:), X2(:,:,:,:), X3(:,:,:,:)
   double precision, allocatable :: G1(:,:,:,:), G2(:,:,:,:), G3(:,:,:,:), G4(:,:,:,:)
+  double precision, allocatable :: J1a(:,:,:,:), J1b(:,:,:,:)
+  double precision, allocatable :: K1a(:,:,:,:), K1b(:,:,:,:), K1c(:,:,:,:), K1d(:,:,:,:)
   
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  allocate(X1(nO,nO,nV,nV), X2(nO,nO,nV,nV),X3(nO,nO,nV,nV))
+  allocate(X1(nO,nO,nV,nV), X2(nO,nO,nV,nV), X3(nO,nO,nV,nV))
   allocate(G1(nO,nO,nV,nV), G2(nO,nO,nV,nV))
   allocate(G3(nO,nO,nV,nV), G4(nO,nO,nV,nV))
+  allocate(J1a(nO,nO,nV,nV), J1b(nO,nO,nV,nV))
+  allocate(K1a(nO,nO,nV,nV), K1b(nO,nO,nV,nV))
+  allocate(K1c(nO,nO,nV,nV), K1d(nO,nO,nV,nV))
 
   call space_ccd_X1(t2,X1)
   call space_ccd_X2(t2,X2)
@@ -754,6 +1244,12 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
   call space_ccd_G2(t2,g_occ,G2)
   call space_ccd_G3(t2,g_vir,G3)
   call space_ccd_G4(t2,g_vir,G4)
+  call space_ccd_J1a(t2,J1,J1a)
+  call space_ccd_J1b(t2,J1,J1b)
+  call space_ccd_K1a(t2,K1,K1a)
+  call space_ccd_K1b(t2,K1,K1b)
+  call space_ccd_K1c(t2,K1,K1c)
+  call space_ccd_K1d(t2,K1,K1d) 
   
   r = 0d0 
 
@@ -808,30 +1304,35 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
           !do c = 1, nV
           !  tmp_c = c + nO
           !  r(i,j,a,b) = r(i,j,a,b) &
-          !  + g_vir(c,a) * t2(i,j,c,b) &
-          !  + g_vir(c,b) * t2(j,i,c,a)
+          !  + g_vir(c,a) * t2(i,j,c,b) & ! G3
+          !  + g_vir(c,b) * t2(j,i,c,a)   ! G4
           !enddo
 
           ! G1, G2
           r(i,j,a,b) = r(i,j,a,b) - G1(i,j,a,b) - G2(i,j,a,b)
           !do k = 1, nO
           !  r(i,j,a,b) = r(i,j,a,b) &
-          !  - g_occ(i,k) * t2(k,j,a,b)
-          !  - g_occ(j,k) * t2(k,i,b,a)
+          !  - g_occ(i,k) * t2(k,j,a,b) ! G1
+          !  - g_occ(j,k) * t2(k,i,b,a) ! G2
           !enddo
 
-          do c = 1, nV
-            tmp_c = c + nO
-            do k = 1, nO
-              r(i,j,a,b) = r(i,j,a,b) &
-              + J1(i,c,a,k) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) &
-              + J1(j,c,b,k) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c)) &
-              - K1(i,c,k,a) * t2(k,j,c,b) &
-              - K1(j,c,k,b) * t2(k,i,c,a) &
-              - K1(i,c,k,b) * t2(k,j,a,c) &
-              - K1(j,c,k,a) * t2(k,i,b,c)
-            enddo
-          enddo
+          ! J1a, J1b, K1a, K1b, K1c, K1d
+          r(i,j,a,b) = r(i,j,a,b) &
+          + J1a(i,j,a,b) + J1b(i,j,a,b) &
+          - K1a(i,j,a,b) - k1b(i,j,a,b) &
+          - K1c(i,j,a,b) - K1d(i,j,a,b)
+          !do c = 1, nV
+          !  tmp_c = c + nO
+          !  do k = 1, nO
+          !    r(i,j,a,b) = r(i,j,a,b) &
+          !    + J1(i,c,a,k) * (2d0 * t2(k,j,c,b) - t2(k,j,b,c)) & ! J1a
+          !    + J1(j,c,b,k) * (2d0 * t2(k,i,c,a) - t2(k,i,a,c)) & ! J1b
+          !    - K1(i,c,k,a) * t2(k,j,c,b) & ! K1a
+          !    - K1(j,c,k,b) * t2(k,i,c,a) & ! K1b
+          !    - K1(i,c,k,b) * t2(k,j,a,c) & ! K1c
+          !    - K1(j,c,k,a) * t2(k,i,b,c)   ! K1d
+          !  enddo
+          !enddo
          
         enddo
       enddo

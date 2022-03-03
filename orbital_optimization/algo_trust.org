@@ -268,7 +268,7 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
 
   ! Provide the criterion, but unnecessary because it's done 
   ! automatically
-  PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVDIDER
+  PROVIDE C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER
 
   ! Initialization
   delta = 0d0 

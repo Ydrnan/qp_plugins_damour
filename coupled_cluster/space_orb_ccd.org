@@ -165,7 +165,8 @@ subroutine space_ccd_energy(t2,e_ccd)
       tmp_a = a + nO
       do j = 1, nO
         do i = 1, nO
-          e_ccd = e_ccd + t2(i,j,a,b) * (2d0 * two_e_ints(i,j,tmp_a,tmp_b) - two_e_ints(i,j,tmp_b,tmp_a))
+          !e_ccd = e_ccd + t2(i,j,a,b) * (2d0 * two_e_ints(i,j,tmp_a,tmp_b) - two_e_ints(i,j,tmp_b,tmp_a))
+          e_ccd = e_ccd + t2(i,j,a,b) * w_oovv(i,j,a,b)
         enddo
       enddo
     enddo
@@ -1341,11 +1342,16 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
 
   deallocate(X1,X2,X3)
   deallocate(G1,G2,G3,G4)
+  deallocate(J1a,J1b,K1a,K1b,K1c,K1d)
   
 end
 #+END_SRC
 
 ** g_occ
+\begin{align*}
+Gocc_i^k = foo_i^k + \sum_{lcd} t2_{il}^{cd} * tmpW_{lc}^{dk}
+\end{align*}
+
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_g_occ(t2,g_occ)
 
@@ -1357,35 +1363,67 @@ subroutine space_ccd_g_occ(t2,g_occ)
   integer :: i,j,k,l,c,d,tmp_c,tmp_d
   integer :: nO,nV
 
+  double precision, allocatable :: tmp_w(:,:,:,:)
+  
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  g_occ = 0d0
-  
+  allocate(tmp_w(nO,nV,nV,nO))
+
   do k = 1, nO
-    do i = 1, nO
-
-      g_occ(i,k) = g_occ(i,k) + fock_matrix_mo(i,k)
-
-      do d = 1, nV
-        tmp_d = d + nO
-        do c = 1, nV
-          tmp_c = c + nO
-          do l = 1, nO
-            g_occ(i,k) = g_occ(i,k) &
-            + w_vvoo(c,d,k,l) * t2(i,l,c,d)
-            !+ (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,c,d)
-          enddo
+    do d = 1, nV
+      do c = 1, nV
+        do l = 1, nO
+          tmp_w(l,c,d,k) = w_vvoo(c,d,k,l)
         enddo
       enddo
-      
     enddo
   enddo
+
+  ! Gocc_i^k = foo_i^k + \sum_{lcd} t2_{il}^{cd} * tmpW_{lc}^{dk}
+  !g_occ = 0d0
+  !do k = 1, nO
+  !  do i = 1, nO
+
+  !    g_occ(i,k) = g_occ(i,k) + fock_matrix_mo(i,k)
+
+  !    do d = 1, nV
+  !      tmp_d = d + nO
+  !      do c = 1, nV
+  !        tmp_c = c + nO
+  !        do l = 1, nO
+  !          g_occ(i,k) = g_occ(i,k) &
+  !          + t2(i,l,c,d) * tmp_w(l,c,d,k)
+  !          !+ w_vvoo(c,d,k,l) * t2(i,l,c,d)
+  !          !!+ (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,c,d)
+  !        enddo
+  !      enddo
+  !    enddo
+  !    
+  !  enddo
+  !enddo
+
+  do k = 1, nO
+    do i = 1, nO
+      g_occ(i,k) = f_oo(i,k)
+    enddo
+  enddo
+  
+  call dgemm('N','N', nO, nO, nO*nV*nV, &
+             1d0, t2, size(t2,1), &
+             tmp_W, size(tmp_w,1) * size(tmp_w,2) * size(tmp_w,3), &
+             1d0, g_occ, size(g_occ,1))
+  
+  deallocate(tmp_W)
   
 end
 #+END_SRC
 
 ** g_vir
+\begin{align*}
+Gvir_c^a = fvv_c^a - \sum_{d,k,l} Wvvoo_{cd}^{kl} tmpt2_{dk}^{la}
+\end{align*}
+
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_g_vir(t2,g_vir)
 
@@ -1397,36 +1435,68 @@ subroutine space_ccd_g_vir(t2,g_vir)
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d
   integer :: nO,nV
 
+  double precision, allocatable :: tmp_t2(:,:,:,:)
+  
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  g_vir = 0d0
-  
+  allocate(tmp_t2(nV,nO,nO,nV))
+
   do a = 1, nV
-    tmp_a = a + nO
-    do c = 1, nV
-      tmp_c = c + nO
-
-      g_vir(c,a) = g_vir(c,a) + fock_matrix_mo(tmp_c,tmp_a)
-
-      do d = 1, nV
-        tmp_d = d + nO
-        do l = 1, nO
-          do k = 1, nO
-            g_vir(c,a) = g_vir(c,a) &
-            - w_vvoo(c,d,k,l) * t2(k,l,a,d)
-            !- (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(k,l,a,d)
-          enddo
+    do l = 1, nO
+      do k = 1, nO
+        do d = 1, nV
+          tmp_t2(d,k,l,a) =  t2(k,l,a,d)
         enddo
       enddo
-      
     enddo
   enddo
+
+  ! Gvir_c^a = fvv_c^a - \sum_{d,k,l} Wvvoo_{cd}^{kl} tmpt2_{dk}^{la}
+  !g_vir = 0d0
+  !do a = 1, nV
+  !  tmp_a = a + nO
+  !  do c = 1, nV
+  !    tmp_c = c + nO
+
+  !    g_vir(c,a) = g_vir(c,a) + fock_matrix_mo(tmp_c,tmp_a)
+
+  !    do d = 1, nV
+  !      tmp_d = d + nO
+  !      do l = 1, nO
+  !        do k = 1, nO
+  !          g_vir(c,a) = g_vir(c,a) &
+  !          - w_vvoo(c,d,k,l) * tmp_t2(d,k,l,a)
+  !          !- w_vvoo(c,d,k,l) * t2(k,l,a,d)
+  !          !!- (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(k,l,a,d)
+  !        enddo
+  !      enddo
+  !    enddo
+  !    
+  !  enddo
+  !enddo
+
+  do a = 1, nV
+    do c = 1, nV
+      g_vir(c,a) = f_vv(c,a)
+    enddo
+  enddo
+
+  call dgemm('N','N', nV, nV, nV*nO*nO, &
+             -1d0, w_vvoo, size(w_vvoo,1), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2) * size(tmp_t2,3), &
+             1d0, g_vir, size(g_vir,1))
+
+  deallocate(tmp_t2)
   
 end
 #+END_SRC
 
 ** J1
+\begin{align*}
+J1(i,c,a,k) = Vovvo_{ic}^{ak} \sum_{dl} - 0.5 Vvvoo_{cd}^{kl} t2{il}^{da} + 0.5 Wvvoo_{cd}^{kl} t2_{il}^{ad}
+\end{align*}
+
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_J1(t2,J1)
 
@@ -1438,40 +1508,114 @@ subroutine space_ccd_J1(t2,J1)
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
   integer :: nO,nV
 
+  double precision, allocatable :: tmp_v(:,:,:,:), tmp_w(:,:,:,:)
+  double precision, allocatable :: tmp_t2_1(:,:,:,:), tmp_t2_2(:,:,:,:), accu(:,:,:,:)
+
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  J1 = 0d0
+  allocate(tmp_v(nV,nO,nV,nO), tmp_w(nV,nO,nV,nO))
+  allocate(tmp_t2_1(nV,nO,nO,nV), tmp_t2_2(nV,nO,nO,nV))
+  allocate(accu(nV,nO,nO,nV))
 
-  do k = 1, nO
-    do a = 1, nV
-      tmp_a = a + nO
-      do c = 1, nV
-        tmp_c = c + nO
-        do i = 1, nO
-          J1(i,c,a,k) = J1(i,c,a,k) &
-          + two_e_ints(i,tmp_c,tmp_a,k)
-
-          do d = 1, nV
-            tmp_d = d + nO
-            do l = 1, nO
-              J1(i,c,a,k) = J1(i,c,a,k) &
-              -0.5d0 * v_vvoo(c,d,k,l) * t2(i,l,d,a) &
-              + 0.5d0 * w_vvoo(c,d,k,l) * t2(i,l,a,d)
-              !- 0.5d0 * two_e_ints(tmp_c,tmp_d,k,l) * t2(i,l,d,a) &
-              !+ 0.5d0 * (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,a,d)
-            enddo
-          enddo
-
+  do l = 1, nO
+    do d = 1, nV
+      do k = 1, nO
+        do c = 1, nV
+          tmp_v(c,k,d,l) = 0.5d0 * v_vvoo(c,d,k,l)
         enddo
       enddo
     enddo
   enddo
   
+  do a = 1, nV
+    do i = 1, nO
+      do l = 1, nO
+        do d = 1, nV
+          tmp_t2_1(d,l,i,a) = t2(i,l,d,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do l = 1, nO
+    do d = 1, nV
+      do k = 1, nO
+        do c = 1, nV
+          tmp_w(c,k,d,l) = 0.5d0 * w_vvoo(c,d,k,l)
+        enddo
+      enddo
+    enddo
+  enddo
+
+   do a = 1, nV
+    do i = 1, nO
+      do l = 1, nO
+        do d = 1, nV
+          tmp_t2_2(d,l,i,a) = t2(i,l,a,d)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  ! J1(i,c,a,k) = Vovvo_{ic}^{ak} + \sum_{dl} - 0.5 Vvvoo_{cd}^{kl} t2{il}^{da} + 0.5 Wvvoo_{cd}^{kl} t2_{il}^{ad}
+  !J1 = 0d0
+  !do k = 1, nO
+  !  do a = 1, nV
+  !    do c = 1, nV
+  !      do i = 1, nO
+  !        J1(i,c,a,k) = J1(i,c,a,k) &
+  !        + v_ovvo(i,c,a,k)
+  !        !!+ two_e_ints(i,tmp_c,tmp_a,k)
+
+  !        do d = 1, nV
+  !          do l = 1, nO
+  !            J1(i,c,a,k) = J1(i,c,a,k) &
+  !            - tmp_v(c,k,d,l) * tmp_t2_1(d,l,i,a) &
+  !            + tmp_w(c,k,d,l) * tmp_t2_2(d,l,i,a)
+  !            !- 0.5d0 * v_vvoo(c,d,k,l) * t2(i,l,d,a) &
+  !            !+ 0.5d0 * w_vvoo(c,d,k,l) * t2(i,l,a,d)
+  !            
+  !            
+  !            !!- 0.5d0 * two_e_ints(tmp_c,tmp_d,k,l) * t2(i,l,d,a) &
+  !            !!+ 0.5d0 * (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,a,d)
+  !          enddo
+  !        enddo
+
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nV*nO, nV*nO, nO*nV, &
+             -1d0, tmp_v, size(tmp_v,1) * size(tmp_v,2), &
+             tmp_t2_1, size(tmp_t2_1,1) * size(tmp_t2_1,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  call dgemm('N','N', nV*nO, nV*nO, nO*nV, &
+             1d0, tmp_w, size(tmp_w,1) * size(tmp_w,2), &
+             tmp_t2_2, size(tmp_t2_2,1) * size(tmp_t2_2,2), &
+             1d0, accu, size(accu,1) * size(accu,2))
+
+  do k = 1, nO
+    do a = 1, nV
+      do c = 1, nV
+        do i = 1, nO
+          J1(i,c,a,k) = accu(c,k,i,a) + v_ovvo(i,c,a,k)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  deallocate(tmp_v,tmp_w,tmp_t2_1,tmp_t2_2,accu) 
+  
 end
 #+END_SRC
 
 ** K1
+\begin{align*}
+K1_{ic}^{ka} = Vovov_{ic}^{ka} - 0.5 \sum_{dl} Vvvoo_{dc}^{kl} t2_{il}^{da}
+\end{align*}
 #+BEGIN_SRC f90 :comments org :tangle space_orb_ccd.irp.f
 subroutine space_ccd_K1(t2,K1)
 
@@ -1483,33 +1627,76 @@ subroutine space_ccd_K1(t2,K1)
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
   integer :: nO,nV
 
+  double precision, allocatable :: tmp_v(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
+  
   nO = dim_list_act_orb
   nV = dim_list_virt_orb
 
-  K1 = 0d0
+  allocate(tmp_v(nV,nO,nV,nO),tmp_t2(nV,nO,nO,nV),accu(nV,nO,nO,nV))
 
-  do a = 1, nV
-    tmp_a = a + nO
-    do k = 1, nO
-      do c = 1, nV
-        tmp_c = c + nO
-        do i = 1, nO
-          K1(i,c,k,a) = K1(i,c,k,a) &
-          + two_e_ints(i,tmp_c,k,tmp_a)
-
-          do d = 1, nV
-            tmp_d = d + nO
-            do l = 1, nO
-              K1(i,c,k,a) = K1(i,c,k,a) &
-              - 0.5d0 * v_vvoo(d,c,k,l) * t2(i,l,d,a)
-              !- 0.5d0 * two_e_ints(tmp_d,tmp_c,k,l) * t2(i,l,d,a)
-            enddo
-          enddo
-
+  do l = 1, nO
+    do d = 1, nV
+      do k = 1, nO
+        do c = 1, nV
+          tmp_v(c,k,d,l) = 0.5d0 * v_vvoo(d,c,k,l)
         enddo
       enddo
     enddo
   enddo
+
+  do a = 1, nV
+    do i = 1, nO
+      do l = 1, nO
+        do d = 1, nV
+          tmp_t2(d,l,i,a) = t2(i,l,d,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! K1_{ic}^{ka} = Vovov_{ic}^{ka} - 0.5 \sum_{dl} Vvvoo_{dc}^{kl} t2_{il}^{da}
+  !K1 = 0d0
+  !do a = 1, nV
+  !  tmp_a = a + nO
+  !  do k = 1, nO
+  !    do c = 1, nV
+  !      tmp_c = c + nO
+  !      do i = 1, nO
+  !        K1(i,c,k,a) = K1(i,c,k,a) &
+  !        + v_ovov(i,c,k,a)
+  !        !+ two_e_ints(i,tmp_c,k,tmp_a)
+
+  !        do d = 1, nV
+  !          tmp_d = d + nO
+  !          do l = 1, nO
+  !            K1(i,c,k,a) = K1(i,c,k,a) &
+  !            - tmp_v(c,k,d,l) * tmp_t2(d,l,i,a)
+  !            !- 0.5d0 * v_vvoo(d,c,k,l) * t2(i,l,d,a)
+  !            !!- 0.5d0 * two_e_ints(tmp_d,tmp_c,k,l) * t2(i,l,d,a)
+  !          enddo
+  !        enddo
+
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nV*nO, nO*nV, nV*nO, &
+             -1d0, tmp_v, size(tmp_v,1) * size(tmp_v,2), &
+             tmp_t2, size(tmp_t2,1) * size(tmp_t2,2), &
+             0d0, accu, size(accu,1) * size(accu,2))
+
+  do a = 1, nV
+    do k = 1, nO
+      do c = 1, nV
+        do i = 1, nO
+          K1(i,c,k,a) = v_ovov(i,c,k,a) + accu(c,k,i,a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(tmp_v,tmp_t2,accu)
   
 end
 #+END_SRC

@@ -1,0 +1,636 @@
+* ccsd with spatial orbitals
+
+Scuseria, Gustavo E.; Janssen, Curtis L.; Schaefer, Henry
+F. (1988). An efficient reformulation of the closed-shell coupled
+cluster single and double excitation (CCSD) equations. The Journal of
+Chemical Physics, 89(12), 7382–. doi:10.1063/1.455269
+
+** Code
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+program first_space_orb_ccsd
+  
+  implicit none
+
+  integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  integer :: u,v,gam,beta,tmp_gam,tmp_beta
+  integer :: nO, nV
+  integer :: nb_iter
+  double precision :: get_two_e_integral
+  double precision :: energy, max_elem
+  logical :: not_converged
+
+  double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
+  double precision, allocatable :: t1(:,:), r1(:,:), H_oo(:,:), H_vv(:,:), H_vo(:,:)
+  double precision, allocatable :: g_occ(:,:), g_vir(:,:), J1(:,:,:,:), K1(:,:,:,:)
+  double precision, allocatable :: A1(:,:,:,:), B1(:,:,:,:)
+  
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV), delta(nO,nO,nV,nV))
+  allocate(tau(nO,nO,nV,nV))
+  allocate(t1(nO,nV), r1(nO,nV))
+  allocate(g_occ(nO,nO), g_vir(nV,nV))
+  allocate(J1(nO,nV,nV,nO), K1(nO,nV,nO,nV))
+  allocate(H_oo(nO,nO), H_vv(nV,nV), H_vo(nV,nO))
+  allocate(A1(nO,nO,nO,nO), B1(nV,nV,nV,nV))
+  
+  PROVIDE mo_two_e_integrals_in_map
+
+  print*,'hf_energy', hf_energy
+
+  ! Delta
+  do b = 1, nV
+    tmp_b = b + nO
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          delta(i,j,a,b) = (f_v(a) + f_v(b) - f_o(i) - f_o(j))
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! Guess t2
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          t2(i,j,a,b) = - v_oovv(i,j,a,b)/delta(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! Init t1
+  t1 = 0d0
+
+  ! Init t2
+  tau = t2
+
+  nb_iter = 0
+  do while (nb_iter < 25)
+  
+    ! energy
+    energy = 0d0
+    do i = 1, nO
+      do a = 1, nV
+        energy = energy + 2d0 * f_vo(a,i) * t1(i,a)
+      enddo
+    enddo
+    do b = 1, nV
+      tmp_b = b + nO
+      do a = 1, nV
+        tmp_a = a + nO
+        do j = 1, nO
+          do i = 1, nO
+            energy = energy + tau(i,j,a,b) * w_oovv(i,j,a,b)
+         enddo
+        enddo
+      enddo
+    enddo
+    energy = energy + hf_energy
+    print*, 'E_CCD', energy
+
+    call compute_H_oo(t1,t2,tau,H_oo)
+    call compute_H_vv(t1,t2,tau,H_vv)
+    call compute_H_vo(t1,t2,H_vo)
+
+    r1 = 0d0
+    do beta = 1, nV
+      do u = 1, nO
+        r1(u,beta) = f_oo(u,beta)
+
+        do i = 1, nO
+          do a = 1, nV
+            tmp_a = a + nO
+            r1(u,beta) = r1(u,beta) - 2d0 * f_vo(a,i) * t1(i,beta) * t1(u,a)
+          enddo
+        enddo
+
+        do a = 1, nV
+          r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
+        enddo
+
+        do i = 1, nO
+          r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
+        enddo
+
+        do i = 1, nO
+          do a = 1, nV
+            r1(u,beta) = r1(u,beta) + H_vo(a,i) * &
+            (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
+          enddo
+        enddo
+
+        do i = 1, nO
+          do a = 1, nV
+            r1(u,beta) = r1(u,beta) + (2d0 * v_voov(a,u,i,beta) - v_ovov(u,a,i,beta)) * t1(i,a)
+          enddo
+        enddo
+
+        do i = 1, nO
+          do a = 1, nV
+            do b = 1, nV
+              r1(u,beta) = r1(u,beta) + (2d0 * v_vvov(a,b,i,beta) - v_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+            enddo
+          enddo
+        enddo
+
+        do i = 1, nO
+          do j = 1, nO
+            do a = 1, nV
+              r1(u,beta) = r1(u,beta) - (2d0 * v_vooo(a,u,i,j) - v_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+            enddo
+          enddo
+        enddo
+        
+      enddo
+    enddo
+    
+    call compute_g_occ(t1,t2,H_oo,g_occ)
+    call compute_g_vir(t1,t2,H_vv,g_vir)
+    call compute_A1(t1,t2,tau,A1)
+    call compute_B1(t1,t2,B1)
+    call compute_J1(t1,t2,J1)
+    call compute_K1(t1,t2,K1)
+
+    ! Residual
+    r2 = 0d0
+    do gam = 1, nV
+      do beta = 1, nV
+        do v = 1, nO
+          do u = 1, nO
+
+           r2(u,v,beta,gam) = v_oovv(u,v,beta,gam)
+
+           do j = 1, nO
+             do i = 1, nO
+               r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+               + A1(u,v,i,j) * tau(i,j,beta,gam)
+             enddo
+           enddo
+
+           do a = 1, nV
+             do b = 1, nv
+               r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+               + B1(a,b,beta,gam) * tau(u,v,a,b)
+             enddo
+           enddo
+
+           do a = 1, nV
+             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+             + g_vir(a,beta) * t2(u,v,a,gam) &
+             + g_vir(a,gam)  * t2(v,u,a,beta) ! P
+           enddo
+
+           do i = 1, nO
+             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+             - g_occ(u,i) * t2(i,v,beta,gam) &
+             - g_occ(v,i) * t2(i,u,gam,beta) ! P
+           enddo
+
+           do a = 1, nV
+             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+             + v_ovvv(u,a,beta,gam) * t1(v,a) &
+             + v_ovvv(v,a,gam,beta) * t1(u,a) ! P
+             do i = 1, nO
+               r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+               - v_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
+               - v_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
+             enddo
+           enddo
+
+           do i = 1, nO
+             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+             - v_oovo(u,v,beta,i) * t1(i,gam) &
+             - v_oovo(v,u,gam,i)  * t1(i,beta) ! P
+             do a = 1, nV
+               r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+               - v_ovvo(u,a,beta,i) * t1(v,a) * t1(i,gam) &
+               - v_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
+             enddo
+           enddo
+
+           do a = 1, nV
+             do i = 1, nO
+               r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+               + 0.5d0 * (2d0 * J1(u,a,beta,i) - K1(u,a,i,beta)) * &
+                 (2d0 * t2(i,v,a,gam) - t2(i,v,gam,a)) &
+               + 0.5d0 * (2d0 * J1(v,a,gam,i)  - K1(v,a,i,gam)) * &
+                 (2d0 * t2(i,u,a,beta) - t2(i,u,beta,a)) & ! P
+               - 0.5d0 * K1(u,a,i,beta) * t2(i,v,gam,a) &
+               - 0.5d0 * K1(v,a,i,gam)  * t2(i,u,beta,a) & !P
+               - K1(u,a,i,gam)  * t2(i,v,beta,a) &
+               - K1(v,a,i,beta) * t2(i,u,gam,a) ! P
+             enddo
+           enddo
+
+          enddo
+        enddo
+      enddo
+    enddo
+
+    max_elem = 0d0
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            if (max_elem < dabs(r2(i,j,a,b))) then
+              max_elem = dabs(r2(i,j,a,b))
+            endif
+          enddo
+        enddo
+      enddo
+    enddo
+    print*,'max', max_elem
+
+    ! Update t2
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            t2(i,j,a,b) =  t2(i,j,a,b) - r2(i,j,a,b) / delta(i,j,a,b)
+          enddo
+        enddo
+      enddo
+    enddo
+
+    ! Update t1
+    do a = 1, nV
+      do i = 1, nO
+        t1(i,a) = t1(i,a) - r1(i,a) / (f_v(a) - f_o(i))
+      enddo
+    enddo
+
+    ! Update tau
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            tau(i,j,a,b) =  t2(i,j,a,b) + t1(i,a) * t1(j,b)
+          enddo
+        enddo
+      enddo
+    enddo
+
+    nb_iter = nb_iter + 1
+  enddo 
+
+  deallocate(t1,r1,t2,r2,delta,tau)
+  deallocate(g_occ,g_vir,J1, K1, A1, b1)
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_H_oo(t1,t2,tau,H_oo)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: H_oo(dim_list_act_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,k,b,l,c,d,tmp_c,tmp_d,i,j,u
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  H_oo = 0d0
+
+  do i = 1, nO
+    do u = 1, nO
+      H_oo(u,i) = f_oo(u,i)
+
+      do j = 1, nO
+        do a = 1, nV
+          do b = 1, nV
+            H_oo(u,i) = H_oo(u,i) + (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * tau(u,j,a,b)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_H_vv(t1,t2,tau,H_vv)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: H_vv(dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  H_vv = 0d0
+
+  do beta = 1, nV
+    do a = 1, nV
+      H_vv(a,beta) = f_vv(a,beta)
+
+      do j = 1, nO
+        do i = 1, nO
+          do b = 1, nV
+            H_vv(a,beta) = H_vv(a,beta) - (2d0 * v_vvoo(a,b,i,j) - v_vvoo(a,b,j,i)) * tau(i,j,beta,b)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_H_vo(t1,t2,H_vo)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: H_vo(dim_list_virt_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  H_vo = 0d0
+
+  do i = 1, nO
+    do a = 1, nV
+      H_vo(a,i) = f_vo(a,i)
+
+      do j = 1, nO
+        do b = 1, nV
+          H_vo(a,i) = H_vo(a,i) + (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * t1(j,b)
+        enddo
+      enddo
+      
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_A1(t1,t2,tau,A1)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: A1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  A1 = 0d0
+
+  do j = 1, nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+          A1(u,v,i,j) = v_oooo(u,v,i,j)
+
+          do a = 1, nV
+            A1(u,v,i,j) = A1(u,v,i,j) &
+            + v_ovoo(u,a,i,j) * t1(v,a) &
+            + v_vooo(a,v,i,j) * t1(u,a)
+            
+            do b = 1, nV
+              A1(u,v,i,j) = A1(u,v,i,j) + v_vvoo(a,b,i,j) * tau(u,v,a,b)
+            enddo  
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_B1(t1,t2,B1)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: B1(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  B1 = 0d0
+
+  do gam = 1, nV
+    do beta = 1, nV
+      do b = 1, nV
+        do a = 1, nV
+          B1(a,b,beta,gam) = v_vvvv(a,b,beta,gam) 
+
+          do i = 1, nO
+            B1(a,b,beta,gam) = B1(a,b,beta,gam) &
+            - v_vvvo(a,b,beta,i) * t1(i,gam) &
+            - v_vvov(a,b,i,gam) * t1(i,beta)
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_g_occ(t1,t2,H_oo,g_occ)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb), H_oo(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_occ(dim_list_act_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_occ = 0d0
+
+  do i = 1, nO
+    do u = 1, nO
+      g_occ(u,i) = H_oo(u,i)
+      
+      do a = 1, nV
+        g_occ(u,i) = g_occ(u,i) + f_vo(a,i) * t1(u,a)
+        
+        do j = 1, nO
+          g_occ(u,i) = g_occ(u,i) + (2d0 * v_ovoo(u,a,i,j) - v_ovoo(u,a,j,i)) * t1(j,a)
+        enddo
+           
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_g_vir(t1,t2,H_vv,g_vir)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb), H_vv(dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_vir = 0d0
+
+  do beta = 1, nV
+    do a = 1, nV
+      g_vir(a,beta) = H_vv(a,beta)
+      
+      do i = 1, nO
+        g_vir(a,beta) = g_vir(a,beta) - f_vo(a,i) * t1(i,beta)
+        
+        do b = 1, nV
+          g_vir(a,beta) = g_vir(a,beta) + (2d0 * v_vvvo(a,b,beta,i) - v_vvvo(b,a,beta,i)) * t1(i,b)
+        enddo
+           
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_J1(t1,t2,J1)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  J1 = 0d0
+
+  do i = 1, nO
+    do beta = 1, nV
+      do a = 1, nV
+        do u = 1, nO
+          J1(u,a,beta,i) = v_ovvo(u,a,beta,i)
+
+          do j = 1, nO
+            J1(u,a,beta,i) = J1(u,a,beta,i) &
+            - v_ovoo(u,a,j,i) * t1(j,beta)
+          enddo
+
+          do b = 1, nV
+            J1(u,a,beta,i) = J1(u,a,beta,i) &
+            + v_vvvo(b,a,beta,i) * t1(u,b)    
+          enddo
+
+          do j = 1, nO
+            do b = 1, nV
+             J1(u,a,beta,i) = J1(u,a,beta,i) &
+             - v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
+             + 0.5d0 * (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_K1(t1,t2,K1)
+
+  implicit none
+
+  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+
+  integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
+  integer :: nO,nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  K1 = 0d0
+
+  do beta = 1, nV
+    do i = 1, nO
+      do a = 1, nV
+        do u = 1, nO
+          K1(u,a,i,beta) = v_ovov(u,a,i,beta)
+
+          do j = 1, nO
+            K1(u,a,i,beta) = K1(u,a,i,beta) &
+            - v_ovoo(u,a,i,j) * t1(j,beta)
+          enddo
+
+          do b = 1, nV
+            K1(u,a,i,beta) = K1(u,a,i,beta) &
+            + v_vvov(b,a,i,beta) * t1(u,b)    
+          enddo
+
+          do j = 1, nO
+            do b = 1, nV
+             K1(u,a,i,beta) = K1(u,a,i,beta) &
+             - v_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC

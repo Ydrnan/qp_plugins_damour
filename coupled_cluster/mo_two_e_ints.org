@@ -537,6 +537,135 @@ BEGIN_PROVIDER [double precision, v_vvvv, (dim_list_virt_orb, dim_list_virt_orb,
 
 END_PROVIDER
 #+END_SRC
+
+*** v_vooo
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_vooo, (dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ai|jk> integrals
+  ! i,j,k: active spatial MOs
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i,j,k
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do k = 1, nO
+    do j = 1, nO
+      do i = 1, nO
+         do a = 1, nV
+           tmp_a = a + nO
+          v_vooo(a,i,j,k) = two_e_ints(tmp_a,i,j,k)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+*** v_ovoo
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_ovoo, (dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ia|jk> integrals
+  ! i,j,k: active spatial MOs
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i,j,k
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do k = 1, nO
+    do j = 1, nO
+      do a = 1, nv
+        tmp_a = a + nO
+        do i = 1, nO
+          v_ovoo(i,a,j,k) = two_e_ints(i,tmp_a,j,k)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+*** v_oovo
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_oovo, (dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ij|ak> integrals
+  ! i,j,k: active spatial MOs
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i,j,k
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do k = 1, nO
+    do a = 1, nv
+      tmp_a = a + nO
+      do j = 1, nO
+        do i = 1, nO
+          v_oovo(i,j,a,k) = two_e_ints(i,j,tmp_a,k)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+*** v_ooov
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_ooov, (dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ij|ka> integrals
+  ! i,j,k: active spatial MOs
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i,j,k
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do a = 1, nv
+    tmp_a = a + nO
+    do k = 1, nO
+      do j = 1, nO
+        do i = 1, nO
+          v_ooov(i,j,k,a) = two_e_ints(i,j,k,tmp_a)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
 *** w_oovv 
 #+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, w_oovv, (dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)]
@@ -603,6 +732,174 @@ BEGIN_PROVIDER [double precision, w_vvoo, (dim_list_virt_orb, dim_list_virt_orb,
 END_PROVIDER
 #+END_SRC
 
+*** v_ovvv
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_ovvv, (dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ia|bc> integrals
+  ! i: active spatial MO
+  ! a,b,c: virtual spatial MOs
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do c = 1, nV
+    tmp_c = c + nO
+    do b = 1, nV
+      tmp_b = b + nO
+      do a = 1, nV
+        tmp_a = a + nO
+        do i = 1, nO
+          v_ovvv(i,a,b,c) = two_e_ints(i,tmp_a,tmp_b,tmp_c)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+*** v_vovv
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_vovv, (dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ai|bc> integrals
+  ! i: active spatial MO
+  ! a,b,c: virtual spatial MOs
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do c = 1, nV
+    tmp_c = c + nO
+    do b = 1, nV
+      tmp_b = b + nO
+      do i = 1, nO
+        do a = 1, nV
+          tmp_a = a + nO
+          v_vovv(a,i,b,c) = two_e_ints(tmp_a,i,tmp_b,tmp_c)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+*** v_vvov
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_vvov, (dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ab|ic> integrals
+  ! i: active spatial MO
+  ! a,b,c: virtual spatial MOs
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do c = 1, nV
+    tmp_c = c + nO
+    do i = 1, nO
+      do b = 1, nV
+      tmp_b = b + nO
+        do a = 1, nV
+          tmp_a = a + nO
+          v_vvov(a,b,i,c) = two_e_ints(tmp_a,tmp_b,i,tmp_c)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+*** v_vvvo
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_vvvo, (dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ab|ci> integrals
+  ! i: active spatial MO
+  ! a,b,c: virtual spatial MOs
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do i = 1, nO
+    do c = 1, nV
+      tmp_c = c + nO
+      do b = 1, nV
+        tmp_b = b + nO
+        do a = 1, nV
+          tmp_a = a + nO
+          v_vvvo(a,b,c,i) = two_e_ints(tmp_a,tmp_b,tmp_c,i)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+
+*** v_vvov
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, v_voov, (dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my <ai|jb> integrals
+  ! i,j: active spatial MOs
+  ! a,b: virtual spatial MOs
+  END_DOC
+
+  integer :: a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  do b = 1, nV
+    tmp_b = b + nO
+    do j = 1, nO
+      do i = 1, nO
+        do a = 1, nV
+          tmp_a = a + nO
+          v_voov(a,i,j,b) = two_e_ints(tmp_a,i,j,tmp_b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
 
 ** Fock matrix
 #+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
@@ -622,6 +919,33 @@ BEGIN_PROVIDER [double precision, f_pq, (dim_list_act_virt_orb, dim_list_act_vir
     do p = 1, dim_list_act_virt_orb
       tmp_p = list_act_virt(p)
       f_pq(p,q) = fock_matrix_mo(tmp_p,tmp_q)
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, f_vo, (dim_list_virt_orb, dim_list_act_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my fock matrix elements f_a^i
+  ! i: active spatial MO
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: i,a, tmp_a
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  do i= 1, nO
+    do a = 1, nV
+      tmp_a= a + nO
+      f_vo(a,i) = f_pq(tmp_a,i)
     enddo
   enddo
 

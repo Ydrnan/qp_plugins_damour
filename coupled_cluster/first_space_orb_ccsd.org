@@ -46,7 +46,7 @@ program first_space_orb_ccsd
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          delta(i,j,a,b) = (f_v(a) + f_v(b) - f_o(i) - f_o(j))
+          delta(i,j,a,b) = f_v(a) + f_v(b) - f_o(i) - f_o(j)
         enddo
       enddo
     enddo
@@ -91,7 +91,7 @@ program first_space_orb_ccsd
       enddo
     enddo
     energy = energy + hf_energy
-    print*, 'E_CCD', energy
+    print*, 'E_CCSD', energy
 
     call compute_H_oo(t1,t2,tau,H_oo)
     call compute_H_vv(t1,t2,tau,H_vv)
@@ -100,22 +100,25 @@ program first_space_orb_ccsd
     r1 = 0d0
     do beta = 1, nV
       do u = 1, nO
-        r1(u,beta) = f_oo(u,beta)
+        r1(u,beta) = fock_matrix_mo(u,beta+nO)
+        !print*,'1',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
-            tmp_a = a + nO
             r1(u,beta) = r1(u,beta) - 2d0 * f_vo(a,i) * t1(i,beta) * t1(u,a)
           enddo
         enddo
+        !print*,'2',r1(:,:)
 
         do a = 1, nV
           r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
         enddo
+        !print*,'3',r1(:,:)
 
         do i = 1, nO
           r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
         enddo
+        !print*,'4',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
@@ -123,12 +126,14 @@ program first_space_orb_ccsd
             (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
           enddo
         enddo
+        !print*,'5',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
             r1(u,beta) = r1(u,beta) + (2d0 * v_voov(a,u,i,beta) - v_ovov(u,a,i,beta)) * t1(i,a)
           enddo
         enddo
+        !print*,'6',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
@@ -137,6 +142,7 @@ program first_space_orb_ccsd
             enddo
           enddo
         enddo
+        !print*,'7',r1(:,:)
 
         do i = 1, nO
           do j = 1, nO
@@ -145,6 +151,7 @@ program first_space_orb_ccsd
             enddo
           enddo
         enddo
+        !print*,'8',r1(:,:)
         
       enddo
     enddo
@@ -244,7 +251,18 @@ program first_space_orb_ccsd
         enddo
       enddo
     enddo
-    print*,'max', max_elem
+    print*,'max r2', max_elem
+
+    max_elem = 0d0
+    do a = 1, nV
+      do i = 1, nO
+        if (max_elem < dabs(r1(i,a))) then
+          max_elem = dabs(r1(i,a))
+        endif
+      enddo
+    enddo
+    print*,'max r1', max_elem
+
 
     ! Update t2
     do b = 1, nV
@@ -279,7 +297,7 @@ program first_space_orb_ccsd
   enddo 
 
   deallocate(t1,r1,t2,r2,delta,tau)
-  deallocate(g_occ,g_vir,J1, K1, A1, b1)
+  deallocate(g_occ,g_vir,J1,K1,A1,B1,H_oo,H_vv,H_vo)
 
 end
 #+END_SRC

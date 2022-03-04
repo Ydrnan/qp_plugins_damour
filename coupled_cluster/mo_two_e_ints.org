@@ -953,6 +953,33 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
+BEGIN_PROVIDER [double precision, f_ov, (dim_list_act_orb, dim_list_virt_orb)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! my fock matrix elements f_i^a
+  ! i: active spatial MO
+  ! a: virtual spatial MO
+  END_DOC
+
+  integer :: i,a, tmp_a
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+    do a = 1, nV
+      tmp_a= a + nO
+      do i = 1, nO
+      f_ov(i,a) = f_pq(i,tmp_a)
+    enddo
+  enddo
+
+END_PROVIDER
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle mo_two_e_integrals.irp.f
 BEGIN_PROVIDER [double precision, f_oo, (dim_list_act_orb, dim_list_act_orb)]
 
   implicit none

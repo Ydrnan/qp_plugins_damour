@@ -100,25 +100,21 @@ program first_space_orb_ccsd
     r1 = 0d0
     do beta = 1, nV
       do u = 1, nO
-        r1(u,beta) = fock_matrix_mo(u,beta+nO)
-        !print*,'1',r1(:,:)
+        r1(u,beta) = f_ov(u,beta)
 
         do i = 1, nO
           do a = 1, nV
             r1(u,beta) = r1(u,beta) - 2d0 * f_vo(a,i) * t1(i,beta) * t1(u,a)
           enddo
         enddo
-        !print*,'2',r1(:,:)
 
         do a = 1, nV
           r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
         enddo
-        !print*,'3',r1(:,:)
 
         do i = 1, nO
           r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
         enddo
-        !print*,'4',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
@@ -126,14 +122,12 @@ program first_space_orb_ccsd
             (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
           enddo
         enddo
-        !print*,'5',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
             r1(u,beta) = r1(u,beta) + (2d0 * v_voov(a,u,i,beta) - v_ovov(u,a,i,beta)) * t1(i,a)
           enddo
         enddo
-        !print*,'6',r1(:,:)
 
         do i = 1, nO
           do a = 1, nV
@@ -142,7 +136,6 @@ program first_space_orb_ccsd
             enddo
           enddo
         enddo
-        !print*,'7',r1(:,:)
 
         do i = 1, nO
           do j = 1, nO
@@ -151,7 +144,6 @@ program first_space_orb_ccsd
             enddo
           enddo
         enddo
-        !print*,'8',r1(:,:)
         
       enddo
     enddo
@@ -652,3 +644,4 @@ subroutine compute_K1(t1,t2,K1)
   
 end
 #+END_SRC
+

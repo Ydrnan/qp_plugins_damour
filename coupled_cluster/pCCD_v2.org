@@ -57,66 +57,6 @@ $$t_i^a \leftarrow t_i^a - \frac{r_i^a}{2f_a^a - 2f_i^i}$$
 
 $$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a \rightarrow OV^2 $$ 
 
-** 4D -> 2D:
-(i,j,k,l) -> (ij,kl)
-   11 12 13 14 21 22 23 24 31 32 33 34 41 42 43 44
-1 1
-1 2
-1 3
-1 4
-2 1
-2 2
-2 3
-2 4
-3 1
-3 2
-3 3
-3 4
-4 1
-4 2
-4 3
-4 4
-
-** SVD
-
-Matrix multiplication:
-C = A.B
-$$c_{ij} = \sum_k a_{ik} b_{kj}$$
-k multiplications
-k-1 summations
-(2k-1)mn flops
-
-svd A: O(mn^2), m >= n
-
-ref tomoko 2003
-Consider a $m$ by $n$ matrix $\textbf{A}$ with $m \leq n$ s.t. $A_{ij} \in \mathbb{R}$
-$\forall \quad i \in (1,...,m), \quad j \in (1,...,n)$
-The SVD of this matrix is
-$\textbf{A} = \textbf{U} \textbf{S} \textbf{V}^T$
-
-with $\textbf{U}$ is a $m$ by $m$ matrix and $\textbf{V}^T$ is a $m$ by
-$n$ matrix
-Columns of $\texbf{U}$, $\left\{\textbf{u}_k\right\}_{k=1}^m$: left
-singular vectors of size $m$
-Rows of $\texbf{V}^T$, $\left\{\textbf{v}^T_k\right\}_{k=1}^m$: right
-singular vectors of size $n$
-
-Then
-\begin{align*}
-\textbf{A}=\sum_{k=1}^m \textbf{u}_k \textbf{s}_k \textbf{v}_k^T
-\end{align*}
-\begin{align*}
-\textbf{A}^{(l)}=\sum_{k=1}^l \textbf{u}_k \textbf{s}_k \textbf{v}_k^T, \quad l \leq r
-\end{align*}
-Matrix of rank $p$: $p$ non-zero eigenvalues
-$\textbf{A}^{(l)}$ is the closest matrix of rank $l$ to $\textbf{A}$
-If the eigenvalues $\left\{s_k\right\}_{k=l+1}^m$ are small enought
-$\textbf{A}^{(l)}$ is a good approximation of $\textbf{A}$
-
-
-
-$T_2 = \frac{1}{2} \sum_{ia} t_{ii}^{aa} a^\dagger a^\dagger i i$
-
 ** Prog
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 program pCCD
@@ -147,6 +87,7 @@ program pCCD
   
 end program
 #+END_SRC
+
 ** first code
 #+BEGIN_SRC f90 :comments org :tangle pCCD_v2.irp.f
 subroutine run_pCCD_v2(energy)
@@ -180,37 +121,9 @@ subroutine run_pCCD_v2(energy)
 
   ! Init 
   t2 = 0d0
-  !print*,dim_list_act_orb,dim_list_virt_orb
-  call pCCD_energy(t2, energy)
-  print*,'HF energy', energy
-
-!  ! f_p^p, tmp matrix for the diagonal element of the fock matrix
-!  fock_matrix_pp = 0d0
-!  do p = 1, dim_list_act_virt_orb
-!    fock_matrix_pp(p) = fock_matrix_mo(p,p)
-!  enddo
-!
-!  fock_matrix_ii= 0d0
-!  do i = 1, dim_list_act_orb
-!    fock_matrix_ii(i) = fock_matrix_mo(i,i)
-!  enddo
-!
-!  fock_matrix_aa = 0d0
-!  do a = 1, dim_list_virt_orb
-!    tmp_a = a + dim_list_act_orb
-!    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
-!  enddo
-
-  ! Guess for t2 = t_i^a / (2f_a^a - 2f_i^i)
-  !print*,dim_list_act_orb, dim_list_virt_orb
-  !do a = 1, dim_list_virt_orb
-  !  tmp_a = a + dim_list_act_orb
-  !  do i = 1, dim_list_act_orb
-  !    t2(i,a) = two_e_ints_ppqq(i,tmp_a) &
-  !      /(2d0 * fock_matrix_pp(tmp_a) - 2d0 * fock_matrix_pp(i))
-  !    !print*,i,a,t2(i,a)
-  !  enddo
-  !enddo
+  
+  !call pCCD_energy(t2, energy)
+  print*,'HF energy', hf_energy
 
   call guess_amplitudes_pccd(t2)
 
@@ -238,69 +151,9 @@ subroutine run_pCCD_v2(energy)
          residue(i,a) = two_e_ints_iiaa(i,a) + 2d0*(fock_matrix_aa(a) - fock_matrix_ii(i) - U1(a) - U2(i)) * t2(i,a) &
               - 2d0*(2d0 * two_e_ints_iaia(i,a) - two_e_ints_aiia(a,i) - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &
               + U3(i,a) + U4(i,a) + U5(i,a)
-         !print*,'r',i,a,residue(i,a)
       enddo
     enddo
     
-    !do a = 1, dim_list_virt_orb
-    !tmp_a = a + dim_list_act_orb
-    !  do i = 1, dim_list_act_orb
-    !     
-    !    ! U1(a) = \sum_j t_j^a v_{aa}^{jj}
-    !    accu1 = 0d0
-    !    do j = 1, dim_list_act_orb
-    !      accu1 = accu1 + t2(j,a) * two_e_ints_ppqq(tmp_a,j)
-    !    enddo
-
-    !    ! U2(i) = \sum_b t_i^b v_{bb}^{ii} 
-    !    accu2 = 0d0
-    !    do b = 1, dim_list_virt_orb
-    !      tmp_b = b + dim_list_act_orb
-    !      accu2 = accu2 + t2(i,b) * two_e_ints_ppqq(tmp_b,i)
-    !    enddo
-
-    !    ! U3(i,a) = \sum_b t_i^b v_{bb}^{aa}
-    !    accu3 = 0d0
-    !    do b = 1, dim_list_virt_orb
-    !      tmp_b = b + dim_list_act_orb
-    !      accu3 = accu3 + t2(i,b) * two_e_ints_ppqq(tmp_b,tmp_a)
-    !    enddo
-
-    !    ! U4(i,a) = \sum_j t_j^a v_{ii}^{jj}
-    !    accu4 = 0d0
-    !    do j = 1, dim_list_act_orb
-    !      accu4 = accu4 + t2(j,a) * two_e_ints_ppqq(i,j)
-    !    enddo
-
-    !    ! U5(i,a) = \sum_{jb} t_j^a t_i^b v_{bb}^{jj} 
-    !    accu5 = 0d0
-    !    do j = 1, dim_list_act_orb
-    !      do b = 1, dim_list_virt_orb
-    !        tmp_b = b + dim_list_act_orb
-    !        accu5 = accu5 + t2(j,a) * t2(i,b) * two_e_ints_ppqq(tmp_b,j)
-    !      enddo
-    !    enddo
-  
-    !    residue(i,a) = two_e_ints_ppqq(i,tmp_a) &
-    !      + 2d0 *(fock_matrix_pp(tmp_a) - fock_matrix_pp(i) - accu1 - accu2) * t2(i,a) &
-    !      - 2d0*(2d0 * two_e_ints(i,tmp_a,i,tmp_a) &
-    !             - two_e_ints(tmp_a,i,i,tmp_a) &
-    !             - two_e_ints(tmp_a,tmp_a,i,i) * t2(i,a)) * t2(i,a) &
-    !      + accu3 + accu4 + accu5
-
-    !    !print*,'r',i,a,residue(i,a)
-    !    
-    !  enddo
-    !enddo
-    
-    !! New amplitudes
-    !do a = 1, dim_list_virt_orb
-    !  tmp_a = a + dim_list_act_orb
-    !  do i = 1, dim_list_act_orb
-    !    t2(i,a) = t2(i,a) - residue(i,a)/(2d0 * fock_matrix_pp(tmp_a) - 2d0 * fock_matrix_pp(i))
-    !  enddo
-    !enddo
-
     ! New amplitudes
     !call update_amplitudes_pccd(residue, t2)
     call pccd_jacobian(t2, t2_jacobian)

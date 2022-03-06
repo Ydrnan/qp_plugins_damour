@@ -1,4 +1,4 @@
-* pCCD
+* First pCCD
 
 cite Henderson 2014
 
@@ -21,17 +21,17 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
-program pCCD
+#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+program pccd
   implicit none
   
-  call run_pCCD
+  call run_pccd
   
 end program
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
-subroutine run_pCCD
+#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+subroutine run_pccd
   implicit none
 
   double precision, allocatable :: t2(:,:), residue(:,:)
@@ -154,8 +154,8 @@ subroutine run_pCCD
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle pCCD.irp.f
-subroutine pCCD_energy(t2,n_occ,n_vir,energy)
+#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+subroutine pccd_energy(t2,n_occ,n_vir,energy)
 
   implicit none
 

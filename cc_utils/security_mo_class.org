@@ -1,0 +1,19 @@
+* Security mo class
+
+To avoid calculation without any mo class setting
+
+#+BEGIN_SRC f90 :comments org :tangle security_mo_class.irp.f
+subroutine security_mo_class
+
+  implicit none
+
+  if (dim_list_act_orb == mo_num) then
+    print*,'Number of active MOs = mo_num'
+    print*,'Active MOs -> Occupied MOs'
+    print*,'Virtual MOs -> Virtual MOs'
+    print*,'qp set_mo_class -a [1-?] -v [?-?]'
+    call abort
+  endif
+  
+end
+#+END_SRC

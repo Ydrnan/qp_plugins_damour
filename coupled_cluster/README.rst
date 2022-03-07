@@ -2,6 +2,4 @@
 coupled_cluster
 ===============
 
-Just some tests
-
-Do not use these programs
+Will be deleted soon

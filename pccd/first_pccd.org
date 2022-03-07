@@ -1,4 +1,6 @@
-* First pCCD
+* First pccd
+
+First code: only debug purposes
 
 cite Henderson 2014
 
@@ -6,7 +8,7 @@ i,j,k,l: occupied
 a,b,c,d: virtual
 p,q,r,s: general
 
-pCCD energy:
+pccd energy:
 \begin{align*}
 E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 \end{align*}
@@ -21,7 +23,7 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
-#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+#+BEGIN_SRC f90 :comments org :tangle first_pccd.irp.f
 program pccd
   implicit none
   
@@ -30,7 +32,7 @@ program pccd
 end program
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+#+BEGIN_SRC f90 :comments org :tangle first_pccd.irp.f
 subroutine run_pccd
   implicit none
 
@@ -52,7 +54,7 @@ subroutine run_pccd
 
   t2 = 0d0
 
-  call pCCD_energy(t2,n_occ,n_vir,energy)
+  call pccd_energy(t2,n_occ,n_vir,energy)
   print*,'HF energy', energy
 
   ! Guess for t2
@@ -124,7 +126,7 @@ subroutine run_pccd
    
     nb_iter = nb_iter + 1
 
-    call pCCD_energy(t2,n_occ,n_vir,energy)
+    call pccd_energy(t2,n_occ,n_vir,energy)
 
     ! max element in rest
     max_residue = 0d0
@@ -143,7 +145,7 @@ subroutine run_pccd
 
   ! Final energy
   
-  call pCCD_energy(t2,n_occ,n_vir,energy)
+  call pccd_energy(t2,n_occ,n_vir,energy)
   print*, energy
 
   deallocate(t2,residue)
@@ -154,7 +156,7 @@ subroutine run_pccd
 end
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle first_pCCD.irp.f
+#+BEGIN_SRC f90 :comments org :tangle first_pccd.irp.f
 subroutine pccd_energy(t2,n_occ,n_vir,energy)
 
   implicit none

@@ -57,7 +57,7 @@ BEGIN_PROVIDER [double precision, t2_pccd, (dim_list_act_orb, dim_list_virt_orb)
   !else
   do a = 1, nV
     do i = 1, nO
-      t2(i,a) = 0d0
+      t2_pccd(i,a) = 0d0
     enddo
   enddo
   !endif

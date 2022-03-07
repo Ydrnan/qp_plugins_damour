@@ -1,0 +1,218 @@
+* Jacobian
+
+cite kossoski
+
+Full jacobian:
+\begin{align*}
+J_{ia,jb} &= [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
+&+ [ v_{aa}^{bb} - v_{jj}^{aa} t_i^a + (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a ] \delta_{ij} \\
+&+ [ v_{ii}^{jj} - v_{ii}^{bb} t_i^a + (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c ] \delta_{ab} \\
+&= [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
+&+ [ v_{aa}^{bb} - v_{ii}^{aa} t_i^a + (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a ] \delta_{ij} \\
+&+ [ v_{ii}^{jj} - v_{ii}^{aa} t_i^a + (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c ] \delta_{ab}
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle jacobian.irp.f
+subroutine pccd_jacobian_v2(t2, t2_jacobian)
+
+  implicit none
+
+  ! in
+  double precision,intent(in)   :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision,intent(out)  :: t2_jacobian(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,j,k,l
+  integer                       :: a,b,c,d
+  integer                       :: nV, nO
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  t2_jacobian = 0d0
+  
+  ! [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai} ] \delta_{ij} \delta_{ab}
+  do a = 1, nV
+    do i = 1, nO
+      t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (f_v(a) - f_o(i)) &
+                  - 4d0 * two_e_ints_iaia(i,a) + 2d0 * two_e_ints_iaai(i,a)
+    enddo
+  enddo
+
+  ! [ v_{aa}^{bb} - v_{ii}^{aa} t_i^a ]  \delta_{ij}
+  do b = 1, nV
+    do a = 1, nV
+      do i = 1, nO
+         t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + two_e_ints_aabb(a,b) - two_e_ints_iiaa(i,b) * t2(i,a)
+         !                                                                                      a
+      enddo
+    enddo
+  enddo
+
+ ! [ (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a with a = b ] \delta_{ij}
+ do a = 1, nV
+   do i = 1, nO
+     do k = 1, nO
+       if (k /= i) then
+         t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - two_e_ints_iiaa(k,a) * t2(k,a)
+       endif
+     enddo
+   enddo
+ enddo
+
+  ! [ (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a with a /= b ] \delta_{ij}
+  do b = 1, nV
+    do a = 1, nV
+      do i = 1, nO
+        do k = 1, nO
+          if (k /= i .and. a /= b ) then
+            t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + two_e_ints_iiaa(k,b) * t2(k,a)
+          endif
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! [ v_{ii}^{jj} - v_{ii}^{aa} t_i^a ] \delta_{ab}
+  do a = 1, nV
+    do j = 1, nO
+      do i = 1, nO
+        t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + two_e_ints_iijj(i,j) - two_e_ints_iiaa(j,a) * t2(i,a)
+        !                                                                                    i
+      enddo
+    enddo
+  enddo
+  
+  ! [ (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c with i = j ] \delta_{ab}
+  do a = 1, nV
+    do i = 1, nO
+      do c = 1, nV
+        if (c /= a) then
+          t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - two_e_ints_iiaa(i,c) * t2(i,c)
+        endif
+      enddo
+    enddo
+  enddo
+
+  ! [ (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c with i /= j ] \delta_{ab}
+  do a = 1, nV
+    do j = 1, nO
+      do i = 1, nO
+        do c = 1, nV
+          if (c /= a .and. i /= j) then
+            t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + two_e_ints_iiaa(j,c) * t2(i,c)
+          endif
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle jacobian.irp.f
+subroutine pccd_jacobian(t2,t2_jacobian)
+
+  implicit none
+
+  ! in
+  double precision,intent(in)   :: t2(dim_list_act_orb,dim_list_virt_orb)
+
+  ! out
+  double precision,intent(out)  :: t2_jacobian(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,j,k,l
+  integer                       :: a,b,c,d
+  double precision,allocatable  :: yO1(:)
+  double precision,allocatable  :: yV1(:)
+  double precision,allocatable  :: yO2(:,:)
+  double precision,allocatable  :: yV2(:,:)
+  integer                       :: nV, nO
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  t2_jacobian = 0d0
+
+  ! \sum_a v_ii^aa t_i^a
+  allocate( yO1(nO) )
+  yO1 = 0d0
+  do a = 1, nV
+    do i = 1, nO
+      yO1(i) = yO1(i) + two_e_ints_iiaa(i,a) * t2(i,a)
+    !yO1(i) = sum( two_e_ints_iiaa(i,:) * t2(i,:) )
+    enddo
+  enddo
+  !print*,'yo1', yO1(:)
+
+  ! \sum_i v_ii^aa t_i^a
+  allocate( yV1(nV) )
+  yV1 = 0d0
+  do a = 1, nV
+    do i = 1, nO
+      yV1(a) = yV1(a) + two_e_ints_iiaa(i,a) * t2(i,a)
+    enddo
+    !yV1(a) = sum( two_e_ints_iiaa(:,a) * t2(:,a) )
+  enddo
+  !print*,'yv1', yv1(:)
+
+  ! \sum_b v_jj^bb * t_ii^bb
+  allocate( yO2(nO, nO) )
+  yO2 = 0d0
+  do j = 1, nO
+    do i = 1, nO
+      do b = 1, nV
+        yO2(i,j) = yO2(i,j) + two_e_ints_iiaa(j,b) * t2(i,b)
+      enddo
+    enddo
+  enddo
+  !print*,'yO2', yO2(:,:)
+
+  ! \sum_i v_jj^bb t_j^a
+  allocate( yV2(nV, nV) )
+  yV2 = 0d0
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        yV2(a,b) = yV2(a,b) + two_e_ints_iiaa(j,b) * t2(j,a)
+      enddo
+    enddo
+  enddo
+  !print*,'yV2', yV2(:,:)
+
+  ! 2 (f_a^a - f_i^i) - 4 v_ia^ia + 2 v_ia^ai + v_aa^aa + v_ii^ii - \sum_k v_kk^aa t_k^a - \sum_c v_ii^cc t_i^c
+  do a = 1, nV
+    do i = 1, nO
+      t2_jacobian(i,a,i,a) = 2d0*(f_v(a) - f_o(i)) &
+      - 4.0d0*two_e_ints_iaia(i,a) + 2.0d0*two_e_ints_iaai(i,a) + two_e_ints_aabb(a,a) + two_e_ints_iijj(i,i) &
+      - yV1(a) - yO1(i) 
+    enddo
+  enddo
+
+  ! v_aa^bb - 2 v_ii^bb * t_i^a + \sum_k v_kk^bb t_k^a
+  do b = 1, nV
+    do a = 1, nV
+    if( a.eq.b ) cycle
+      do i = 1, nO
+        t2_jacobian(i,a,i,b) = two_e_ints_aabb(a,b) - 2.0d0 * two_e_ints_iiaa(i,b) * t2(i,a) + yV2(a,b)
+      enddo
+    enddo
+  enddo
+
+  ! v_ii^jj - 2 v_jj^aa * t_i^a + \sum_c v_jj^cc * t_i^c
+  do j = 1, nO
+    do i = 1, nO
+    if( i.eq.j ) cycle
+      do a = 1, nV
+        t2_jacobian(i,a,j,a) = two_e_ints_iijj(i,j) - 2.0d0 * two_e_ints_iiaa(j,a) * t2(i,a) + yO2(i,j)
+      enddo
+    enddo
+  enddo
+
+  deallocate(yO1,yO2,yV1,yV2)
+
+end
+#+END_SRC

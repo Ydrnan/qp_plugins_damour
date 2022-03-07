@@ -1,0 +1,118 @@
+#+BEGIN_SRC f90 :comments org :tangle run_pccd.irp.f
+subroutine run_pccd
+  
+  implicit none
+
+  double precision, allocatable :: t2(:,:), residue(:,:)
+  double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:), t2_jacobian(:,:,:,:), inv_t2_jacobian(:,:,:,:)
+  integer :: p,q,i,j,a,b,tmp_a,tmp_b
+  integer :: nb_iter
+  double precision :: max_residue, ta, tb , energy
+  double precision :: accu1, accu2, accu3, accu4, accu5
+  logical :: not_converged
+
+  PROVIDE two_e_ints
+  
+  print*,''
+  print*,'---run_pccd---'
+  call wall_time(ta)
+  
+  allocate(t2(dim_list_act_orb, dim_list_virt_orb), residue(dim_list_act_orb, dim_list_virt_orb))
+  allocate(U1(dim_list_virt_orb), U2(dim_list_act_orb), U3(dim_list_act_orb, dim_list_virt_orb))
+  allocate(U4(dim_list_act_orb, dim_list_virt_orb), U5(dim_list_act_orb, dim_list_virt_orb), X(dim_list_act_orb, dim_list_act_orb))
+  allocate(t2_jacobian(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
+  allocate(inv_t2_jacobian(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
+  
+  if (dim_list_act_orb == mo_num) then
+     print*,'Set the mo classes before, abort'
+     call abort
+  endif
+
+  !call pCCD_energy(t2, energy)
+  print*,'HF energy', hf_energy
+
+  call guess_amplitudes_pccd(t2)
+
+  print*,''
+  print*,'     Nb iter        Energy                  Residue'
+
+  nb_iter = 0
+  not_converged = .True.
+  
+  do while (not_converged)
+     
+    ! tmp arrays
+    call U1_pccd(t2, U1)
+    call U2_pccd(t2, U2)
+    call U3_pccd(t2, U3)
+    call U4_pccd(t2, U4)
+    call X_pccd(t2,X)
+    call U5_pccd(t2, X, U5)
+
+    ! Residue
+    call residue_pccd(t2, U1, U2, U3, U4, U5, residue)
+
+    ! New amplitudes
+    ! New amplitudes
+    if (pccd_update_t2 == 'full') then
+      ! Use the full jacobian to update the amplitudes
+      call pccd_jacobian(t2, t2_jacobian)
+      call inverse_jacobian(t2_jacobian, inv_t2_jacobian)
+      call update_amplitudes_pccd_w_J(residue, inv_t2_jacobian, t2)
+    elseif (pccd_update_t2 == 'diag') then
+      ! Use the diagonal jacobian to update the amplitudes
+      ! TODO
+      print*,'Not yet available'
+      call abort
+    else
+      ! Normal update of the amplitudes
+      call update_amplitudes_pccd(residue, t2)
+    endif
+   
+    nb_iter = nb_iter + 1
+
+    ! New energy
+    call pccd_energy(t2,energy)
+    e_pccd = energy
+    TOUCH e_pccd
+    
+    ! max element in residue
+    max_residue = 0d0
+    do a = 1, dim_list_virt_orb
+      do i = 1, dim_list_act_orb
+        if (dabs(residue(i,a)) > max_residue) then
+          max_residue = dabs(residue(i,a))
+        endif
+      enddo
+    enddo
+    
+    print*, nb_iter, e_pccd, max_residue
+
+    ! Exit criterion
+    if (max_residue < 1e-6) then
+       not_converged = .False.
+       print*,''
+       print*,'******************************'
+       print*,' E_pCCD:', e_pccd
+       print*,'******************************' 
+    endif
+
+    if (nb_iter >= 100) then
+       print*,'#########################'
+       print*,'   Convergence failed'
+       print*,'#########################'
+       exit
+    endif
+
+  enddo
+
+  deallocate(t2,residue,X,U1,U2,U3,U4,U5,t2_jacobian,inv_t2_jacobian)
+
+  call wall_time(tb)
+  print*,'Time in run_pccd:', tb-ta
+  print*,''
+  print*,'---End run_pccd---'
+  print*,''
+  
+end
+#+END_SRC

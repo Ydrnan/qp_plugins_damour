@@ -1,0 +1,119 @@
+#+BEGIN_SRC f90 :comments org :tangle index.irp.f
+subroutine index_4d_to_2d(nj,nl,i,j,k,l,p,q)
+
+  implicit none
+
+  ! in
+  integer, intent(in)  :: nj,nl,i,j,k,l
+
+  ! out
+  integer, intent(out) :: p,q
+
+  ! (i,j,k,l) -> (p,q)
+  ! p -> i j
+  ! 1 -> 1 1
+  ! 2 -> 1 2
+  ! 3 -> 1 3
+  ! ...
+  ! ? -> 2 1
+  ! ...
+  ! Same for q with k and l
+  
+  p = (i-1) * nj + j
+  q = (k-1) * nl + l
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle index.irp.f
+subroutine index_2d_to_4d(nj,nl,p,q,i,j,k,l)
+
+  implicit none
+
+  ! in
+  integer, intent(in)  :: nj,nl,p,q
+
+  ! out
+  integer, intent(out) :: i,j,k,l
+
+  ! (p,q) -> (i,j,k,l)
+  ! (i,j,k,l) -> (p,q)
+  ! p -> i j
+  ! 1 -> 1 1
+  ! 2 -> 1 2
+  ! 3 -> 1 3
+  ! ...
+  ! ? -> 2 1
+  ! ...
+  ! Same for q with k and l
+
+  i = (p-1)/nj + 1
+  j = p - (i-1) * nj
+
+  k = (q-1)/nl + 1
+  l = q - (k-1) * nl
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle index.irp.f
+subroutine index_1d_to_2d(n,k,i,j)
+
+  implicit none
+
+  integer, intent(in) :: n,k
+  integer, intent(out) :: i,j
+
+  ! k index in the list, list ordered column
+  ! 1  p   ...
+  ! 2  p+1 ...
+  ! 3  p+2 ...
+  ! :  :   ...  
+
+  j = ((k-1)/n) + 1
+  i = modulo((k-1),n) + 1
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle index.irp.f
+subroutine sort_2d_key(nb_t2, list_2d_key, list_t2)
+
+  implicit none
+
+  integer, intent(in)    :: nb_t2
+  integer, intent(inout) :: list_2d_key(nb_t2,2)
+  double precision, intent(inout) :: list_t2(nb_t2)
+  integer, allocatable   :: tmp_list(:,:), index(:), key(:)
+  double precision, allocatable :: tmp_t2(:)
+  integer :: i,j,k,l
+
+  allocate(tmp_list(nb_t2,2), index(nb_t2), key(nb_t2), tmp_t2(nb_t2))
+
+  ! index to sort by (i,j) by ascending order (1,1), (1,2),...,(2,1), (2,2), ..., (n,n)
+  do k = 1, nb_t2
+    index(k) = (list_2d_key(k,1)-1) * dim_list_virt_orb + list_2d_key(k,2)
+  enddo
+
+  ! sort
+  call isort(index, key, nb_t2)
+
+  ! tmp array contening the sorted key 
+  do k = 1, nb_t2
+    l = key(k)
+    tmp_list(k,1) = list_2d_key(l,1)
+    tmp_list(k,2) = list_2d_key(l,2)
+    tmp_t2(k) = list_t2(l)
+  enddo
+
+  ! and put them in the array
+  do k = 1, nb_t2
+    list_2d_key(k,1) = tmp_list(k,1)  
+    list_2d_key(k,2) = tmp_list(k,2)
+    list_t2(k) = tmp_t2(k)
+  enddo
+  
+  deallocate(tmp_list,index,key,tmp_t2)
+  
+end
+#+END_SRC

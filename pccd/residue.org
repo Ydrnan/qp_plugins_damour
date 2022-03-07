@@ -1,0 +1,277 @@
+* Residue
+
+cite Henderson 2014
+
+i,j,k,l: occupied
+a,b,c,d: virtual
+p,q,r,s: general
+
+pCCD energy:
+\begin{align*}
+E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
+\end{align*}
+
+\begin{align*}
+r_i^a &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+- \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
+&-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
+&+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
++ \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
+\end{align*}
+\begin{align*}
+&= v_{ii}^{aa} + 2(f_a^a - f_i^i - U_{1_a} - U_{2_i}) t_i^a \\
+&- 2(2v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
+&+ U_{3_i}^a + U_{4_i}^a + U_{5_i}^a
+\end{align*}
+
+$$\sum_j t_j^a v_{aa}^{jj} = U_{1_a}$$
+$$\sum_b t_i^b v_{bb}^{ii} = U_{2_i}$$
+$$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a$$
+$$\sum_j t_j^a v_{ii}^{jj} = U_{4_i}^a$$
+$$\sum_{b} v_{bb}^{jj} t_i^b = X_{i}^{j}$$
+$$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a = U_{5_i}^a$$
+with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
+bi-electronic integral.
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine residue_pccd(t2, U1, U2, U3, U4, U5, residue)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: U1(dim_list_virt_orb), U2(dim_list_act_orb)
+  double precision, intent(in)  :: U3(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: U4(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: U5(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: residue(dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,a
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  residue = 0d0
+  do a = 1, nV
+     do i = 1, nO
+        residue(i,a) = two_e_ints_iiaa(i,a) &
+          + 2d0 *(f_v(a) - f_o(i) - U1(a) - U2(i)) * t2(i,a) &
+          - 2d0*(2d0 * two_e_ints_iaia(i,a) &
+          - two_e_ints_aiia(a,i) &
+          - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &
+          + U3(i,a) + U4(i,a) + U5(i,a)
+     enddo
+   enddo
+  
+end  
+#+END_SRC
+
+* Itermediates
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine U1_pccd(t2, U1)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: U1(dim_list_virt_orb)
+
+  ! internal
+  integer                       :: j,a
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  ! U1(a) = \sum_j t_j^a v_{aa}^{jj}
+  U1 = 0d0
+  do a = 1, nV
+    do j = 1, nO
+      U1(a) = U1(a) + t2(j,a) * two_e_ints_aaii(a,j)
+    enddo
+  enddo
+
+  
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine U2_pccd(t2, U2)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: U2(dim_list_act_orb)
+
+  ! internal
+  integer                       :: i,b
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  ! U2(i) = \sum_b t_i^b v_{bb}^{ii} 
+  U2 = 0d0
+  do i = 1, nO
+    do b = 1, nV
+      U2(i) = U2(i) + t2(i,b) * two_e_ints_aaii(b,i)
+    enddo
+  enddo
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine U3_pccd(t2, U3)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: U3(dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,a,b
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  ! U3(i,a) = \sum_b t_i^b v_{bb}^{aa}
+  !U3 = 0d0
+  !do a = 1, dim_list_virt_orb
+  !  do i = 1, dim_list_act_orb
+  !    do b = 1, dim_list_virt_orb
+  !       U3(i,a) = U3(i,a) + t2(i,b) * two_e_ints_aabb(b,a)
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nO, nV, nV, &
+             1d0, t2, size(t2,1), &
+                  two_e_ints_aabb, size(two_e_ints_aabb,1), &
+             0d0, U3, size(U3,1))
+  
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine U4_pccd(t2, U4)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: U4(dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,j,a
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb    
+
+  ! U4(i,a) = \sum_j t_j^a v_{ii}^{jj}
+  !         = \sum_j v_{ii}^{jj} t_j^a
+  
+  !U4 = 0d0
+  !do a = 1, dim_list_virt_orb
+  !  do i = 1, dim_list_act_orb
+  !    do j = 1, dim_list_act_orb
+  !      U4(i,a) = U4(i,a) + t2(j,a) * two_e_ints_iijj(i,j)
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nO, nV, nO, &
+             1d0, two_e_ints_iijj, size(two_e_ints_iijj,1), &
+                  t2, size(t2,1), &
+             0d0, U4, size(U4,1))
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine U5_pccd(t2, X, U5)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: X(dim_list_act_orb, dim_list_act_orb)
+
+  ! out
+  double precision, intent(out) :: U5(dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: i,j,a
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb    
+
+  ! U5(i,a) = \sum_{jb} t_j^a t_i^b v_{bb}^{jj}
+  !         = \sum_j X(i,j) t_j^a
+  !U5 = 0d0
+  !do a = 1, dim_list_virt_orb
+  !  do i = 1, dim_list_act_orb
+  !    do j = 1, dim_list_act_orb
+  !      U5(i,a) = U5(i,a) + t2(j,a) * X(i,j)
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nO, nV, nO, &
+             1d0, X, size(X,1), t2, size(t2,1), 0d0, U5, size(U5,1))
+
+end  
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
+subroutine X_pccd(t2,X)
+  
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out)  :: X(dim_list_act_orb, dim_list_act_orb)
+
+  ! internal
+  integer                       :: i,j,b
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb    
+
+  ! X(i,j) = \sum_b t_i^b v_{bb}^{jj}
+  !X = 0d0
+  !do i = 1, dim_list_act_orb
+  !  do j = 1, dim_list_act_orb
+  !    do b = 1, dim_list_virt_orb
+  !      X(i,j) = X(i,j) + t2(i,b) * two_e_ints_aaii(b,j)
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N', nO, nO, nV, &
+             1d0, t2, size(t2,1), two_e_ints_aaii, size(two_e_ints_aaii,1), &
+             0d0, X, size(X,1))
+
+end  
+#+END_SRC

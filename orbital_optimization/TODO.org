@@ -7,7 +7,7 @@ TODO:
 ** TODO Iterative method to compute the rotation matrix
 - doesn't work actually
 ** DONE Test trust region with polynomial functions
-** TODO Optimization/Localization program using the template
+** DONE Optimization/Localization program using the template
 ** DONE Correction OMP hessian shared/private arrays
 ** DONE State average energy
 ** DONE Correction of Rho

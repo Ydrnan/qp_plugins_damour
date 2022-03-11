@@ -80,7 +80,7 @@ BEGIN_PROVIDER [ double precision, my_st_av_energy ]
 END_PROVIDER
 #+END_SRC
 
-** Gradien/hessian
+** Gradient/hessian
 *** Orbital optimization
 **** With all the MOs
 #+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
@@ -162,7 +162,8 @@ END_PROVIDER
 *** Orbital localization
 **** Gradient
 ***** Core MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_gradient_loc_core, (n_mo_dim_core) ]
 &BEGIN_PROVIDER [ double precision, my_CC_loc_core ]
   implicit none
@@ -181,7 +182,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Active MOs 
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_gradient_loc_act, (n_mo_dim_act) ]
 &BEGIN_PROVIDER [ double precision, my_CC_loc_act ]
   implicit none
@@ -200,7 +202,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Inactive MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org !
+:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_gradient_loc_inact, (n_mo_dim_inact) ]
 &BEGIN_PROVIDER [ double precision, my_CC_loc_inact ]
   implicit none
@@ -219,7 +222,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Virtual MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_gradient_loc_virt, (n_mo_dim_virt) ]
 &BEGIN_PROVIDER [ double precision, my_CC_loc_virt ]
   implicit none
@@ -239,7 +243,8 @@ END_PROVIDER
 
 **** Hessian
 ***** Core MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_hessian_loc_core, (n_mo_dim_core) ]
   implicit none
   BEGIN_DOC
@@ -254,7 +259,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Active MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_hessian_loc_act, (n_mo_dim_act) ]
   implicit none
   BEGIN_DOC
@@ -269,7 +275,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Inactive MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_hessian_loc_inact, (n_mo_dim_inact) ]
   implicit none
   BEGIN_DOC
@@ -284,7 +291,8 @@ END_PROVIDER
 #+END_SRC
 
 ***** Virtual MOs
-#+BEGIN_SRC f90 :comments org :tangle my_providers.irp.f
+#+BEGIN_SRC f90 :comments org 
+!:tangle my_providers.irp.f
 BEGIN_PROVIDER [ double precision, my_hessian_loc_virt, (n_mo_dim_virt) ]
   implicit none
   BEGIN_DOC

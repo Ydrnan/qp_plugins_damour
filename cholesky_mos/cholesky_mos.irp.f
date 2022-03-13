@@ -34,13 +34,15 @@ subroutine ao_decomposition()
     enddo
   enddo
 
-  print*,'AOs two e ints'
-  do nu = 1, ao_num
-    do mu = 1, ao_num
-      write(*,'(100F10.6)') A(mu,nu,:,:)
-    enddo
-  enddo 
-  print*,''
+  if (debug) then
+    print*,'AOs two e ints'
+    do nu = 1, ao_num
+      do mu = 1, ao_num
+        write(*,'(100F10.6)') A(mu,nu,:,:)
+      enddo
+    enddo 
+    print*,''
+  endif
 
   ! copy for cholesky decomposition
   Ld = A
@@ -53,12 +55,14 @@ subroutine ao_decomposition()
     call abort
   endif
 
-  print*,'Ld before removing upper diag elements'
-  do nu = 1, ao_num
-    do mu = 1, ao_num
-      write(*,'(100F10.6)') Ld(mu,nu,:,:)
+  if (debug) then
+    print*,'Ld before removing upper diag elements'
+    do nu = 1, ao_num
+      do mu = 1, ao_num
+        write(*,'(100F10.6)') Ld(mu,nu,:,:)
+      enddo
     enddo
-  enddo
+  endif
 
   ! Put the lower diag elements in a tmp matrix
   !tmp_A = 0d0
@@ -87,24 +91,28 @@ subroutine ao_decomposition()
     enddo
   enddo
 
-  print*,'Ld'
-  do nu = 1, ao_num
-    do mu = 1, ao_num
-      write(*,'(100F10.6)') Ld(mu,nu,:,:)
+  if (debug) then
+    print*,'Ld'
+    do nu = 1, ao_num
+      do mu = 1, ao_num
+        write(*,'(100F10.6)') Ld(mu,nu,:,:)
+      enddo
     enddo
-  enddo
+  endif
 
   ! L.L^T should be equal to the initial matrix 
   call dgemm('N','T',ao_num*ao_num, ao_num*ao_num,ao_num*ao_num, &
              1d0, Ld, size(Ld,1)*size(Ld,2), Ld, size(Ld,3)*size(Ld,4), &
              0d0, B, size(B,1)*size(B,2))
 
-  print*,'Ld.Ld^T ?= A'
-  do nu = 1, ao_num
-    do mu = 1, ao_num
-      write(*,'(100F10.6)') B(mu,nu,:,:)
+  if (debug) then
+    print*,'Ld.Ld^T ?= A'
+    do nu = 1, ao_num
+      do mu = 1, ao_num
+        write(*,'(100F10.6)') B(mu,nu,:,:)
+      enddo
     enddo
-  enddo
+  endif
  
   ! Check Ld.Ld^T = A
   print*, 'Check Ld.Ld^T = A'
@@ -139,24 +147,24 @@ subroutine ao_decomposition()
   ! mu,nu,la,si -> mu,q,la,si = mu,q,alpha
   L_muq = 0d0
   L_pnu = 0d0
-  !do alpha = 1, ao_num*ao_num
-  !  si = (alpha-1)/ao_num + 1 ! ao_num = n_la 
-  !  la = alpha - (si-1) * ao_num
-  !  !do q = 1, mo_num
-  !  do nu = 1, ao_num
-  !    do p = 1, mo_num
-  !      !do nu = 1, ao_num
-  !      do mu = 1, ao_num
-  !        !L_muq(mu,q,alpha) = L_muq(mu,q,alpha) + mo_coef(nu,q) * Ld(mu,nu,la,si)
-  !        L_pnu(p,nu,alpha) = L_pnu(p,nu,alpha) + mo_coef(mu,p) * Ld(mu,nu,la,si)
-  !      enddo
-  !    enddo
-  !  enddo
-  !enddo
+  do alpha = 1, ao_num*ao_num
+    si = (alpha-1)/ao_num + 1 ! ao_num = n_la 
+    la = alpha - (si-1) * ao_num
+    !do q = 1, mo_num
+    do nu = 1, ao_num
+      do p = 1, mo_num
+        !do nu = 1, ao_num
+        do mu = 1, ao_num
+          !L_muq(mu,q,alpha) = L_muq(mu,q,alpha) + mo_coef(nu,q) * Ld(mu,nu,la,si)
+          L_pnu(p,nu,alpha) = L_pnu(p,nu,alpha) + mo_coef(mu,p) * Ld(mu,nu,la,si)
+        enddo
+      enddo
+    enddo
+  enddo
   
-  call dgemm('T','N', mo_num, ao_num*ao_num*ao_num, ao_num, &
-             1d0, mo_coef, size(mo_coef,2), Ld, size(Ld,1),  &
-             0d0, L_pnu, size(L_pnu,1))
+  !call dgemm('T','N', mo_num, ao_num*ao_num*ao_num, ao_num, &
+  !           1d0, mo_coef, size(mo_coef,2), Ld, size(Ld,1),  &
+  !           0d0, L_pnu, size(L_pnu,1))
   
   ! mu,q,alpha -> p,q,alpha
   L_pq = 0d0
@@ -206,21 +214,23 @@ subroutine ao_decomposition()
     enddo
   enddo
 
-  ! L-pq and L_rs should be equals
-  print*,'L_pq'
-  do j= 1, mo_num
-    do i = 1, mo_num
-      write(*,'(100F14.6)') L_pq(i,j,:)
+  ! L_pq and L_rs should be equals
+  if (debug) then
+    print*,'L_pq'
+    do j= 1, mo_num
+      do i = 1, mo_num
+        write(*,'(100F14.6)') L_pq(i,j,:)
+      enddo
     enddo
-  enddo
  
-  print*,'L_rs'
-  do j= 1, mo_num
-    do i = 1, mo_num
-      write(*,'(100F14.6)') L_rs(i,j,:)
+    print*,'L_rs'
+    do j= 1, mo_num
+      do i = 1, mo_num
+        write(*,'(100F14.6)') L_rs(i,j,:)
+      enddo
     enddo
-  enddo
- 
+  endif 
+
   ! Check
   print*,'Check L_pq = L_rs'
   nb_error = 0
@@ -241,29 +251,31 @@ subroutine ao_decomposition()
   print*,'max error:', max_error
 
   ! Transfo to MO ints
-  !A_mo =0d0
-  !do s = 1, mo_num
-  !  do r = 1, mo_num
-  !    do q = 1, mo_num 
-  !      do p = 1, mo_num
-  !        do alpha = 1, ao_num*ao_num
-  !          A_mo(p,q,r,s) = A_mo(p,q,r,s) + L_pq(p,q,alpha) *  L_rs(r,s,alpha)
-  !        enddo
-  !      enddo
-  !    enddo
-  !  enddo
-  !enddo
-
-  call dgemm('N','T',mo_num*mo_num, mo_num*mo_num, ao_num*ao_num, &
-             1d0, L_pq, size(L_pq,1) * size(L_pq,2), &
-             L_pq, size(L_pq,3), 0d0, A_mo, size(A_mo,1)*size(A_mo,2))
-
-  print*,'Int in MO basis'
-  do j= 1, mo_num
-    do i = 1, mo_num
-      write(*,'(100F14.6)') A_mo(i,j,:,:)
+  A_mo =0d0
+  do s = 1, mo_num
+    do r = 1, mo_num
+      do q = 1, mo_num 
+        do p = 1, mo_num
+          do alpha = 1, ao_num*ao_num
+            A_mo(p,q,r,s) = A_mo(p,q,r,s) + L_pq(p,q,alpha) *  L_rs(r,s,alpha)
+          enddo
+        enddo
+      enddo
     enddo
   enddo
+
+  !call dgemm('N','T',mo_num*mo_num, mo_num*mo_num, ao_num*ao_num, &
+  !           1d0, L_pq, size(L_pq,1) * size(L_pq,2), &
+  !           L_pq, size(L_pq,3), 0d0, A_mo, size(A_mo,1)*size(A_mo,2))
+
+  if (debug) then
+    print*,'Int in MO basis'
+    do j= 1, mo_num
+      do i = 1, mo_num
+        write(*,'(100F14.6)') A_mo(i,j,:,:)
+      enddo
+    enddo
+  endif
 
   PROVIDE mo_integrals_map
 
@@ -281,12 +293,14 @@ subroutine ao_decomposition()
     enddo
   enddo
 
-  print*,'Expected result'
-  do j= 1, mo_num
-    do i = 1, mo_num
-      write(*,'(100F14.6)') mo_ints(i,j,:,:)
+  if (debug) then
+    print*,'Expected result'
+    do j= 1, mo_num
+      do i = 1, mo_num
+        write(*,'(100F14.6)') mo_ints(i,j,:,:)
+      enddo
     enddo
-  enddo
+  endif
 
   ! Check
   print*,'Result check'

@@ -99,7 +99,7 @@ subroutine run_orb_opt_trust_v2
   integer                       :: info
   integer                       :: n
   integer                       :: i,j,p,q,k
-  double precision              :: max_elem_grad, delta, rho, norm_grad
+  double precision              :: max_elem_grad, delta, rho, norm_grad, normalization_factor
   logical                       :: cancel_step
   integer                       :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot, nb_sub_iter
   double precision              :: t1, t2, t3
@@ -184,10 +184,25 @@ Here is the main algorithm of the optimization:
 
   ! Renormalization of the weight of the states
   if (normalized_st_av_weight) then
+    ! To put the same weight everywhere
     do i = 1, N_states
       state_average_weight(i) = 1d0/DBLE(N_states)
     enddo
     TOUCH state_average_weight
+  elseif (normalized_st_weight) then
+    ! To normalize the weights
+    normalization_factor = 0d0
+    do i = 1, N_states
+      normalization_factor = normalization_factor + state_average_weight(i)**2
+    enddo
+    normalization_factor = 1d0 / dsqrt(normalization_factor)
+    
+    do i = 1, N_states
+      state_average_weight(i) = state_average_weight(i) * normalization_factor
+    enddo
+    TOUCH state_average_weight
+  else
+    ! Nothing
   endif
   print*, 'Number of states:', N_states
   print*, 'State average weights:'

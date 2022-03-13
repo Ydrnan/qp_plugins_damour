@@ -27,28 +27,8 @@ filename.pdf.
 (Not available for all the files)  
 !!! Warning: the documentation can contain some errors !!! 
 
-# Orbital localisation
-To localize the MOs:  
-```
-qp run localization  
-```
-After that the ezfio directory contains the localized MOs  
- 
-But the mo_class must be defined before, run qp set_mo_class -q for more information  
- 
-## Foster-Boys & Pipek-Mezey
-Foster-Boys:  
-``` 
-qp set orbital_optimization localization_method boys 
-``` 
- 
-Pipek-Mezey:  
-``` 
-qp set orbital_optimization localization_method pipek 
-``` 
 
-# Orbital optimization 
-Please before the orbital optimization run:  
+Please, before the orbital optimization run:  
 ``` 
 qp set determinants read_wf true  
 qp set ao_two_e_erf_ints io_ao_two_e_integrals_erf write  
@@ -59,12 +39,10 @@ Different methods are available:
 ``` 
 qp set orbital_optimization optimization_method full  
 ```  
-
-- diagonal hessian (not available with orb_opt_trust_v2)  
+- diagonal hessian  
 ``` 
 qp set orbital_optimization optimization_method diag  
 ``` 
-
 - identity matrix  
 ``` 
 qp set orbital_optimization optimization_method none  
@@ -75,11 +53,11 @@ After the optimization the ezfio contains the optimized orbitals
 ## For a fixed number of determinants
 To optimize the MOs for the actual determinants:  
 ``` 
-qp run orb_opt_trust  
+qp run orb_opt_trust  # old version
 ``` 
 or  
 ``` 
-qp run orb_opt_trust_v2 (to compute the hessian only for the active MOs)  
+qp run orb_opt_trust_v2  # new version
 ``` 
  
 ## For a complete optimization, i.e, with a larger and larger wave function
@@ -88,7 +66,7 @@ To optimize the MOs with a larger and larger wave function:
 qp run optimization  
 ``` 
 
-The results are stored in the file "result_orbital_optimization.dat",
+The results are stored in the file "result_opt.dat",
 with the following format:  
 (1) (2) (3) (4)  
 1: Number of determinants in the wf,  
@@ -105,24 +83,51 @@ The optimization process if the following:
 - we do that until the energy difference between (2) and (3) is  
   smaller than the targeted accuracy for the cispi (targeted_accuracy_cipsi in qp edit) 
   or the wf is larger than a given size (n_det_max_opt in qp_edit) 
-- after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation 
+- after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation  
+  
+Some settings are available for that.  
+### Starting number of determinants
+You can choose the number of determinants to start the  
+orbital optimization with:
+```
+qp set orbital_optimization n_det_start 100 # or n_det_max_opt > any number > 0
+```
+in order to do a first cipsi until this number before  
+the optimization.  
+You can also choose to start from a given cipsi wave function:
+```
+qp set orbital_optimization start_from_wf true
+```
+or to truncate the actual cispi wave function after 
+n_det_start determinants:
+```
+qp set orbital_optimization truncate_wf true
+```
 
-# Break the spatial symmetry of the MOs
-To break the spatial symmetry of the MOs:  
+### End of the optimization
+You can choos the number of determinants after what the 
+optimization will stop:
 ```
-qp run break_spatial_sym
+qp set orbital_optimization n_max_opt 1e5 # or any number > n_det_start 
 ```
-You have to defined your MO classes or set security_mo_class to false
-with:  
+You can set the targeted accuracy to stop the optimization when the   
+gain in energy for any optimization is smaller than a threshold:
 ```
-qp set orbital_optimization security_mo_class false
+qp set orbital optimization targeted_accuracy_cipsi 1e-4
 ```
-The default angle for the rotations is too big for this kind of
-application, a value between 1e-3 and 1e-6 should break the spatial
-symimetry with just a small change in the energy:
+Generally, it's better to put the researched accuracy divided by 10,   
+because some steps can provide a small gain before a bigger one.
+
+## Weight of the states
+You can enforce the weights of the states to be equal and normalized with:
 ```
-qp set orbital_optimization angle_pre_rot 1e-3
-``` 
+qp set orbital_optimization normalized_st_av_weight true
+```
+or just enforcing the normalization of the weigths:
+```
+qp set orbital_optimization normalized_weight true # Not tested 
+
+```
 
 # Tests
 To run the tests:  
@@ -134,8 +139,9 @@ or
 ./auto_check.sh  
 ``` 
  
-But it will take a long time, so it's better to stop the tests after the tests on the benzene 
-
+But it will take a long time, so it's better to stop the tests after  
+the tests on the benzene. The tests are not perfectly up to date,  
+so errors below 1e-6 are not a problem, EXCEPT for the gradients/hessians.
 
 # Further improvements: 
 - Cleaner repo 

@@ -72,7 +72,18 @@
 !
 !end
 
-program print_percentage_T
+program print_percentage_excitations
+
+  implicit none
+
+  read_wf = .True.
+  TOUCH read_wf
+
+  call run_print_percentage_excitations()
+
+end
+
+subroutine run_print_percentage_excitations
 
   implicit none
 

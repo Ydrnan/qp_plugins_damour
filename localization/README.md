@@ -5,9 +5,11 @@ Go to the qp2 directory
 cd plugins  
 git clone -b dev https://github.com/Ydrnan/qp_plugins_damour  
 qp_plugins install localization
-cd qp_plugins_damour/localization
+cd qp_plugins_damour/trust_region
 ./TANGLE_org_mode.sh  
-cd $QP_ROOT  
+ninja
+cd ../localization
+./TANGLE_org_mode.sh  
 ninja  
 ``` 
 Please, use the ifort compiler  

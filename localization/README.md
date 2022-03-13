@@ -44,7 +44,7 @@ qp set_mo_class -c [] -a [] -v [] -i [] -d []
 ```
 to set the mo classes. We don't care about the name of the   
 mo classes. The algorithm just localizes all the MOs of  
-a given class between then, for all the classes, except the deleted MOs.  
+a given class between them, for all the classes, except the deleted MOs.  
 
 If you just on kind of mo class to localize all the MOs between them  
 you have to put:
@@ -68,7 +68,7 @@ After the localization, the MOs of each class (except the deleted ones)
 can be sorted between them using the diagonal elements of  
 the fock matrix with:
 ```
-qp set localization sort_mos_by_e true
+qp set localization sort_mos_by_e true # Not working
 ```
 
 ## Foster-Boys & Pipek-Mezey

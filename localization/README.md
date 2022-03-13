@@ -1,5 +1,5 @@
-Installation on QP2 
-Go to the qp2 directory 
+Installation on qp2 
+Go to the qp2 directory  
 ``` 
 ./bin/qpsh  
 cd plugins  

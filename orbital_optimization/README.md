@@ -1,4 +1,4 @@
-iInstallation on QP2 
+Installation on qp2   
 Go to the qp2 directory 
 ``` 
 ./bin/qpsh  

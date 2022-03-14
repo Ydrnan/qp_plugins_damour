@@ -576,6 +576,12 @@ subroutine run_localization
 
   ! Localization criterion (FB, PM, ...) for each mo_class
   print*,'### Before the pre rotation'
+  
+  ! Debug
+  if (debug_hf) then
+    print*,'HF energy:', HF_energy
+  endif
+  
   do l = 1, 4
     if (l==1) then ! core
       tmp_list_size = dim_list_core_orb
@@ -639,6 +645,13 @@ subroutine run_localization
   ! Criterion after the pre rotation
   ! Localization criterion (FB, PM, ...) for each mo_class
   print*,'### After the pre rotation'
+  
+  ! Debug
+  if (debug_hf) then
+    touch mo_coef
+    print*,'HF energy:', HF_energy
+  endif
+  
   do l = 1, 4
     if (l==1) then ! core
       tmp_list_size = dim_list_core_orb
@@ -649,28 +662,28 @@ subroutine run_localization
     else ! virt
       tmp_list_size = dim_list_virt_orb
     endif
-
-     ! Allocation tmp array  
-    allocate(tmp_list(tmp_list_size))
-
-    ! To give the list of MOs in a mo_class
-    if (l==1) then ! core
-      tmp_list = list_core
-    elseif (l==2) then
-      tmp_list = list_act
-    elseif (l==3) then
-      tmp_list = list_inact
-    else
-      tmp_list = list_virt
-    endif
-
+    
     if (tmp_list_size >= 2) then
+      ! Allocation tmp array  
+      allocate(tmp_list(tmp_list_size))
+
+      ! To give the list of MOs in a mo_class
+      if (l==1) then ! core
+        tmp_list = list_core
+      elseif (l==2) then
+        tmp_list = list_act
+      elseif (l==3) then
+        tmp_list = list_inact
+      else
+        tmp_list = list_virt
+      endif
+
       call criterion_localization(tmp_list_size, tmp_list,criterion)
       print*,'Criterion:', criterion, trim(mo_class(tmp_list(1)))
+      
+      deallocate(tmp_list)    
     endif
     
-    deallocate(tmp_list)    
-
   enddo
 
   ! Debug
@@ -890,7 +903,10 @@ subroutine run_localization
     TOUCH mo_coef
  
     ! Debug
-    !print*,'HF', HF_energy
+    if (debug_hf) then
+      touch mo_coef
+      print*,'HF energy:', HF_energy
+    endif
     
   enddo
 
@@ -902,7 +918,10 @@ subroutine run_localization
   endif
 
   ! Debug
-  !print*,'HF', HF_energy
+  if (debug_hf) then
+    touch mo_coef
+    print*,'HF energy:', HF_energy
+  endif
 
   ! Locality after the localization
   call compute_spatial_extent(spatial_extent)
@@ -2760,33 +2779,100 @@ subroutine run_sort_by_fock_energies()
   ! Warning : the Fock operator, and therefore its matrix elements, depends on the occupancy.
   END_DOC
   implicit none
-  integer                        :: i,j,k
+  integer                        :: i,j,k,l,tmp_i,tmp_k,tmp_list_size
   integer, allocatable           :: iorder(:)
-  double precision, allocatable  :: fock_energies_tmp(:), new_mo_coef(:,:)
+  double precision, allocatable  :: fock_energies_tmp(:), tmp_mo_coef(:,:), tmp_list(:)
 
-  allocate(iorder(mo_num), fock_energies_tmp(mo_num), new_mo_coef(ao_num, mo_num))
+!  allocate(iorder(mo_num), fock_energies_tmp(mo_num), new_mo_coef(ao_num, mo_num))
+!
+!  do i = 1, mo_num
+!    fock_energies_tmp(i) = Fock_matrix_diag_mo(i)
+!    print*,'fock_energies_tmp(i) = ',fock_energies_tmp(i)
+!    iorder(i) = i
+!  enddo
+!
+!  print*,''
+!  print*,'Sorting by Fock energies'
+!  print*,''
+!
+!  call dsort(fock_energies_tmp, iorder, mo_num)
+!
+!  do i = 1, mo_num
+!    k = iorder(i)
+!    print*,'fock_energies_new(i) = ',fock_energies_tmp(i)
+!    do j = 1, ao_num
+!      new_mo_coef(j,i) = mo_coef(j,k)
+!    enddo
+!  enddo
 
-  do i = 1, mo_num
-    fock_energies_tmp(i) = Fock_matrix_diag_mo(i)
-    print*,'fock_energies_tmp(i) = ',fock_energies_tmp(i)
-    iorder(i) = i
+  ! Test
+  do l = 1, 4
+    if (l==1) then ! core
+      tmp_list_size = dim_list_core_orb
+    elseif (l==2) then ! act
+      tmp_list_size = dim_list_act_orb
+    elseif (l==3) then ! inact
+      tmp_list_size = dim_list_inact_orb
+    else ! virt
+      tmp_list_size = dim_list_virt_orb
+    endif
+
+    if (tmp_list_size >= 2) then
+      ! Allocation tmp array
+      allocate(tmp_list(tmp_list_size))
+
+      ! To give the list of MOs in a mo_class
+      if (l==1) then ! core
+        tmp_list = list_core
+      elseif (l==2) then
+        tmp_list = list_act
+      elseif (l==3) then
+        tmp_list = list_inact
+      else
+        tmp_list = list_virt
+      endif
+      print*,'MO class: ',trim(mo_class(tmp_list(1)))
+
+      allocate(iorder(tmp_list_size), fock_energies_tmp(tmp_list_size), tmp_mo_coef(ao_num,tmp_list_size))
+      !print*,'MOs before sorting them by f_p^p energies:'
+      do i = 1, tmp_list_size
+        tmp_i = tmp_list(i)
+        fock_energies_tmp(i) = Fock_matrix_diag_mo(tmp_i)
+        iorder(i) = i
+        !print*, tmp_i, fock_energies_tmp(i)
+      enddo
+  
+      call dsort(fock_energies_tmp, iorder, tmp_list_size)
+      
+      print*,'MOs after sorting them by f_p^p energies:'
+      do i = 1, tmp_list_size
+        k = iorder(i)
+        tmp_k = tmp_list(k)
+        print*, tmp_k, fock_energies_tmp(k)
+        do j = 1, ao_num
+          tmp_mo_coef(j,k) = mo_coef(j,tmp_k)
+        enddo
+      enddo
+
+      ! Update the MOs after sorting them by energies
+      do i = 1, tmp_list_size
+        tmp_i = tmp_list(i)
+        do j = 1, ao_num
+          mo_coef(j,tmp_i) = tmp_mo_coef(j,i)
+        enddo
+      enddo
+
+      if (debug_hf) then
+        touch mo_coef
+        print*,'HF energy:', HF_energy
+      endif
+      print*,''
+      
+      deallocate(iorder, fock_energies_tmp, tmp_list, tmp_mo_coef)
+    endif
+
   enddo
 
-  print*,''
-  print*,'Sorting by Fock energies'
-  print*,''
-
-  call dsort(fock_energies_tmp, iorder, mo_num)
-
-  do i = 1, mo_num
-    k = iorder(i)
-    print*,'fock_energies_new(i) = ',fock_energies_tmp(i)
-    do j = 1, ao_num
-      new_mo_coef(j,i) = mo_coef(j,k)
-    enddo
-  enddo
-
-  mo_coef = new_mo_coef
   touch mo_coef
   call save_mos
   

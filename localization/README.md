@@ -70,7 +70,13 @@ After the localization, the MOs of each class (except the deleted ones)
 can be sorted between them using the diagonal elements of  
 the fock matrix with:
 ```
-qp set localization sort_mos_by_e true # Not working
+qp set localization sort_mos_by_e true
+```
+
+You can check the Hartree-Fock energy before/during/after the localization  
+by putting (only for debugging):
+```
+qp set localization debug_hf true 
 ```
 
 ## Foster-Boys & Pipek-Mezey

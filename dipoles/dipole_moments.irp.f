@@ -10,18 +10,18 @@
  double precision :: cpu0,cpu1,nuclei_part_z,nuclei_part_y,nuclei_part_x
 
 ! call cpu_time(cpu0)
- z_dipole_moment = 0.d0
- y_dipole_moment = 0.d0
- x_dipole_moment = 0.d0
+ my_z_dipole_moment = 0.d0
+ my_y_dipole_moment = 0.d0
+ my_x_dipole_moment = 0.d0
  do istate = 1, N_states
   do i = 1, mo_num  
-   z_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_z(i,i)
-   y_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_y(i,i)
-   x_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_x(i,i)
+   my_z_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_z(i,i)
+   my_y_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_y(i,i)
+   my_x_dipole_moment(istate) += -(one_e_dm_mo_alpha(i,i,istate)+one_e_dm_mo_beta(i,i,istate)) *  mo_dipole_x(i,i)
    do j = i+1, mo_num  
-    z_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_z(j,i) 
-    y_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_y(j,i) 
-    x_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_x(j,i) 
+    my_z_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_z(j,i) 
+    my_y_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_y(j,i) 
+    my_x_dipole_moment(istate) += - 2.d0 * (one_e_dm_mo_alpha(j,i,istate)+one_e_dm_mo_beta(j,i,istate)) *  mo_dipole_x(j,i) 
    enddo
   enddo
  enddo
@@ -43,9 +43,9 @@
 ! print*,'nuclei   part for x_dipole = ',nuclei_part_x
 !
  do istate = 1, N_states
-  z_dipole_moment(istate) += nuclei_part_z
-  y_dipole_moment(istate) += nuclei_part_y
-  x_dipole_moment(istate) += nuclei_part_x
+  my_z_dipole_moment(istate) += nuclei_part_z
+  my_y_dipole_moment(istate) += nuclei_part_y
+  my_x_dipole_moment(istate) += nuclei_part_x
  enddo
 
 ! call cpu_time(cpu1)
@@ -72,12 +72,12 @@ END_PROVIDER
     write(*,'(i16)',advance='no') i
   end do
   write(*,*) ''
-  write(*,'(A24,100(1pE16.8))') ' x_dipole_moment (au) = ',x_dipole_moment
-  write(*,'(A24,100(1pE16.8))') ' x_dipole_moment (D)  = ',x_dipole_moment * au2D
-  write(*,'(A24,100(1pE16.8))') ' y_dipole_moment (au) = ',y_dipole_moment
-  write(*,'(A24,100(1pE16.8))') ' y_dipole_moment (D)  = ',y_dipole_moment * au2D
-  write(*,'(A24,100(1pE16.8))') ' z_dipole_moment (au) = ',z_dipole_moment
-  write(*,'(A24,100(1pE16.8))') ' z_dipole_moment (D)  = ',z_dipole_moment * au2D
+  write(*,'(A24,100(1pE16.8))') ' x_dipole_moment (au) = ',my_x_dipole_moment
+  write(*,'(A24,100(1pE16.8))') ' x_dipole_moment (D)  = ',my_x_dipole_moment * au2D
+  write(*,'(A24,100(1pE16.8))') ' y_dipole_moment (au) = ',my_y_dipole_moment
+  write(*,'(A24,100(1pE16.8))') ' y_dipole_moment (D)  = ',my_y_dipole_moment * au2D
+  write(*,'(A24,100(1pE16.8))') ' z_dipole_moment (au) = ',my_z_dipole_moment
+  write(*,'(A24,100(1pE16.8))') ' z_dipole_moment (D)  = ',my_z_dipole_moment * au2D
   !print*, 'x_dipole_moment                  = ',x_dipole_moment
   !print*, 'y_dipole_moment                  = ',y_dipole_moment
   !print*, 'z_dipole_moment                  = ',z_dipole_moment

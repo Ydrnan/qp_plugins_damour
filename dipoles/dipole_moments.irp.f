@@ -25,8 +25,8 @@
    enddo
   enddo
  enddo
- 
-! print*,'electron part for z_dipole = ',z_dipole_moment
+
+! print*,'electron part for z_dipole = ',my_z_dipole_moment
 ! print*,'electron part for y_dipole = ',y_dipole_moment
 ! print*,'electron part for x_dipole = ',x_dipole_moment
 ! 

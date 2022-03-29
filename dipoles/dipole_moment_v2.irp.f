@@ -207,7 +207,7 @@ subroutine print_oscillator_strength
       f = 2d0/3d0 * d * d * (ci_energy(istate) - ci_energy(jstate))
 
       write(*,'(A13,I3,A1,F12.6,A7,F12.6)') 'Transition n.', (istate-1), ':', (ci_energy(istate) - ci_energy(jstate))/0.0367502d0, ' eV  f=',f
-      write(*,'(A7,I4,A4,I4)') '       ', istate, '  ->', jstate
+      write(*,'(A7,I4,A4,I4,A6,F8.4,A6,F8.4)') '       ', istate, '  ->', jstate, ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
       write(*,'(A6,F6.2,A2,F6.2)') '<S^2> ', s2_values(istate),'  ', s2_values(jstate) 
    
       if (print_det_state) then

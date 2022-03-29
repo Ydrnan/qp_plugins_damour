@@ -99,8 +99,9 @@ subroutine run_stochastic_cipsi_w_dipoles
     call save_iterations(psi_energy_with_nucl_rep(1:N_states),pt2_data % rpt2,N_det)
     call print_extrapolated_energy()
     call print_dipole_moment_xyz_v2
+    call print_transition_dipole_moment
     call print_oscillator_strength
-    call clean2_dipole_moment
+    !call clean2_dipole_moment
     !call print_tr_dipole_moments_xyz
     !call oscillator_strength
     !call debug_tr_density_matrix
@@ -146,8 +147,9 @@ subroutine run_stochastic_cipsi_w_dipoles
   call pt2_dealloc(pt2_data)
   call pt2_dealloc(pt2_data_err)
   call print_dipole_moment_xyz_v2
+  call print_transition_dipole_moment
   call print_oscillator_strength
-  call clean2_dipole_moment
+ ! call clean2_dipole_moment
  ! call print_tr_dipole_moments_xyz
  ! call oscillator_strength
  ! call debug_tr_density_matrix

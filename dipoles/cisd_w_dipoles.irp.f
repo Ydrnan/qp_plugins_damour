@@ -1,4 +1,4 @@
-program cisd
+program cisd_w_dipoles
   implicit none
   BEGIN_DOC
 ! Configuration Interaction with Single and Double excitations.
@@ -100,7 +100,7 @@ subroutine run
     enddo
   endif
 
-  call clean2_dipole_moment
+  !call clean2_dipole_moment
   call print_dipole_moment_xyz_v2
   call print_oscillator_strength
 

@@ -1,6 +1,7 @@
 program fci_w_dipoles
   implicit none
   BEGIN_DOC
+  ! Copy of the original fci
   ! Selected Full Configuration Interaction with stochastic selection
   ! and PT2.
   !

@@ -52,13 +52,13 @@
 ! print*,'Time to provide the dipole moment :',cpu1-cpu0
 END_PROVIDER
 
-BEGIN_PROVIDER [double precision, au2D]
-  implicit none
-  !BEGIN_DOC
-  ! Atomic units to Debye
-  !END_DOC
-  au2D = 2.541765d0
-END_PROVIDER
+!BEGIN_PROVIDER [double precision, au2D]
+!  implicit none
+!  !BEGIN_DOC
+!  ! Atomic units to Debye
+!  !END_DOC
+!  au2D = 2.541765d0
+!END_PROVIDER
 
  subroutine print_dipole_moments_xyz
  implicit none

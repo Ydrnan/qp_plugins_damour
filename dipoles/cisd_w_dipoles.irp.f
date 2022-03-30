@@ -1,6 +1,7 @@
 program cisd_w_dipoles
   implicit none
   BEGIN_DOC
+! Copy of the original cisd
 ! Configuration Interaction with Single and Double excitations.
 !
   ! This program takes a reference Slater determinant of ROHF-like occupancy,
@@ -100,8 +101,9 @@ subroutine run
     enddo
   endif
 
-  !call clean2_dipole_moment
+  ! Dipoles
   call print_dipole_moment_xyz_v2
+  call print_transition_dipole_moment
   call print_oscillator_strength
 
 end

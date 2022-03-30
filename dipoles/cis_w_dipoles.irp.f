@@ -1,6 +1,7 @@
 program cis_w_dipoles
   implicit none
   BEGIN_DOC
+! Copy of the original cis
 !
 ! Configuration Interaction with Single excitations.
 !
@@ -82,7 +83,8 @@ subroutine run
   psi_coef = ci_eigenvectors
   SOFT_TOUCH psi_coef
   call save_wavefunction_truncated(save_threshold)
-  !call clean2_dipole_moment
+  
+  ! Dipoles
   call print_dipole_moment_xyz_v2
   call print_transition_dipole_moment
   call print_oscillator_strength

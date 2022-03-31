@@ -74,12 +74,29 @@
 END_PROVIDER
 
 BEGIN_PROVIDER [double precision, au2D]
+&BEGIN_PROVIDER [double precision, au2eV]
+&BEGIN_PROVIDER [double precision, Ha2nm]
+
   implicit none
+  double precision :: planck_cte, light_speed, Ha2J
+ 
   !BEGIN_DOC
   ! Atomic units to Debye
   !END_DOC
-  au2D = 2.541765d0
+
+  ! 1 Ha 27.21138602d0 eV
+  ! 1 au = 2.5415802529d0 D
+  planck_cte = 6.62606957d-34
+  light_speed = 2.99792458d10
+  Ha2J = 4.35974434d-18
+
+  au2D = 2.5415802529d0
+  au2eV = 27.21138602d0
+  Ha2nm = 1d9 * (planck_cte * light_speed) / Ha2J
+
 END_PROVIDER
+
+
 
 subroutine print_dipole_moment_xyz_v2
 
@@ -108,7 +125,7 @@ subroutine print_dipole_moment_xyz_v2
   print*,' State      X           Y           Z         ||µ||' 
 
   do istate = 1, N_states 
-    write(*,'(I5,4(F12.6))') istate, d_x(istate), d_y(istate), d_z(istate), d(istate)
+    write(*,'(I5,4(F12.6))') (istate-1), d_x(istate), d_y(istate), d_z(istate), d(istate)
   enddo
 
   print*,''
@@ -116,7 +133,7 @@ subroutine print_dipole_moment_xyz_v2
   print*,' State      X           Y           Z         ||µ||' 
 
   do istate = 1, N_states 
-    write(*,'(I5,4(F12.6))') istate, d_x(istate)*au2D, d_y(istate)*au2D, d_z(istate)*au2D, d(istate)*au2D
+    write(*,'(I5,4(F12.6))') (istate-1), d_x(istate)*au2D, d_y(istate)*au2D, d_z(istate)*au2D, d(istate)*au2D
   enddo
 
   print*,'=============================================='
@@ -155,8 +172,8 @@ subroutine print_transition_dipole_moment
       d_y = multi_s_y_dipole_moment(istate,jstate)
       d_z = multi_s_z_dipole_moment(istate,jstate)
       d = multi_s_dipole_moment(istate,jstate)
-      f = 2d0/3d0 * d * d * (ci_energy(istate) - ci_energy(jstate))
-      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), jstate, '  ->', istate, d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
+      f = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
+      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
     enddo
   enddo
 
@@ -170,9 +187,9 @@ subroutine print_transition_dipole_moment
       d_y = multi_s_y_dipole_moment(istate,jstate) * au2D
       d_z = multi_s_z_dipole_moment(istate,jstate) * au2D
       d = multi_s_dipole_moment(istate,jstate) 
-      f = 2d0/3d0 * d * d * (ci_energy(istate) - ci_energy(jstate))
+      f = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
       d = multi_s_dipole_moment(istate,jstate) * au2D
-      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), jstate, '  ->', istate, d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
+      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
     enddo
   enddo
   print*,'=============================================='
@@ -208,10 +225,10 @@ subroutine print_oscillator_strength
   do jstate = 1, n_states_print !N_states
     do istate = jstate + 1, N_states
       d = multi_s_dipole_moment(istate,jstate)
-      f = 2d0/3d0 * d * d * (ci_energy(istate) - ci_energy(jstate))
-
-      write(*,'(A13,I3,A1,F12.6,A7,F10.6,A7,F7.3)') 'Transition n.', (istate-1), ':', (ci_energy(istate) - ci_energy(jstate))/0.0367502d0, ' eV  f=',f, ' <S^2>=', s2_values(istate)
-      write(*,'(I4,A4,I3,A6,F8.4,A6,F8.4)')  jstate, '  ->', istate, ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
+      f = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
+      write(*,'(A19,I3,A9,F10.6,A5,F7.1,A8,F9.6,A8,F7.3)') '   #  Transition n.', (istate-1), ': Excit.=', dabs((ci_energy(istate) - ci_energy(jstate)))*au2eV, &
+      ' eV (',dabs((ci_energy(istate) - ci_energy(jstate)))*Ha2nm,' nm), f=',f, ', <S^2>=', s2_values(istate)
+      write(*,'(I4,I4,A4,I3,A6,F6.1,A6,F8.4)') (istate-1), (jstate-1), '  ->', (istate-1), ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
       !print*,s2_values(:)
   
       ! Print the first det of each state
@@ -246,8 +263,6 @@ subroutine print_state(istate)
   double precision, allocatable :: coef(:)
   integer                       :: i
   
-  n_det_print = min(N_det,n_det_print)
-
   if (N_det == 1) then
     return
   endif
@@ -274,7 +289,10 @@ subroutine print_state(istate)
 
   print*,''
   write(*,'(A8,I3)') '# State ', istate
-  do i = 1, n_det_print
+
+  i = 1
+  !print*,'psi',psi_coef(:,istate)
+  do while (dabs(coef(i)) > thresh_c2) 
     print*,''
     write(*,'(A6,I10,A8,I4,A11,1pE14.6)') 'Det n. ', i, ', state n.', istate, ', |coef| = ', coef(i)
 
@@ -304,7 +322,13 @@ subroutine print_state(istate)
     ! Print det
     call print_det(psi_det(N_int,1,det(i)),N_int)
 
+    i = i+1
+    if (i > N_det) then
+      exit 
+    endif
+
   enddo
+
   print*,''
 
   deallocate(det, coef)

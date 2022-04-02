@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ~/App/qp2/quantum_package.rc 
+
 # ./extract.sh file n_states
 
 file=$1
@@ -41,18 +43,22 @@ done
 
 # Paste everything
 paste tmp_ndet.txt tmp_dip_0.txt > tmp.txt
+rm tmp_ndet.txt tmp_dip_0.txt
 
 tr=1
 while [ $tr -lt $n_states ]
 do
   paste tmp.txt tmp_exc_${tr}.txt > tmp1_${tr}.txt
+  rm tmp.txt tmp_exc_${tr}.txt
   paste tmp1_${tr}.txt tmp_o_${tr}.txt > tmp2_${tr}.txt
+  rm tmp1_${tr}.txt tmp_o_${tr}.txt
   paste tmp2_${tr}.txt tmp_dip_${tr}.txt > tmp.txt
+  rm tmp2_${tr}.txt tmp_dip_${tr}.txt
   tr=$(($tr+1))
 done
 
 # Extract Ndet, E, PT2
-python3 extract_E_cipsi.py -f $file
+python3 $QP_ROOT/plugins/qp_plugins_damour/damour_tools/extract_E_cipsi.py -f $file
 
 # Add data in comments
 echo "" >> ${file}.dat

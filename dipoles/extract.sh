@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ~/App/qp2/quantum_package.rc 
+#source ~/App/qp2/quantum_package.rc 
 
 # ./extract.sh file n_states
 

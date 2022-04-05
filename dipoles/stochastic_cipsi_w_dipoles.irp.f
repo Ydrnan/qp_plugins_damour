@@ -121,7 +121,12 @@ subroutine run_stochastic_cipsi_w_dipoles
     call diagonalize_CI
     call save_wavefunction
     call save_energy(psi_energy_with_nucl_rep, zeros)
-    if (qp_stop()) exit
+    if (qp_stop()) then
+      call print_dipole_moment_xyz_v2
+      call print_transition_dipole_moment
+      call print_oscillator_strength
+      exit
+    endif
   enddo
 
   if (.not.qp_stop()) then

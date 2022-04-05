@@ -1,7 +1,9 @@
 BEGIN_PROVIDER [double precision, multi_s_dm, (mo_num, mo_num, N_states, N_states)]
+
   implicit none
+
   BEGIN_DOC
-  ! Density matrix for different states, < Psi^k | a_i^\dagger a_a | Psi^l >
+  ! Density matrix for states n and m, < Psi^n | a_i^\dagger a_a | Psi^m >
   END_DOC
 
   integer                        :: j,k,l,m,k_a,k_b,n

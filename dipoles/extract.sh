@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#source ~/App/qp2/quantum_package.rc 
+source ~/App/qp2/quantum_package.rc 
 
 # ./extract.sh file n_states
 
@@ -15,7 +15,7 @@ grep "Summary at N_det" $file | awk '{printf "# %-10s\n", $5}' >> tmp_ndet.txt
 state=0
 while [ $state -lt $n_states ]
 do
-  echo "Dip. st. $state" > tmp_dip_${state}.txt
+  echo "||µ_$state||    " > tmp_dip_${state}.txt
   grep -A $(($n_states+1)) "Dipole moments (D)" $file | grep " $state " | awk '{printf "%-.6f\n", $5}' >> tmp_dip_${state}.txt
 
   state=$(($state+1))
@@ -25,8 +25,8 @@ done
 tr=1
 while [ $tr -lt $n_states ]
 do
-  echo "Exc. $tr(eV)" > tmp_exc_${tr}.txt
-  grep "#  Transition n.  $tr" $file | awk '{printf "%-.6f\n", $6}' >>  tmp_exc_${tr}.txt
+  echo "Exc. $tr(eV)  " > tmp_exc_${tr}.txt
+  grep "#  Transition n.  $tr" $file | awk '{printf "%10.6f\n", $6}' >>  tmp_exc_${tr}.txt
 
   tr=$(($tr+1))
 done
@@ -35,8 +35,8 @@ done
 tr=1
 while [ $tr -lt $n_states ]
 do
-  echo "Osc. str. $tr" > tmp_o_${tr}.txt
-  grep "#  Transition n.  $tr" $file | awk '{printf "%-.6f\n", $12}' >> tmp_o_${tr}.txt
+  echo "f^l_$tr      f^v_$tr      f^m_$tr    " > tmp_o_${tr}.txt
+  grep "#  Transition n.  $tr" $file | awk '{printf "%10.6f %10.6f %10.6f\n", $12, $14, $16}' >> tmp_o_${tr}.txt
 
   tr=$(($tr+1))
 done

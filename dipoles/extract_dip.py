@@ -51,7 +51,7 @@ def extract_dip(n_states,fname):
     f = open(out_file,"w")
     f.write('{:12s}'.format("# Ndet"))
     f.write('{:10s}'.format("||µ_0||"))
-    for istate in range(0,n_states-1):
+    for istate in range(1,n_states):
         f.write('{:10s}'.format("Exc. "+str(istate)))
         f.write('{:10s}'.format("f^l_"+str(istate)))
         f.write('{:10s}'.format("f^v_"+str(istate)))

@@ -108,8 +108,10 @@ def extract_dip(n_states,fname):
             f.write('{:10.6f}'.format(dip[istate][j]))
         f.write("\n")
     f.close
-    
 
+    # Extrapolation µ = f(PT2)
+    
+    # Extrapolation f = f(PT2)  
 
 if __name__ == "__main__":
 

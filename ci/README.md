@@ -1,5 +1,5 @@
 # Selected CI
-Cipsi with some constraints on the excitation degree or/and seniority.  
+Cipsi with some constraints on the excitation degree or seniority.  
   
 Note:  
 All these kinds of calculation can be done by setting by hands  
@@ -24,20 +24,6 @@ qp run s_ci0_cipsi
 qp run s_ci2_cipsi
 qp run s_ci4_cipsi
 qp run s_ci6_cipsi
-```
-
-## Hierarchy-based CI
-Hierarchy Configuration Interaction: Combining Seniority Number and Excitation Degree  
-Fábris Kossoski, Yann Damour, Pierre-François Loos  
-[arXiv:2203.06154](https://arxiv.org/abs/2203.06154)  
-  
-hCI1, hCI1.5, hCI2, hCI2.5, hCI3    
-```
-qp run h_ci1_cipsi
-qp run h_ci1.5_cipsi
-qp run h_ci2_cipsi
-qp run h_ci2.5_cipsi
-qp run h_ci3_cipsi
 ```
 
 ## PT2

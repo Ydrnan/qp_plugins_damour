@@ -1,0 +1,21 @@
+#+BEGIN_SRC f90 :comments org :tangle inverse_jacobian.irp.f
+subroutine inverse_jacobian(t2_jacobian, Jm1)
+
+  implicit none
+  
+  ! in
+  double precision, intent(in)  :: t2_jacobian(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: Jm1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+
+  ! internal
+  integer                       :: nV, nO
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  call get_inverse(t2_jacobian, nO*nV, nO*nV, Jm1, nO*nV)
+  
+end
+#+END_SRC

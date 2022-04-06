@@ -1,0 +1,52 @@
+* E pccd
+
+\begin{align*}
+E_{\text{pCCD}} = \sum_{ia} t_i^a <aa|ii> 
+\end{align*}
+
+#+BEGIN_SRC f90 :comments org :tangle pccd_energy.irp.f
+subroutine pccd_energy(t2, energy)
+
+  implicit none
+
+  ! in
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+
+  ! out
+  double precision, intent(out) :: energy
+
+  ! internal
+  integer                       :: i,a
+  integer                       :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  ! Final energy
+  energy = 0d0
+  do a = 1, nV
+    do i = 1, nO
+      energy = energy + t2(i,a) * two_e_ints_aaii(a,i)
+    enddo
+  enddo 
+  
+  ! Add <0|H|0>
+  energy = energy + hf_energy
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle pccd_energy.irp.f
+BEGIN_PROVIDER [double precision, e_pccd]
+
+  implicit none
+
+  BEGIN_DOC
+  ! pCCD energy
+  END_DOC
+
+  e_pccd = 0d0
+
+END_PROVIDER
+#+END_SRC
+

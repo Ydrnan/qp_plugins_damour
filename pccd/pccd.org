@@ -1,0 +1,19 @@
+* pCCD
+
+#+BEGIN_SRC f90 :comments org :tangle pccd.irp.f
+program pccd
+  implicit none
+
+  call run_pccd
+  
+  call run_s_pccd
+  
+  !epsilon = 1d0
+  !do while (epsilon > 1d-8)
+  !  call run_S1pCCD(epsilon, energy)
+  !  epsilon = epsilon * 0.9d0
+  !enddo
+  
+end program
+#+END_SRC
+

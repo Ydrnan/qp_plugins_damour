@@ -1,0 +1,2128 @@
+* CCD with spin orbitals
+
+Pople 1978.
+$i,j,k,l,...$: occupied spin-orbitals
+$a,b,c,d,...$: virtual spin-orbitals
+$p,q,r,s,...$: general spin-orbitals
+$$ E_{CCD} = E_{HF} + \frac{1}{4} \sum_{ijab} <ij||ab>
+{t_{2}}_{ij}^{ab}$$
+with
+$$ <pq||rs> = \int \int \chi_p^*(1) \chi_q^*(2) \frac{1}{r_{12}}
+\left[ \chi_r(1) \chi_s(2) - \chi_s(1) \chi_r(2) \right] d\tau_1
+d\tau_2 $$
+We have to solve:
+$$ <ab||ij> + \Delta_{ij}^{ab} {t_2}_{ij}^{ab} + u_{ij}^{ab} +
+v_{ij}^{ab} = 0 $$
+with:
+$$\Delta_{ij}^{ab} = \epsilon_a + \epsilon_b - \epsilon_i -
+\epsilon_j$$
+\begin{align*}
+u_{ij}^{ab} =& \frac{1}{2} \sum_{cd} <ab||cd> {t_2}_{ij}^{cd} +
+\frac{1}{2} \sum_{kl} <kl||ij> {t_2}_{kl}^{ij} \\ &+ \sum_{kc} \left(
+-<kb||jc> {t_2}_{ik}^{ac} + <ka||jc> {t_2}_{ik}^{bc} - <ka||ic>
+{t_2}_{jk}^{bc} + <kb||ic> {t_2}_{jk}^{ac} \right)
+\end{align*}
+
+\begin{align*}
+v_{ij}^{ab} = \frac{1}{4} \sum_{klcd} <kl||cd> \left[ {t_2}_{ij}^{cd} {t_2}_{kl}^{ab}
+ - 2( {t_2}_{ij}^{ac} {t_2}_{kl}^{bd} + {t_2}_{ij}^{bd} {t_2}_{kl}^{ac}) 
+-2( {t_2}_{ik}^{ab} {t_2}_{jl}^{cd} + {t_2}_{ik}^{ad} {t_2}_{jl}^{ab}) 
++4( {t_2}_{ik}^{ac} {t_2}_{jl}^{bd} + {t_2}_{ik}^{bd} {t_2}_{jl}^{ac}) \right]
+\end{align*}
+
+$v_{ij}^{ab}$ can be computed more efficiently as:
+\begin{align*}
+v_{ij}^{ab} =& \frac{1}{4} \sum_{kl} <kl|X_1|ij> {t_2}_{kl}^{ab} 
+- \frac{1}{2} \sum_c \left[ <b|X_2|c> {t_2}_{ij}^{ac} + <a|X_2|c> {t_2}_{ij}^{cb} \right] \\
+&- \frac{1}{2} \sum_k \left[ <k|X_3|j> {t_2}_{ik}^{ab} + <k|X_3|i> {t_2}_{kj}^{ab} \right] \\
+&+ \sum_{kc} \left[ <ik|X_4|ac> {t_2}_{jk}^{bc} + <ik|X_4|bc> {t_2}_{kj}^{ac} \right]
+\end{align*}
+with:
+$$<kl|X_1|ij> = \sum_{cd} <kl||cd> {t_2}_{ij}^{cd}$$
+
+$$<b|X_2|c> = \sum_{kld} <kl||cd> {t_2}_{kl}^{bd}$$
+
+$$<k|X_3|j> = \sum_{lcd} <kl||cd> {t_2}_{jl}^{cd}$$
+
+$$<il|X_1|ad> = \sum_{kc} <kl||cd> {t_2}_{ik}^{ac}$$
+
+The equation can be solved iteratively by updating the $t_2$ amplitudes:
+$$ {t_2}_{ij}^{ab} = -(\Delta_{ij}^{ab})^{-1} \left[ <ab||ij> +
+u_{ij}^{ab} + v_{ij}^{ab} \right]$$
+or
+$$ {t_2}_{ij}^{ab} \leftarrow {t_2}_{ij}^{ab} - \frac{r_{ij}^{ab}}{\Delta_{ij}^{ab}}$$
+with $$ r_{ij}^{ab} = <ab||ij> + \Delta_{ij}^{ab} {t_2}_{ij}^{ab} + u_{ij}^{ab} +
+v_{ij}^{ab} $$
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+program spin_orb_ccd
+  implicit none
+
+  ! Pople
+  integer                       :: n_occ, n_vir
+  double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:)
+  double precision, allocatable :: delta(:,:,:,:), u(:,:,:,:), v(:,:,:,:), v2(:,:,:,:)
+  double precision, allocatable :: x1(:,:,:,:), x2(:,:), x3(:,:), x4(:,:,:,:)
+  double precision              :: energy, two_e_int_spin_orb, dnrm2, epsilon, thresh_conv
+  double precision              :: accu1, accu2, accu3, accu4, get_two_e_integral, max_elem
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  integer                       :: nb_iter, index_in_space, nb_parameters
+  logical                       :: not_converged, is_selected
+  integer, allocatable          :: key(:)
+  double precision, allocatable :: sorted_t2(:), unsorted_int(:), sorted_int(:)
+  
+  PROVIDE mo_two_e_integrals_in_map
+
+  n_occ = elec_alpha_num + elec_beta_num
+  n_vir = 2*mo_num - (elec_alpha_num + elec_beta_num)
+
+  print*,'HF energy', hf_energy
+
+  ! Alloc
+  allocate(t2(n_occ,n_occ,n_vir,n_vir),r(n_occ,n_occ,n_vir,n_vir))
+  allocate(delta(n_occ,n_occ,n_vir,n_vir),u(n_occ,n_occ,n_vir,n_vir),v(n_occ,n_occ,n_vir,n_vir))
+  allocate(x1(n_occ,n_occ,n_occ,n_occ), x2(n_vir,n_vir), x3(n_occ,n_occ), x4(n_occ,n_occ,n_vir,n_vir))
+  allocate(v2(n_occ,n_occ,n_vir,n_vir))
+
+  allocate(sorted_t2(n_occ**2*n_vir**2), unsorted_int(n_occ**2*n_vir**2), sorted_int(n_occ**2*n_vir**2),key(n_occ**2*n_vir**2))
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+  t2 = 0d0
+
+  ! Debug, print integrals
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+          !print*,i,j,tmp_a,tmp_b, index_in_space(i), index_in_space(j), index_in_space(tmp_a), index_in_space(tmp_b)        
+          !delta(i,j,a,b) = two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+          !print*,i,j,a,b,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+        enddo
+      enddo
+    enddo
+  enddo
+  !print*,'int',delta(:,:,:,:)
+
+  ! test S-CCD
+  if (sccd_method == 'none') then
+    print*,'Normal CCD'
+  elseif (sccd_method == 'bi_int') then
+    print*,'Selected CCD on: |<ij|ab>| > e'
+  elseif (sccd_method == 'guess_mp2') then
+    print*,'Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e' 
+  elseif (sccd_method == 'estimated_e') then
+    print*,'Selected CCD on: |<ij|ab>|^2/(f_aa+f_bb-f_ii-f_jj) > e'
+  else
+    print*,'Invalid sccd_method:',  sccd_method
+    print*,'Program will abort'
+    call abort
+  endif
+
+  epsilon = 0d-0
+
+!do while (epsilon > 1d-4)   
+
+  print*, 'epsilon:', epsilon
+
+  ! delta
+  call compute_delta(n_occ, n_vir, delta)
+  !print*,'delta',delta(:,:,:,:)
+
+  call normalized_epsilon(n_occ, n_vir, delta)
+  print*,'Max int:', max_int
+  print*,'Max int over delta:', max_int_over_delta
+  print*,'Max int2 over delta:', max_int2_over_delta
+  
+  call guess_t2(n_occ, n_vir, delta, epsilon, t2)
+
+  call ccd_energy(t2, n_occ, n_vir, energy)
+  !print*,energy
+
+  nb_iter = 1
+  not_converged = .True.
+  thresh_conv = 1d-6
+
+  do while (not_converged)
+
+    !print*,'t2',t2(:,:,:,:)
+
+    ! x for v 
+    call compute_x(n_occ, n_vir, t2, x1, x2, x3, x4)
+
+    ! u
+    call compute_u(n_occ, n_vir, t2, u)
+    !print*,'u',u(:,:,:,:)
+
+    ! v
+    call compute_v(n_occ, n_vir, t2, x1, x2, x3, x4, v)
+    !call compute_v_2(n_occ,n_vir,t2,v2)
+    !print*,'v',v(:,:,:,:)
+    !print*,'v2',v2(:,:,:,:)
+
+    ! r
+    call compute_r(n_occ, n_vir, t2, delta, u, v, epsilon, r)
+    !print*,'r',r(:,:,:,:)
+    
+    call update_t2(n_occ, n_vir, r, delta, u, v, epsilon, t2)
+
+    call ccd_energy(t2, n_occ, n_vir, energy)
+    call max_elem_r(n_occ, n_vir, r, max_elem)
+    print*,nb_iter,energy, max_elem
+
+    if (max_elem < thresh_conv ) then
+      nb_parameters = 0
+      !k = 1
+      do b = 1, n_vir
+        tmp_b = n_occ + b
+        do a = 1, n_vir
+          tmp_a = n_occ + a
+          do j = 1, n_occ
+            do i = 1, n_occ
+               !sorted_t2(k) = -dabs(0.25d0*t2(i,j,a,b)*two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+               !unsorted_int(k) = -dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+               !k = k+1
+               if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
+                 nb_parameters =  nb_parameters + 1
+               endif
+            enddo
+          enddo
+        enddo
+      enddo
+      !do k = 1, n_occ**2*n_vir**2
+      !  key(k) = k
+      !enddo
+      !call dsort(sorted_t2, key, n_occ**2*n_vir**2)
+      !do k = 1, n_occ**2*n_vir**2
+      !  l = key(k)
+      !  sorted_int(k) = unsorted_int(l)
+      !enddo
+      !print*,''
+      !print*,' k    t2*int    int' 
+      !do k = 1, n_occ**2*n_vir**2
+      !  print*, k, sorted_t2(k), sorted_int(k)
+      !enddo
+      !print*,''
+      not_converged = .False.
+      print*,'Result:', epsilon, energy, nb_parameters
+    endif
+
+    nb_iter = nb_iter + 1
+
+    if (nb_iter >= 100 .and. not_converged) then
+      print*,'######################'
+      print*,'  Convergence failed  '
+      print*,'######################'
+      exit
+    endif
+
+  enddo
+
+  epsilon = epsilon * 0.75d0
+
+!enddo
+
+  deallocate(t2,r,delta,u,v,v2,x1,x2,x3,x4)
+
+end
+#+END_SRC
+** Routines
+#+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine ccd_energy(t2,n_occ,n_vir,energy)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: t2(n_occ,n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: energy
+
+  ! internal
+  integer                       :: i,j,a,b,tmp_a,tmp_b
+
+  ! functions
+  double precision              :: two_e_int_spin_orb
+
+  energy = 0d0
+
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          energy = energy + t2(i,j,a,b) * two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  energy = 0.25d0 * energy + hf_energy
+ 
+end
+#+END_SRC
+
+#+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine max_elem_r(n_occ,n_vir,r,max_elem)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: r(n_occ,n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: max_elem
+
+  ! internal
+  integer                       :: i,j,a,b
+
+  max_elem = 0d0
+
+  do b = 1, n_vir
+    do a = 1, n_vir
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+           if (dabs(r(i,j,a,b)) > max_elem) then
+             max_elem = dabs(r(i,j,a,b))
+           endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine guess_t2(n_occ, n_vir, delta, epsilon, t2)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: delta(n_occ, n_occ, n_vir, n_vir), epsilon
+
+  ! out
+  double precision, intent(out) :: t2(n_occ, n_occ, n_vir, n_vir)
+
+  integer                       :: i,j,a,b,tmp_a, tmp_b,index_in_space
+  
+  ! function
+  double precision              :: two_e_int_spin_orb
+  logical                       :: is_selected
+  
+  ! Guess
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+        
+          if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
+              t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) / delta(i,j,a,b)
+            else
+              t2(i,j,a,b) = 0d0
+          endif
+          !print*,t2(i,j,a,b), dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+          !if (dabs(t2(i,j,a,b)) >1d-12) then
+          !print*,index_in_space(i),index_in_space(j),index_in_space(tmp_a),index_in_space(tmp_b),-two_e_int_spin_orb(i,j,tmp_a,tmp_b),delta(i,j,a,b)
+          !endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+function is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: i,j,a,b,tmp_a,tmp_b
+  integer, intent(in)          :: n_occ, n_vir
+  double precision, intent(in) :: epsilon, delta(n_occ,n_occ,n_vir,n_vir) 
+
+  ! functions
+  logical                      :: is_selected
+  double precision             :: two_e_int_spin_orb
+
+  ! Normal CCD
+  if (sccd_method == 'none') then
+    is_selected = .True.
+  ! Selected CCD on: |<ij|ab>| > e
+  elseif (sccd_method == 'bi_int') then
+    if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/max_int >= epsilon) then
+      is_selected = .True.
+    else
+      is_selected = .False.
+    endif
+  ! Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e
+  elseif (sccd_method == 'guess_mp2') then
+    if ((dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b))/max_int_over_delta >= epsilon) then
+      is_selected = .True.
+    else
+      is_selected = .False.
+    endif
+  ! Selected CCD on: |<ij|ab>|^2/(f_aa+f_bb-f_ii-f_jj) > e
+  elseif (sccd_method == 'estimated_e') then
+    if (dsqrt((two_e_int_spin_orb(i,j,tmp_a,tmp_b)**2/delta(i,j,a,b))/max_int2_over_delta) >= epsilon) then
+      is_selected = .True.
+    else
+      is_selected = .False.
+    endif
+  endif
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine update_t2(n_occ, n_vir, r, delta, u, v, epsilon, t2)
+
+  implicit none
+  
+  ! in
+  integer, intent(in)             :: n_occ, n_vir
+  double precision, intent(in)    :: r(n_occ, n_occ, n_vir, n_vir), u(n_occ, n_occ, n_vir, n_vir), v(n_occ, n_occ, n_vir, n_vir)
+  double precision, intent(in)    :: delta(n_occ, n_occ, n_vir, n_vir), epsilon
+
+  ! inout 
+  double precision, intent(inout) :: t2(n_occ, n_occ, n_vir, n_vir)
+
+  ! internal
+  integer                         :: i,j,a,b,tmp_a,tmp_b
+
+  ! Functions
+  double precision                :: two_e_int_spin_orb
+  logical                         :: is_selected
+
+  ! New amplitudes
+    do b = 1, n_vir
+      tmp_b = b + n_occ
+      do a = 1, n_vir
+        tmp_a = a + n_occ
+        do j = 1, n_occ
+          do i = 1, n_occ
+    
+            if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
+              t2(i,j,a,b) =  t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
+            else
+              t2(i,j,a,b) = 0d0
+            endif
+
+            !if (t2(i,j,a,b) /= 0d0) then 
+            !  print*, t2(i,j,a,b), two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+            !endif
+
+          enddo
+        enddo
+      enddo
+    enddo
+
+end 
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_delta(n_occ,n_vir,delta)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+
+  ! out
+  double precision, intent(out) :: delta(n_occ,n_occ,n_vir,n_vir)
+
+  ! internal
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d,tmp_i,tmp_j
+
+  ! functions
+  integer                       :: index_in_space
+
+  ! delta
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    tmp_b = index_in_space(tmp_b)
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      tmp_a = index_in_space(tmp_a)
+      do j = 1, n_occ
+        tmp_j = j
+        tmp_j = index_in_space(tmp_j)
+        do i = 1, n_occ
+          tmp_i = i
+          tmp_i = index_in_space(tmp_i)
+          
+          delta(i,j,a,b) = (fock_matrix_mo(tmp_a,tmp_a) + fock_matrix_mo(tmp_b,tmp_b)&
+                          - fock_matrix_mo(tmp_i,tmp_i) - fock_matrix_mo(tmp_j,tmp_j))
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_x(n_occ,n_vir,t2,x1,x2,x3,x4)
+  
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: t2(n_occ, n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: x1(n_occ, n_occ,n_occ,n_occ), x2(n_vir,n_vir), x3(n_occ,n_occ), x4(n_occ,n_occ,n_vir,n_vir)
+  
+  ! internal
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+
+  ! functions
+  double precision              :: two_e_int_spin_orb
+
+  ! v
+  ! term 1
+  x1 = 0d0
+  do k = 1, n_occ
+    do l = 1, n_occ
+      do i = 1, n_occ
+        do j = 1, n_occ
+
+          do d = 1, n_vir
+            tmp_d = d + n_occ
+            do c = 1, n_vir
+              tmp_c = c + n_occ
+
+              x1(k,l,i,j) =  x1(k,l,i,j) + two_e_int_spin_orb(k,l,tmp_c,tmp_d) * t2(i,j,c,d)
+
+            enddo  
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  x2 = 0d0
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do c = 1, n_vir
+      tmp_c = c + n_occ
+
+      do k = 1, n_occ
+        do l = 1, n_occ
+          do d = 1, n_vir
+            tmp_d = d + n_occ
+
+            x2(b,c) = x2(b,c) + two_e_int_spin_orb(k,l,tmp_c,tmp_d) * t2(k,l,b,d)
+
+          enddo
+        enddo
+      enddo
+
+    enddo
+  enddo
+
+  x3 = 0d0
+  do k = 1, n_occ
+    do j = 1, n_occ
+
+      do l = 1, n_occ
+        do c = 1, n_vir
+          tmp_c = c + n_occ
+          do d = 1, n_vir
+            tmp_d = d + n_occ
+
+            x3(k,j) = x3(k,j) + two_e_int_spin_orb(k,l,tmp_c,tmp_d) * t2(j,l,c,d)
+
+          enddo
+        enddo
+      enddo
+
+    enddo
+  enddo
+
+  x4 = 0d0
+  do i = 1, n_occ
+    do l = 1, n_occ
+      do a = 1, n_vir
+        tmp_a = a + n_occ
+        do d = 1, n_vir
+          tmp_d = d + n_occ
+
+          do k = 1, n_occ
+            do c = 1, n_vir
+              tmp_c = c + n_occ
+              x4(i,l,a,d) = x4(i,l,a,d) + two_e_int_spin_orb(k,l,tmp_c,tmp_d) * t2(i,k,a,c)
+            enddo
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_v(n_occ,n_vir,t2,x1,x2,x3,x4,v)
+
+  implicit none
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: t2(n_occ,n_occ,n_vir,n_vir)
+  double precision, intent(in) :: x1(n_occ, n_occ,n_occ,n_occ), x2(n_vir,n_vir), x3(n_occ,n_occ), x4(n_occ,n_occ,n_vir,n_vir)
+  double precision, intent(out) :: v(n_occ,n_occ,n_vir,n_vir)
+  integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  double precision :: accu1, accu2, accu3, accu4,two_e_int_spin_orb
+
+  do b = 1, n_vir
+    do a = 1, n_vir
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          ! v
+          accu1 = 0d0
+          do k = 1, n_occ
+            do l = 1, n_occ
+              accu1 = accu1 + x1(k,l,i,j) * t2(k,l,a,b)
+            enddo
+          enddo
+          accu1 = accu1 * 0.25d0
+
+          accu2 = 0d0
+          do c = 1, n_vir
+            accu2 = accu2 + x2(b,c) * t2(i,j,a,c) + x2(a,c) * t2(i,j,c,b)
+          enddo
+          accu2 = - 0.5d0 * accu2
+
+          accu3 = 0d0
+          do k = 1, n_occ
+            accu3 = accu3 + x3(k,j) * t2(i,k,a,b) + x3(k,i) * t2(k,j,a,b)
+          enddo
+          accu3 = - 0.5d0 * accu3
+
+          accu4 = 0d0
+          do k = 1, n_occ
+            do c = 1, n_vir
+              accu4 = accu4 + x4(i,k,a,c) * t2(j,k,b,c) + x4(i,k,b,c) * t2(k,j,a,c)
+            enddo
+          enddo
+ 
+          v(i,j,a,b) = accu1 + accu2 +accu3 + accu4
+
+          enddo
+        enddo
+      enddo
+    enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_v_2(n_occ,n_vir,t2,v)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: t2(n_occ,n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: v(n_occ,n_occ,n_vir,n_vir)
+
+  ! internal
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  double precision              :: accu1, accu2, accu3, accu4
+
+  ! functions
+  double precision              :: two_e_int_spin_orb
+
+  v = 0d0
+
+  ! v
+  do b = 1, n_vir
+    do a = 1, n_vir
+      do j = 1, n_occ
+        do i = 1, n_occ
+  
+          do d = 1, n_vir
+            tmp_d = d + n_occ
+            do c = 1, n_vir
+              tmp_c = c + n_occ
+              do l = 1, n_occ
+                do k = 1, n_occ
+
+                  v(i,j,a,b) = v(i,j,a,b) + two_e_int_spin_orb(k,l,tmp_c,tmp_d) * &
+                               (t2(i,j,c,d)*t2(k,l,a,b) - 2d0*(t2(i,j,a,c)*t2(k,l,b,d) + t2(i,j,b,d)*t2(k,l,a,c)) &
+                                - 2d0*(t2(i,k,a,b)*t2(j,l,c,d) + t2(i,k,c,d)*t2(j,l,a,b)) &
+                                + 4d0*(t2(i,k,a,c)*t2(j,l,b,d) + t2(i,k,b,d)*t2(j,l,a,c)))
+                  
+                enddo
+              enddo
+            enddo
+          enddo
+          v(i,j,a,b) = 0.25d0 * v(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_u(n_occ,n_vir,t2,u)
+
+  implicit none
+  
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: t2(n_occ,n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: u(n_occ,n_occ,n_vir,n_vir)
+
+  ! internal
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  double precision              :: accu1, accu2, accu3, accu4
+
+  ! function
+  double precision              :: two_e_int_spin_orb
+
+  ! u
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          ! term 1
+          accu1 = 0d0
+          do c = 1, n_vir
+            tmp_c = c + n_occ
+            do d = 1, n_vir
+              tmp_d = d + n_occ
+        
+              accu1 = accu1 + two_e_int_spin_orb(tmp_a,tmp_b,tmp_c,tmp_d) * t2(i,j,c,d)
+
+            enddo
+          enddo
+
+          !term 2
+          accu2 = 0d0
+          do k = 1, n_occ 
+            do l = 1, n_occ
+        
+              accu2 = accu2 + two_e_int_spin_orb(k,l,i,j) * t2(k,l,a,b) 
+        
+            enddo
+          enddo        
+ 
+          ! term 3
+          accu3 = 0d0
+          do k = 1, n_occ
+            do c = 1, n_vir
+              tmp_c = c + n_occ
+              
+              accu3 = accu3 - two_e_int_spin_orb(k,tmp_b,j,tmp_c) * t2(i,k,a,c) &
+                            + two_e_int_spin_orb(k,tmp_a,j,tmp_c) * t2(i,k,b,c) &
+                            - two_e_int_spin_orb(k,tmp_a,i,tmp_c) * t2(j,k,b,c) &
+                            + two_e_int_spin_orb(k,tmp_b,i,tmp_c) * t2(j,k,a,c) 
+
+            enddo
+          enddo
+          
+          u(i,j,a,b) = 0.5d0*accu1 + 0.5d0*accu2 + accu3
+
+       
+        enddo
+      enddo
+    enddo
+  enddo
+ 
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine compute_r(n_occ,n_vir,t2,delta,u,v,epsilon,r)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: n_occ, n_vir
+  double precision, intent(in)  :: t2(n_occ,n_occ,n_vir,n_vir), epsilon
+  double precision, intent(in)  :: u(n_occ,n_occ,n_vir,n_vir)
+  double precision, intent(in)  :: v(n_occ,n_occ,n_vir,n_vir)
+  double precision, intent(in)  :: delta(n_occ,n_occ,n_vir,n_vir)
+
+  ! out
+  double precision, intent(out) :: r(n_occ,n_occ,n_vir,n_vir)
+
+  ! internal
+  integer                       :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+
+  ! functions
+  double precision              :: two_e_int_spin_orb
+  logical                       :: is_selected
+
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
+            r(i,j,a,b) =  two_e_int_spin_orb(i,j,tmp_a,tmp_b) &
+                        + delta(i,j,a,b) * t2(i,j,a,b) &
+                        + u(i,j,a,b) + v(i,j,a,b)
+          else
+            r(i,j,a,b) = 0d0
+          endif
+
+          !print*,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
+
+        enddo
+      enddo
+    enddo
+  enddo
+ 
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+function two_e_int_spin_orb(i,j,k,l)
+
+  implicit none
+
+  ! in
+  integer, intent(in)   :: i,j,k,l
+
+  ! internal
+  integer               :: tmp_i,tmp_j,tmp_k,tmp_l
+  integer, dimension(4) :: spin
+  integer               :: index_in_space 
+
+  ! functions
+  double precision      :: two_e_int_spin_orb, get_two_e_integral
+
+  ! spin, array (i,j,k,l) 
+  ! if w_i = alpha then spin = 0
+  ! if w_i = beta then spin = 1
+  spin = 1
+
+  ! MOs = (alpha_occupied ... beta_occupied ... beta_virtual ... alpha_virtual)
+  if (i <= elec_alpha_num .or. i > mo_num + elec_alpha_num) then
+    spin(1) = 0
+  endif
+  if (j <= elec_alpha_num .or. j > mo_num + elec_alpha_num) then
+    spin(2) = 0
+  endif
+  if (k <= elec_alpha_num .or. k > mo_num + elec_alpha_num) then
+    spin(3) = 0
+  endif
+  if (l <= elec_alpha_num .or. l > mo_num + elec_alpha_num) then
+    spin(4) = 0
+  endif
+
+  ! <ij||kl> 
+  ! = <ij|kl> - <ij|lk>
+  ! <ij|kl> = 0 if w(i) /= w(k) or w(j) /= w(l)
+  ! <ij|lk> = 0 if w(i) /= w(l) or w(j) /= w(k)
+  ! with w(i) the spin part of i 
+  two_e_int_spin_orb = 0d0
+
+  tmp_i=index_in_space(i)
+  tmp_j=index_in_space(j)
+  tmp_k=index_in_space(k)
+  tmp_l=index_in_space(l)
+
+  !print*,'spin',spin(:)
+
+  ! <ij|kl>
+  if (spin(1) == spin(3) .and. spin(2) == spin(4)) then
+    two_e_int_spin_orb = get_two_e_integral(tmp_i,tmp_j,tmp_k,tmp_l,mo_integrals_map)
+  endif
+
+  ! <ij|lk>
+  if (spin(1) == spin(4) .and. spin(2) == spin(3)) then
+    two_e_int_spin_orb = two_e_int_spin_orb - get_two_e_integral(tmp_i,tmp_j,tmp_l,tmp_k,mo_integrals_map)
+  endif
+  !print*,i,j,k,l
+  !print*,'int',tmp_i,tmp_j,tmp_k,tmp_l,two_e_int_spin_orb, get_two_e_integral(tmp_i,tmp_j,tmp_k,tmp_l,mo_integrals_map),  get_two_e_integral(tmp_i,tmp_j,tmp_l,tmp_k,mo_integrals_map)
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+function index_in_space(i)
+
+  implicit none
+
+  integer :: i, index_in_space
+
+  index_in_space = i
+  if (i > elec_alpha_num .and. i <= elec_alpha_num + mo_num) then
+    index_in_space = i - elec_alpha_num
+  endif
+  if (i > elec_alpha_num + mo_num) then
+    index_in_space = i - mo_num 
+  endif
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
+subroutine normalized_epsilon(n_occ, n_vir, delta)
+
+  implicit none
+
+  ! in
+  integer, intent(in) :: n_occ, n_vir
+  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
+  
+  ! internal
+  integer :: i,j,a,b,tmp_a,tmp_b
+
+  ! functions
+  double precision :: two_e_int_spin_orb
+  
+  !max_int = 0d0
+  !max_int_over_delta = 0d0
+  !max_int2_over_delta = 0d0
+
+  do b = 1, n_vir
+    tmp_b = b + n_occ
+    do a = 1, n_vir
+      tmp_a = a + n_occ 
+      do j = 1, n_occ
+        do i = 1, n_occ
+
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) > max_int) then
+            max_int = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
+          endif
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b) > max_int_over_delta) then
+            max_int_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b)
+          endif
+          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b) > max_int2_over_delta) then
+            max_int2_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b)
+          endif
+
+        enddo
+      enddo
+    enddo
+  enddo
+
+  TOUCH max_int max_int_over_delta max_int2_over_delta
+
+end
+#+END_SRC
+
+* Working CCD :
+Scuseria, Gustavo E.; Scheiner, Andrew C.; Lee, Timothy J.; Rice,
+Julia E.; Schaefer, Henry F. (1987). The closed-shell coupled cluster
+single and double excitation (CCSD) model for the description of
+electron correlation. A comparison with configuration interaction
+(CISD) results. The Journal of Chemical Physics, 86(5),
+2881–. doi:10.1063/1.452039  
+#+BEGIN_SRC f90 :comments org
+!:tangle space_orb_ccd_v2.irp.f
+program space_orb_ccd_v2
+  
+  implicit none
+
+  integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  integer :: u,v,be,ga,tmp_be,tmp_ga
+  integer :: nO, nV
+  integer :: nb_iter
+  double precision :: get_two_e_integral
+  double precision :: energy, max_elem
+  logical :: not_converged
+
+  double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:), delta(:,:,:,:)
+  
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  allocate(t2(nO,nO,nV,nV), r(nO,nO,nV,nV), delta(nO,nO,nV,nV))
+  
+  PROVIDE mo_two_e_integrals_in_map
+
+  print*,'hf_energy', hf_energy
+
+  ! Delta
+  do b = 1, nV
+    tmp_b = b + nO
+    do a = 1, nV
+      tmp_a = a + nO 
+      do j = 1, nO
+        do i = 1, nO
+          
+          delta(i,j,a,b) = (fock_matrix_mo(tmp_a,tmp_a) + fock_matrix_mo(tmp_b,tmp_b)&
+                          - fock_matrix_mo(i,i) - fock_matrix_mo(j,j))
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! Guess t2
+  do b = 1, nV
+    tmp_b = b + nO
+    do a = 1, nV
+      tmp_a = a + nO
+      do j = 1, nO
+        do i = 1, nO
+          t2(i,j,a,b) = - get_two_e_integral(i,j,tmp_a,tmp_b,mo_integrals_map)/delta(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  nb_iter = 0
+  do while (nb_iter < 25)
+  
+    ! energy
+    energy = 0d0
+    do b = 1, nV
+      tmp_b = b + nO
+      do a = 1, nV
+        tmp_a = a + nO
+        do j = 1, nO
+          do i = 1, nO
+            energy = energy + t2(i,j,a,b) * (2d0 * get_two_e_integral(i,j,tmp_a,tmp_b,mo_integrals_map) - get_two_e_integral(i,j,tmp_b,tmp_a,mo_integrals_map))
+          enddo
+        enddo
+      enddo
+    enddo
+    energy = energy + hf_energy
+    print*, 'E_CCD', energy
+
+    r = 0d0
+    ! Residual
+    do ga = 1, nV
+      tmp_ga = ga + nO
+      do be = 1, nV
+        tmp_be = be + nO
+        do v = 1, nO
+          do u = 1, nO
+
+            r(u,v,be,ga) = r(u,v,be,ga) &
+            + 0.5d0 * get_two_e_integral(u,v,tmp_be,tmp_ga,mo_integrals_map)
+
+            do j = 1, nO
+              do i = 1, nO
+                 r(u,v,be,ga) = r(u,v,be,ga) &
+                + 0.5d0 * get_two_e_integral(u,v,i,j,mo_integrals_map) * t2(i,j,be,ga)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                r(u,v,be,ga) = r(u,v,be,ga) &
+                + 0.5d0 * get_two_e_integral(tmp_a,tmp_b,tmp_be,tmp_ga,mo_integrals_map) * t2(u,v,a,b)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                do j = 1, nO
+                  do i = 1, nO
+                     r(u,v,be,ga) = r(u,v,be,ga) &
+                    + 0.5d0 * get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) * t2(i,j,be,ga) * t2(u,v,a,b)
+                  enddo
+                enddo
+              enddo
+            enddo
+
+            do a = 1, nV
+              tmp_a = a + nO
+               r(u,v,be,ga) = r(u,v,be,ga) &
+              + fock_matrix_mo(tmp_a,tmp_be) * t2(u,v,a,ga)
+            enddo
+
+            do i = 1, nO
+              r(u,v,be,ga) = r(u,v,be,ga) &
+              - fock_matrix_mo(u,i) * t2(i,v,be,ga)
+            enddo
+
+            do a = 1, nV
+              tmp_a = a + nO
+              do i = 1, nO
+                r(u,v,be,ga) = r(u,v,be,ga) &
+              + (2d0 * get_two_e_integral(tmp_a,u,i,tmp_be,mo_integrals_map) - get_two_e_integral(u,tmp_a,i,tmp_be,mo_integrals_map)) * t2(v,i,ga,a) &
+              - get_two_e_integral(u,tmp_a,i,tmp_ga,mo_integrals_map) * t2(i,v,be,a)&
+              - get_two_e_integral(tmp_a,u,i,tmp_be,mo_integrals_map) * t2(v,i,a,ga)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                do j = 1, nO
+                  do i = 1, nO
+                     r(u,v,be,ga) = r(u,v,be,ga) &
+                    + (2d0 * get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) - get_two_e_integral(tmp_b,tmp_a,i,j,mo_integrals_map)) *  &
+                    (t2(v,j,ga,b) * (t2(u,i,be,a) - t2(u,i,a,be)) &
+                    - t2(i,j,ga,b) * t2(u,v,be,a) - t2(v,j,a,b) * t2(u,i,be,ga)) &
+                    + get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) * &
+                    (0.5d0 * t2(v,j,b,ga) * t2(u,i,a,be) + 0.5d0 * t2(u,j,a,ga) * t2(v,i,b,be))
+                  enddo
+                enddo
+              enddo
+            enddo
+
+            ! Permutations
+            r(v,u,ga,be) = r(v,u,ga,be) &
+            + 0.5d0 * get_two_e_integral(u,v,tmp_be,tmp_ga,mo_integrals_map)
+
+            do j = 1, nO
+              do i = 1, nO
+                r(v,u,ga,be) = r(v,u,ga,be) &
+                + 0.5d0 * get_two_e_integral(u,v,i,j,mo_integrals_map) * t2(i,j,be,ga)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                r(v,u,ga,be) = r(v,u,ga,be) &
+                + 0.5d0 * get_two_e_integral(tmp_a,tmp_b,tmp_be,tmp_ga,mo_integrals_map) * t2(u,v,a,b)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                do j = 1, nO
+                  do i = 1, nO
+                     r(v,u,ga,be) = r(v,u,ga,be) &
+                    + 0.5d0 * get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) * t2(i,j,be,ga) * t2(u,v,a,b)
+                  enddo
+                enddo
+              enddo
+            enddo
+
+            do a = 1, nV
+              tmp_a = a + nO
+               r(v,u,ga,be) = r(v,u,ga,be) &
+              + fock_matrix_mo(tmp_a,tmp_be) * t2(u,v,a,ga)
+            enddo
+
+            do i = 1, nO
+              r(v,u,ga,be) = r(v,u,ga,be) &
+              - fock_matrix_mo(u,i) * t2(i,v,be,ga)
+            enddo
+
+            do a = 1, nV
+              tmp_a = a + nO
+              do i = 1, nO
+                r(v,u,ga,be) = r(v,u,ga,be) &
+              + (2d0 * get_two_e_integral(tmp_a,u,i,tmp_be,mo_integrals_map) - get_two_e_integral(u,tmp_a,i,tmp_be,mo_integrals_map)) * t2(v,i,ga,a) &
+              - get_two_e_integral(u,tmp_a,i,tmp_ga,mo_integrals_map) * t2(i,v,be,a)&
+              - get_two_e_integral(tmp_a,u,i,tmp_be,mo_integrals_map) * t2(v,i,a,ga)
+              enddo
+            enddo
+
+            do b = 1, nV
+              tmp_b = b + nO
+              do a = 1, nV
+                tmp_a = a + nO
+                do j = 1, nO
+                  do i = 1, nO
+                    r(v,u,ga,be) = r(v,u,ga,be) &
+                    + (2d0 * get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) - get_two_e_integral(tmp_b,tmp_a,i,j,mo_integrals_map)) *  &
+                    (t2(v,j,ga,b) * (t2(u,i,be,a) - t2(u,i,a,be)) &
+                    - t2(i,j,ga,b) * t2(u,v,be,a) - t2(v,j,a,b) * t2(u,i,be,ga)) &
+                    + get_two_e_integral(tmp_a,tmp_b,i,j,mo_integrals_map) * &
+                    (0.5d0 * t2(v,j,b,ga) * t2(u,i,a,be) + 0.5d0 * t2(u,j,a,ga) * t2(v,i,b,be))
+                  enddo
+                enddo
+              enddo
+            enddo
+
+            
+          enddo
+        enddo
+      enddo
+    enddo
+
+    max_elem = 0d0
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            if (max_elem < dabs(r(i,j,a,b))) then
+              max_elem = dabs(r(i,j,a,b))
+            endif
+          enddo
+        enddo
+      enddo
+    enddo
+    print*,'max', max_elem
+
+    ! Update t2
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            t2(i,j,a,b) =  t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
+          enddo
+        enddo
+      enddo
+    enddo
+
+    nb_iter = nb_iter + 1
+  enddo 
+
+  deallocate(t2,r,delta) 
+
+end
+#+END_SRC
+
+* test v3 not working
+#+BEGIN_SRC f90 :comments org
+  !:tangle space_orb_ccd_v3.irp.f
+program space_orb_ccd_v3
+  
+  implicit none
+
+  integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
+  integer :: u,v,be,ga,tmp_be,tmp_ga
+  integer :: nO, nV
+  integer :: nb_iter
+  double precision :: get_two_e_integral
+  double precision :: energy, max_elem
+  logical :: not_converged
+
+  double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:), delta(:,:,:,:)
+  double precision, allocatable :: big_S(:,:,:,:), big_J(:,:,:,:)
+  double precision, allocatable :: A2p(:,:,:,:),B2p(:,:,:,:),C2(:,:,:,:),C2p(:,:,:,:)
+  double precision, allocatable :: D2p(:,:,:,:),D2p_star(:,:,:,:),D2a(:,:,:,:)
+  double precision, allocatable :: D2b(:,:,:,:),D2c(:,:,:,:),E2a(:,:,:,:),E2b(:,:,:,:)
+  double precision, allocatable :: g_vir(:,:), g_occ(:,:)
+  
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  allocate(t2(nO,nO,nV,nV), r(nO,nO,nV,nV), delta(nO,nO,nV,nV))
+  allocate(big_S(nO,nO,nV,nV), big_J(nO,nO,nV,nV))
+  
+  allocate(A2p(nO,nO,nV,nV), B2p(nO,nO,nV,nV), C2(nV,nO,nO,nV))
+  allocate(C2p(nV,nO,nO,nV), D2p(nO,nO,nO,nO), D2p_star(nV,nV,nV,nV))
+  allocate(D2a(nV,nO,nO,nV), D2b(nV,nO,nO,nV), D2c(nV,nO,nO,nV))
+  allocate(E2a(nO,nO,nO,nV), E2b(nO,nO,nO,nV))
+  allocate(g_vir(nV,nV), g_occ(nO,nO))
+  
+  PROVIDE mo_two_e_integrals_in_map
+
+  print*,'hf_energy', hf_energy
+
+  ! Delta
+  do b = 1, nV
+    tmp_b = b + nO
+    do a = 1, nV
+      tmp_a = a + nO 
+      do j = 1, nO
+        do i = 1, nO
+          
+          delta(i,j,a,b) = (fock_matrix_mo(tmp_a,tmp_a) + fock_matrix_mo(tmp_b,tmp_b) &
+                          - fock_matrix_mo(i,i) - fock_matrix_mo(j,j))
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! Guess t2
+  do b = 1, nV
+    tmp_b = b + nO
+    do a = 1, nV
+      tmp_a = a + nO
+      do j = 1, nO
+        do i = 1, nO
+          t2(i,j,a,b) = - get_two_e_integral(i,j,tmp_a,tmp_b,mo_integrals_map)/delta(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  nb_iter = 0
+  do while (nb_iter < 25)
+  
+    ! energy
+    energy = 0d0
+    do b = 1, nV
+      tmp_b = b + nO
+      do a = 1, nV
+        tmp_a = a + nO
+        do j = 1, nO
+          do i = 1, nO
+            energy = energy + t2(i,j,a,b) * (2d0 * get_two_e_integral(i,j,tmp_a,tmp_b,mo_integrals_map) &
+                 - get_two_e_integral(i,j,tmp_b,tmp_a,mo_integrals_map))
+          enddo
+        enddo
+      enddo
+    enddo
+    energy = energy + hf_energy
+    print*, 'E_CCD', energy
+
+    call ccd_space_orb_A2p(t2,A2p)
+    call ccd_space_orb_B2p(t2,B2p)
+    call ccd_space_orb_C2(t2,C2)
+    call ccd_space_orb_C2p(t2,C2p)
+    call ccd_space_orb_D2p(t2,D2p)
+    call ccd_space_orb_D2p_star(t2,D2p_star)
+    call ccd_space_orb_D2a(t2,D2a)
+    call ccd_space_orb_D2b(t2,D2b)
+    call ccd_space_orb_D2c(t2,D2c)
+    call ccd_space_orb_E2a(t2,E2a)
+    call ccd_space_orb_E2b(t2,E2b)
+    call ccd_space_orb_g_occ(t2,D2p,g_occ)
+    call ccd_space_orb_g_vir(t2,D2p_star,g_vir)
+    call ccd_space_orb_big_J(t2,g_occ,g_vir,big_J)
+    call ccd_space_orb_big_S(t2,A2p,B2p,C2,C2p,D2p,D2p_star,D2a,D2b,D2c,E2a,E2b,big_S)
+
+    r = 0d0
+    ! Residual
+    do ga = 1, nV
+      tmp_ga = ga + nO
+      do be = 1, nV
+        tmp_be = be + nO
+        do v = 1, nO
+          do u = 1, nO
+
+            r(u,v,be,ga) = r(u,v,be,ga) &
+            + t2(u,v,be,ga) * (fock_matrix_mo(tmp_be,tmp_be) + fock_matrix_mo(tmp_ga,tmp_ga) &
+            - fock_matrix_mo(u,u) - fock_matrix_mo(v,v))
+
+            r(u,v,be,ga) = r(u,v,be,ga) &
+            + get_two_e_integral(u,v,tmp_be,tmp_ga,mo_integrals_map)
+
+            r(u,v,be,ga) = r(u,v,be,ga) &
+            + big_J(u,v,be,ga) + big_J(v,u,ga,be)&
+            + big_S(u,v,be,ga) + big_S(v,u,ga,be)
+            
+          enddo
+        enddo
+      enddo
+    enddo
+
+    max_elem = 0d0
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            if (max_elem < dabs(r(i,j,a,b))) then
+              max_elem = dabs(r(i,j,a,b))
+            endif
+          enddo
+        enddo
+      enddo
+    enddo
+    print*,'max', max_elem
+
+    ! Update t2
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            t2(i,j,a,b) =  t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
+          enddo
+        enddo
+      enddo
+    enddo
+
+    nb_iter = nb_iter + 1
+  enddo 
+
+  deallocate(t2,r,delta)
+  deallocate(big_S, big_J)
+  deallocate(A2p, B2p, C2)
+  deallocate(C2p, D2p, D2p_star)
+  deallocate(D2a, D2b, D2c)
+  deallocate(E2a, E2b)
+  deallocate(g_vir, g_occ)
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_A2p(t2,A2p)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: A2p(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: i,j,u,v,be,ga,tmp_be,tmp_ga
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  A2p = 0d0
+  
+  do ga = 1, nV
+    do be = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+
+          do j = 1, nO
+            do i = 1, nO
+               
+              A2p(u,v,be,ga) = A2p(u,v,be,ga) &
+              + two_e_ints(u,v,i,j) * t2(i,j,be,ga)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_B2p(t2,B2p)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: B2p(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  B2p = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do be = 1, nV
+      tmp_be = be + nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do a = 1, nV
+              tmp_a = a + nO
+              
+              B2p(u,v,be,ga) = B2p(u,v,be,ga) &
+              + two_e_ints(tmp_a,tmp_b,tmp_be,tmp_ga) * t2(u,v,a,b)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_C2(t2,C2)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: C2(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  C2 = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do u = 1, nO
+      do v = 1, nO
+        do be = 1, nV
+          tmp_be = be + nO
+
+          do a = 1, nV
+            tmp_a = a + nO
+            do i = 1, nO
+               
+              C2(be,v,u,ga) = C2(be,v,u,ga) &
+              + two_e_ints(tmp_a,u,tmp_be,i) * t2(v,i,ga,a)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_C2p(t2,C2p)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: C2p(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  C2p = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do u = 1, nO
+      do v = 1, nO
+        do be = 1, nV
+          tmp_be = be + nO
+
+          do a = 1, nV
+            tmp_a = a + nO
+            do i = 1, nO
+              
+              C2p(be,v,u,ga) = C2p(be,v,u,ga) &
+              + two_e_ints(i,tmp_a,u,tmp_ga) * t2(i,v,be,a)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_D2p(t2,D2p)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: D2p(dim_list_act_orb, dim_list_act_orb,dim_list_act_orb, dim_list_act_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  D2p = 0d0
+
+  do j = 1, nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do a = 1, nV
+              tmp_a = a + nO
+              
+              D2p(u,v,i,j) = D2p(u,v,i,j) &
+              + two_e_ints(tmp_a,tmp_b,i,j) * t2(u,v,a,b)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_D2p_star(t2,D2p_star)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: D2p_star(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j,c,tmp_c
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  D2p_star = 0d0
+  
+  do b = 1, nV
+    tmp_b = b + nO
+    do be = 1, nV
+      tmp_be = be + nO
+      do c = 1, nV
+        tmp_c = c + nO
+        do a = 1, nV
+          tmp_a = a + nO
+
+          do j = 1, nO
+            do i = 1, nO
+              
+              D2p_star(a,c,be,b) = D2p_star(a,c,be,b) &
+              + two_e_ints(tmp_a,tmp_c,i,j) * t2(i,j,be,b)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_D2a(t2,D2a)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: D2a(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  D2a = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do a = 1, nV
+          tmp_a = a + nO
+          
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+               D2a(a,v,i,ga) = D2a(a,v,i,ga) &
+              + two_e_ints(tmp_b,tmp_a,j,i) * (2d0 * t2(v,j,ga,b) - t2(v,j,b,ga))
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_D2b(t2,D2b)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: D2b(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  D2b = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do a = 1, nV
+          tmp_a = a + nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+               D2b(a,v,i,ga) = D2b(a,v,i,ga) &
+              + two_e_ints(tmp_b,tmp_a,i,j) * t2(v,j,ga,b)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_D2c(t2,D2c)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: D2c(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  D2c = 0d0
+  
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do a = 1, nV
+          tmp_a = a + nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+               D2c(a,v,i,ga) = D2c(a,v,i,ga) &
+              + two_e_ints(tmp_b,tmp_a,i,j) * t2(v,j,b,ga)
+              
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_E2a(t2,E2a)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: E2a(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  E2a = 0d0
+
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+              E2a(u,v,i,ga) = E2a(u,v,i,ga) &
+              + two_e_ints(tmp_b,u,j,i) * (2d0 * t2(v,j,ga,b) - t2(v,j,b,ga))
+ 
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_E2b(t2,E2b)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: E2b(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  E2b = 0d0
+
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+              E2b(u,v,i,ga) = E2b(u,v,i,ga) &
+              + two_e_ints(tmp_b,u,i,j) * t2(v,j,ga,b)
+
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_E2c(t2,E2c)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: E2c(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  E2c = 0d0
+
+  do ga = 1, nV
+    tmp_ga = ga + nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do j = 1, nO
+              
+              E2c(u,v,i,ga) = E2c(u,v,i,ga) &
+              + two_e_ints(tmp_b,u,i,j) * t2(v,j,b,ga)
+
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_F2a(t2,F2a)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: F2a(dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  F2a = 0d0
+
+  do a = 1, nV
+    tmp_a = a + nO
+    do u = 1, nO
+      do be = 1, nV
+        tmp_be = be + nO
+
+        do b = 1, nV
+          tmp_b = b + nO
+          do i = 1, nO
+              
+            F2a(a,u,be,a) = F2a(a,u,be,a) &
+            + two_e_ints(tmp_a,tmp_b,tmp_be,i) * (2d0 * t2(u,i,a,b) - t2(u,i,b,a))
+
+          enddo
+        enddo
+          
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_F2p(t2,F2p)
+
+  implicit none
+
+  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: F2p(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  F2p = 0d0
+
+  do i = 1, nO
+    do be = 1, nV
+      tmp_be = be + nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do b = 1, nV
+            tmp_b = b + nO
+            do a = 1, nV
+              tmp_a = a + nO
+              
+              F2p(u,v,be,i) = F2p(u,v,be,i) &
+              + two_e_ints(tmp_a,tmp_b,tmp_be,i) * t2(u,v,a,b)
+
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+      
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_g_occ(t2,D2p,g_occ)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2p(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(out) :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_occ = 0d0
+
+  do i = 1, nO
+    do u = 1, nO
+
+      do j = 1, nO
+
+        g_occ(u,i) = g_occ(u,i) &
+        + 2d0 * D2p(u,j,i,j) - D2p(u,j,j,i)
+        
+      enddo
+       
+    enddo
+  enddo
+  
+end
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_g_vir(t2,D2p_star,g_vir)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2p_star(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  g_vir = 0d0
+
+  do be = 1, nV
+    do a = 1, nV
+
+      do b = 1, nV
+      
+        g_vir(a,be) = g_vir(a,be) &
+        - 2d0 * D2p_star(a,b,be,b) + D2p_star(b,a,be,b)
+        
+      enddo
+       
+    enddo
+  enddo
+  
+end    
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_big_J(t2,g_occ,g_vir,big_J)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb), g_vir(dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: big_J(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  big_J = 0d0
+
+  do ga = 1, nV
+    tmp_ga =  ga + nO
+    do be = 1, nV
+      tmp_be = be + nO
+      do v = 1, nO
+        do u = 1, nO
+
+          do a = 1, nV
+            tmp_a = a + nO
+            if (a /= be) then
+              big_J(u,v,be,ga) = big_J(u,v,be,ga) &
+              + fock_matrix_mo(tmp_a,tmp_be) * t2(u,v,a,ga)
+            endif
+          enddo
+
+          do i = 1, nO
+            if (i /= u) then
+              big_J(u,v,be,ga) = big_J(u,v,be,ga) &
+              - fock_matrix_mo(u,i) * t2(i,v,be,ga)
+            endif
+          enddo
+
+          do a = 1, nV
+            tmp_a = a + nO
+            big_J(u,v,be,ga) = big_J(u,v,be,ga) &
+            + g_vir(a,ga) * t2(u,v,be,a)
+          enddo
+
+          do i = 1, nO
+            big_J(u,v,be,ga) = big_J(u,v,be,ga) &
+            - g_occ(v,i) * t2(u,i,be,ga)
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end    
+#+END_SRC
+
+#+BEGIN_SRC f90 :comments org :tangle space_orb_ccd_v3.irp.f
+subroutine ccd_space_orb_big_S(t2,A2p,B2p,C2,C2p,D2p,D2p_star,D2a,D2b,D2c,E2a,E2b,big_S)
+
+  implicit none
+
+  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: A2p(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: B2p(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: C2(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: C2p(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2p(dim_list_act_orb, dim_list_act_orb,dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: D2p_star(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2a(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2b(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: D2c(dim_list_virt_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: E2a(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: E2b(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb)
+  
+  double precision, intent(out) :: big_S(dim_list_act_orb,dim_list_act_orb,dim_list_virt_orb,dim_list_virt_orb)
+  
+  integer :: u,v,be,ga,tmp_be,tmp_ga,a,b,tmp_a,tmp_b,i,j
+  integer :: nO, nV
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+
+  big_S = 0d0
+
+  do ga = 1, nV
+    tmp_ga =  ga + nO
+    do be = 1, nV
+      tmp_be = be + nO
+      do v = 1, nO
+        do u = 1, nO
+
+          big_S(u,v,be,ga) = big_S(u,v,be,ga) &
+          + 0.5d0 * A2p(u,v,be,ga) + 0.5d0 * B2p(u,v,be,ga) &
+          - (C2(be,v,u,ga) + C2p(be,v,u,ga) - D2a(be,v,u,ga))
+
+          do a = 1, nV
+            do i = 1, nO
+              big_S(u,v,be,ga) = big_S(u,v,be,ga) &
+              + (D2a(a,v,i,ga) - D2b(a,v,i,ga)) * (t2(u,i,be,a) - 0.5d0 * t2(u,i,a,be)) &
+              + 0.5d0 * D2c(a,v,i,ga) * t2(u,i,be,a) &
+              + D2c(a,u,i,ga) * 0.5d0 * t2(v,i,a,be)
+            enddo
+          enddo
+
+          do j = 1, nO
+            do i = 1, nO
+              big_S(u,v,be,ga) = big_S(u,v,be,ga) &
+              + 0.5d0 * D2p(u,v,i,j) * t2(i,j,be,ga)
+            enddo
+          enddo
+
+          do i = 1, nO
+            big_S(u,v,be,ga) = big_S(u,v,be,ga) &
+            - (E2a(u,v,i,ga) - E2b(u,v,i,ga))
+          enddo
+
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end    
+#+END_SRC

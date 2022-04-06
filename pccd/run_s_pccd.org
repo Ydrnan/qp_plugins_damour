@@ -1,0 +1,220 @@
+#+BEGIN_SRC f90 :comments org :tangle run_s_pccd.irp.f
+subroutine run_s_pccd
+
+  implicit none
+
+  double precision, allocatable :: list_crit(:)
+  integer, allocatable :: list_key(:)
+  integer, allocatable :: list_2d_key(:,:)
+  integer :: i,j,a,b,p,q,nb_t2
+
+  double precision, allocatable :: t2(:,:), residue(:,:), tmp_residue(:,:)
+  double precision, allocatable :: t2_jacobian(:,:,:,:), inv_t2_jacobian(:,:,:,:), t2_jacobian2(:,:,:,:)
+  double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:)
+  integer :: nb_iter, nb_error
+  double precision :: energy, max_residue, ta, tb, normalization_factor 
+  logical :: not_converged
+  integer :: nO, nV
+
+  print*,''
+  print*,'---run_s_pccd---'
+  call wall_time(ta)
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  allocate(t2(nO, nV), residue(nO, nV), tmp_residue(nO, nV))
+  allocate(U1(nV), U2(nO), U3(nO, dim_list_virt_orb))
+  allocate(U4(nO, nV), U5(nO, nV), X(nO, nO))
+  allocate(t2_jacobian(nO, nV, nO, nV))
+  allocate(inv_t2_jacobian(nO, nV, nO, nV),t2_jacobian2(nO, nV, nO, nV))
+
+  if (dim_list_act_orb == mo_num) then
+     print*,'Set the mo classes before, abort'
+     call abort
+  endif
+
+  allocate(list_crit(nO * nV), list_key(nO * nV))
+  
+  ! 2D -> 1D
+  p = 1
+  do a = 1, nV
+    do i = 1, nO
+       if (scc_method == 'bi_int') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a))
+       elseif (scc_method == 'guess_mp2') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)/(2d0 * f_v(a) - 2d0 * f_o(i)))
+       elseif (scc_method == 'estimated_e') then
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)**2/(2d0 * f_v(a) - 2d0 * f_o(i)))
+       else
+          print*,'Select the selection method, abort'
+          call abort
+       endif
+       list_key(p) = p
+       p = p + 1
+    enddo
+  enddo
+  ! -, to change the ordering after the sort
+  list_crit = - list_crit
+
+  ! Sort by ascending order
+  call dsort(list_crit, list_key, nO * nV)
+  
+  ! Normalization of the biggest criterion
+  normalization_factor = 1d0/list_crit(1) !(dim_list_act_orb * dim_list_virt_orb)
+
+  ! Normalized and sorted list
+  list_crit = list_crit * normalization_factor
+
+  ! Number of selected elements
+  !p = dim_list_act_orb * dim_list_virt_orb
+  !do while ((list_crit(p) >= epsilon_t2) .and. (p >= 1))
+  !   p = p-1
+  !enddo
+  !nb_t2 = dim_list_act_orb * dim_list_virt_orb - p
+  p = 1
+  do while ((p <= nO * nV) .and. (list_crit(min(p, nO * nV)) >= epsilon_t2))
+    p = p + 1
+  enddo
+  nb_t2 = p - 1 
+
+  ! Debug
+  !do p = 1, dim_list_act_orb * dim_list_virt_orb
+  !  print*, list_crit(p)
+  !enddo
+  !print*,'nb',nb_t2
+  
+  allocate(list_2d_key(nb_t2,2))
+
+  ! Row indexes
+  do p = 1, nb_t2
+    !q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    q = list_key(p)
+    call index_1d_to_2d(dim_list_act_orb, q, i, a)
+    list_2d_key(p,1) = i
+  enddo
+
+  ! Column indexes
+  do p = 1, nb_t2
+    !q = list_key(dim_list_act_orb * dim_list_virt_orb -p+1)
+    q = list_key(p)
+    call index_1d_to_2d(dim_list_act_orb, q, i, a)
+    list_2d_key(p,2) = a
+  enddo
+
+  ! Guess t2
+  t2 = 0d0
+  do p = 1, nb_t2
+     i = list_2d_key(p,1)
+     a = list_2d_key(p,2)
+     t2(i,a) = - two_e_ints_iiaa(i,a) &
+        /(2d0 * f_v(a) - 2d0 * f_o(i))
+     !print*,i,a,t2(i,a), t2(i,a)*normalization_factor
+  enddo
+
+  print*,''
+  print*,'Epsilon:', epsilon_t2
+  print*,'     Nb iter        Energy                  Residue'
+
+  nb_iter = 0
+  not_converged = .True.
+  
+  do while (not_converged)
+
+    ! tmp arrays
+    call U1_pccd(t2, U1)
+    call U2_pccd(t2, U2)
+    call U3_pccd(t2, U3)
+    call U4_pccd(t2, U4)
+    call X_pccd(t2,X)
+    call U5_pccd(t2, X, U5)
+
+    ! Residue
+    call residue_pccd(t2, U1, U2, U3, U4, U5, tmp_residue)
+    
+    ! Put to 0 the non selected amplitudes
+    residue = 0d0
+    do p = 1, nb_t2
+      i = list_2d_key(p,1)
+      a = list_2d_key(p,2)
+      residue(i,a) = tmp_residue(i,a)
+    enddo
+    
+    ! New amplitudes
+    if (pccd_update_t2 == 'full') then
+      ! Use the full jacobian to update the amplitudes
+      call pccd_jacobian(t2, t2_jacobian)
+      !call pccd_jacobian_v2(t2, t2_jacobian)
+      !nb_error = 0
+      !do i = 1, nO
+      !  do a = 1, nV
+      !    do j = 1, nO
+      !      do b = 1, nV
+      !        if (dabs(t2_jacobian2(i,a,j,b) - t2_jacobian(i,a,j,b)) >= 1d-12) then
+      !          write(*,'(4I3,2(1pE12.3))') i,a,j,b, t2_jacobian2(i,a,j,b), t2_jacobian(i,a,j,b)
+      !          nb_error = nb_error + 1
+      !        endif
+      !      enddo
+      !    enddo
+      !  enddo
+      !enddo
+      !print*,'nb_error',nb_error
+      !call abort
+      call inverse_jacobian(t2_jacobian, inv_t2_jacobian)
+      call update_amplitudes_pccd_w_J(residue, inv_t2_jacobian, t2)
+    elseif (pccd_update_t2 == 'diag') then
+      ! Use the diagonal jacobian to update the amplitudes
+      ! TODO
+      print*,'Not yet available'
+      call abort
+    else
+      ! Normal update of the amplitudes
+      call update_amplitudes_pccd(residue, t2)
+    endif
+    
+    nb_iter = nb_iter + 1
+
+    ! New energy
+    call pccd_energy(t2,energy)
+
+    ! max element in residue
+    max_residue = 0d0
+    do a = 1, nV
+      do i = 1, nO
+        if (dabs(residue(i,a)) > max_residue) then
+          max_residue = dabs(residue(i,a))
+        endif
+      enddo
+    enddo
+    
+    print*, nb_iter, energy, max_residue
+
+    ! Exit criterion
+    if (max_residue < 1e-6) then
+       not_converged = .False.
+       print*,''
+       print*,'******************************'
+       write(*,'(A7,1pE15.5,I10,1pE15.5,1pE15.5,1pE15.5)'),' E_pCCD:', epsilon_t2, nb_t2, dble(nb_t2)/dble(dim_list_virt_orb*dim_list_act_orb), &
+                                                           energy, energy - e_pccd
+       print*,'******************************'
+    endif
+
+    if (nb_iter >= 100) then
+       print*,'#########################'
+       print*,'   Convergence failed'
+       print*,'#########################'
+       exit
+    endif
+
+  enddo
+
+  deallocate(t2,residue,tmp_residue,X,U1,U2,U3,U4,U5,list_2d_key,list_key,list_crit,t2_jacobian,inv_t2_jacobian)
+
+  call wall_time(tb)
+  print*,'Time in run_s_pccd:', tb-ta
+  print*,''
+  print*,'---End run_s_pccd---'
+  print*,''
+  
+end
+#+END_SRC

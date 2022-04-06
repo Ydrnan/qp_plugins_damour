@@ -1,0 +1,367 @@
+* Orbital optimization program
+
+This is an optimization program for molecular orbitals. It produces
+orbital rotations in order to lower the energy of a truncated wave
+function.  
+This program just optimize the orbitals for a fixed number of
+determinants. This optimization process must be repeated for different
+number of determinants.
+
+#+BEGIN_SRC f90 :comments org :tangle orb_opt_trust.irp.f
+#+END_SRC
+
+* Main program : orb_opt_trust
+
+#+BEGIN_SRC f90 :comments org :tangle orb_opt_trust.irp.f 
+program orb_opt_trust
+  read_wf = .true. ! must be True for the orbital optimization !!!
+  TOUCH read_wf
+  call run_orb_opt_trust
+end
+#+END_SRC
+
+* Subroutine : run_orb_opt_trust
+
+#+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+#+END_SRC
+
+*Subroutine to optimize orbitals*
+
+Optimization process :
+   - compute the gradient
+   - compute the hessian 
+   - diagonalize the hessian
+   - compute the step of the Newton method in the trust region
+   - compute the predicted energy for the new MOs
+   - compute the rotation matrix
+   - compute the new MOs using the rotation matrix and the actual MOs
+   - diagonalize the hamiltonian
+   - compute rho, the quality of the model. While the quality is not good,
+     the orbital rotations are cancelled and the a smaller step is
+     computed. If there is a good agreement, the step is accepted and
+     the algorithm compute a new step.
+
+   There are three convergence criteria:
+   - the maximal value in the gradient,
+   - the size of the trust region,
+   - And to avoid problems, there is a limit in the maximal number of
+     hamiltonian diagonalization.  
+
+Provided:
+| mo_num                         | integer          | number of MOs                  |
+| ao_num                         | integer          | number of AOs                  |
+| N_states                       | integer          | number of states               |
+| ci_energy(N_states)            | double precision | CI energies                   |
+| state_average_weight(N_states) | double precision | Weight of the different states |
+
+Parameter:
+| method | integer | - 1 -> full hessian     |
+|        |         | - 2 -> diagonal hessian |
+
+Variables:
+| n                               | integer          | mo_num*(mo_num-1)/2                                |
+| v_grad(n)                       | double precision | gradient                                           |
+| H(n,n)                          | double precision | hessian (2D)                                       |
+| h_f(mo_num,mo_num,mo_num,mo_num | double precision | hessian (4D)                                       |
+| e_val(n)                        | double precision | eigenvalues of the hessian                         |
+| w(n,n)                          | double precision | eigenvectors of the hessian                        |
+| x(n)                            | double precision | step given by the trust region                     |
+| m_x(n,n)                        | double precision | step given by the trust region after               |
+| R(mo_num,mo_num)                | double precision | rotation matrix                                    |
+|                                 |                  | the transformation into a matrixœ                  |
+| prev_mos(ao_num,mo_num)         | double precision | previous MOs (before the rotation)                 |
+| new_mos(ao_num,mo_num)          | double precision | new MOs (after the roration)                       |
+| delta                           | double precision | radius of the trust region                         |
+| rho                             | double precision | agreement between the model and the exact function |
+| max_elem                        | double precision | maximum element in the gradient                    |
+| i                               | integer          | index                                              |
+| converged                       | logical          | convergence of the algorithm                       |
+| cancel_step                     | logical          | if the step must be cancelled                      |
+| nb_iter                         | integer          | number of iterations (accepted)                    |
+| nb_diag                         | integer          | number of diagonalizations of the CI matrix        |
+| nb_cancel                       | integer          | number of cancelled steps for the actual iteration |
+| nb_cancel_tot                   | integer          | total number of cancel steps                       |
+| info                            | integer          | if 0 ok, else problem in the diagonalization of    |
+|                                 |                  | the hessian with the Lapack routine                |
+| prev_energy                     | double precision | energy before the rotation                         |
+| e_model                         | double precision | estimated energy after the rotation using          |
+|                                 |                  | a Taylor series                                    |
+| enforce_step_cancellation       | logical          | To force the cancellation of the step if the       |
+|                                 |                  | error in the rotation matrix is too large          |
+
+
+   #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+subroutine run_orb_opt_trust
+
+  include 'constants.h'
+
+  implicit none
+
+  ! Variables
+
+  double precision, allocatable :: R(:,:)
+  double precision, allocatable :: H(:,:),h_f(:,:,:,:)
+  double precision, allocatable :: v_grad(:),m_x(:,:),x(:)
+  double precision, allocatable :: e_val(:), w(:,:)
+  double precision, allocatable :: prev_mos(:,:),new_mos(:,:)
+  integer                       :: info
+  integer                       :: n
+  integer                       :: i,j,p,q,k
+  double precision              :: max_elem, delta, rho
+  logical :: converged, cancel_step, enforce_step_cancellation
+  integer :: nb_iter, nb_diag, nb_cancel, nb_cancel_tot
+  double precision :: prev_energy, e_model, energy
+  double precision :: t1, t2, t3
+
+  PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
+   #+END_SRC
+   
+** Method
+   There are two different methods : 
+   - the "full" hessian, which uses all the elements of the hessian
+     matrix, called "hess" in "hessian.irp.f"
+   - the "diagonal" hessian, which uses only the diagonal elements of the
+     hessian, called "diag_hess" in "diagonal_hessian.irp.f"
+
+   #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+  !Display the method
+  print*, 'Method :', optimization_method
+  if (optimization_method == 'full') then 
+    print*, 'Full hessian'
+  elseif (optimization_method == 'diag') then
+    print*,'Diagonal hessian'
+  elseif (optimization_method == 'none') then
+    print*,'Unknown optimization_method, please select full, diag or none'
+    call abort
+  endif
+  print*, 'Absolute value of the hessian:', absolute_eig
+   #+END_SRC
+
+** Allocation
+
+   n represents the number of pairs (p,q) with p<q.
+   Where p and q are general molecular orbitals.
+
+   In other words, the gradient is an antisymmetric matrix of size mo_num
+   by mo_num. So we can summarize the matrix by the lower/upper triangle.
+   And this triangle is composed of :
+   $$(mo_{num}^2 - mo_{num})/2 = mo_{num}(mo_{num}-1)/2$$
+
+   Cf. mat_to_vec_index and vec_to_mat_index
+
+   #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+  ! Definition of n
+  n = mo_num*(mo_num-1)/2
+
+  allocate(v_grad(n), H(n,n)) ! gradient and hessian
+  allocate(R(mo_num,mo_num))  ! rotation matrix
+  allocate(m_x(mo_num,mo_num),x(n))  ! Newton step
+  allocate(e_val(n), w(n,n))  ! eigenvalues and eigenvectors
+  allocate(h_f(mo_num,mo_num,mo_num,mo_num))  ! 4D hessian (debug)
+  allocate(prev_mos(ao_num,mo_num),new_mos(ao_num,mo_num)) ! old and new MOs
+   #+END_SRC
+
+** Calculations
+*** Initialization
+
+    #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+  converged = .False.
+  cancel_step = .False.
+  delta = 0d0
+  rho = 0.5d0 ! Must be 0.5 for the first step, otherwise delta will be changed
+  nb_iter = 0
+  nb_cancel = 0
+  nb_diag = 0
+  nb_cancel_tot = 0
+
+  !thresh_eig = 1d-12 ! threshold for e_val(i) + lambda in the trust region
+  !thresh_rho = 0.1d0 ! threshold for the step cancellation, if rho >= thresh_rho -> step accepted, else step rejected
+
+  ! Initialization of the CI energy
+  call diagonalize_ci
+
+  call update_st_av_ci_energy(prev_energy)
+
+  print *, 'CI energy : ', ci_energy
+  print*, 'State av energy :', prev_energy
+
+    #+END_SRC
+    
+*** Algorithm
+
+    "gradient" takes n and gives :
+    - v_grad, the gradient in a vector 
+    - max_elem, its bigger element in absolute value
+
+    "hess" or "diag_hess" takes n and gives :
+    - H, the n by n hessian
+    - h_f, the 4D mo_num hessian (debug)
+
+    "diagonalization_hessian" takes n and H and gives :
+    - e_val, the eigenvalues
+    - w, the eigenvectors
+
+    "trust_region" takes n, method, nb_iter, H, v_grad, rho, e_val, w,
+    delta and gives :
+    - x, the step in the trust region (vector)
+    - m_x, the step in the trust region (antisymmetric matrix) 
+    - delta, the trust region (updated)  
+
+    "trust_e_model" takes n, x, v_grad, H and gives :
+    - e_model, the predicted energy after the rotation, using the Taylor
+      expansion at the 2nd order
+
+    "rotation_matrix" takes mo_num, m_x and gives :
+    - R, the rotation matrix to compute the next MOs (by multiplying
+      the MO coefficients by the rotation matrix)
+
+    "apply_mo_rotation" takes R (and the MO coefficients) and gives :
+    - prev_mos, the previous MOs <=> MOs before the rotation 
+    - new_mos, the new MOs <=> MOs after the rotation
+
+    "rho_model" takes prev_energy, e_model (and the actual energy) and gives :
+    - rho, which estimates the 'quality' of the model (Taylor expansion)
+      compare to the real energy
+
+    While rho < 0.1 the algorithm goes back to "trust_region" and delta
+    will be reduced.
+    If rho >= 0.1 the step is accepted and the algorithm goes back to
+    the calculation of the gradient.
+
+    #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+  ! Loop until the convergence of the optimization
+  do while (.not.converged)
+
+     print*,'*********************'
+     print*,'Iteration :', nb_iter
+     print*,'*********************'
+
+     !print *, 'CI energy : ', ci_energy
+
+     ! Gradient
+     call gradient_opt(n,v_grad,max_elem)
+
+     ! Hessian
+     if (optimization_method == 'full') then
+        call hessian_opt(n,H,h_f)
+     elseif (optimization_method == 'diag') then
+        call diag_hessian_opt(n,H,h_f)
+     else
+        H = 0d0
+        do i = 1, n
+          H(i,i) = 1d0 
+        enddo
+     endif
+
+     ! Diagonalization of the hessian
+     call diagonalization_hessian(n,H,e_val,w)
+     
+     if (absolute_eig) then
+       e_val = ABS(e_val)
+     endif
+
+     cancel_step = .True.
+     nb_cancel = 0
+
+     ! Loop to ensure the diminution of the energy
+     ! Each time rho is too small or rho < 0, the trust region
+     ! is done with a smaller delta
+     do while ( cancel_step )
+
+        ! Step in the trust region
+        call trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
+        
+        ! Estimation of the energy after the rotation
+        call trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
+
+        !  tmp bourrin
+        if (DABS(prev_energy - e_model) < 1d-12) then
+          print*,'#########################################'
+          print*,'DABS(prev_energy - e_model) < 1d-12, exit'
+          print*,'#########################################'
+          return 
+        endif
+        
+        ! 1D tmp -> 2D tmp 
+        call vec_to_mat_v2(n, mo_num, x, m_x)
+
+        ! Calculation of the rotation matrix
+        call rotation_matrix(m_x,mo_num,R,mo_num,mo_num,info,enforce_step_cancellation)
+
+        if (enforce_step_cancellation) then
+          print*, 'Forces the step cancellation, too large error in the rotation matrix'
+          rho = 0d0
+          cycle
+        endif
+
+        ! Calculation of the new MOs
+        call apply_mo_rotation(R,prev_mos)
+        call save_mos()
+
+        ! Update and diagonalization of the hamiltonian
+        call clear_mo_map
+        TOUCH mo_coef psi_det psi_coef
+        call diagonalize_ci
+        call save_wavefunction_unsorted
+
+        ! TODO mettre ca dans une subroutine
+        ! Energy of the actual step
+        call update_st_av_ci_energy(energy)
+ 
+        ! Calculation of rho 
+        call trust_region_rho(prev_energy,energy,e_model,rho)
+
+        ! TODO mettre ça dans uen subroutine
+        if (nb_iter == 0) then
+          nb_iter = 1 ! in order to enable the change of delta if the first iteration is cancelled  
+        endif
+
+        if (rho >= thresh_rho) then !0.1d0) then
+           ! exit, the step is accepted
+           cancel_step = .False.
+        else
+           ! Cancellation of the previous rotation
+           mo_coef = prev_mos ! previous MOs 
+           call save_mos() ! save the MOs
+
+           nb_cancel = nb_cancel + 1
+           nb_cancel_tot = nb_cancel_tot + 1
+           print*, '***********************'
+           print*, 'Step cancel : rho <', thresh_rho
+           print*, '***********************'
+        endif
+        nb_diag = nb_diag + 1 
+
+        print*, 'nb_diag :', nb_diag
+        print*, 'nb_cancel :', nb_cancel
+        print*, 'nb_cancel_tot :', nb_cancel_tot
+
+        ! exit  
+        if (nb_diag >= 50) then
+           print*,'nb_diag >= 50 : end'
+           return
+        endif
+  
+     enddo
+
+     nb_iter = nb_iter + 1
+
+     if (nb_iter >= optimization_max_nb_iter &
+         .or. nb_diag >= 50 &
+         .or. ABS(max_elem) <= thresh_opt_max_elem_grad &
+         .or. delta <= 1d-6 ) then
+        converged = .True.
+     endif
+
+  enddo
+    #+END_SRC
+    
+** Deallocation, end
+
+    #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust.irp.f
+  deallocate(v_grad,H,R,e_val,w,x,m_x)
+  deallocate(h_f,prev_mos,new_mos)
+
+end
+    #+END_SRC
+    

@@ -3,8 +3,9 @@
 import os
 import sys
 import numpy as np
+from linear_regression import *
 
-def extract_dip(n_states,fname):
+def extract_dip(n_states,fname, **kwargs):
 
     n_states = int(n_states)
     ndet = []
@@ -110,6 +111,49 @@ def extract_dip(n_states,fname):
     f.close
 
     # Extrapolation µ = f(PT2)
+    print("\nNumber of states:", n_states)
+
+    n_data = len(ndet)
+
+    if (n_data < 3):
+        print("\nNeed at least 3 points, found "+str(n_data)+", exit")
+        sys.exit()
+
+    print("f(PT2) = a*PT2 + b\n")
+
+    weight_type = kwargs.get('weight', 'None')
+    print("Weight of the points for the linear regression:", weight_type)
+
+    a = np.zeros((n_data, n_states))
+    b = np.zeros((n_data, n_states))
+    R2 = np.zeros((n_data, n_states))
+    exc = np.zeros((n_data, n_states))
+
+     # Extrapolated dipole moments for diff nb of points
+    for state in range(0,n_states):
+        dip_i = dip[state][:] 
+        PT2_i = pt2[state][:]
+
+        if weight_type == 'pt2':
+            weight = 1.0/PT2_i
+        elif weight_type == 'pt2**2':
+            weight = 1.0/PT2_i**2
+        else:
+            weight = np.full(len(ndet), 1.0)
+
+        print("%s %2d" %("\nState:",state))
+        print("%3s %10s %14s %9s"%("n","a","b (D)","R^2"))
+
+        for nb_points in range(3,min(8,n_data)+1):
+            i = nb_points-3
+            # f(x) = a * x + b
+            # with weights
+            reg = lin_reg_v2(PT2_i,dip_i,weight,nb_points)
+            a[i][state] = reg[0]
+            b[i][state] = reg[1]
+            R2[i][state] = reg[2]
+
+            print("| %1d | %10.6f | %10.6f | %9.6f |"%( nb_points, a[i][state], b[i][state], R2[i][state]))
     
     # Extrapolation f = f(PT2)  
 
@@ -119,4 +163,4 @@ if __name__ == "__main__":
     n_states = sys.argv[2]
     print(fname)
     print(n_states)
-    res = extract_dip(n_states,fname)
+    res = extract_dip(n_states,fname,weight="none")

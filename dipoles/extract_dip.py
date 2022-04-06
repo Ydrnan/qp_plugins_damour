@@ -22,29 +22,30 @@ def extract_dip(n_states,fname):
     ndet = np.array(ndet)
 
     # Oscillator strength and excitation energy
-    f_l=np.zeros((len(ndet),n_states-1))
-    f_v=np.zeros((len(ndet),n_states-1))
-    f_m=np.zeros((len(ndet),n_states-1))
-    exc=np.zeros((len(ndet),n_states-1))
-    for i in range(1,n_states+1):
+    f_l=np.zeros((n_states-1,len(ndet)))
+    f_v=np.zeros((n_states-1,len(ndet)))
+    f_m=np.zeros((n_states-1,len(ndet)))
+    exc=np.zeros((n_states-1,len(ndet)))
+
+    for istate in range(1,n_states+1):
         j = 0
         for line in read_file:
-            if line.startswith("   #  Transition n.{:3d}:".format(i)):
+            if line.startswith("   #  Transition n.{:3d}:".format(istate)):
                 line = line.split()
-                f_l[j][i-1] = float(line[11].replace(",",""))
-                f_v[j][i-1] = float(line[13].replace(",",""))
-                f_m[j][i-1] = float(line[15].replace(",",""))
-                exc[j][i-1] = float(line[5])
+                f_l[istate-1][j] = float(line[11].replace(",",""))
+                f_v[istate-1][j] = float(line[13].replace(",",""))
+                f_m[istate-1][j] = float(line[15].replace(",",""))
+                exc[istate-1][j] = float(line[5])
                 j = j + 1
         load_file.close()
 
     # Dipole moment
-    dip=np.zeros((len(ndet),n_states))
+    dip=np.zeros((n_states,len(ndet)))
     for istate in range(0,n_states):
         stream = os.popen("grep -A "+str(n_states+1)+" 'Dipole moments (D)' "+fname+" | grep ' "+str(istate)+" ' | awk '{print $5}'")
         output = stream.readlines()
-        for i in range(len(output)):
-            dip[i][istate] = output[i].replace("\n","")
+        for j in range(len(output)):
+            dip[j][istate] = output[j].replace("\n","")
     
     # Out
     out_file = fname+"_w_dipoles.dat"
@@ -59,15 +60,15 @@ def extract_dip(n_states,fname):
         f.write('{:10s}'.format("||µ_"+str(istate)+"||"))
     f.write("\n")
 
-    for i in range(len(ndet)):
-        f.write('{:10d}'.format(ndet[i]))
-        f.write('{:10.6f}'.format(dip[i][0]))
-        for istate in range(0,n_states-1):
-            f.write('{:10.6f}'.format(exc[i][istate]))
-            f.write('{:10.6f}'.format(f_l[i][istate]))
-            f.write('{:10.6f}'.format(f_v[i][istate]))
-            f.write('{:10.6f}'.format(f_m[i][istate]))
-            f.write('{:10.6f}'.format(dip[i][istate]))
+    for j in range(len(ndet)):
+        f.write('{:10d}'.format(ndet[j]))
+        f.write('{:10.6f}'.format(dip[0][j]))
+        for istate in range(1,n_states):
+            f.write('{:10.6f}'.format(exc[istate-1][j]))
+            f.write('{:10.6f}'.format(f_l[istate-1][j]))
+            f.write('{:10.6f}'.format(f_v[istate-1][j]))
+            f.write('{:10.6f}'.format(f_m[istate-1][j]))
+            f.write('{:10.6f}'.format(dip[istate][j]))
         f.write("\n")
     f.close
     

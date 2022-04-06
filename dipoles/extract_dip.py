@@ -45,14 +45,45 @@ def extract_dip(n_states,fname):
         stream = os.popen("grep -A "+str(n_states+1)+" 'Dipole moments (D)' "+fname+" | grep ' "+str(istate)+" ' | awk '{print $5}'")
         output = stream.readlines()
         for j in range(len(output)):
-            dip[j][istate] = output[j].replace("\n","")
+            dip[istate][j] = output[j].replace("\n","")
+
+
+    # E 
+    E = np.zeros((n_states,len(ndet)))
+    for istate in range(0,n_states):
+        stream = os.popen("grep '# E  ' "+fname+" | awk '{print $"+str(istate+3)+"}'")
+        output = stream.readlines()
+        for j in range(len(output)):
+            E[istate][j] = output[j]
+
+    # PT2
+    pt2 = np.zeros((n_states,len(ndet)))
+    for istate in range(0,n_states):
+        stream = os.popen("grep '# PT2  ' "+fname+" | awk '{print $"+str(2*istate+3)+"}'")
+        output = stream.readlines()
+        for j in range(len(output)):
+            pt2[istate][j] = output[j]
+
+    # PT2
+    rpt2 = np.zeros((n_states,len(ndet)))
+    for istate in range(0,n_states):
+        stream = os.popen("grep '# rPT2  ' "+fname+" | awk '{print $"+str(2*istate+3)+"}'")
+        output = stream.readlines()
+        for j in range(len(output)):
+            rpt2[istate][j] = output[j]
     
     # Out
     out_file = fname+"_w_dipoles.dat"
     f = open(out_file,"w")
     f.write('{:12s}'.format("# Ndet"))
+    f.write('{:10s}'.format("E_0"))
+    f.write('{:10s}'.format("PT2_0"))
+    f.write('{:10s}'.format("rPT2_0"))
     f.write('{:10s}'.format("||µ_0||"))
     for istate in range(1,n_states):
+        f.write('{:10s}'.format("E_"+str(istate)))
+        f.write('{:10s}'.format("PT2_"+str(istate)))
+        f.write('{:10s}'.format("rPT2_"+str(istate)))
         f.write('{:10s}'.format("Exc. "+str(istate)))
         f.write('{:10s}'.format("f^l_"+str(istate)))
         f.write('{:10s}'.format("f^v_"+str(istate)))
@@ -63,7 +94,13 @@ def extract_dip(n_states,fname):
     for j in range(len(ndet)):
         f.write('{:10d}'.format(ndet[j]))
         f.write('{:10.6f}'.format(dip[0][j]))
+        f.write('{:10.6f}'.format(E[0][j]))
+        f.write('{:10.6f}'.format(pt2[0][j]))
+        f.write('{:10.6f}'.format(rpt2[0][j]))
         for istate in range(1,n_states):
+            f.write('{:10.6f}'.format(E[istate][j]))
+            f.write('{:10.6f}'.format(pt2[istate][j]))
+            f.write('{:10.6f}'.format(rpt2[istate][j]))
             f.write('{:10.6f}'.format(exc[istate-1][j]))
             f.write('{:10.6f}'.format(f_l[istate-1][j]))
             f.write('{:10.6f}'.format(f_v[istate-1][j]))

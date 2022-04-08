@@ -141,7 +141,7 @@ def extract_dip(n_states,fname, **kwargs):
         else:
             weight = np.full(len(ndet), 1.0)
 
-        print("%s %2d" %("\nState:",state))
+        print("%s %2d %s" %("\nState:",state,", Dipole moment (Debye)"))
         print("%3s %10s %14s %9s"%("n","a","b (D)","R^2"))
 
         for nb_points in range(3,min(8,n_data)+1):
@@ -156,6 +156,47 @@ def extract_dip(n_states,fname, **kwargs):
             print("| %1d | %10.6f | %10.6f | %9.6f |"%( nb_points, a[i][state], b[i][state], R2[i][state]))
     
     # Extrapolation f = f(PT2)  
+    a = np.zeros((n_data, n_states))
+    b = np.zeros((n_data, n_states))
+    R2 = np.zeros((n_data, n_states))
+    exc = np.zeros((n_data, n_states))
+
+    # Extrapolated oscillator strengths for diff nb of points
+    ## Length gauge 
+    for gauge_type in range(0,3):
+        for tr_state in range(0,n_states-1):
+
+            PT2_i = (pt2[0][:] + pt2[tr_state+1][:])*0.5
+            if gauge_type == 0:
+                gauge = "length"
+                f_i = f_l[tr_state][:]
+            elif gauge_type == 1:
+                gauge = "velocity"
+                f_i = f_v[tr_state][:]
+            else:
+                gauge = "mixed"
+                f_i = f_m[tr_state][:]
+    
+            if weight_type == 'pt2':
+                weight = 1.0/PT2_i
+            elif weight_type == 'pt2**2':
+                weight = 1.0/PT2_i**2
+            else:
+                weight = np.full(len(ndet), 1.0)
+   
+            print("%s %2d %s %s %s" %("\nTransition n.",tr_state,", oscillator strength in",gauge,"gauge" ))
+            print("%3s %10s %14s %9s"%("n","a","b","R^2"))
+    
+            for nb_points in range(3,min(8,n_data)+1):
+                i = nb_points-3
+                # f(x) = a * x + b
+                # with weights
+                reg = lin_reg_v2(PT2_i,f_i,weight,nb_points)
+                a[i][tr_state] = reg[0]
+                b[i][tr_state] = reg[1]
+                R2[i][tr_state] = reg[2]
+    
+                print("| %1d | %10.6f | %10.6f | %9.6f |"%( nb_points, a[i][tr_state], b[i][tr_state], R2[i][tr_state]))
 
 if __name__ == "__main__":
 

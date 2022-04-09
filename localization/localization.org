@@ -622,8 +622,8 @@ subroutine run_localization
   print*, 'Security mo_class:', security_mo_class
 
   ! The default mo_classes are setted only if the MOs to localize are not specified
-  if (security_mo_class .and. (dim_list_act_orb == mo_num .or. &
-      dim_list_core_orb + dim_list_act_orb == mo_num)) then
+  if (security_mo_class .and. (n_act_orb == mo_num .or. &
+      n_core_orb + n_act_orb == mo_num)) then
 
     print*, 'WARNING'
     print*, 'You must set different mo_class with qp set_mo_class'

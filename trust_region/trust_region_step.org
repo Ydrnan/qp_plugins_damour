@@ -522,8 +522,8 @@ To avoid too big trust region we put a maximum size.
   !  print*,'Delta > delta_max, delta = 0.5d0 * n * pi'
   !endif
 
-  if (delta > 1d300) then
-    delta = 1d300
+  if (delta > 1d10) then
+    delta = 1d10
   endif
 
   print*, 'Delta :', delta

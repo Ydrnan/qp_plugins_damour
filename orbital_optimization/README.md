@@ -101,16 +101,16 @@ You can also choose to start from a given cipsi wave function:
 qp set orbital_optimization start_from_wf true
 ```
 or to truncate the actual cispi wave function after 
-n_det_start determinants:
+N determinants:
 ```
-qp set orbital_optimization truncate_wf true
+qp edit -n N 
 ```
 
 ### End of the optimization
 You can choos the number of determinants after what the 
 optimization will stop:
 ```
-qp set orbital_optimization n_max_opt 1e5 # or any number > n_det_start 
+qp set orbital_optimization n_det_max_opt 1e5 # or any number > n_det_start 
 ```
 You can set the targeted accuracy to stop the optimization when the   
 gain in energy for any optimization is smaller than a threshold:
@@ -127,11 +127,12 @@ qp set orbital_optimization normalized_st_av_weight true
 ```
 or just enforcing the normalization of the weigths:
 ```
-qp set orbital_optimization normalized_weight true # Not tested 
+qp set orbital_optimization normalized_weight true # Not tested
 
 ```
 
 # Tests
+BROKEN    
 To run the tests:  
 ``` 
 ./auto_test.sh  

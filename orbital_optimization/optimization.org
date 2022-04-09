@@ -44,10 +44,6 @@ subroutine run_optimization
   if (.not. start_from_wf .or. n_det == 1) then
     N_det_max = n_det_start
     TOUCH N_det_max
-  ! To start from a wf truncated at n_det_start determinants (at least)
-  elseif (start_from_wf .and. truncate_wf) then
-    N_det_max = n_det_start
-    TOUCH N_det_max
   ! To start from the wf
   else
     N_det_max = n_det

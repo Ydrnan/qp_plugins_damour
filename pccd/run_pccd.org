@@ -23,7 +23,7 @@ subroutine run_pccd
   allocate(t2_jacobian(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
   allocate(inv_t2_jacobian(dim_list_act_orb, dim_list_virt_orb,dim_list_act_orb, dim_list_virt_orb))
   
-  if (dim_list_act_orb == mo_num) then
+  if ((n_act_orb + n_core_orb) == mo_num) then
      print*,'Set the mo classes before, abort'
      call abort
   endif

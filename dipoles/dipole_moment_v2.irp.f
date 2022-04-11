@@ -54,6 +54,10 @@ subroutine print_transition_dipole_moment
   integer          :: istate,jstate, n_states_print
   double precision :: f, d, d_x, d_y, d_z, osc_str
 
+  if (N_states == 1 .or. N_det == 1) then
+    return
+  endif
+
   print*,''
   print*,'# Transition dipoles:'
   print*,'=============================================='

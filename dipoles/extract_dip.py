@@ -76,37 +76,37 @@ def extract_dip(n_states,fname, **kwargs):
     # Out
     out_file = fname+"_w_dipoles.dat"
     f = open(out_file,"w")
-    f.write('{:12s}'.format("# Ndet"))
-    f.write('{:14s}'.format("      E_0"))
-    f.write('{:10s}'.format(" PT2_0"))
-    f.write('{:10s}'.format(" rPT2_0"))
-    f.write('{:10s}'.format("||µ_0||"))
+    f.write('{:14}'.format("# Ndet"))
+    f.write('{:16s}'.format("       E_0"))
+    f.write('{:12s}'.format("  PT2_0"))
+    f.write('{:12s}'.format("  rPT2_0"))
+    f.write('{:12s}'.format("  ||µ_0||"))
     for istate in range(1,n_states):
-        f.write('{:14s}'.format("      E_"+str(istate)))
-        f.write('{:10s}'.format(" PT2_"+str(istate)))
-        f.write('{:10s}'.format(" rPT2_"+str(istate)))
-        f.write('{:10s}'.format(" Exc. "+str(istate)))
-        f.write('{:10s}'.format(" f^l_"+str(istate)))
-        f.write('{:10s}'.format(" f^v_"+str(istate)))
-        f.write('{:10s}'.format(" f^m_"+str(istate)))
-        f.write('{:10s}'.format("||µ_"+str(istate)+"||"))
+        f.write('{:16s}'.format("       E_"+str(istate)))
+        f.write('{:12s}'.format("  PT2_"+str(istate)))
+        f.write('{:12s}'.format("  rPT2_"+str(istate)))
+        f.write('{:12s}'.format("  Exc. "+str(istate)))
+        f.write('{:12s}'.format("  f^l_"+str(istate)))
+        f.write('{:12s}'.format("  f^v_"+str(istate)))
+        f.write('{:12s}'.format("  f^m_"+str(istate)))
+        f.write('{:12s}'.format(" ||µ_"+str(istate)+"||"))
     f.write("\n")
 
     for j in range(len(ndet)):
-        f.write('{:10d}'.format(ndet[j]))
-        f.write('{:14.6f}'.format(E[0][j]))
-        f.write('{:10.6f}'.format(pt2[0][j]))
-        f.write('{:10.6f}'.format(rpt2[0][j]))
-        f.write('{:10.6f}'.format(dip[0][j]))
+        f.write('{:12d}'.format(ndet[j]))
+        f.write('{:16.8f}'.format(E[0][j]))
+        f.write('{:12.8f}'.format(pt2[0][j]))
+        f.write('{:12.8f}'.format(rpt2[0][j]))
+        f.write('{:12.8f}'.format(dip[0][j]))
         for istate in range(1,n_states):
-            f.write('{:14.6f}'.format(E[istate][j]))
-            f.write('{:10.6f}'.format(pt2[istate][j]))
-            f.write('{:10.6f}'.format(rpt2[istate][j]))
-            f.write('{:10.6f}'.format(exc[istate-1][j]))
-            f.write('{:10.6f}'.format(f_l[istate-1][j]))
-            f.write('{:10.6f}'.format(f_v[istate-1][j]))
-            f.write('{:10.6f}'.format(f_m[istate-1][j]))
-            f.write('{:10.6f}'.format(dip[istate][j]))
+            f.write('{:16.8f}'.format(E[istate][j]))
+            f.write('{:12.8f}'.format(pt2[istate][j]))
+            f.write('{:12.8f}'.format(rpt2[istate][j]))
+            f.write('{:12.8f}'.format(exc[istate-1][j]))
+            f.write('{:12.8f}'.format(f_l[istate-1][j]))
+            f.write('{:12.8f}'.format(f_v[istate-1][j]))
+            f.write('{:12.8f}'.format(f_m[istate-1][j]))
+            f.write('{:12.8f}'.format(dip[istate][j]))
         f.write("\n")
     f.close
 
@@ -185,7 +185,7 @@ def extract_dip(n_states,fname, **kwargs):
                 weight = np.full(len(ndet), 1.0)
    
             print("%s %2d %s %s %s" %("\nTransition n.",tr_state,", oscillator strength in",gauge,"gauge" ))
-            print("%3s %10s %14s %9s"%("n","a","b","R^2"))
+            print("%3s %10s %14s %9s"%("n","a","b  ","R^2"))
     
             for nb_points in range(3,min(8,n_data)+1):
                 i = nb_points-3

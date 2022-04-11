@@ -105,11 +105,11 @@ if __name__ == "__main__":
     for i in range(len(Ndet)):
         f.write('{:10d}'.format(int(Ndet[i][0])))
         for j in range(len(E[0])):
-            f.write('{:15f}'.format(float(E[i][j])))
-            f.write('{:12f}'.format(float(PT2[i][2*j])))
-            f.write('{:12f}'.format(float(PT2[i][2*j+1])))
-            f.write('{:12f}'.format(float(rPT2[i][2*j])))
-            f.write('{:12f}'.format(float(rPT2[i][2*j+1])))
+            f.write('{:15.8f}'.format(float(E[i][j])))
+            f.write('{:12.8f}'.format(float(PT2[i][2*j])))
+            f.write('{:12.8f}'.format(float(PT2[i][2*j+1])))
+            f.write('{:12.8f}'.format(float(rPT2[i][2*j])))
+            f.write('{:12.8f}'.format(float(rPT2[i][2*j+1])))
         f.write("\n")
     f.close()
 

@@ -21,6 +21,9 @@ def extract_dip(n_states,fname, **kwargs):
     load_file.close()
 
     ndet = np.array(ndet)
+    if ndet[0] == 1 and n_states > 1:
+        remove_first = True
+        ndet = np.delete(ndet,0)
 
     # Oscillator strength and excitation energy
     f_l=np.zeros((n_states-1,len(ndet)))
@@ -45,33 +48,48 @@ def extract_dip(n_states,fname, **kwargs):
     for istate in range(0,n_states):
         stream = os.popen("grep -A "+str(n_states+1)+" 'Dipole moments (D)' "+fname+" | grep ' "+str(istate)+" ' | awk '{print $5}'")
         output = stream.readlines()
-        for j in range(len(output)):
-            dip[istate][j] = output[j].replace("\n","")
-
+        if remove_first:
+            for j in range(1,len(output)):
+                dip[istate][j-1] = output[j].replace("\n","")
+        else:
+            for j in range(len(output)):
+                dip[istate][j] = output[j].replace("\n","")
 
     # E 
     E = np.zeros((n_states,len(ndet)))
     for istate in range(0,n_states):
         stream = os.popen("grep '# E  ' "+fname+" | awk '{print $"+str(istate+3)+"}'")
         output = stream.readlines()
-        for j in range(len(output)):
-            E[istate][j] = output[j]
+        if remove_first:
+            for j in range(1,len(output)):
+                E[istate][j-1] = output[j]
+        else:
+            for j in range(len(output)):
+                E[istate][j] = output[j]
 
     # PT2
     pt2 = np.zeros((n_states,len(ndet)))
     for istate in range(0,n_states):
         stream = os.popen("grep '# PT2  ' "+fname+" | awk '{print $"+str(2*istate+3)+"}'")
         output = stream.readlines()
-        for j in range(len(output)):
-            pt2[istate][j] = output[j]
+        if remove_first:
+            for j in range(1,len(output)):
+                pt2[istate][j-1] = output[j]
+        else:
+            for j in range(len(output)):
+                pt2[istate][j] = output[j]
 
-    # PT2
+    # rPT2
     rpt2 = np.zeros((n_states,len(ndet)))
     for istate in range(0,n_states):
         stream = os.popen("grep '# rPT2  ' "+fname+" | awk '{print $"+str(2*istate+3)+"}'")
         output = stream.readlines()
-        for j in range(len(output)):
-            rpt2[istate][j] = output[j]
+        if remove_first:
+            for j in range(1,len(output)):
+                rpt2[istate][j-1] = output[j] 
+        else:
+            for j in range(len(output)):
+                rpt2[istate][j] = output[j]
     
     # Out
     out_file = fname+"_w_dipoles.dat"

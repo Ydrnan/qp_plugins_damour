@@ -2,21 +2,23 @@ program true_fci
 
   implicit none
 
-  integer, allocatable :: occ_a(:,:), vir_a(:,:), det_a(:,:)
+  integer, allocatable :: occ_a(:,:), vir_a(:,:), det_a(:,:), det_ab(:,:,:)
   integer, allocatable :: beg_degree_occ_a(:), n_degree_occ_a(:), end_degree_occ_a(:)
   integer, allocatable :: beg_degree_vir_a(:), n_degree_vir_a(:), end_degree_vir_a(:)
   integer, allocatable :: beg_degree_det_a(:), n_degree_det_a(:), end_degree_det_a(:)
-  integer :: N_int_occ_a, N_int_vir_a, n_det_a
+  integer, allocatable :: beg_degree_det_ab(:), n_degree_det_ab(:), end_degree_det_ab(:)
+  integer :: N_int_occ_a, N_int_vir_a, n_det_a, n_det_ab
   integer :: n_unique_occ_a, n_unique_vir_a, n_unique_det_a
-  integer :: i,j,k,l,m,n,p,q
+  integer :: i,j,k,l,m,n,p,q,u,v
   integer :: binom_coef
   integer :: degree, idx_degree, n_e
-  integer :: max_exc
+  integer :: max_exc, max_exc_a, exc_a, exc_b
 
-  max_exc = 5
+  max_exc = 14
+  max_exc_a = min(min(elec_alpha_num,mo_num-elec_alpha_num),max_exc)
 
-  allocate(beg_degree_occ_a(max_exc+1), n_degree_occ_a(max_exc+1), end_degree_occ_a(max_exc+1))
-  allocate(beg_degree_vir_a(max_exc+1), n_degree_vir_a(max_exc+1), end_degree_vir_a(max_exc+1))
+  allocate(beg_degree_occ_a(max_exc_a+1), n_degree_occ_a(max_exc_a+1), end_degree_occ_a(max_exc_a+1))
+  allocate(beg_degree_vir_a(max_exc_a+1), n_degree_vir_a(max_exc_a+1), end_degree_vir_a(max_exc_a+1))
 
   ! Number of configuration per excitation degree for occ/vir, a/b parts
 
@@ -25,7 +27,7 @@ program true_fci
 
   ! occ_a
   !degree_occ_a(1) = 1
-  !do n_e = elec_alpha_num-1, elec_alpha_num - max_exc, -1
+  !do n_e = elec_alpha_num-1, elec_alpha_num - max_exc_a, -1
   !  i = elec_alpha_num - n_e + 1
   !  degree_occ_a(i) = degree_occ_a(i-1) + binom_coef(n_e,elec_alpha_num)
   !enddo
@@ -33,19 +35,19 @@ program true_fci
   beg_degree_occ_a(1) = 1
   n_degree_occ_a(1) = 1
   end_degree_occ_a(1) = 1
-  do n_e = elec_alpha_num-1, elec_alpha_num - max_exc, -1
+  do n_e = elec_alpha_num-1, elec_alpha_num - max_exc_a, -1
     i = elec_alpha_num - n_e + 1
     beg_degree_occ_a(i) = end_degree_occ_a(i-1) + 1 
     n_degree_occ_a(i) = binom_coef(n_e,elec_alpha_num)
     end_degree_occ_a(i) = beg_degree_occ_a(i) + n_degree_occ_a(i) - 1
   enddo
 
-  n_unique_occ_a = end_degree_occ_a(max_exc + 1)
+  n_unique_occ_a = end_degree_occ_a(max_exc_a + 1)
   print*,'buffer size occ_a', n_unique_occ_a
 
   ! vir a
   !degree_vir_a(1) = 1
-  !do n_e = 1, max_exc
+  !do n_e = 1, max_exc_a
   !  i = n_e + 1
   !  degree_vir_a(i) = degree_vir_a(i-1) + binom_coef(n_e,mo_num-elec_alpha_num)
   !enddo
@@ -53,19 +55,19 @@ program true_fci
   beg_degree_vir_a(1) = 1
   n_degree_vir_a(1) = 1
   end_degree_vir_a(1) = 1
-  do n_e = 1, max_exc
+  do n_e = 1, max_exc_a
     i = n_e + 1
     beg_degree_vir_a(i) = end_degree_vir_a(i-1) + 1 
     n_degree_vir_a(i) = binom_coef(n_e,mo_num-elec_alpha_num)
     end_degree_vir_a(i) = beg_degree_vir_a(i) + n_degree_vir_a(i) - 1
   enddo
 
-  n_unique_vir_a = end_degree_vir_a(max_exc + 1)
+  n_unique_vir_a = end_degree_vir_a(max_exc_a + 1)
   print*,'buffer size vir_a', n_unique_vir_a
 
   allocate(occ_a(elec_alpha_num,n_unique_occ_a),vir_a(mo_num-elec_alpha_num,n_unique_vir_a))
 
-  do degree = 1, max_exc
+  do degree = 1, max_exc_a
   !  call gen_new_det_occ(degree)
   enddo
 
@@ -75,7 +77,7 @@ program true_fci
   ! HF
   occ_a(:,1) = 1
   ! Excitations
-  do n_e = elec_alpha_num-1, elec_alpha_num - max_exc, -1
+  do n_e = elec_alpha_num-1, elec_alpha_num - max_exc_a, -1
     i = elec_alpha_num - n_e + 1
     !idx_degree = degree_occ_a(i-1) + 1
     idx_degree = beg_degree_occ_a(i)
@@ -89,7 +91,7 @@ program true_fci
   ! HF
   vir_a(:,1) = 0
   ! Excitations
-  do n_e = 1, max_exc
+  do n_e = 1, max_exc_a
     i = n_e + 1
     !idx_degree = degree_vir_a(i-1) + 1
     idx_degree = beg_degree_vir_a(i) 
@@ -102,13 +104,15 @@ program true_fci
   print*,n_unique_vir_a
   print*,'Total number of alpha occ+vir possible for each excitation degree:'
 
-  allocate(n_degree_det_a(max_exc + 1),beg_degree_det_a(max_exc+1),end_degree_det_a(max_exc+1))
+  ! Alpha determinants
+  ! Number of unique alpha deteminants for each excitation degree
+  allocate(n_degree_det_a(max_exc_a + 1),beg_degree_det_a(max_exc_a+1),end_degree_det_a(max_exc_a+1))
 
   beg_degree_det_a(1) = 1
   end_degree_det_a(1) = 1
   n_degree_det_a(1) = 1
   n_det_a = 1
-  do i = 2, max_exc + 1
+  do i = 2, max_exc_a + 1
     beg_degree_det_a(i) = end_degree_det_a(i-1) + 1
     n_degree_det_a(i) =  n_degree_occ_a(i) * n_degree_vir_a(i)
     end_degree_det_a(i) = beg_degree_det_a(i) + n_degree_det_a(i) - 1
@@ -117,15 +121,14 @@ program true_fci
   enddo
   print*,'Total:',n_det_a
 
-  ! Alpha determinants
   ! Generation of all the unique alpha determinants by combining
   ! the different occ and vir parts for each degree of excitation
   allocate(det_a(mo_num,n_det_a))
 
   det_a = 0
   j = 1
-  do i = 1, max_exc + 1
-    do while (j <= end_degree_det_a(i))
+  do i = 1, max_exc_a + 1
+    !do while (j <= end_degree_det_a(i))
       do k = 1, n_degree_occ_a(i)
         do l = 1, n_degree_vir_a(i)
           do p = 1, elec_alpha_num
@@ -134,12 +137,72 @@ program true_fci
           do p = elec_alpha_num + 1, mo_num
             det_a(p,j) = vir_a(p-elec_alpha_num,beg_degree_vir_a(i) + l - 1)
           enddo
-          write(*,'(100(I1))') det_a(:,j)
+          !write(*,'(100(I1))') det_a(:,j)
           j = j + 1
         enddo
       enddo
-    enddo
+    !enddo
   enddo
+
+  ! Alpha + beta determinants
+  ! Number of unique determinants (with alpha and beta part) for each excitation degree
+  allocate(n_degree_det_ab(max_exc + 1),beg_degree_det_ab(max_exc+1),end_degree_det_ab(max_exc+1))
+
+  beg_degree_det_ab = 0
+  end_degree_det_ab = 0
+  n_degree_det_ab = 0
+
+  beg_degree_det_ab(1) = 1
+  end_degree_det_ab(1) = 1
+  n_degree_det_ab(1) = 1
+  n_det_ab = 1
+
+  do k = 2, max_exc + 1
+    do j = 1, max_exc_a + 1
+      do i = 1, max_exc_a + 1
+        if ((i-1) + (j-1) /= k-1) then
+          cycle
+        endif 
+        n_degree_det_ab(k) = n_degree_det_ab(k) + n_degree_det_a(i) * n_degree_det_a(j)
+        write(*,'(I3,I3,I3,I10)') k-1,i-1,j-1,n_degree_det_a(i) * n_degree_det_a(j)
+      enddo
+    enddo
+    beg_degree_det_ab(k) = end_degree_det_ab(k-1) + 1
+    end_degree_det_ab(k) = beg_degree_det_ab(k) + n_degree_det_ab(k) - 1
+    n_det_ab = n_det_ab + n_degree_det_ab(k)
+    print*, 'Tot:',k-1, n_degree_det_ab(k)
+    print*,'beg', beg_degree_det_ab(k) 
+    print*,'end', end_degree_det_ab(k)
+  enddo
+  print*,'Total:',n_det_ab
+
+  ! Generation of unique determinants (with alpha and beta part) for each excitation degree
+  ! from the different unique alpha and beta parts
+  allocate(det_ab(mo_num,2,n_det_ab))
+
+  j = 1
+  do i = 1, max_exc + 1
+    !do while (j <= end_degree_det_ab(i))
+      do u = 1, max_exc_a + 1
+        do v = 1, max_exc_a + 1
+          if ((u-1) + (v-1) /= (i-1)) then
+            cycle
+          endif
+          do k = beg_degree_det_a(u), end_degree_det_a(u) 
+            do l = beg_degree_det_a(v), end_degree_det_a(v)
+              det_ab(:,1,j) = det_a(:,k)
+              det_ab(:,2,j) = det_a(:,l)
+              !print*,'j:',j
+              !write(*,'(100(I1))') det_ab(:,1,j)
+              !write(*,'(100(I1))') det_ab(:,2,j)
+              j = j + 1
+            enddo
+          enddo
+        enddo
+      enddo
+    !enddo 
+  enddo
+  print*,'N_det_ab',j-1
 
   !deallocate(occ_a,vir_a,degree_occ_a,degree_vir_a)
 
@@ -154,7 +217,7 @@ subroutine gen_k_in_n(k,n,idx_base,size_buffer,buffer_det)
   integer, allocatable :: det(:)
   logical :: is_complete
   integer :: i,m
-  integer :: ndet_kn
+  integer :: ndet_kn, binom_coef
 
   if (k > n) then
     print*, 'k>n, canot generate any configuration, abort'
@@ -171,6 +234,7 @@ subroutine gen_k_in_n(k,n,idx_base,size_buffer,buffer_det)
   
   print*,'================================================'
   write(*,'(I4,A7,I4,A14)') k, ' e- in ', n, ' spin-orbitals'
+  print*,'Number of configurations:', binom_coef(k,n)
   write(*,'(100(I1))') det(:)
 
   ! First configuration

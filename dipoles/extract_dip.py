@@ -21,6 +21,7 @@ def extract_dip(n_states,fname, **kwargs):
     load_file.close()
 
     ndet = np.array(ndet)
+    remove_first = False
     if ndet[0] == 1 and n_states > 1:
         remove_first = True
         ndet = np.delete(ndet,0)

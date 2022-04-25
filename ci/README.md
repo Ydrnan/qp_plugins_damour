@@ -17,6 +17,14 @@ qp run cisdt_cipsi
 qp run cisdtq_cipsi
 ```
 
+## Excitation-based CI, non CIPSI version
+Only for the same number of electron alpha and beta for the moment.   
+CISDT, CISTQ  
+```
+qp run cisdt
+qp run cisdtq
+```
+
 ## Seniority-based CI, CIPSI version
 sCI0, sCI2, sCI4, sCI6  
 ```

@@ -9,7 +9,7 @@ qp set cipsi excitation_max #a number here
 qp set cipsi seniority_max #a number here
 ```
 
-## Excitation-based CI
+## Excitation-based CI, CIPSI version
 CISD, CISDT, CISTQ  
 ```
 qp run cisd_cipsi
@@ -17,13 +17,23 @@ qp run cisdt_cipsi
 qp run cisdtq_cipsi
 ```
 
-## Seniority-based CI
+## Seniority-based CI, CIPSI version
 sCI0, sCI2, sCI4, sCI6  
 ```
 qp run s_ci0_cipsi
 qp run s_ci2_cipsi
 qp run s_ci4_cipsi
 qp run s_ci6_cipsi
+```
+
+## Hierarchy based CI, CISPI version
+hCI-1, hCI-1.5, hCI-2, hCI-2.5, hCI-3  
+```
+qp run hci_1_cipsi.irp.f
+qp run hci_1d5_cipsi.irp.f
+qp run hci_2_cipsi.irp.f
+qp run hci_2d5_cipsi.irp.f
+qp run hci_3_cipsi.irp.f
 ```
 
 ## PT2

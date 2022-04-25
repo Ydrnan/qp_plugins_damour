@@ -231,12 +231,16 @@ subroutine gen_fci_wf
     !call print_det(det_bit_ab(1,1,i),N_int)
   enddo
 
-  !Save the wave function
+  ! Save the wave function
+  call fill_H_apply_buffer_no_selection(n_det_ab,det_bit_ab,N_int,0)
+  call copy_H_apply_buffer_to_wf
+  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+
   !N_det = n_det_ab
   !TOUCH N_det
   !psi_det=det_bit_ab
   !TOUCH psi_det
-  !call save_wavefunction
+  call save_wavefunction
   
 
   !deallocate(occ_a,vir_a,degree_occ_a,degree_vir_a)
@@ -451,9 +455,13 @@ function binom_coef(k,n)
   integer,intent(in) :: k,n
   integer :: factorial
   integer :: binom_coef
+  double precision :: binom_func
   
+  !binom_coef = int(binom_func(n,k))
   binom_coef = factorial(n)/(factorial(k)*factorial(n-k))
 
+  print*,'bi1', binom_coef
+  print*,'bi2', int(binom_func(n,k)+1d-15),binom_func(n,k)
 end
 
 function factorial(n)

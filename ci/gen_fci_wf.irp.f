@@ -15,6 +15,12 @@ subroutine gen_fci_wf
   integer :: degree, idx_degree, n_e
   integer :: max_exc, max_exc_a, exc_a, exc_b
 
+  if (elec_alpha_num /= elec_beta_num) then
+    print*,'elec_alpha_num /= elec_beta_num'
+    print*,'Will be availble soon...'
+    call abort
+  endif
+
   !max_exc = 2
   !max_exc = min(min(elec_alpha_num+elec_beta_num,2*mo_num-elec_alpha_num-elec_beta_num),max_exc)
   !max_exc_a = min(min(elec_alpha_num,mo_num-elec_alpha_num),max_exc)

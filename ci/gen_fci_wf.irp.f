@@ -463,11 +463,12 @@ function binom_coef(k,n)
   integer :: binom_coef
   double precision :: binom_func
   
-  !binom_coef = int(binom_func(n,k))
-  binom_coef = factorial(n)/(factorial(k)*factorial(n-k))
+  binom_coef = int(binom_func(n,k)+1d-15)
+  !binom_coef = factorial(n)/(factorial(k)*factorial(n-k))
 
-  print*,'bi1', binom_coef
-  print*,'bi2', int(binom_func(n,k)+1d-15),binom_func(n,k)
+  !print*,'bi1', binom_coef
+  !print*,'bi2', int(binom_func(n,k)+1d-15),binom_func(n,k)
+
 end
 
 function factorial(n)

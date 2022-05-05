@@ -11,7 +11,6 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
   type(pt2_type)                 :: pt2_data, pt2_data_err
   logical, external              :: qp_stop
 
-
   double precision :: rss
   double precision, external :: memory_of_double
   PROVIDE H_apply_buffer_allocated distributed_davidson mo_two_e_integrals_in_map
@@ -160,6 +159,8 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
     call pt2_alloc(pt2_data_err, N_states)
     mode_dipole = .True.
     TOUCH mode_dipole
+    pt2_relative_error = 1d-6
+    TOUCH pt2_relative_error
     call ZMQ_pt2(psi_energy_with_nucl_rep, pt2_data, pt2_data_err, relative_error, 0) ! Stochastic PT2
     print*,'dip1_x', pt2_data % pt2(:)
     print*,'dip1_y', pt2_data % rpt2(:)

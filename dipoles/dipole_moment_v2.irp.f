@@ -77,7 +77,7 @@ subroutine print_transition_dipole_moment
       d_z = multi_s_z_dipole_moment(istate,jstate)
       osc_str = d_x**2 + d_y**2 + d_z**2
       d = multi_s_dipole_moment(istate,jstate)
-      f = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
+      f = 2d0/3d0 * d * d * dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
       write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, osc_str, f
     enddo
   enddo
@@ -92,7 +92,7 @@ subroutine print_transition_dipole_moment
       d_y = multi_s_y_dipole_moment(istate,jstate) * au2D
       d_z = multi_s_z_dipole_moment(istate,jstate) * au2D
       d = multi_s_dipole_moment(istate,jstate) 
-      f = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
+      f = 2d0/3d0 * d * d * dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
       d = multi_s_dipole_moment(istate,jstate) * au2D
       write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
     enddo
@@ -137,15 +137,15 @@ subroutine print_oscillator_strength
       d = multi_s_dipole_moment(istate,jstate)
       v = multi_s_deriv_1(istate,jstate)
       ! Length gauge
-      f_l = 2d0/3d0 * d * d * dabs(ci_energy(istate) - ci_energy(jstate))
+      f_l = 2d0/3d0 * d * d * dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
       ! Velocity gauge
-      f_v = 2d0/3d0 * v * v * 1d0/dabs(ci_energy(istate) - ci_energy(jstate))
+      f_v = 2d0/3d0 * v * v * 1d0/dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
       ! Mixed gauge
       f_m = 2d0/3d0 * d * v
 
-      write(*,'(A19,I3,A9,F10.6,A5,F7.1,A10,F9.6,A6,F9.6,A6,F9.6,A8,F7.3)') '   #  Transition n.', (istate-1), ': Excit.=', dabs((ci_energy(istate) - ci_energy(jstate)))*au2eV, &
-      ' eV (',dabs((ci_energy(istate) - ci_energy(jstate)))*Ha2nm,' nm), f_l=',f_l, ', f_v=', f_v, ', f_m=', f_m, ', <S^2>=', s2_values(istate)
-      write(*,'(I4,I4,A4,I3,A6,F6.1,A6,F6.1)') (istate-1), (jstate-1), '  ->', (istate-1), ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
+      write(*,'(A19,I3,A9,F10.6,A5,F7.1,A10,F9.6,A6,F9.6,A6,F9.6,A8,F7.3)') '   #  Transition n.', (istate-1), ': Excit.=', dabs((ci_energy_no_diag(istate) - ci_energy_no_diag(jstate)))*au2eV, &
+      ' eV ( ',dabs((ci_energy_no_diag(istate) - ci_energy_no_diag(jstate)))*Ha2nm,' nm), f_l=',f_l, ', f_v=', f_v, ', f_m=', f_m, ', <S^2>=', s2_values(istate)
+      !write(*,'(I4,I4,A4,I3,A6,F6.1,A6,F6.1)') (istate-1), (jstate-1), '  ->', (istate-1), ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
   
       ! Print the first det of each state
       if (print_det_state) then

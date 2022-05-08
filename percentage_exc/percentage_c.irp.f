@@ -52,9 +52,8 @@ subroutine percentage_c(percentage)
 
   implicit none
 
-  ! in 
   ! max_exc_degree = min(2*mo_num - elec_alpha_num - elec_beta_num, elec_alpha_num + elec_beta_num)
-  ! + 1 to have the %T0
+  ! + 1 to have the %C_0
   ! out
   double precision, intent(out) :: percentage(max_exc_degree + 1, n_states) 
 
@@ -63,7 +62,7 @@ subroutine percentage_c(percentage)
 
   percentage = 0d0
 
-  ! %T(n,s_state) = \sum_i psi_coef(i,s)**2 s.t. excitation_degree(|HF>,|i>) = n
+  ! %C(n,s_state) = \sum_i psi_coef(i,s)**2 s.t. excitation_degree(|HF>,|i>) = n
 
   ! Contribution of the ref
   do s = 1, n_states

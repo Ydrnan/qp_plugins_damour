@@ -5,6 +5,7 @@ subroutine run_print_percentage_c
   integer :: i,s
   integer, allocatable :: list_states(:)
   double precision, allocatable :: percentage(:,:), accu(:)
+  character(len=2) :: exc
 
   allocate(percentage(max_exc_degree+1, n_states), accu(n_states), list_states(n_states))
 
@@ -18,8 +19,8 @@ subroutine run_print_percentage_c
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   do i = 1, 5
-    !write (exc, '(i4)') i-1
-    write (*, '(A2,I2,10(1pE12.4))') '%T', i-1, percentage(i,:)    
+    write (exc,'(I2)') i-1
+    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), percentage(i,:)    
   enddo
 
   print*,''
@@ -30,7 +31,8 @@ subroutine run_print_percentage_c
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo
-    write (*, '(A2,I2,10(F12.4))') '%T', i-1, accu(:)
+    write (exc,'(I2)') i-1
+    write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), accu(:)
   enddo
 
   print*,''
@@ -41,7 +43,8 @@ subroutine run_print_percentage_c
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo
-    write (*, '(A2,I2,10(1pE12.4))') '%T', i-1, 100d0-accu(:)        
+    write (exc,'(I2)') i-1
+    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), 100d0-accu(:)        
   enddo
 
   deallocate(percentage, accu, list_states)

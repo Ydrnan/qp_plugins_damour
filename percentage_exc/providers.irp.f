@@ -10,7 +10,7 @@ BEGIN_PROVIDER [ integer, max_exc_degree]
 
 END_PROVIDER
 
-BEGIN_PROVIDER [ double precision, percent_exc, (max_exc_degree + 1, N_states)]
+BEGIN_PROVIDER [ double precision, percent_c, (max_exc_degree + 1, N_states)]
 
   !BEGIN_DOC
   ! Percentage of each kind of excitation
@@ -18,7 +18,7 @@ BEGIN_PROVIDER [ double precision, percent_exc, (max_exc_degree + 1, N_states)]
 
   implicit none
 
-  call percentage_exc(percent_exc)
+  call percentage_c(percent_c)
 
 END_PROVIDER
 

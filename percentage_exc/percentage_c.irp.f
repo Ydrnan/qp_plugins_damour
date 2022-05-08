@@ -1,4 +1,4 @@
-subroutine run_print_percentage_exc
+subroutine run_print_percentage_c
 
   implicit none
 
@@ -8,7 +8,7 @@ subroutine run_print_percentage_exc
 
   allocate(percentage(max_exc_degree+1, n_states), accu(n_states), list_states(n_states))
 
-  call percentage_exc(percentage)
+  call percentage_c(percentage)
   
   do s = 1, n_states
    list_states(s) = s
@@ -48,7 +48,7 @@ subroutine run_print_percentage_exc
 
 end
 
-subroutine percentage_exc(percentage)
+subroutine percentage_c(percentage)
 
   implicit none
 
@@ -63,45 +63,21 @@ subroutine percentage_exc(percentage)
 
   percentage = 0d0
 
-  ! %T(n,s_state) = \sum_i psi_coef_sorted(i,s)**2 s.t. excitation_degree(|HF>,|i>) = n
+  ! %T(n,s_state) = \sum_i psi_coef(i,s)**2 s.t. excitation_degree(|HF>,|i>) = n
 
-  ! Ref
+  ! Contribution of the ref
   do s = 1, n_states
-    percentage(1,s) = psi_coef_sorted(1,s)**2
+    percentage(1,s) = psi_coef(1,s)**2
   enddo
   
-  ! Others
+  ! Others determinantss
   do i = 2, n_det
-    call get_excitation_degree(psi_det_sorted(n_int,1,1), psi_det_sorted(n_int,1,i), exc_degree, n_int)
+    call get_excitation_degree(psi_det(n_int,1,1), psi_det(n_int,1,i), exc_degree, n_int)
     do s = 1, n_states
-      percentage(exc_degree+1, s) = percentage(exc_degree+1, s) + psi_coef_sorted(i,s)**2
+      percentage(exc_degree+1, s) = percentage(exc_degree+1, s) + psi_coef(i,s)**2
     enddo
   enddo
 
   percentage = percentage *100d0
 
 end
-
-!BEGIN_PROVIDER [ integer, max_exc_degree]
-!
-!  !BEGIN_DOC
-!  ! Maximal degree of excitation possible
-!  !END_DOC
-!
-!  implicit none
-!
-!  max_exc_degree = min(2*mo_num - elec_alpha_num - elec_beta_num, elec_alpha_num + elec_beta_num)
-!
-!END_PROVIDER
-!
-!BEGIN_PROVIDER [ double precision, percent_exc, (max_exc_degree + 1, N_states)]
-!
-!  !BEGIN_DOC
-!  ! Percentage of each kind of excitation
-!  !END_DOC
-!
-!  implicit none
-!
-!  call percentage_exc(max_exc_degree, percent_exc)  
-!
-!END_PROVIDER

@@ -132,7 +132,7 @@ subroutine ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
       do s = 1, N_states
         ! alpha
         if (s1==1) then
-          t1_amplitude(h1,p1,s) = psi_coef(i,s)*phase
+          t1_amplitude(h1,p1-elec_alpha_num,s) = psi_coef(i,s)*phase
         ! beta
         else
           t1_amplitude(h1+elec_alpha_num, p1+mo_num-2*elec_alpha_num,s) = psi_coef(i,s)*phase

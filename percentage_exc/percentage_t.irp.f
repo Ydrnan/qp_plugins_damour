@@ -89,12 +89,11 @@ subroutine percentage_t(nb_T,percentage)
   enddo
   
   allocate(c1_coef(nb_t1,N_states), c1_det(N_int,2,nb_t1))
-
-  call t1_to_c1(n_occ,n_vir,t1_amplitude,nb_t1,c1_coef,c1_det)
+  !call t1_to_c1(n_occ,n_vir,t1_amplitude,nb_t1,c1_coef,c1_det)
 
   ! %T2
+  call ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
   do s = 1, N_states
-    call ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
     percentage(3,s) = dnrm2(n_occ*n_occ * n_vir*n_vir, t2_amplitude(1,1,1,1,s), 1)**2
   enddo
 
@@ -118,30 +117,33 @@ subroutine ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
   integer, intent(out) :: nb_t1
 
   ! internal
-  integer :: i,h1,p1,s1,h2,p2,s2,s
+  integer :: i,a,u,h1,p1,s1,h2,p2,s2,s
   integer :: degree, exc(0:2,2,2)
   double precision :: phase
 
   t1_amplitude = 0d0
 
   nb_t1 = 0
-  do i = 2, N_det
-    call get_excitation(psi_det(N_int,1,1),psi_det(N_int,1,i),exc,degree,phase,N_int)
+  do u = 2, N_det
+    call get_excitation(psi_det(N_int,1,1),psi_det(N_int,1,u),exc,degree,phase,N_int)
     if (degree == 1) then
       call decode_exc(exc,degree,h1,p1,h2,p2,s1,s2)
       do s = 1, N_states
         ! alpha
         if (s1==1) then
-          t1_amplitude(h1,p1-elec_alpha_num,s) = psi_coef(i,s)*phase
+          i = h1
+          a = p1-elec_alpha_num
         ! beta
         else
-          t1_amplitude(h1+elec_alpha_num, p1+mo_num-2*elec_alpha_num,s) = psi_coef(i,s)*phase
+          i = h1+elec_alpha_num
+          a = p1+mo_num-2*elec_alpha_num
         endif
+        t1_amplitude(i,a,s) = psi_coef(u,s)*phase
       enddo
 
       ! Count
       do s = 1, N_states
-        if (dabs(psi_coef(i,s)) > 1d-15) then
+        if (dabs(psi_coef(u,s)) > 1d-15) then
           nb_t1 = nb_t1 + 1
           exit
         endif
@@ -152,94 +154,94 @@ subroutine ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
 
 end
 
-subroutine t1_to_c1(n_occ,n_vir,t1_amplitude,nb_c1,c1_coef,c1_det)
-
-  implicit none
-
-  ! in 
-  integer, intent(in) :: n_occ, n_vir, nb_c1
-  double precision, intent(in) :: t1_amplitude(n_occ,n_vir,N_states)
-
-  ! out 
-  double precision, intent(out) :: c1_coef(nb_c1,N_states)
-  integer(bit_kind), intent(out) :: c1_det(N_int,2,nb_c1)
-
-  ! internal 
-  integer :: i,j,a,b,u,sa,si,s
-  integer :: sigma,h1,p1,s1,h2,p2,s2
-  integer(bit_kind), allocatable :: res(:,:)
-  logical :: ok, non_zero
-
-  allocate(res(N_int,2))
-
-  print*,'nb_c1', nb_c1
-
-  do u = 1, nb_c1
-    c1_det(:,:,u) = psi_det(:,:,1)
-  enddo
-
-  u = 1
-  do a = 1, n_vir
-    if (a > mo_num - elec_alpha_num) then 
-      p1 = a - mo_num+2*elec_alpha_num
-      sa = 2
-    else 
-      p1 = a + elec_alpha_num
-      sa = 1
-    endif
-    do i = 1, n_occ
-      if (i > elec_alpha_num) then 
-        h1 = i - elec_alpha_num
-        si = 2
-      else
-        h1 = i
-        si = 1
-      endif
-
-      ! Non-existing amplitudes
-      if (sa /= si) then
-        cycle
-      endif
-
-      s1 = sa
-
-      do s = 1, N_states
-        non_zero = .False.          
-        if (dabs(t1_amplitude(i,a,s)) > 1d-15) then
-          non_zero = .True.  
-        endif
-        if (non_zero) then
-          exit
-        endif
-      enddo
-
-      if (.not. non_zero) then 
-        cycle
-      endif
-
-      print*,u
-      !print*,i,a
-      !print*,h1,p1,s1
-      call apply_hole(c1_det(1,1,u), s1, h1, res, ok, N_int)
-      !call print_det(res,N_int) 
-      c1_det(:,:,u) = res
-      call apply_particle(c1_det(1,1,u), s1, p1, res, ok, N_int)
-      c1_det(:,:,u) = res
-      call print_det(c1_det(1,1,u),N_int) 
-
-      ! c1 to t1
-      do s = 1, N_states 
-        c1_coef(u,s) = t1_amplitude(i,a,s)
-      enddo
-      print*,t1_amplitude(i,a,:)
-
-      u = u + 1
-    enddo
-  enddo  
-
-  deallocate(res)
-
-end
+!subroutine t1_to_c1(n_occ,n_vir,t1_amplitude,nb_c1,c1_coef,c1_det)
+!
+!  implicit none
+!
+!  ! in 
+!  integer, intent(in) :: n_occ, n_vir, nb_c1
+!  double precision, intent(in) :: t1_amplitude(n_occ,n_vir,N_states)
+!
+!  ! out 
+!  double precision, intent(out) :: c1_coef(nb_c1,N_states)
+!  integer(bit_kind), intent(out) :: c1_det(N_int,2,nb_c1)
+!
+!  ! internal 
+!  integer :: i,j,a,b,u,sa,si,s
+!  integer :: sigma,h1,p1,s1,h2,p2,s2
+!  integer(bit_kind), allocatable :: res(:,:)
+!  logical :: ok, non_zero
+!
+!  allocate(res(N_int,2))
+!
+!  print*,'nb_c1', nb_c1
+!
+!  do u = 1, nb_c1
+!    c1_det(:,:,u) = psi_det(:,:,1)
+!  enddo
+!
+!  u = 1
+!  do a = 1, n_vir
+!    if (a > mo_num - elec_alpha_num) then 
+!      p1 = a - mo_num+2*elec_alpha_num
+!      sa = 2
+!    else 
+!      p1 = a + elec_alpha_num
+!      sa = 1
+!    endif
+!    do i = 1, n_occ
+!      if (i > elec_alpha_num) then 
+!        h1 = i - elec_alpha_num
+!        si = 2
+!      else
+!        h1 = i
+!        si = 1
+!      endif
+!
+!      ! Non-existing amplitudes
+!      if (sa /= si) then
+!        cycle
+!      endif
+!
+!      s1 = sa
+!
+!      do s = 1, N_states
+!        non_zero = .False.          
+!        if (dabs(t1_amplitude(i,a,s)) > 1d-15) then
+!          non_zero = .True.  
+!        endif
+!        if (non_zero) then
+!          exit
+!        endif
+!      enddo
+!
+!      if (.not. non_zero) then 
+!        cycle
+!      endif
+!
+!      print*,u
+!      !print*,i,a
+!      !print*,h1,p1,s1
+!      call apply_hole(c1_det(1,1,u), s1, h1, res, ok, N_int)
+!      !call print_det(res,N_int) 
+!      c1_det(:,:,u) = res
+!      call apply_particle(c1_det(1,1,u), s1, p1, res, ok, N_int)
+!      c1_det(:,:,u) = res
+!      call print_det(c1_det(1,1,u),N_int) 
+!
+!      ! c1 to t1
+!      do s = 1, N_states 
+!        c1_coef(u,s) = t1_amplitude(i,a,s)
+!      enddo
+!      print*,t1_amplitude(i,a,:)
+!
+!      u = u + 1
+!    enddo
+!  enddo  
+!
+!  deallocate(res)
+!
+!end
 
 subroutine ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
 
@@ -253,49 +255,79 @@ subroutine ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
   double precision,intent(out) :: t2_amplitude(n_occ,n_occ,n_vir,n_vir,N_states)
 
   ! internal
-  integer :: i,j,a,b,s
+  integer :: i,j,a,b,s,u
   integer :: h1,p1,s1,h2,p2,s2
   integer :: degree, exc(0:2,2,2)
-  double precision :: phase
+  double precision :: phase, accu
   double precision, allocatable :: c2_coef(:,:,:,:,:)
 
   allocate(c2_coef(n_occ,n_occ,n_vir,n_vir,N_states))
 
+  double precision :: dnrm2
+
+
   c2_coef = 0d0
   t2_amplitude = 0d0
 
-  do i = 2, N_det
-    call get_excitation(psi_det(N_int,1,1),psi_det(N_int,1,i),exc,degree,phase,N_int)
+  do u = 2, N_det
+    call get_excitation(psi_det(N_int,1,1),psi_det(N_int,1,u),exc,degree,phase,N_int)
     if (degree == 2) then
       call decode_exc(exc,degree,h1,p1,h2,p2,s1,s2)
       do s = 1, N_states
         ! alpha alpha
         if (s1==1 .and. s2==1) then
-          c2_coef(h1,h2,p1,p2,s) = psi_coef(i,s)*phase
+          i = h1
+          j = h2
+          a = p1-elec_alpha_num
+          b = p2-elec_alpha_num
         ! alpha beta
         elseif (s1==1 .and. s2==2) then
-          c2_coef(h1,h2+elec_alpha_num,p1,p2+elec_alpha_num,s) = psi_coef(i,s)*phase
+          i = h1
+          j = h2+elec_alpha_num
+          a = p1-elec_alpha_num
+          b = p2+mo_num-2*elec_alpha_num
         ! beta alpha
         elseif (s1==2 .and. s2==1) then
-          c2_coef(h1+elec_alpha_num,h2,p1+elec_alpha_num,p2,s) = psi_coef(i,s)*phase
+          i = h1+elec_alpha_num
+          j = h2
+          a = p1+mo_num-2*elec_alpha_num
+          b = p2-elec_alpha_num
         ! beta beta
         else
-          c2_coef(h1+elec_alpha_num,h2+elec_alpha_num,p1+elec_alpha_num,p2+elec_alpha_num,s) = psi_coef(i,s)*phase
+          i = h1+elec_alpha_num
+          j = h2+elec_alpha_num
+          a = p1+mo_num-2*elec_alpha_num
+          b =  p2+mo_num-2*elec_alpha_num
         endif
-     enddo 
+        c2_coef(i,j,a,b,s) = psi_coef(u,s)*phase
+        !print '(6(I3))', h1,h2,p1,p2,s1,s2
+        !print '(4(I3))', i,j,a,b
+      enddo 
     endif
   enddo
 
+  do s = 1, N_states
+    print*,'%C2',dnrm2(n_occ*n_occ*n_vir*n_vir, c2_coef(1,1,1,1,s),1)**2 * 100d0
+  enddo
+
+  ! c2 to t2
+  accu = 0d0
   do s = 1, N_states
     do b = 1, n_vir
       do a = 1, n_vir
         do j = 1, n_occ
           do i = 1, n_occ
             t2_amplitude(i,j,a,b,s) = c2_coef(i,j,a,b,s) - t1_amplitude(i,a,s)*t1_amplitude(j,b,s) + t1_amplitude(i,b,s)*t1_amplitude(j,a,s)
+            accu = accu + dabs(t1_amplitude(i,a,s)*t1_amplitude(j,b,s) ) - dabs(t1_amplitude(i,b,s)*t1_amplitude(j,a,s))
           enddo
         enddo
       enddo
     enddo
+  enddo
+  print*,accu
+
+  do s = 1, N_states
+    print*,'%T2',dnrm2(n_occ*n_occ*n_vir*n_vir, t2_amplitude(1,1,1,1,s),1)**2 * 100d0
   enddo
 
   deallocate(c2_coef)

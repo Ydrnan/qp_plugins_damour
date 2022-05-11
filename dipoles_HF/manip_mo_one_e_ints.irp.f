@@ -83,7 +83,7 @@ subroutine save_mo_one_e_ints(A)
 
   implicit none
 
-  double precision, intent(in) :: A
+  double precision, intent(in) :: A(mo_num,mo_num)
 
   call ezfio_set_mo_one_e_ints_mo_one_e_integrals(A)
   !call ezfio_set_mo_one_e_ints_io_mo_one_e_integrals('Read')

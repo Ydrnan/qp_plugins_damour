@@ -40,10 +40,10 @@ BEGIN_PROVIDER [ double precision, dm, (mo_num,mo_num,N_states,N_states)]
           else
         
             ! extra diag part
-            call get_excitation_degree(psi_det(N_int,1,i),psi_det(N_int,1,j),degree,N_int)
+            call get_excitation_degree(psi_det(1,1,i),psi_det(1,1,j),degree,N_int)
             if (degree == 1) then
               exc = 0
-              call get_single_excitation(psi_det(N_int,1,i),psi_det(N_int,1,j),exc,phase,N_int)
+              call get_single_excitation(psi_det(1,1,i),psi_det(1,1,j),exc,phase,N_int)
               call decode_exc(exc,1,h1,p1,h2,p2,s1,s2)
               dm(h1,p1,istate,jstate) = dm(h1,p1,istate,jstate) + psi_coef(i,istate) * psi_coef(j,jstate) * phase
             endif

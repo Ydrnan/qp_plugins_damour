@@ -14,7 +14,7 @@ subroutine run_stochastic_cipsi_hf
   double precision, allocatable :: e_lambda(:,:,:)
   integer :: s, dip_axis
   dip_axis = 3
-  lambda = 1d-6
+  lambda = 1d-5
   allocate(e_lambda(N_states,2,5))
   e_lambda = 0d0
 
@@ -135,20 +135,24 @@ subroutine run_stochastic_cipsi_hf
     print*,'# E(lambda) at',N_det
     do s = 1, N_states
       print*,'State:',s
-      print*,'E   ',e_lambda(s,1,:)
-      print*,'dE  ',e_lambda(s,1,:) - e_lambda(s,1,3)
-      print*,'PT2 ',e_lambda(s,2,:)
-      print*,'dPT2',e_lambda(s,2,:) - e_lambda(s,2,3)
-      print*,'Dip2', -((e_lambda(s,1,4) - e_lambda(s,1,2)) / (2d0 * lambda)) + nuclear_part
-      print*,'Dip2pt2', -(((e_lambda(s,1,4) + e_lambda(s,2,4)) - (e_lambda(s,1,2) + e_lambda(s,2,2))) / (2d0 * lambda)) +nuclear_part
-      print*,'Dip4', -((e_lambda(s,1,1) &
-                    - 8d0 * e_lambda(s,1,2) &
-                    + 8d0 * e_lambda(s,1,4) &
-                    - e_lambda(s,1,5)) / (12d0 * lambda)) +nuclear_part
-      print*,'Dip4pt2', -(((e_lambda(s,1,1) + e_lambda(s,2,1)) &
-                    - 8d0 * (e_lambda(s,1,2) + e_lambda(s,2,2)) &
-                    + 8d0 * (e_lambda(s,1,4) + e_lambda(s,2,4)) &
-                    - (e_lambda(s,1,5) + e_lambda(s,2,5))) / (12d0 * lambda)) +nuclear_part
+      print*,'E                  ',e_lambda(s,1,:)
+      print*,'E(la) - E          ',e_lambda(s,1,:) - e_lambda(s,1,3)
+      print*,'dE(la)             ',e_lambda(s,1,2) - e_lambda(s,1,4)
+      print*,'PT2                ',e_lambda(s,2,:)
+      print*,'PT2(la) -PT2       ',e_lambda(s,2,:) - e_lambda(s,2,3)
+      print*,'dPT2(la)           ',e_lambda(s,2,2) - e_lambda(s,2,4)
+      print*,'E(la)+PT2(la)-E+PT2',e_lambda(s,1,:) - e_lambda(s,1,3) + e_lambda(s,2,:) - e_lambda(s,2,3)
+      print*,'d(E(la)+PT2(la))   ',e_lambda(s,1,2) - e_lambda(s,1,4) + e_lambda(s,2,2) - e_lambda(s,2,4)
+      print*,'Dip2', (-((e_lambda(s,1,4) - e_lambda(s,1,2)) / (2d0 * lambda)) + nuclear_part)*au2D
+      print*,'Dip2pt2', (-(((e_lambda(s,1,4) + e_lambda(s,2,4)) - (e_lambda(s,1,2) + e_lambda(s,2,2))) / (2d0 * lambda)) +nuclear_part)*au2D
+      !print*,'Dip4', (-((e_lambda(s,1,1) &
+      !              - 8d0 * e_lambda(s,1,2) &
+      !              + 8d0 * e_lambda(s,1,4) &
+      !              - e_lambda(s,1,5)) / (12d0 * lambda)) +nuclear_part)*au2D
+      !print*,'Dip4pt2', (-(((e_lambda(s,1,1) + e_lambda(s,2,1)) &
+      !              - 8d0 * (e_lambda(s,1,2) + e_lambda(s,2,2)) &
+      !              + 8d0 * (e_lambda(s,1,4) + e_lambda(s,2,4)) &
+      !              - (e_lambda(s,1,5) + e_lambda(s,2,5))) / (12d0 * lambda)) +nuclear_part)*au2D
     enddo
     print*,''
     
@@ -181,25 +185,25 @@ subroutine run_stochastic_cipsi_hf
     PROVIDE  psi_det_sorted
 
     ! mo_one_e_ints - 2 lambda
-    call pert_mo_one_e_ints(-2*lambda,dip_axis)
-    TOUCH mo_one_e_integrals
-    print*,''
-    print*,'======================================'
-    print*,'# -2lambda'
-    print*,'======================================'
-    call diagonalize_ci
-    call pt2_dealloc(pt2_data)
-    call pt2_dealloc(pt2_data_err)
-    call pt2_alloc(pt2_data, N_states)
-    call pt2_alloc(pt2_data_err, N_states)
-    call ZMQ_pt2(psi_energy_with_nucl_rep,pt2_data,pt2_data_err,relative_error,0) ! Stochastic PT2, no selection
-    call print_summary(psi_energy_with_nucl_rep, &
-       pt2_data, pt2_data_err, N_det,N_configuration,N_states,psi_s2)
+    !call pert_mo_one_e_ints(-2*lambda,dip_axis)
+    !TOUCH mo_one_e_integrals
+    !print*,''
+    !print*,'======================================'
+    !print*,'# -2lambda'
+    !print*,'======================================'
+    !call diagonalize_ci
+    !call pt2_dealloc(pt2_data)
+    !call pt2_dealloc(pt2_data_err)
+    !call pt2_alloc(pt2_data, N_states)
+    !call pt2_alloc(pt2_data_err, N_states)
+    !call ZMQ_pt2(psi_energy_with_nucl_rep,pt2_data,pt2_data_err,relative_error,0) ! Stochastic PT2, no selection
+    !call print_summary(psi_energy_with_nucl_rep, &
+    !   pt2_data, pt2_data_err, N_det,N_configuration,N_states,psi_s2)
 
-    do s = 1, N_states
-      e_lambda(s,1,1) = ci_energy(s)
-      e_lambda(s,2,1) = pt2_data % pt2(s)
-    enddo
+    !do s = 1, N_states
+    !  e_lambda(s,1,1) = ci_energy(s)
+    !  e_lambda(s,2,1) = pt2_data % pt2(s)
+    !enddo
 
     ! mo_one_e_ints - lambda
     call pert_mo_one_e_ints(-lambda,dip_axis)
@@ -245,25 +249,25 @@ subroutine run_stochastic_cipsi_hf
     enddo
 
     ! mo_one_e_ints + 2 lambda
-    call pert_mo_one_e_ints(2*lambda,dip_axis)
-    TOUCH mo_one_e_integrals
-    print*,''
-    print*,'======================================'
-    print*,'# +2lambda'
-    print*,'======================================'
-    call diagonalize_ci
-    call pt2_dealloc(pt2_data)
-    call pt2_dealloc(pt2_data_err)
-    call pt2_alloc(pt2_data, N_states)
-    call pt2_alloc(pt2_data_err, N_states)
-    call ZMQ_pt2(psi_energy_with_nucl_rep,pt2_data,pt2_data_err,relative_error,0) ! Stochastic PT2, no selection
-    call print_summary(psi_energy_with_nucl_rep, &
-       pt2_data, pt2_data_err, N_det,N_configuration,N_states,psi_s2)
+    !call pert_mo_one_e_ints(2*lambda,dip_axis)
+    !TOUCH mo_one_e_integrals
+    !print*,''
+    !print*,'======================================'
+    !print*,'# +2lambda'
+    !print*,'======================================'
+    !call diagonalize_ci
+    !call pt2_dealloc(pt2_data)
+    !call pt2_dealloc(pt2_data_err)
+    !call pt2_alloc(pt2_data, N_states)
+    !call pt2_alloc(pt2_data_err, N_states)
+    !call ZMQ_pt2(psi_energy_with_nucl_rep,pt2_data,pt2_data_err,relative_error,0) ! Stochastic PT2, no selection
+    !call print_summary(psi_energy_with_nucl_rep, &
+    !   pt2_data, pt2_data_err, N_det,N_configuration,N_states,psi_s2)
 
-    do s = 1, N_states
-      e_lambda(s,1,5) = ci_energy(s)
-      e_lambda(s,2,5) = pt2_data % pt2(s)
-    enddo
+    !do s = 1, N_states
+    !  e_lambda(s,1,5) = ci_energy(s)
+    !  e_lambda(s,2,5) = pt2_data % pt2(s)
+    !enddo
 
     ! Back to the initial ones
     call init_mo_one_e_ints

@@ -74,7 +74,7 @@ subroutine percentage_c(percentage)
   
   ! Others determinantss
   do i = 2, n_det
-    call get_excitation_degree(psi_det(n_int,1,1), psi_det(n_int,1,i), exc_degree, n_int)
+    call get_excitation_degree(psi_det(1,1,1), psi_det(1,1,i), exc_degree, n_int)
     do s = 1, n_states
       percentage(exc_degree+1, s) = percentage(exc_degree+1, s) + psi_coef(i,s)**2
     enddo

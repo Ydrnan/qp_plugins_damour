@@ -17,14 +17,9 @@ subroutine i_r_j(key_i,key_j,Nint,i_x_j,i_y_j,i_z_j)
   integer                        :: degree
   integer                        :: m,n,p,q,a,b
   integer                        :: i,j,k
-  !integer                        :: occ(Nint*bit_kind_size,2)
   integer                        :: occ_a(Nint*bit_kind_size)
   integer                        :: occ_b(Nint*bit_kind_size)
-  !double precision               :: diag_H_mat_elem
   double precision               :: phase
-  !integer                        :: n_occ_ab(2)
-
-  PROVIDE mo_two_e_integrals_in_map mo_integrals_map big_array_exchange_integrals
 
   ASSERT (Nint > 0)
   ASSERT (Nint == N_int)
@@ -36,7 +31,7 @@ subroutine i_r_j(key_i,key_j,Nint,i_x_j,i_y_j,i_z_j)
   i_x_j = 0d0
   i_y_j = 0d0
   i_z_j = 0d0
-  !DIR$ FORCEINLINE
+
   call get_excitation_degree(key_i,key_j,degree,Nint)
   integer :: spin
   select case (degree)
@@ -55,9 +50,9 @@ subroutine i_r_j(key_i,key_j,Nint,i_x_j,i_y_j,i_z_j)
         p = exc(1,2,2)
         spin = 2
       endif
-      i_x_j = (mo_dipole_x(m,p) + mo_dipole_x(p,m)) * phase
-      i_y_j = (mo_dipole_y(m,p) + mo_dipole_y(p,m)) * phase
-      i_z_j = (mo_dipole_z(m,p) + mo_dipole_z(p,m)) * phase
+      i_x_j = mo_dipole_x(m,p) * phase
+      i_y_j = mo_dipole_y(m,p) * phase
+      i_z_j = mo_dipole_z(m,p) * phase
 
     ! < I | r | I >
     case (0)
@@ -87,11 +82,6 @@ subroutine i_r_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_x_psi_array, i_y_ps
   ! Computes $\langle I|x|Psi \rangle  = \sum_J c_J \langle I | x | J \rangle$.
   ! Computes $\langle I|y|Psi \rangle  = \sum_J c_J \langle I | y | J \rangle$.
   ! Computes $\langle I|z|Psi \rangle  = \sum_J c_J \langle I | z | J \rangle$.
-  !
-  ! Uses filter_connected_i_H_psi0 to get all the $|J \rangle$ to which $|I \rangle$
-  ! is connected.
-  ! The i_H_psi_minilist is much faster but requires to build the
-  ! minilists.
   END_DOC
   integer, intent(in)            :: Nint, Ndet,Ndet_max,Nstate
   integer(bit_kind), intent(in)  :: keys(Nint,2,Ndet)
@@ -121,9 +111,6 @@ subroutine i_r_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_x_psi_array, i_y_ps
 
     do ii=1,idx(0)
       i = idx(ii)
-      !DIR$ FORCEINLINE
-      !call i_H_j(keys(1,1,i),key,Nint,hij)
-      !i_H_psi_array(1) = i_H_psi_array(1) + coef(i,1)*hij
       call i_r_j(keys(1,1,i),key,Nint,i_x_j,i_y_j,i_z_j)
       i_x_psi_array(1) = i_x_psi_array(1) + i_x_j * coef(i,1)
       i_y_psi_array(1) = i_y_psi_array(1) + i_y_j * coef(i,1)
@@ -134,11 +121,8 @@ subroutine i_r_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_x_psi_array, i_y_ps
 
     do ii=1,idx(0)
       i = idx(ii)
-      !DIR$ FORCEINLINE
-      !call i_H_j(keys(1,1,i),key,Nint,hij)
       call i_r_j(keys(1,1,i),key,Nint,i_x_j,i_y_j,i_z_j)
       do j = 1, Nstate
-        !i_H_psi_array(j) = i_H_psi_array(j) + coef(i,j)*hij
         i_x_psi_array(j) = i_x_psi_array(j) + i_x_j * coef(i,j)
         i_y_psi_array(j) = i_y_psi_array(j) + i_y_j * coef(i,j)
         i_z_psi_array(j) = i_z_psi_array(j) + i_z_j * coef(i,j)
@@ -168,13 +152,9 @@ subroutine i_monoe_op_j(key_i,key_j,Nint,monoe_ints,i_op_j)
   integer                        :: degree
   integer                        :: m,n,p,q,a,b
   integer                        :: i,j,k
-  !integer                        :: occ(Nint*bit_kind_size,2)
   integer                        :: occ_a(Nint*bit_kind_size)
   integer                        :: occ_b(Nint*bit_kind_size)
-  !double precision               :: diag_H_mat_elem
   double precision               :: phase
-  !integer                        :: n_occ_ab(2)
-  PROVIDE mo_two_e_integrals_in_map mo_integrals_map big_array_exchange_integrals
 
   ASSERT (Nint > 0)
   ASSERT (Nint == N_int)
@@ -185,14 +165,12 @@ subroutine i_monoe_op_j(key_i,key_j,Nint,monoe_ints,i_op_j)
 
 
   i_op_j = 0d0
-  !DIR$ FORCEINLINE
   call get_excitation_degree(key_i,key_j,degree,Nint)
   integer :: spin
   select case (degree)
     ! < I | op | J >
     case (1)
       call get_single_excitation(key_i,key_j,exc,phase,Nint)
-      !DIR$ FORCEINLINE
       if (exc(0,1,1) == 1) then
         ! Single alpha
         m = exc(1,1,1)
@@ -206,8 +184,8 @@ subroutine i_monoe_op_j(key_i,key_j,Nint,monoe_ints,i_op_j)
       endif
       i_op_j = (monoe_ints(m,p) + monoe_ints(p,m)) * phase
 
+    ! < I | op | I >
     case (0)
-      ! < I | op | I >
       ! alpha part
       call bitstring_to_list(key_i, occ_a, elec_alpha_num, Nint)
       do a = 1, elec_alpha_num
@@ -227,13 +205,8 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
   use bitmasks
   implicit none
   BEGIN_DOC
-  ! Computes $\langle I|a mono electronic operator |Psi \rangle
-  !  = \sum_J c_J \langle I | a mono electronic operator | J \rangle$.
-  !
-  ! Uses filter_connected_i_H_psi0 to get all the $|J \rangle$ to which $|I \rangle$
-  ! is connected.
-  ! The i_H_psi_minilist is much faster but requires to build the
-  ! minilists.
+  ! Computes $\langle I|a mono electronic operator |Psi \rangle$
+  ! $ = \sum_J c_J \langle I | a mono electronic operator | J \rangle$.
   END_DOC
   integer, intent(in)            :: Nint, Ndet,Ndet_max,Nstate
   integer(bit_kind), intent(in)  :: keys(Nint,2,Ndet)
@@ -261,7 +234,6 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
 
     do ii=1,idx(0)
       i = idx(ii)
-      !DIR$ FORCEINLINE
       call i_monoe_op_j(keys(1,1,i),key,Nint,monoe_ints,i_op_j)
       i_op_psi_array(1) = i_op_psi_array(1) + i_op_j * coef(i,1)
     enddo
@@ -270,7 +242,6 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
 
     do ii=1,idx(0)
       i = idx(ii)
-      !DIR$ FORCEINLINE
       call i_monoe_op_j(keys(1,1,i),key,Nint,monoe_ints,i_op_j)
       do j = 1, Nstate
         i_op_psi_array(j) = i_op_psi_array(j) + i_op_j * coef(i,j)
@@ -281,33 +252,30 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
 
 end
 
-subroutine i_aa_j(key_i,key_j,Nint,i_aa_j)
+subroutine i_op_aa_j(key_i,key_j,Nint,monoe_ints,i_aa_j,idx_h,idx_p)
 
   use bitmasks
 
   implicit none
 
   BEGIN_DOC
-  ! Returns $\langle I| a_a^\dagger a_i | J \rangle$ with the phase, where $I$ and $J$ are determinants.
-  ! a_a^\dagger creates an electron in th MO $\phi_a$
-  ! a_i annihilates an electron in th MO $\phi_i$
+  ! Returns $\langle I| a_a^\dagger a_i |J \rangle$ where $I$ and $J$ are determinants.
+  ! $a_a^\dagger$ creates an electron in the orbital $\psi_a$.
+  ! $a_i^$ annihilates an electron in the orbital $\psi_i$.
+  ! idx_h = i or 0 if I = J
+  ! idx_p = a or 0 if I = J
   END_DOC
 
   integer, intent(in)            :: Nint
   integer(bit_kind), intent(in)  :: key_i(Nint,2), key_j(Nint,2)
+  double precision, intent(in)   :: monoe_ints(mo_num,mo_num)
   double precision, intent(out)  :: i_aa_j
+  integer, intent(out)           :: idx_h, idx_p
 
   integer                        :: exc(0:2,2,2)
   integer                        :: degree
   integer                        :: m,n,p,q,a,b
-  integer                        :: i,j,k
-  !integer                        :: occ(Nint*bit_kind_size,2)
-  integer                        :: occ_a(Nint*bit_kind_size)
-  integer                        :: occ_b(Nint*bit_kind_size)
-  !double precision               :: diag_H_mat_elem
   double precision               :: phase
-  !integer                        :: n_occ_ab(2)
-  PROVIDE mo_two_e_integrals_in_map mo_integrals_map big_array_exchange_integrals
 
   ASSERT (Nint > 0)
   ASSERT (Nint == N_int)
@@ -316,49 +284,57 @@ subroutine i_aa_j(key_i,key_j,Nint,i_aa_j)
   ASSERT (sum(popcnt(key_j(:,1))) == elec_alpha_num)
   ASSERT (sum(popcnt(key_j(:,2))) == elec_beta_num)
 
-  i_aa_j = 0d0
-  !DIR$ FORCEINLINE
+
+  i_op_j = 0d0
   call get_excitation_degree(key_i,key_j,degree,Nint)
   integer :: spin
   select case (degree)
     ! < I | a_a^\dagger a_i | J >
     case (1)
       call get_single_excitation(key_i,key_j,exc,phase,Nint)
-      !DIR$ FORCEINLINE
+      if (exc(0,1,1) == 1) then
+        ! Single alpha
+        m = exc(1,1,1)
+        p = exc(1,2,1)
+        spin = 1
+      else
+        ! Single beta
+        m = exc(1,1,2)
+        p = exc(1,2,2)
+        spin = 2
+      endif
       i_aa_j = phase
+      idx_h = m
+      idx_p = p
 
-    ! < I | a_i^\dagger a_i | I >
+    ! < I | a_a^\dagger a_i | I >
     case (0)
-      i_aa_j = 1
+      i_aa_j = 1d0
+      idx_h = 0
+      idx_p = 0
 
   end select
 end
 
-subroutine i_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi)
+subroutine i_op_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi_array)
   use bitmasks
   implicit none
   BEGIN_DOC
-  ! Computes $\langle I| a_a^\dagger a_i |Psi \rangle
-  !  = \sum_J c_J \langle I | a_a^\dagger a_i  | J \rangle$.
-  !
-  ! a_a^\dagger creates an electron in th MO $\phi_a$
-  ! a_i annihilates an electron in th MO $\phi_i$
-  !
-  ! Uses filter_connected_i_H_psi0 to get all the $|J \rangle$ to which $|I \rangle$
-  ! is connected.
-  ! The i_H_psi_minilist is much faster but requires to build the
-  ! minilists.
+  ! Computes $\langle i|a_a^\dagger a_i |Psi \rangle$.
+  ! $a_a^\dagger$ creates an electron in the orbital $\psi_a$.
+  ! $a_i^$ annihilates an electron in the orbital $\psi_i$.
   END_DOC
   integer, intent(in)            :: Nint, Ndet,Ndet_max,Nstate
   integer(bit_kind), intent(in)  :: keys(Nint,2,Ndet)
   integer(bit_kind), intent(in)  :: key(Nint,2)
   double precision, intent(in)   :: coef(Ndet_max,Nstate)
-  double precision, intent(out)  :: i_aa_psi
+  double precision, intent(out)  :: i_aa_psi_array(mo_num,mo_num,Nstate)
 
-  integer                        :: i, ii,j
+  integer                        :: i, ii,jstate
   double precision               :: phase
   integer                        :: exc(0:2,2,2)
-  double precision               :: i_op_j
+  double precision               :: i_aa_j
+  integer                        :: idx_h,  idx_p
   integer, allocatable           :: idx(:)
 
   ASSERT (Nint > 0)
@@ -368,15 +344,41 @@ subroutine i_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi)
   ASSERT (Ndet_max >= Ndet)
   allocate(idx(0:Ndet))
 
-  i_aa_psi = 0.d0
+  i_aa_psi_array = 0.d0
 
   call filter_connected_i_H_psi0(keys,key,Nint,Ndet,idx)
+  if (Nstate == 1) then
 
-  do ii=1,idx(0)
-    i = idx(ii)
-    !DIR$ FORCEINLINE
-    call i_aa_j(keys(1,1,i),key,Nint,i_a_j)
-    i_aa_psi = i_op_psi + i_aa_j * coef(i,1)
-  enddo
+    do ii=1,idx(0)
+      i = idx(ii)
+      call i_op_aa_j(keys(1,1,i),key,Nint,i_aa_j,idx_h,idx_p)
+      ! if I = J
+      if (idx_h == 0) then
+        do p = 1, mo_num
+          i_aa_psi_array(p,p,1) = i_aa_psi_array(p,p,1) + coef(i,1) * i_aa_j
+        enddo
+      else
+        i_aa_psi_array(idx_h,idx_p,1) = i_aa_psi_array(idx_h,idx_p,1) + coef(i,1) * i_aa_j
+      endif
+    enddo
 
-end
+  else
+
+    do ii=1,idx(0)
+      i = idx(ii)
+      call i_op_aa_j(keys(1,1,i),key,Nint,i_aa_j,idx_h,idx_p)
+      do jstate = 1, Nstate
+        ! if I = J
+        if (idx_h == 0) then
+          do p = 1, mo_num
+            i_aa_psi_array(p,p,jstate) = i_aa_psi_array(p,p,jstate) + coef(i,jstate) * i_aa_j
+          enddo
+        else
+          i_aa_psi_array(idx_h,idx_p,j) = i_aa_psi_array(idx_h,idx_p,jstate) + coef(i,jstate) * i_aa_j
+        endif
+      enddo
+    enddo
+
+  endif
+
+end 

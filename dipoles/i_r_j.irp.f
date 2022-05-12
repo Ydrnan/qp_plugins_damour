@@ -211,7 +211,7 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
   integer, intent(in)            :: Nint, Ndet,Ndet_max,Nstate
   integer(bit_kind), intent(in)  :: keys(Nint,2,Ndet)
   integer(bit_kind), intent(in)  :: key(Nint,2)
-  double precision, intent(in)   :: coef(Ndet_max,Nstate)
+  double precision, intent(in)   :: coef(Ndet_max,Nstate), monoe_ints(mo_num,mo_num)
   double precision, intent(out)  :: i_op_psi_array(Nstate)
 
   integer                        :: i, ii,j
@@ -276,6 +276,7 @@ subroutine i_op_aa_j(key_i,key_j,Nint,monoe_ints,i_aa_j,idx_h,idx_p)
   integer                        :: degree
   integer                        :: m,n,p,q,a,b
   double precision               :: phase
+  integer :: spin
 
   ASSERT (Nint > 0)
   ASSERT (Nint == N_int)
@@ -284,10 +285,9 @@ subroutine i_op_aa_j(key_i,key_j,Nint,monoe_ints,i_aa_j,idx_h,idx_p)
   ASSERT (sum(popcnt(key_j(:,1))) == elec_alpha_num)
   ASSERT (sum(popcnt(key_j(:,2))) == elec_beta_num)
 
+  i_aa_j = 0d0
 
-  i_op_j = 0d0
   call get_excitation_degree(key_i,key_j,degree,Nint)
-  integer :: spin
   select case (degree)
     ! < I | a_a^\dagger a_i | J >
     case (1)
@@ -330,7 +330,7 @@ subroutine i_op_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi_array)
   double precision, intent(in)   :: coef(Ndet_max,Nstate)
   double precision, intent(out)  :: i_aa_psi_array(mo_num,mo_num,Nstate)
 
-  integer                        :: i, ii,jstate
+  integer                        :: i, ii,jstate,p
   double precision               :: phase
   integer                        :: exc(0:2,2,2)
   double precision               :: i_aa_j
@@ -374,7 +374,7 @@ subroutine i_op_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi_array)
             i_aa_psi_array(p,p,jstate) = i_aa_psi_array(p,p,jstate) + coef(i,jstate) * i_aa_j
           enddo
         else
-          i_aa_psi_array(idx_h,idx_p,j) = i_aa_psi_array(idx_h,idx_p,jstate) + coef(i,jstate) * i_aa_j
+          i_aa_psi_array(idx_h,idx_p,jstate) = i_aa_psi_array(idx_h,idx_p,jstate) + coef(i,jstate) * i_aa_j
         endif
       enddo
     enddo

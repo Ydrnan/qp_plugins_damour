@@ -86,23 +86,18 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
     call pt2_alloc(pt2_data_err, N_states)
     mode_dipole = .True.
     TOUCH mode_dipole
-    nb_contrib = 0
-    TOUCH nb_contrib
     call ZMQ_pt2(psi_energy_with_nucl_rep, pt2_data, pt2_data_err, relative_error, 0) ! Stochastic PT2
-    print*,'nb_contrib',nb_contrib
-    print*,'dip1_x', pt2_data % pt2(:)
-    print*,'dip1_y', pt2_data % rpt2(:)
-    print*,'dip1_z', pt2_data % variance(:)
+    print*,'dip1_x', pt2_data % pt2(:) * au2D
+    print*,'dip1_y', pt2_data % rpt2(:) * au2D
+    print*,'dip1_z', pt2_data % variance(:) * au2D
     mode_dipole = .False.
     TOUCH mode_dipole
+    call gen_unique_p
     call pt2_dealloc(pt2_data)
     call pt2_dealloc(pt2_data_err)
     call pt2_alloc(pt2_data, N_states)
     call pt2_alloc(pt2_data_err, N_states)
-    nb_contrib = 0
-    TOUCH nb_contrib
     call ZMQ_pt2(psi_energy_with_nucl_rep,pt2_data,pt2_data_err,relative_error,to_select) ! Stochastic PT2 and selection
-    print*,'nb_contrib',nb_contrib
 
     correlation_energy_ratio = (psi_energy_with_nucl_rep(1) - hf_energy_ref)  /     &
                     (psi_energy_with_nucl_rep(1) + pt2_data % rpt2(1) - hf_energy_ref)
@@ -122,10 +117,6 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
     call print_transition_dipole_moment
     call print_oscillator_strength
     !call gen_unique_p
-    !prov_dip1 = 0d0
-    !nb_contrib = 0
-    !norm_coef_pert = 0d0
-    !TOUCH prov_dip1 nb_contrib norm_coef_pert
     N_iter += 1
 
     if (qp_stop()) exit
@@ -162,11 +153,12 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
     pt2_relative_error = 1d-6
     TOUCH pt2_relative_error
     call ZMQ_pt2(psi_energy_with_nucl_rep, pt2_data, pt2_data_err, relative_error, 0) ! Stochastic PT2
-    print*,'dip1_x', pt2_data % pt2(:)
-    print*,'dip1_y', pt2_data % rpt2(:)
-    print*,'dip1_z', pt2_data % variance(:)
+    print*,'dip1_x', pt2_data % pt2(:) * au2D
+    print*,'dip1_y', pt2_data % rpt2(:) * au2D
+    print*,'dip1_z', pt2_data % variance(:) * au2D
     mode_dipole = .False.
     TOUCH mode_dipole
+    call gen_unique_p
     call pt2_dealloc(pt2_data)
     call pt2_dealloc(pt2_data_err)
     call pt2_alloc(pt2_data, N_states)

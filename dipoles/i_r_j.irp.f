@@ -252,7 +252,7 @@ subroutine i_monoe_op_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,monoe_ints,i_o
 
 end
 
-subroutine i_op_aa_j(key_i,key_j,Nint,monoe_ints,i_aa_j,idx_h,idx_p)
+subroutine i_op_aa_j(key_i,key_j,Nint,i_aa_j,idx_h,idx_p)
 
   use bitmasks
 
@@ -268,7 +268,6 @@ subroutine i_op_aa_j(key_i,key_j,Nint,monoe_ints,i_aa_j,idx_h,idx_p)
 
   integer, intent(in)            :: Nint
   integer(bit_kind), intent(in)  :: key_i(Nint,2), key_j(Nint,2)
-  double precision, intent(in)   :: monoe_ints(mo_num,mo_num)
   double precision, intent(out)  :: i_aa_j
   integer, intent(out)           :: idx_h, idx_p
 

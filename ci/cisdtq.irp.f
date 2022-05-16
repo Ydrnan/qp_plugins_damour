@@ -11,5 +11,6 @@ program cisdtq
 
   call gen_fci_wf
   call diagonalize_ci
+  call save_wavefunction
 
 end

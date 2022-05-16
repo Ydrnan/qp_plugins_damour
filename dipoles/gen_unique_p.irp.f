@@ -52,9 +52,9 @@ subroutine gen_unique_p
   double precision               :: t1,t2
   double precision               :: dip1(N_states),dip1_x(N_states),dip1_y(N_states),dip1_z(N_states)
   double precision               :: dip(N_states),dip_x(N_states),dip_y(N_states),dip_z(N_states)
-  double precision, allocatable :: gamma_1(:,:,:)
+  double precision, allocatable :: gamma_1(:,:,:), gamma_1_test(:,:,:)
 
-  allocate(gamma_1(mo_num,mo_num,N_states))
+  allocate(gamma_1(mo_num,mo_num,N_states),gamma_1_test(mo_num,mo_num,N_states))
 
   ! Generation of all the perturbed determinants
   n_P_max = min(100,size(psi_det,3)*2*(elec_alpha_num*(mo_num-elec_alpha_num)))
@@ -200,7 +200,11 @@ subroutine gen_unique_p
   call first_order_dip(n_P,psi_P,c_P,dip1_x,dip1_y,dip1_z,dip1)
   print*,'without dm'
   print*,'1-order correction:',dip1(:)
- 
+
+  ! check
+  call test_first_order_dm(n_P,psi_P,c_P,gamma_1_test)
+  call first_order_dip_w_dm(gamma_1_test,dip1_x,dip1_y,dip1_z,dip1)
+
   deallocate(c_P,psi_P,gamma_1)
 
 end
@@ -218,8 +222,8 @@ subroutine first_order_coef(n_P,psi_P,c_P)
   
   c_P = 0d0
   do l = 1, n_P
-    call i_H_psi(psi_P(1,1,l),psi_det(1,1,1),psi_coef(1,1),N_int,N_det,N_det,1,ihpsi)
     call i_H_j(psi_P(1,1,l),psi_P(1,1,l),N_int,hpp)
+    call i_H_psi(psi_P(1,1,l),psi_det,psi_coef,N_int,N_det,N_det,N_states,ihpsi)
     do istate = 1, N_states
       c_P(l,istate) = ihpsi(istate) / (ci_energy(istate) - nuclear_repulsion - hpp)
     enddo
@@ -283,7 +287,48 @@ subroutine first_order_dm(n_P,psi_P,c_P,gamma_1)
         gamma_1(p,q,istate) = gamma_tilde_1(p,q,istate) + gamma_tilde_1(q,p,istate)
       enddo
     enddo
-    print*,gamma_1(:,:,istate)
+    !print*,gamma_1(:,:,istate)
+  enddo
+
+  deallocate(gamma_tilde_1)
+
+end
+
+subroutine test_first_order_dm(n_P,psi_P,c_P,gamma_1)
+
+  implicit none
+
+  integer, intent(in) :: n_P
+  integer(bit_kind), intent(in) :: psi_P(N_int,2,n_P)
+  double precision, intent(in) :: c_P(n_P,N_states)
+  double precision, intent(out) :: gamma_1(mo_num,mo_num,N_states)
+  integer :: i,l,p,q,h1,p1,h2,p2,s1,s2,degree, exc(0:2,2,2)
+  double precision :: phase, t1, t2, percentage
+  integer :: istate
+  double precision, allocatable :: gamma_tilde_1(:,:,:), i_aa_psi_array(:,:,:)
+
+  PROVIDE mo_dipole_x mo_dipole_y mo_dipole_z
+
+  ! first order 1-dm
+  allocate(gamma_tilde_1(mo_num,mo_num,N_states))
+  allocate(i_aa_psi_array(mo_num,mo_num,N_states))
+
+  gamma_tilde_1 = 0d0
+
+  percentage = 0d0
+  do l = 1, n_P
+    call i_op_aa_psi(psi_P(1,1,l),psi_det,psi_coef,N_int,N_det,N_det,N_states,i_aa_psi_array)
+    do istate = 1, N_states
+      gamma_tilde_1(:,:,istate) = gamma_tilde_1(:,:,istate) + i_aa_psi_array(:,:,istate) * c_P(l,istate)
+    enddo
+  enddo
+
+  do istate = 1, N_states
+    do q = 1, mo_num
+      do p = 1, mo_num
+        gamma_1(p,q,istate) = gamma_tilde_1(p,q,istate) + gamma_tilde_1(q,p,istate)
+      enddo
+    enddo
   enddo
 
   deallocate(gamma_tilde_1)
@@ -361,9 +406,9 @@ subroutine first_order_dip(n_P,psi_P,c_P,dip1_x,dip1_y,dip1_z,dip1)
         p = h1
         q = p1
         do istate = 1, N_states
-          dip1_x(istate) = dip1_x(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * mo_dipole_x(p,q)
-          dip1_y(istate) = dip1_y(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * mo_dipole_y(p,q)
-          dip1_z(istate) = dip1_z(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * mo_dipole_z(p,q)
+          dip1_x(istate) = dip1_x(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * (mo_dipole_x(p,q) + mo_dipole_x(q,p))
+          dip1_y(istate) = dip1_y(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * (mo_dipole_y(p,q) + mo_dipole_y(q,p))
+          dip1_z(istate) = dip1_z(istate) - c_P(l,istate) * psi_coef(i,istate) * phase * (mo_dipole_z(p,q) + mo_dipole_z(q,p))
         enddo
       endif
     enddo

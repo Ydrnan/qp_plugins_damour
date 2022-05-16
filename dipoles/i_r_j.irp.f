@@ -287,6 +287,9 @@ subroutine i_op_aa_j(key_i,key_j,Nint,i_aa_j,idx_h,idx_p)
   i_aa_j = 0d0
 
   call get_excitation_degree(key_i,key_j,degree,Nint)
+
+  idx_h = -1
+  idx_p = -1
   select case (degree)
     ! < I | a_a^\dagger a_i | J >
     case (1)
@@ -356,6 +359,9 @@ subroutine i_op_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi_array)
         do p = 1, mo_num
           i_aa_psi_array(p,p,1) = i_aa_psi_array(p,p,1) + coef(i,1) * i_aa_j
         enddo
+      elseif (idx_h == -1) then
+        ! nothing
+        cycle
       else
         i_aa_psi_array(idx_h,idx_p,1) = i_aa_psi_array(idx_h,idx_p,1) + coef(i,1) * i_aa_j
       endif
@@ -372,6 +378,9 @@ subroutine i_op_aa_psi(key,keys,coef,Nint,Ndet,Ndet_max,Nstate,i_aa_psi_array)
           do p = 1, mo_num
             i_aa_psi_array(p,p,jstate) = i_aa_psi_array(p,p,jstate) + coef(i,jstate) * i_aa_j
           enddo
+        elseif (idx_h == -1) then
+          ! nothing
+          cycle
         else
           i_aa_psi_array(idx_h,idx_p,jstate) = i_aa_psi_array(idx_h,idx_p,jstate) + coef(i,jstate) * i_aa_j
         endif

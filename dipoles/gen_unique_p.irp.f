@@ -52,6 +52,9 @@ subroutine gen_unique_p
   double precision               :: t1,t2
   double precision               :: dip1(N_states),dip1_x(N_states),dip1_y(N_states),dip1_z(N_states)
   double precision               :: dip(N_states),dip_x(N_states),dip_y(N_states),dip_z(N_states)
+  double precision, allocatable :: gamma_1(:,:,:)
+
+  allocate(gamma_1(mo_num,mo_num,N_states))
 
   ! Generation of all the perturbed determinants
   n_P_max = min(100,size(psi_det,3)*2*(elec_alpha_num*(mo_num-elec_alpha_num)))
@@ -69,6 +72,7 @@ subroutine gen_unique_p
     i = i + 1
   enddo
   nb_generators = i-1
+  print*,'nb_generators',nb_generators
 
   call wall_time(t1)
   do i = 1, nb_generators!N_det
@@ -184,15 +188,20 @@ subroutine gen_unique_p
     dip_y(istate) = multi_s_y_dipole_moment(istate,istate)
     dip_z(istate) = multi_s_z_dipole_moment(istate,istate)
   enddo
+  print*,'0-order:', dip(:)
 
   ! First order dipole moments
-  !call first_order_dip_w_dm(n_P,psi_P,c_P,dip1_x,dip1_y,dip1_z,dip1)
+  ! w dm
+  call first_order_dm(n_P,psi_P,c_P,gamma_1)
+  call first_order_dip_w_dm(gamma_1,dip1_x,dip1_y,dip1_z,dip1)
+  print*,'w dm'
+  print*,'1-order correction:',dip1(:)
+  ! without dm
   call first_order_dip(n_P,psi_P,c_P,dip1_x,dip1_y,dip1_z,dip1)
-
-  print*,'0-order:', dip(:)
+  print*,'without dm'
   print*,'1-order correction:',dip1(:)
  
-  deallocate(c_P,psi_P)
+  deallocate(c_P,psi_P,gamma_1)
 
 end
 
@@ -274,6 +283,7 @@ subroutine first_order_dm(n_P,psi_P,c_P,gamma_1)
         gamma_1(p,q,istate) = gamma_tilde_1(p,q,istate) + gamma_tilde_1(q,p,istate)
       enddo
     enddo
+    print*,gamma_1(:,:,istate)
   enddo
 
   deallocate(gamma_tilde_1)

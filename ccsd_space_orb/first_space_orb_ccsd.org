@@ -38,6 +38,21 @@ program first_space_orb_ccsd
   
   PROVIDE mo_two_e_integrals_in_map
 
+  if (elec_alpha_num /= elec_beta_num) then
+    print*, 'Only for closed shell systems'
+    print*, 'elec_alpha_num=',elec_alpha_num
+    print*, 'elec_beta_num=',elec_beta_num
+    print*, 'abort'
+    call abort
+  endif
+  if (n_act_orb == mo_num .or. n_act_orb + n_core_orb == mo_num) then
+    print*, 'Set the mo_class before the calculation'
+    print*, 'for the occupied orbitals -> actives'
+    print*, 'for the virtual orbitals -> virtuals'
+    print*, 'abort'
+    call abort
+  endif
+
   print*,'hf_energy', hf_energy
 
   ! Delta
@@ -71,6 +86,7 @@ program first_space_orb_ccsd
 
   nb_iter = 0
   do while (nb_iter < 25)
+    print*,'Iter. n.:', nb_iter
   
     ! energy
     energy = 0d0
@@ -288,21 +304,28 @@ program first_space_orb_ccsd
     nb_iter = nb_iter + 1
   enddo
 
+  print*,''
+  print*,'E_CCSD:',energy
+
   ! CCSD(T)
   double precision, allocatable :: W1(:,:,:,:,:,:)
   double precision, allocatable :: V1(:,:,:,:,:,:)
   double precision :: e_ccsdt
-  allocate(W1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
-  allocate(V1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
 
-  call form_w(t2,W1)
-  call form_v(t1,w1,v1)
-  call space_ccsd_par_t_energy(t1,t2,W1,V1,e_ccsdt)
+  if (elec_alpha_num + elec_beta_num > 2) then 
+    allocate(W1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
+    allocate(V1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
 
-  print*,"delta (T):", e_ccsdt
-  print*,"E_CCSD(T):", energy + e_ccsdt
+    call form_w(t2,W1)
+    call form_v(t1,w1,v1)
+    call space_ccsd_par_t_energy(t1,t2,W1,V1,e_ccsdt)
 
-  deallocate(v1,w1)
+    print*,''
+    print*,"delta (T):", e_ccsdt
+    print*,"E_CCSD(T):", energy + e_ccsdt
+
+    deallocate(v1,w1)
+  endif
 
   deallocate(t1,r1,t2,r2,delta,tau)
   deallocate(g_occ,g_vir,J1,K1,A1,B1,H_oo,H_vv,H_vo)

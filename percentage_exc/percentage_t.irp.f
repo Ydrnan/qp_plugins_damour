@@ -8,6 +8,13 @@ subroutine run_print_percentage_t
   character(len=2) :: exc
 
   nb_T = 2
+
+  if (nb_T < 1) then
+    print*,'nb_T should be >= 1, abort'
+    call abort
+  endif
+
+
   allocate(percentage(nb_T, n_states), accu(n_states), list_states(n_states))
 
   call percentage_t(nb_T,percentage)
@@ -19,34 +26,78 @@ subroutine run_print_percentage_t
   print*,''
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
-  do i = 1, nb_T
-    write (exc, '(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), percentage(i,:)    
-  enddo
+  if (percentage_in_exp) then
+    do i = 1, nb_T
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), percentage(i,:)    
+    enddo
+  else
+    do i = 1, nb_T
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%T', adjustl(exc), percentage(i,:)
+    enddo
+  endif
+
+  print*,''
+  print*,'Percentage of the excitations per state in'
+  print*,'intermediate normalization, %T0=1:'
+  write(*,'(A4,10(I12))') '', list_states(:)
+  if (percentage_in_exp) then
+    do i = 1, nb_T
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), percentage(i,:)/percentage(1,:)
+    enddo
+  else
+    do i = 1, nb_T
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%T', adjustl(exc), percentage(i,:)/percentage(1,:)
+    enddo
+  endif
+
 
   print*,''
   print*,'Sum of the contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, nb_T
-    do s = 1, n_states
-      accu(s) = accu(s) + percentage(i,s)
+  if (percentage_in_exp) then
+    do i = 1, nb_T
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), accu(:)
     enddo
-    write (exc, '(I2)') i-1
-    write (*, '(A2,A2,10(F12.4))') '%T', adjustl(exc), accu(:)
-  enddo
+  else
+    do i = 1, nb_T
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%T', adjustl(exc), accu(:)
+    enddo
+  endif
 
   print*,''
   print*,'Missing contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, nb_T
-    do s = 1, n_states
-      accu(s) = accu(s) + percentage(i,s)
+  if (percentage_in_exp) then
+    do i = 1, nb_T
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), 100d0-accu(:)        
     enddo
-    write (exc, '(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), 100d0-accu(:)        
-  enddo
+  else
+    do i = 1, nb_T
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc, '(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%T', adjustl(exc), 100d0-accu(:)        
+    enddo
+  endif
 
   deallocate(percentage, accu, list_states)
 
@@ -63,7 +114,7 @@ subroutine percentage_t(nb_T,percentage)
   double precision, intent(out) :: percentage(nb_T, n_states) 
 
   ! internal
-  integer :: i, s, n_occ, n_vir, nb_t1
+  integer :: i,j, s, n_occ, n_vir, nb_t1, i_int, idx_hf
   double precision, allocatable :: t1_amplitude(:,:,:), t2_amplitude(:,:,:,:,:)
   double precision, allocatable :: c1_coef(:,:)
   integer(bit_kind), allocatable :: c1_det(:,:,:)
@@ -80,25 +131,28 @@ subroutine percentage_t(nb_T,percentage)
   percentage = 0d0
 
   ! %T_0 
+  call find_hf_in_wf(psi_det,N_det,N_int,idx_hf)
   do s = 1, n_states
-    percentage(1,s) = psi_coef(1,s)**2
+    percentage(1,s) = psi_coef(idx_hf,s)**2
   enddo
   
   ! %T1
   ! t_i^a = c_i^a, %T1 = \sum t1^2
   call ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
-  do s = 1, N_states
-    percentage(2,s) = dnrm2(n_occ * n_vir, t1_amplitude(1,1,s), 1)**2
-  enddo
+  if (nb_T > 1) then
+    do s = 1, N_states
+      percentage(2,s) = dnrm2(n_occ * n_vir, t1_amplitude(1,1,s), 1)**2
+    enddo
+  endif
   
   allocate(c1_coef(nb_t1,N_states), c1_det(N_int,2,nb_t1))
   !call t1_to_c1(n_occ,n_vir,t1_amplitude,nb_t1,c1_coef,c1_det)
 
   ! %T2
   !call ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
-  do s = 1, N_states
-    percentage(3,s) = dnrm2(n_occ*n_occ * n_vir*n_vir, t2_amplitude(1,1,1,1,s), 1)**2
-  enddo
+  !do s = 1, N_states
+  !  percentage(3,s) = dnrm2(n_occ*n_occ * n_vir*n_vir, t2_amplitude(1,1,1,1,s), 1)**2
+  !enddo
 
   ! Frac to %
   percentage = percentage * 100d0
@@ -127,8 +181,8 @@ subroutine ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
   t1_amplitude = 0d0
 
   nb_t1 = 0
-  do u = 2, N_det
-    call get_excitation(psi_det(1,1,1),psi_det(1,1,u),exc,degree,phase,N_int)
+  do u = 1, N_det
+    call get_excitation(HF_bitmask,psi_det(1,1,u),exc,degree,phase,N_int)
     if (degree == 1) then
       call decode_exc(exc,degree,h1,p1,h2,p2,s1,s2)
       do s = 1, N_states
@@ -141,17 +195,15 @@ subroutine ci_coef_to_t1(n_occ, n_vir, nb_t1, t1_amplitude)
           i = h1+elec_alpha_num
           a = p1+mo_num-2*elec_alpha_num
         endif
-        !if (i > 2*elec_alpha_num .or. a > 2*mo_num - 2*elec_alpha_num) then
-        !  print*,'bug'
-        !  print*,u
-        !  print*,psi_det(:,:,u)
-        !  print*,psi_det(:,:,1)
-        !  print*,i,a
-        !  print*,h1,h2,p1,p2,s1,s2
-        !  call print_det(psi_det(1,1,1),N_int)
-        !  call print_det(psi_det(1,1,u),N_int)
-        !  call abort
-        !endif
+        if (i > 2*elec_alpha_num .or. a > 2*mo_num - 2*elec_alpha_num) then
+          print*,'bug'
+          print*,u
+          print*,i,a
+          print*,h1,h2,p1,p2,s1,s2
+          call print_det(HF_bitmask,N_int)
+          call print_det(psi_det(1,1,u),N_int)
+          call abort
+        endif
         t1_amplitude(i,a,s) = psi_coef(u,s)*phase
       enddo
 
@@ -283,8 +335,8 @@ subroutine ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
   c2_coef = 0d0
   t2_amplitude = 0d0
 
-  do u = 2, N_det
-    call get_excitation(psi_det(1,1,1),psi_det(1,1,u),exc,degree,phase,N_int)
+  do u = 1, N_det
+    call get_excitation(HF_bitmask,psi_det(1,1,u),exc,degree,phase,N_int)
     if (degree == 2) then
       call decode_exc(exc,degree,h1,p1,h2,p2,s1,s2)
       do s = 1, N_states
@@ -339,7 +391,6 @@ subroutine ci_coef_to_t2(n_occ, n_vir, t1_amplitude, t2_amplitude)
     enddo
   enddo
   print*,accu
-
   do s = 1, N_states
     print*,'%T2',dnrm2(n_occ*n_occ*n_vir*n_vir, t2_amplitude(1,1,1,1,s),1)**2 * 100d0
   enddo
@@ -376,5 +427,4 @@ subroutine twod_to_1d(dim_i,i,j,k)
   k = (j-1) * dim_i + i
 
 end
-
 

@@ -143,7 +143,7 @@ subroutine print_oscillator_strength
       ! Mixed gauge
       f_m = 2d0/3d0 * d * v
 
-      write(*,'(A19,I3,A9,F10.6,A5,F7.1,A10,F9.6,A6,F9.6,A6,F9.6,A8,F7.3)') '   #  Transition n.', (istate-1), ': Excit.=', dabs((ci_energy_no_diag(istate) - ci_energy_no_diag(jstate)))*au2eV, &
+      write(*,'(A19,I3,A9,F10.6,A5,F7.1,A10,F9.6,A6,F9.6,A6,F9.6,A8,F7.3)') '   #  Transition n.', (istate-1), ': Excit.=', dabs((ci_energy_no_diag(istate) - ci_energy_no_diag(jstate)))*ha_to_ev, &
       ' eV ( ',dabs((ci_energy_no_diag(istate) - ci_energy_no_diag(jstate)))*Ha2nm,' nm), f_l=',f_l, ', f_v=', f_v, ', f_m=', f_m, ', <S^2>=', s2_values(istate)
       !write(*,'(I4,I4,A4,I3,A6,F6.1,A6,F6.1)') (istate-1), (jstate-1), '  ->', (istate-1), ', %T1=', percent_exc(2,istate), ', %T2=',percent_exc(3,istate)
   

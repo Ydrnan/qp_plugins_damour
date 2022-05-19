@@ -18,43 +18,78 @@ subroutine run_print_percentage_c
   print*,''
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
-  do i = 1, min(max_exc_degree+1,nb_max_percentage)
-    write (exc,'(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), percentage(i,:)
-  enddo
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), percentage(i,:)
+    enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), percentage(i,:)
+    enddo
+  endif
 
   print*,''
   print*,'Percentage of the excitations'
   print*,'in intermediate normalization, %C0=1:'
   write(*,'(A4,10(I12))') '', 1
-  do i = 1, min(max_exc_degree+1,nb_max_percentage)
-    write (exc,'(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), (percentage(i,:))*1d0/(percentage(1,:))
-  enddo
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), (percentage(i,:))*1d0/(percentage(1,:))
+    enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), (percentage(i,:))*1d0/(percentage(1,:))
+    enddo
+  endif
 
   print*,''
   print*,'Sum of the contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, min(max_exc_degree+1,nb_max_percentage)
-    do s = 1, n_states
-      accu(s) = accu(s) + percentage(i,s)
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), accu(:)
     enddo
-    write (exc,'(I2)') i-1
-    write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), accu(:)
-  enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), accu(:)
+    enddo
+  endif
 
   print*,''
   print*,'Missing contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
-  accu = 0d0
-  do i = 1, min(max_exc_degree+1,nb_max_percentage)
-    do s = 1, n_states
-      accu(s) = accu(s) + percentage(i,s)
+  if (percentage_in_exp) then
+    accu = 0d0
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), 100d0-accu(:)        
     enddo
-    write (exc,'(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), 100d0-accu(:)        
-  enddo
+  else
+    accu = 0d0
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,10(F12.4))') '%C', adjustl(exc), 100d0-accu(:)        
+    enddo
+  endif
 
   deallocate(percentage, accu, list_states)
 

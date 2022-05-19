@@ -18,16 +18,25 @@ subroutine run_print_percentage_c
   print*,''
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
-  do i = 1, 5
+  do i = 1, min(max_exc_degree+1,nb_max_percentage)
     write (exc,'(I2)') i-1
-    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), percentage(i,:)    
+    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), percentage(i,:)
+  enddo
+
+  print*,''
+  print*,'Percentage of the excitations'
+  print*,'in intermediate normalization, %C0=1:'
+  write(*,'(A4,10(I12))') '', 1
+  do i = 1, min(max_exc_degree+1,nb_max_percentage)
+    write (exc,'(I2)') i-1
+    write (*, '(A2,A2,10(1pE12.4))') '%C', adjustl(exc), (percentage(i,:))*1d0/(percentage(1,:))
   enddo
 
   print*,''
   print*,'Sum of the contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, 5
+  do i = 1, min(max_exc_degree+1,nb_max_percentage)
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo
@@ -39,7 +48,7 @@ subroutine run_print_percentage_c
   print*,'Missing contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, 5
+  do i = 1, min(max_exc_degree+1,nb_max_percentage)
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo
@@ -79,6 +88,8 @@ subroutine percentage_c(percentage)
       percentage(exc_degree+1, s) = percentage(exc_degree+1, s) + psi_coef(i,s)**2
     enddo
   enddo
+
+  !percentage = dsqrt(percentage)
 
   percentage = percentage *100d0
 

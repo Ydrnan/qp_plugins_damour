@@ -7,7 +7,7 @@ subroutine run_print_percentage_t
   double precision, allocatable :: percentage(:,:), accu(:)
   character(len=2) :: exc
 
-  nb_T = 3
+  nb_T = 2
   allocate(percentage(nb_T, n_states), accu(n_states), list_states(n_states))
 
   call percentage_t(nb_T,percentage)
@@ -19,7 +19,7 @@ subroutine run_print_percentage_t
   print*,''
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
-  do i = 1, 2!nb_T
+  do i = 1, nb_T
     write (exc, '(I2)') i-1
     write (*, '(A2,A2,10(1pE12.4))') '%T', adjustl(exc), percentage(i,:)    
   enddo
@@ -28,7 +28,7 @@ subroutine run_print_percentage_t
   print*,'Sum of the contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, 2!nb_T
+  do i = 1, nb_T
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo
@@ -40,7 +40,7 @@ subroutine run_print_percentage_t
   print*,'Missing contributions per state:'
   write(*,'(A4,10(I12))') '', list_states(:)
   accu = 0d0
-  do i = 1, 2!nb_T
+  do i = 1, nb_T
     do s = 1, n_states
       accu(s) = accu(s) + percentage(i,s)
     enddo

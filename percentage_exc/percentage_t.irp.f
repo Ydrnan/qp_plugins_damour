@@ -130,7 +130,7 @@ subroutine percentage_t(nb_T,percentage)
   percentage = 0d0
 
   ! %T_0 
-  call find_hf_in_wf(psi_det,N_det,N_int,idx_hf)
+  call find_hf(psi_det,N_det,N_int,idx_hf)
   do s = 1, n_states
     percentage(1,s) = psi_coef(idx_hf,s)**2
   enddo

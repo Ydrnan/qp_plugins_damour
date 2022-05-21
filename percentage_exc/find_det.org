@@ -1,0 +1,63 @@
+* Find det index
+
+To research the index of one det in psi_det / psi_coef.
+Not efficent, only for non-iterative purposes.
+
+Provided
+| N_states                 | integer            | number of states          |
+| psi_det(N_int,2,N_det)   | integer(bitstring) | Determinants              |
+| N_int                    | integer            | Number of int per det     |
+| N_det                    | integer            | Number of det             |
+
+in
+| det(N_int,2) | integer(bit_kind) | Researched determinant  |
+
+Out
+| idx_det | integer | index of the det in psi_det    |
+
+Internal
+| i,s    | integer | dummy indexes                             |
+| is_det | logical | To know if the determinant has been found |
+
+#+BEGIN_SRC f90 :comments org :tangle find_det.irp.f
+subroutine find_det(det,idx_det)
+
+  implicit none
+
+  ! in
+  integer(bit_kind), intent(in) :: det(N_int,2) 
+
+  ! out
+  integer                       :: idx_det
+
+  ! internal
+  integer                       :: i_int,j
+  logical                       :: is_det
+
+  idx_det = 0
+  do j = 1, N_det
+    is_det = .True.
+    do i_int = 1, N_int
+      if (psi_det(i_int,1,j) /= det(i_int,1) .or. &
+          psi_det(i_int,2,j) /= det(i_int,2)) then
+        is_det = .False.
+        exit
+      endif
+      if (.not. is_det) then
+        exit
+      endif
+    enddo
+    if (.not. is_det) then
+      cycle
+    endif
+    idx_det = j
+    exit
+  enddo
+
+  if (idx_det == 0) then
+    print*,'Researched determinant not found, abort'
+    call abort
+  endif
+
+end
+#+END_SRC

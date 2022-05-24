@@ -5,7 +5,7 @@ import sys
 import shutil
 
 def diff(a,b):
-    c = abs(a) - abs(b)
+    c = abs(a-b)
     return c
 
 method_file = "debug_str.txt"
@@ -77,7 +77,6 @@ for i in range(len(list_val)):
 
     stream = os.popen(bash_str)
     output = float(stream.readline())
-    #print(output)
     
     error.append(diff(output,list_val[i]))
     if error[i] > list_threshold[i]:

@@ -1,4 +1,24 @@
- BEGIN_PROVIDER [double precision, multi_s_dipole_moment, (N_states, N_states)]
+Providers for the dipole moments along x,y,z and the total dipole
+moments.
+
+The dipole moment along the x axis is:
+\begin{align*}
+\mu_x = < \Psi_m | \sum_i x_i + \sum_A Z_A R_A | \Psi_n >
+\end{align*}
+where $i$ is used for the electrons and $A$ for the nuclei.
+$Z_A$ the charge of the nucleus $A$ and $R_A$ its position in the
+space.
+
+And it can be computed using the (transition, if n /= m) density
+matrix as a expectation value
+\begin{align*}
+<\Psi_n|x| \Psi_m > = \sum_p \gamma_{pp}^{nm} < \phi_p | x | \phi_p >
+     + \sum_{pq, p \neq q} \gamma_{pq}^{nm} < \phi_p | x | \phi_q > +  < \Psi_m | \sum_A Z_A R_A | \Psi_n >
+\end{align*}
+
+
+#+begin_src f90 :comments org :tangle multi_s_dipole_moment.irp.f
+BEGIN_PROVIDER [double precision, multi_s_dipole_moment, (N_states, N_states)]
 &BEGIN_PROVIDER [double precision, multi_s_x_dipole_moment, (N_states, N_states)]
 &BEGIN_PROVIDER [double precision, multi_s_y_dipole_moment, (N_states, N_states)]
 &BEGIN_PROVIDER [double precision, multi_s_z_dipole_moment, (N_states, N_states)]
@@ -7,20 +27,18 @@
 
   BEGIN_DOC
   ! Providers for :
-  ! <Psi_m|µ_x|Psi_n>
-  ! <Psi_m|µ_y|Psi_n>
-  ! <Psi_m|µ_z|Psi_n>
-  ! ||µ|| = sqrt(µ_x^2 + µ_y^2 + µ_z^2)
+  ! <\Psi_m|\mu_x|\Psi_n>
+  ! <\Psi_m|\mu_y|\Psi_n>
+  ! <\Psi_m|\mu_z|\Psi_n>
+  ! ||\mu|| = \sqrt{\mu_x^2 + \mu_y^2 + \mu_z^2}
   !
-  ! \bra{\Psi^n} x \bra{\Psi^m} = \sum_p \gamma_{pp}^{nm} \bra{\phi_p} x \ket{\phi_p} 
-  !   + \sum_{pq} \gamma_{pq}^{nm} \bra{\phi_p} x \ket{\phi_q}
+  ! <\Psi_n|x| \Psi_m > = \sum_p \gamma_{pp}^{nm} \bra{\phi_p} x \ket{\phi_p} 
+  !   + \sum_{pq, p \neq q} \gamma_{pq}^{nm} \bra{\phi_p} x \ket{\phi_q}
   ! \Psi: wf
   ! n,m indexes for the states
   ! p,q: general spatial MOs 
   ! gamma^{nm}: density matrix \bra{\Psi^n} a^{\dagger}_a a_i \ket{\Psi^m}
   END_DOC
-
-  ! TODO: Better loops and OMP
 
   integer          :: istate,jstate ! States
   integer          :: i,j           ! general spatial MOs
@@ -34,16 +52,7 @@
     do istate = 1, N_states
  
       do i = 1, mo_num  
-        ! Diag part
-        multi_s_x_dipole_moment(istate,jstate) -= multi_s_dm(i,i,istate,jstate) * mo_dipole_x(i,i)
-        multi_s_y_dipole_moment(istate,jstate) -= multi_s_dm(i,i,istate,jstate) * mo_dipole_y(i,i)
-        multi_s_z_dipole_moment(istate,jstate) -= multi_s_dm(i,i,istate,jstate) * mo_dipole_z(i,i)
- 
         do j = 1, mo_num  
-          if (i == j) then
-           cycle
-          endif
-          ! Extra diag part
           multi_s_x_dipole_moment(istate,jstate) -= multi_s_dm(j,i,istate,jstate) * mo_dipole_x(j,i)  
           multi_s_y_dipole_moment(istate,jstate) -= multi_s_dm(j,i,istate,jstate) * mo_dipole_y(j,i) 
           multi_s_z_dipole_moment(istate,jstate) -= multi_s_dm(j,i,istate,jstate) * mo_dipole_z(j,i) 
@@ -82,4 +91,4 @@
   enddo
 
 END_PROVIDER
-
+#+end_src

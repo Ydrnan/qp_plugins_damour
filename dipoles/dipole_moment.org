@@ -13,7 +13,7 @@ subroutine print_dipole_moment
   implicit none
 
   BEGIN_DOC
-  ! To print the dipole moment ||<Psi_i|µ|Psi_i>|| and its x,y,z components
+  ! To print the dipole moment ||<\Psi_i|µ|\Psi_i>|| and its x,y,z components
   END_DOC
 
   integer :: istate
@@ -25,9 +25,10 @@ subroutine print_dipole_moment
     d_x(istate) = multi_s_x_dipole_moment(istate,istate)
     d_y(istate) = multi_s_y_dipole_moment(istate,istate)
     d_z(istate) = multi_s_z_dipole_moment(istate,istate)
-    d(istate) = multi_s_dipole_moment(istate,istate)
+    d(istate)   = multi_s_dipole_moment(istate,istate)
   enddo
 
+  ! Atomic units
   print*,''
   print*,'# Dipoles:'
   print*,'=============================================='
@@ -38,6 +39,7 @@ subroutine print_dipole_moment
     write(*,'(I5,4(F12.6))') (istate-1), d_x(istate), d_y(istate), d_z(istate), d(istate)
   enddo
 
+  ! Debye
   print*,''
   print*,' Dipole moments (D)'
   print*,' State      X           Y           Z         ||µ||' 
@@ -69,11 +71,11 @@ subroutine print_transition_dipole_moment
   implicit none
 
   BEGIN_DOC
-  ! To print the transition dipole moment ||<Psi_i|µ|Psi_j>|| and its components along x, y and z
+  ! To print the transition dipole moment ||<\Psi_i|µ|\Psi_j>|| and its components along x, y and z
   END_DOC
 
   integer          :: istate,jstate, n_states_print
-  double precision :: f, d, d_x, d_y, d_z, osc_str
+  double precision :: f, d, d_x, d_y, d_z, dip_str
 
   if (N_states == 1 .or. N_det == 1) then
     return
@@ -96,10 +98,10 @@ subroutine print_transition_dipole_moment
       d_x = multi_s_x_dipole_moment(istate,jstate)
       d_y = multi_s_y_dipole_moment(istate,jstate)
       d_z = multi_s_z_dipole_moment(istate,jstate)
-      osc_str = d_x**2 + d_y**2 + d_z**2
+      dip_str = d_x**2 + d_y**2 + d_z**2
       d = multi_s_dipole_moment(istate,jstate)
       f = 2d0/3d0 * d * d * dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
-      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, osc_str, f
+      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, dip_str, f
     enddo
   enddo
 
@@ -112,10 +114,11 @@ subroutine print_transition_dipole_moment
       d_x = multi_s_x_dipole_moment(istate,jstate) * au2D
       d_y = multi_s_y_dipole_moment(istate,jstate) * au2D
       d_z = multi_s_z_dipole_moment(istate,jstate) * au2D
-      d = multi_s_dipole_moment(istate,jstate) 
+      d = multi_s_dipole_moment(istate,jstate)
+      dip_str = d_x**2 + d_y**2 + d_z**2
       f = 2d0/3d0 * d * d * dabs(ci_energy_no_diag(istate) - ci_energy_no_diag(jstate))
       d = multi_s_dipole_moment(istate,jstate) * au2D
-      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, d_x**2 + d_y**2 + d_z**2, f
+      write(*,'(I4,I4,A4,I3,6(F12.6))') (istate-1), (jstate-1), '  ->', (istate-1), d_x, d_y, d_z, d, dip_str, f
     enddo
   enddo
   print*,'=============================================='

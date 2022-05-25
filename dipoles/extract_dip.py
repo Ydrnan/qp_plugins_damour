@@ -3,7 +3,81 @@
 import os
 import sys
 import numpy as np
-from linear_regression import *
+#from linear_regression import *
+
+def lin_reg_v2(x,y,weight,nb_points):
+    import numpy as np
+
+    # last n points and reverse their order
+    tmp_x = np.array(x[-nb_points:])
+    tmp_x = tmp_x[::-1]
+
+    tmp_y = np.array(y[-nb_points:])
+    tmp_y = tmp_y[::-1]
+
+    tmp_w = np.array(weight[-nb_points:])
+    tmp_w = tmp_w[::-1]
+
+    # linear regression
+    fit = np.polynomial.polynomial.polyfit(tmp_x, tmp_y, deg=1, rcond=None, full=False, w=tmp_w)
+
+    # f(x) = ax + b
+    a = fit[1]
+    b = fit[0]
+
+    # bar_y = \sum_i^n tmp_y[i]/n
+    bar_y = np.sum(tmp_y) / len(tmp_y)
+
+    # hat_y[i] = a*tmp_x[i] + b 
+    hat_y = a * tmp_x + b
+
+    # SSR = \sum_i (tmp_y[i] - hat_y[i])**2
+    SSR = np.sum((tmp_y-hat_y)**2)
+
+    # SST = \sum_i (tmp_y[i] - bar_y)**2
+    SST = np.sum((tmp_y - bar_y)**2)
+
+    R2 = 1.0 - SSR/SST
+
+    return(a,b,R2)
+
+def poly_reg(x,y,weight,nb_points):
+    import numpy as np
+
+    # last n points and reverse their order
+    tmp_x = np.array(x[-nb_points:])
+    tmp_x = tmp_x[::-1]
+
+    tmp_y = np.array(y[-nb_points:])
+    tmp_y = tmp_y[::-1]
+
+    tmp_w = np.array(weight[-nb_points:])
+    tmp_w = tmp_w[::-1]
+
+    # linear regression
+    fit = np.polynomial.polynomial.polyfit(tmp_x, tmp_y, deg=2, rcond=None, full=False, w=tmp_w)
+
+    # f(x) = ax^2 + bx + c
+    a = fit[2]
+    b = fit[1]
+    c = fit[0]
+
+    # bar_y = \sum_i^n tmp_y[i]/n
+    bar_y = np.sum(tmp_y) / len(tmp_y)
+
+    # hat_y[i] = a*tmp_x[i] + b 
+    hat_y = a * tmp_x**2 + b * tmp_x + c
+
+    # SSR = \sum_i (tmp_y[i] - hat_y[i])**2
+    SSR = np.sum((tmp_y-hat_y)**2)
+
+    # SST = \sum_i (tmp_y[i] - bar_y)**2
+    SST = np.sum((tmp_y - bar_y)**2)
+
+    R2 = 1.0 - SSR/SST
+
+    return(a,b,c,R2)
+
 
 def extract_dip(n_states,fname, **kwargs):
 
@@ -129,7 +203,8 @@ def extract_dip(n_states,fname, **kwargs):
         f.write("\n")
     f.close
 
-    # Extrapolation µ = f(PT2)
+    ############### Extrapolation ###################
+
     print("\nNumber of states:", n_states)
 
     n_data = len(ndet)
@@ -138,11 +213,15 @@ def extract_dip(n_states,fname, **kwargs):
         print("\nNeed at least 3 points, found "+str(n_data)+", exit")
         sys.exit()
 
-    print("f(PT2) = a*PT2 + b\n")
-
     weight_type = kwargs.get('weight', 'None')
-    print("Weight of the points for the linear regression:", weight_type)
+    print("Weight of the points for the linear/polynomial regression:", weight_type)
 
+    ### Extrapolation µ = f(PT2) ###
+    print("\n### Dipole moments ###")
+
+    ##############################
+    # Linear regression µ = f(PT2)
+    print("\n# Linear regression, µ(PT2) = ax + b")
     a = np.zeros((n_data, n_states))
     b = np.zeros((n_data, n_states))
     R2 = np.zeros((n_data, n_states))
@@ -173,15 +252,55 @@ def extract_dip(n_states,fname, **kwargs):
             R2[i][state] = reg[2]
 
             print("| %1d | %10.6f | %10.6f | %9.6f |"%( nb_points, a[i][state], b[i][state], R2[i][state]))
-    
-    # Extrapolation f = f(PT2)  
+   
+    ##################################
+    # polynomial regression µ = f(PT2)
+    print("\n# Polynomial regression, µ(PT2) = ax^2 + bx + c")
+    a = np.zeros((n_data, n_states))
+    b = np.zeros((n_data, n_states))
+    c = np.zeros((n_data, n_states))
+    R2 = np.zeros((n_data, n_states))
+    exc = np.zeros((n_data, n_states))
+
+     # Extrapolated dipole moments for diff nb of points
+    for state in range(0,n_states):
+        dip_i = dip[state][:]
+        PT2_i = pt2[state][:]
+
+        if weight_type == 'pt2':
+            weight = 1.0/PT2_i
+        elif weight_type == 'pt2**2':
+            weight = 1.0/PT2_i**2
+        else:
+            weight = np.full(len(ndet), 1.0)
+
+        print("%s %2d %s" %("\nState:",state,", Dipole moment (Debye)"))
+        print("%3s %14s %14s %14s %9s"%("n","a","b","c (D)","R^2"))
+
+        for nb_points in range(3,min(8,n_data)+1):
+            i = nb_points-3
+            # f(x) = a * x**2 + b * x + c
+            # with weights
+            reg = poly_reg(PT2_i,dip_i,weight,nb_points)
+            a[i][state] = reg[0]
+            b[i][state] = reg[1]
+            c[i][state] = reg[2]
+            R2[i][state] = reg[3]
+
+            print("| %1d | %16.6f | %12.6f | %10.6f | %9.6f |"%( nb_points, a[i][state], b[i][state], c[i][state], R2[i][state]))
+
+    ### Extrapolation oscillator strengths ###
+    print("\n### Oscillator strengths ###")
+
+    ##############################
+    # Linear regression f = f(PT2)  
+    print("\n# Linear regression, f(PT2) = ax + b")
     a = np.zeros((n_data, n_states))
     b = np.zeros((n_data, n_states))
     R2 = np.zeros((n_data, n_states))
     exc = np.zeros((n_data, n_states))
 
     # Extrapolated oscillator strengths for diff nb of points
-    ## Length gauge 
     for gauge_type in range(0,3):
         for tr_state in range(0,n_states-1):
 
@@ -216,6 +335,53 @@ def extract_dip(n_states,fname, **kwargs):
                 R2[i][tr_state] = reg[2]
     
                 print("| %1d | %10.6f | %10.6f | %9.6f |"%( nb_points, a[i][tr_state], b[i][tr_state], R2[i][tr_state]))
+
+    ###################################
+    # Polynomial regression, f = f(PT2)
+    print("\n# Polynomial regression, f(PT2) = ax^2 + bx + c")
+    a = np.zeros((n_data, n_states))
+    b = np.zeros((n_data, n_states))
+    c = np.zeros((n_data, n_states))
+    R2 = np.zeros((n_data, n_states))
+    exc = np.zeros((n_data, n_states))
+
+    # Extrapolated oscillator strengths for diff nb of points
+    for gauge_type in range(0,3):
+        for tr_state in range(0,n_states-1):
+
+            PT2_i = (pt2[0][:] + pt2[tr_state+1][:])*0.5
+            if gauge_type == 0:
+                gauge = "length"
+                f_i = f_l[tr_state][:]
+            elif gauge_type == 1:
+                gauge = "velocity"
+                f_i = f_v[tr_state][:]
+            else:
+                gauge = "mixed"
+                f_i = f_m[tr_state][:]
+
+            if weight_type == 'pt2':
+                weight = 1.0/PT2_i
+            elif weight_type == 'pt2**2':
+                weight = 1.0/PT2_i**2
+            else:
+                weight = np.full(len(ndet), 1.0)
+
+            print("%s %2d %s %s %s" %("\nTransition n.",tr_state,", oscillator strength in",gauge,"gauge" ))
+            print("%3s %14s %14s %14s %9s"%("n","a","b","c  ","R^2"))
+  
+            for nb_points in range(3,min(8,n_data)+1):
+                i = nb_points-3
+                # f(x) = a * x**2 + b * x + c
+                # with weights
+                reg = poly_reg(PT2_i,f_i,weight,nb_points)
+                a[i][tr_state] = reg[0]
+                b[i][tr_state] = reg[1]
+                c[i][tr_state] = reg[2]
+                R2[i][tr_state] = reg[3]
+
+                print("| %1d | %16.6f | %12.6f | %10.6f | %9.6f |"%( nb_points, a[i][tr_state], b[i][tr_state], c[i][tr_state], R2[i][tr_state]))
+
 
 if __name__ == "__main__":
 

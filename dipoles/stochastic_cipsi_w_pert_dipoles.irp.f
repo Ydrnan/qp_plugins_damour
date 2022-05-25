@@ -113,7 +113,7 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
     call print_extrapolated_energy()
 
     ! Dipoles
-    call print_dipole_moment_xyz_v2
+    call print_dipole_moment
     call print_transition_dipole_moment
     call print_oscillator_strength
     !call gen_unique_p
@@ -175,7 +175,7 @@ subroutine run_stochastic_cipsi_w_pert_dipoles
   call pt2_dealloc(pt2_data_err)
 
   ! Dipoles
-  call print_dipole_moment_xyz_v2
+  call print_dipole_moment
   call print_transition_dipole_moment
   call print_oscillator_strength
   !call gen_unique_p

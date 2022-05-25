@@ -59,7 +59,12 @@ subroutine run_print_percentage_c
    list_states(s) = s
   enddo   
 
-  ! Percentage per excitation degree
+  print*,''
+  print*,'==============='
+  print*,'### Summary ###'
+  print*,'==============='
+  
+  ! Percentage per excitation degree  
   print*,''
   print*,'Percentage of the excitations per state:'
   write(*,'(A4,100(I12))') '', list_states(:)
@@ -79,6 +84,7 @@ subroutine run_print_percentage_c
   print*,''
   print*,'Percentage of the excitations'
   print*,'in intermediate normalization, %C0=1:'
+  print*,'Warning: Will be NaN/Infinity if %C0 = 0'
   write(*,'(A4,100(I12))') '', list_states(:)
   if (percentage_in_exp) then
     do i = 1, min(max_exc_degree+1,nb_max_percentage)
@@ -183,7 +189,14 @@ subroutine percentage_c(percentage)
   integer                        :: i,j, s, degree, ndet_ref
   integer, allocatable           :: idx_det(:)
   integer(bit_kind), allocatable :: ref_det(:,:,:)
+  double precision, allocatable  :: tmp_percentage(:,:,:)
+  integer, allocatable           :: list_states(:)
+  character(len=2)               :: exc
 
+  allocate(list_states(N_states))
+
+  list_states = 0
+  
   ! %C(n,s_state) = \sum_i psi_coef(i,s)**2 s.t. excitation_degree(|ref>,|i>) = n
 
   ! HF ref
@@ -227,12 +240,15 @@ subroutine percentage_c(percentage)
     call find_det(ref_det(1,1,i),idx_det(i))
   enddo
 
+  allocate(tmp_percentage(ndet_ref, max_exc_degree + 1, N_states))
   percentage = 0d0
+  tmp_percentage = 0d0
   
   ! Ref
   do s = 1, N_states
     do i = 1, ndet_ref
       percentage(1,s) = percentage(1,s) + psi_coef(idx_det(i),s)**2
+      tmp_percentage(i,1,s) = tmp_percentage(i,1,s) + psi_coef(idx_det(i),s)**2
     enddo
   enddo
   
@@ -245,12 +261,52 @@ subroutine percentage_c(percentage)
       endif
       do s = 1, N_states
         percentage(degree+1, s) = percentage(degree+1, s) + psi_coef(i,s)**2
+        tmp_percentage(j,degree+1, s) = tmp_percentage(j,degree+1, s) + psi_coef(i,s)**2
       enddo
     enddo
   enddo
 
+  percentage = 0d0
+  do i = 1, ndet_ref
+    do j = 1, size(percentage,1)
+      do s = 1, N_states
+        percentage(j,s) = percentage(j,s) + tmp_percentage(i,j,s)
+      enddo
+    enddo
+  enddo
+  
   percentage = percentage * 100d0 / ndet_ref
+  tmp_percentage = tmp_percentage * 100d0
+  
+  ! List of states
+  do s = 1, n_states
+   list_states(s) = s
+  enddo
 
+  ! %C_n for each determinant of the non-HF reference
+  if (ndet_ref > 1) then
+    print*,''
+    print*,'%C_n per state for each determinant of the non-HF reference:'
+    do j = 1, ndet_ref
+      print*,'For:'
+      call print_det(ref_det(1,1,j),N_int)
+      ! Percentage per excitation degree
+      write(*,'(A4,100(I12))') '', list_states(:)
+      if (percentage_in_exp) then
+        do i = 1, min(max_exc_degree+1,nb_max_percentage)
+          write (exc,'(I2)') i-1
+          write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), tmp_percentage(j,i,:)
+        enddo
+      else
+        do i = 1, min(max_exc_degree+1,nb_max_percentage)
+          write (exc,'(I2)') i-1
+          write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), tmp_percentage(j,i,:)
+        enddo
+      endif
+      print*,''
+    enddo
+  endif
+  
   deallocate(ref_det,idx_det)
   
 end

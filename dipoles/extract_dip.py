@@ -390,3 +390,7 @@ if __name__ == "__main__":
     print(fname)
     print(n_states)
     res = extract_dip(n_states,fname,weight="none")
+    print("\n=========================================================")
+    print("#########################################################")
+    print("=========================================================")
+    res = extract_dip(n_states,fname,weight="pt2**2")

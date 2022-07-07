@@ -14,7 +14,7 @@ subroutine run_stochastic_cipsi_hf
   double precision, allocatable :: e_lambda(:,:,:)
   integer :: s, dip_axis
   dip_axis = 3
-  lambda = 1d-5
+  lambda = 1d-6
   allocate(e_lambda(N_states,2,5))
   e_lambda = 0d0
 
@@ -282,6 +282,47 @@ subroutine run_stochastic_cipsi_hf
     call save_wavefunction
     call save_energy(psi_energy_with_nucl_rep, zeros)
     if (qp_stop()) exit
+  enddo
+
+  call print_dipole_moment_xyz_v2
+
+  ! Nuclei part
+  nuclei_part_x = 0.d0
+  nuclei_part_y = 0.d0
+  nuclei_part_z = 0.d0
+
+  do i = 1,nucl_num
+    nuclei_part_x += nucl_charge(i) * nucl_coord(i,1)
+    nuclei_part_y += nucl_charge(i) * nucl_coord(i,2)
+    nuclei_part_z += nucl_charge(i) * nucl_coord(i,3)
+  enddo
+
+  if (dip_axis == 1) then
+    nuclear_part = nuclei_part_x
+  elseif (dip_axis == 2) then
+    nuclear_part = nuclei_part_y
+  else
+    nuclear_part = nuclei_part_z
+  endif
+
+  do s = 1, N_states
+    e_lambda(s,1,3) = ci_energy(s)
+    e_lambda(s,2,3) = pt2_data % pt2(s)
+  enddo
+  print*,''
+  print*,'# E(lambda) at',N_det
+  do s = 1, N_states
+    print*,'State:',s
+    print*,'E                  ',e_lambda(s,1,:)
+    print*,'E(la) - E          ',e_lambda(s,1,:) - e_lambda(s,1,3)
+    print*,'dE(la)             ',e_lambda(s,1,2) - e_lambda(s,1,4)
+    print*,'PT2                ',e_lambda(s,2,:)
+    print*,'PT2(la) -PT2       ',e_lambda(s,2,:) - e_lambda(s,2,3)
+    print*,'dPT2(la)           ',e_lambda(s,2,2) - e_lambda(s,2,4)
+    print*,'E(la)+PT2(la)-E+PT2',e_lambda(s,1,:) - e_lambda(s,1,3) + e_lambda(s,2,:) - e_lambda(s,2,3)
+    print*,'d(E(la)+PT2(la))   ',e_lambda(s,1,2) - e_lambda(s,1,4) + e_lambda(s,2,2) - e_lambda(s,2,4)
+    print*,'Dip2', (-((e_lambda(s,1,4) - e_lambda(s,1,2)) / (2d0 * lambda)) + nuclear_part)*au2D
+    print*,'Dip2pt2', (-(((e_lambda(s,1,4) + e_lambda(s,2,4)) - (e_lambda(s,1,2) + e_lambda(s,2,2))) / (2d0 * lambda)) +nuclear_part)*au2D
   enddo
 
   if (.not.qp_stop()) then

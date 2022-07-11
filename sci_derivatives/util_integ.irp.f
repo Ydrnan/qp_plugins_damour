@@ -1,7 +1,7 @@
 
 ! ---
 
-double precision function overlap_1d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, dim)
+double precision function overlap_1d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B0, dim)
 
   BEGIN_DOC
   !
@@ -12,17 +12,18 @@ double precision function overlap_1d_G_Gxx(A_center, B_center, alpha, beta, powe
   implicit none
   include 'constants.include.F'
 
-  integer,          intent(in) :: dim, power_A, power_B
+  integer,          intent(in) :: dim, power_A, power_B0
   double precision, intent(in) :: A_center, B_center, alpha, beta
 
-  integer                      :: iorder_p
-  integer                      :: i
+  integer                      :: i, iorder_p, power_B
   double precision             :: P_new(0:max_dim), P_center, fact_p, p
+  double precision             :: integ_tmp
 
   double precision             :: F_integral
 
 
   overlap_1d_G_Gxx = 0.d0
+  power_B = power_B0
 
   ! ---
 
@@ -103,9 +104,10 @@ subroutine overlap_3d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, d
 
   integer                      :: i, nmax, iorder_p(3), iorder_p_x
   integer                      :: power_A_x, power_B_x
-  double precision             :: A_center_x, B_center_x
+  double precision             :: A_center_x, B_center_x, P_center_x
   double precision             :: P_new(0:max_dim,3), P_center(3), P_new_x(0:max_dim), fact_p, p
   double precision             :: F_integral_tab(0:max_dim)
+  double precision             :: integ_tmp
   double precision             :: Ix0, Iy0, Iz0
   double precision             :: Ix1, Iy1, Iz1
   double precision             :: Ixm, Iym, Izm
@@ -310,9 +312,10 @@ subroutine overlap_3d_G_GXbxx(A_center, B_center, alpha, beta, power_A, power_B,
 
   integer                      :: i, nmax, iorder_p(3), iorder_p_x
   integer                      :: power_A_x, power_B_x
-  double precision             :: A_center_x, B_center_x
+  double precision             :: A_center_x, B_center_x, P_center_x
   double precision             :: P_new(0:max_dim,3), P_center(3), P_new_x(0:max_dim), fact_p, p
   double precision             :: F_integral_tab(0:max_dim)
+  double precision             :: integ_tmp
   double precision             :: Ix0, Iy0, Iz0
   double precision             :: Ix1, Iy1, Iz1
   double precision             :: Ixm3, Iym3, Izm3
@@ -595,9 +598,10 @@ subroutine overlap_3d_G_GYbxx(A_center, B_center, alpha, beta, power_A, power_B,
 
   integer                      :: i, nmax, iorder_p(3), iorder_p_x
   integer                      :: power_A_x, power_B_x
-  double precision             :: A_center_x, B_center_x
+  double precision             :: A_center_x, B_center_x, P_center_x
   double precision             :: P_new(0:max_dim,3), P_center(3), P_new_x(0:max_dim), fact_p, p
   double precision             :: F_integral_tab(0:max_dim)
+  double precision             :: integ_tmp
   double precision             :: Ix0, Iy0, Iz0
   double precision             :: Ix1, Iy1, Iz1
   double precision             :: Ixm3, Iym3, Izm3
@@ -878,9 +882,10 @@ subroutine overlap_3d_G_GZbxx(A_center, B_center, alpha, beta, power_A, power_B,
 
   integer                      :: i, nmax, iorder_p(3), iorder_p_x
   integer                      :: power_A_x, power_B_x
-  double precision             :: A_center_x, B_center_x
+  double precision             :: A_center_x, B_center_x, P_center_x
   double precision             :: P_new(0:max_dim,3), P_center(3), P_new_x(0:max_dim), fact_p, p
   double precision             :: F_integral_tab(0:max_dim)
+  double precision             :: integ_tmp
   double precision             :: Ix0, Iy0, Iz0
   double precision             :: Ix1, Iy1, Iz1
   double precision             :: Ixm3, Iym3, Izm3

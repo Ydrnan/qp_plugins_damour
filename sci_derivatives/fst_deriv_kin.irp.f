@@ -17,13 +17,15 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
   integer, intent(in) :: i, j
 
   integer             :: ii, n, l, dim1, power_A(3), power_B(3)
+  integer             :: prim_ao_i, prim_ao_j
   double precision    :: overlap_x, overlap_y, overlap_z, overlap
   double precision    :: alpha, beta, c, A_center(3), B_center(3)
-  double precision    :: power_tmp, dist_AB
+  double precision    :: power_tmp, dist_AB, fact_tmp
+  double precision    :: integ1, integ2, integ_tmp, Ix, Iy, Iz
 
   fst_deriv_kin = 0.d0
 
-  if( (i_axis .ne. ao_nucl(i)) .and. (i_axis .ne. ao_nucl(j)) ) then
+  if( (i_nucl .ne. ao_nucl(i)) .and. (i_nucl .ne. ao_nucl(j)) ) then
     return
   endif
 
@@ -38,8 +40,8 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
   enddo
 
   dist_AB = (A_center(1) - B_center(1)) * (A_center(1) - B_center(1)) &
-          & (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
-          & (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) &
+          + (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
+          + (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) 
   if(dist_AB .lt. 1d-12) return
 
   
@@ -51,15 +53,15 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
   ! ---
   ! < \partial_n G_i | \partial_x^2 G_j + \partial_y^2 G_j + \partial_z^2 G_j >
 
-  if(i_axis .eq. ao_nucl(i)) then
+  if(i_nucl .eq. ao_nucl(i)) then
 
- !$OMP PARALLEL DO SCHEDULE(GUIDED) &
- !$OMP DEFAULT(NONE)                &
- !$OMP PRIVATE( A_center, B_center, power_A, power_B   &
- !$OMP        , Ix, Iy, Iz, integ1, integ2, integ_tmp  &
- !$OMP        , alpha, beta, c, i, j, n, l, fact_tmp ) &
- !$OMP SHARED( prim_ao_i, prim_ao_j, dim1, i_axis      &
- !$OMP       , ao_coef_normalized_ordered_transp, ao_expo_ordered_transp )
+! !$OMP PARALLEL DO SCHEDULE(GUIDED) &
+! !$OMP DEFAULT(NONE)                &
+! !$OMP PRIVATE( A_center, B_center, power_A, power_B   &
+! !$OMP        , Ix, Iy, Iz, integ1, integ2, integ_tmp  &
+! !$OMP        , alpha, beta, c, i, j, n, l, fact_tmp ) &
+! !$OMP SHARED( prim_ao_i, prim_ao_j, dim1, i_axis      &
+! !$OMP       , ao_coef_normalized_ordered_transp, ao_expo_ordered_transp )
     
     integ_tmp = 0.d0
 
@@ -77,7 +79,7 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
           fact_tmp = -dble(power_A(i_axis))
 
           power_A(i_axis) = power_A(i_axis) - 1
-          call overlap_3d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, dim, Ix, Iy, Iz)
+          call overlap_3d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, dim1, Ix, Iy, Iz)
           power_A(i_axis) = power_A(i_axis) + 1
 
           integ1 = fact_tmp * (Ix + Iy + Iz)
@@ -93,7 +95,7 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
         fact_tmp = 2.d0 * alpha
 
         power_A(i_axis) = power_A(i_axis) + 1
-        call overlap_3d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, dim, Ix, Iy, Iz)
+        call overlap_3d_G_Gxx(A_center, B_center, alpha, beta, power_A, power_B, dim1, Ix, Iy, Iz)
         power_A(i_axis) = power_A(i_axis) - 1
 
         integ2 = fact_tmp * (Ix + Iy + Iz)
@@ -104,7 +106,7 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
 
       enddo
     enddo
- !$OMP END PARALLEL DO
+! !$OMP END PARALLEL DO
 
     fst_deriv_kin = fst_deriv_kin -0.5d0 * integ_tmp
 
@@ -113,15 +115,15 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
   ! ---
   ! < G_i | \partial_n [ \partial_x^2 G_j + \partial_y^2 G_j + \partial_z^2 G_j ] >
 
-  if(i_axis .eq. ao_nucl(j)) then
+  if(i_nucl .eq. ao_nucl(j)) then
 
- !$OMP PARALLEL DO SCHEDULE(GUIDED) &
- !$OMP DEFAULT(NONE)                &
- !$OMP PRIVATE( A_center, B_center, power_A, power_B   &
- !$OMP        , Ix, Iy, Iz, integ_tmp                  &
- !$OMP        , alpha, beta, c, i, j, n, l )           &
- !$OMP SHARED( prim_ao_i, prim_ao_j, dim1, i_axis      &
- !$OMP       , ao_coef_normalized_ordered_transp, ao_expo_ordered_transp )
+! !$OMP PARALLEL DO SCHEDULE(GUIDED) &
+! !$OMP DEFAULT(NONE)                &
+! !$OMP PRIVATE( A_center, B_center, power_A, power_B   &
+! !$OMP        , Ix, Iy, Iz, integ_tmp                  &
+! !$OMP        , alpha, beta, c, i, j, n, l )           &
+! !$OMP SHARED( prim_ao_i, prim_ao_j, dim1, i_axis      &
+! !$OMP       , ao_coef_normalized_ordered_transp, ao_expo_ordered_transp )
     
     integ_tmp = 0.d0
 
@@ -148,7 +150,7 @@ double precision function fst_deriv_kin(i_axis, i_nucl, i, j)
 
       enddo
     enddo
- !$OMP END PARALLEL DO
+! !$OMP END PARALLEL DO
 
     fst_deriv_kin = fst_deriv_kin -0.5d0 * integ_tmp
 

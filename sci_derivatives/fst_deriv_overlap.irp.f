@@ -5,7 +5,7 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
 
   BEGIN_DOC
   ! 
-  ! \partial_a S_{\mu \nu}
+  ! \partial_a S_{ij}
   ! where a = xa, ya or za 
   !
   END_DOC
@@ -17,13 +17,15 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
   integer, intent(in) :: i, j
 
   integer             :: ii, n, l, dim1, power_A(3), power_B(3)
+  integer             :: prim_ao_i, prim_ao_j
   double precision    :: overlap_x, overlap_y, overlap_z, overlap
   double precision    :: alpha, beta, c, A_center(3), B_center(3)
-  double precision    :: power_tmp, dist_AB
+  double precision    :: power_tmp, dist_AB, deriv_tmp
+  double precision    :: integ_m, integ_p
 
   fst_deriv_overlap = 0.d0
 
-  if( (i_axis .ne. ao_nucl(i)) .and. (i_axis .ne. ao_nucl(j)) ) then
+  if( (i_nucl .ne. ao_nucl(i)) .and. (i_nucl .ne. ao_nucl(j)) ) then
     return
   endif
 
@@ -38,8 +40,8 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
   enddo
 
   dist_AB = (A_center(1) - B_center(1)) * (A_center(1) - B_center(1)) &
-          & (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
-          & (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) &
+          + (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
+          + (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) 
   if(dist_AB .lt. 1d-12) return
 
   
@@ -50,13 +52,13 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
 
   ! ---
 
-  if(i_axis .eq. ao_nucl(j)) then
+  if(i_nucl .eq. ao_nucl(j)) then
 
- !$OMP PARALLEL DO SCHEDULE(GUIDED) &
- !$OMP DEFAULT(NONE)                &
- !$OMP PRIVATE( A_center, B_center, power_A, power_B, i_axis, overlap_x, overlap_y, overlap_z, overlap &
- !$OMP        , alpha, beta, i, j, n, l, c, power_tmp, integ_m, integ_p, deriv_tmp )                   &
- !$OMP SHARED(prim_ao_i, prim_ao_j, ao_coef_normalized_ordered_transp, ao_expo_ordered_transp, dim1)
+! !$OMP PARALLEL DO SCHEDULE(GUIDED) &
+! !$OMP DEFAULT(NONE)                &
+! !$OMP PRIVATE( A_center, B_center, power_A, power_B, i_axis, overlap_x, overlap_y, overlap_z, overlap &
+! !$OMP        , alpha, beta, i, j, n, l, c, power_tmp, integ_m, integ_p, deriv_tmp )                   &
+! !$OMP SHARED(prim_ao_i, prim_ao_j, ao_coef_normalized_ordered_transp, ao_expo_ordered_transp, dim1)
 
     deriv_tmp = 0.d0
 
@@ -91,7 +93,7 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
         deriv_tmp = deriv_tmp + c * (integ_m + integ_p)
       enddo
     enddo
- !$OMP END PARALLEL DO
+! !$OMP END PARALLEL DO
 
     fst_deriv_overlap = fst_deriv_overlap + deriv_tmp
 
@@ -99,13 +101,13 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
 
   ! ---
 
-  if(i_axis .eq. ao_nucl(i)) then
+  if(i_nucl .eq. ao_nucl(i)) then
 
- !$OMP PARALLEL DO SCHEDULE(GUIDED) &
- !$OMP DEFAULT(NONE)                &
- !$OMP PRIVATE( A_center, B_center, power_A, power_B, i_axis, overlap_x, overlap_y, overlap_z, overlap &
- !$OMP        , alpha, beta, i, j, n, l, c, power_tmp, integ_m, integ_p, deriv_tmp )                   &
- !$OMP SHARED(prim_ao_i, prim_ao_j, ao_coef_normalized_ordered_transp, ao_expo_ordered_transp, dim1)
+! !$OMP PARALLEL DO SCHEDULE(GUIDED) &
+! !$OMP DEFAULT(NONE)                &
+! !$OMP PRIVATE( A_center, B_center, power_A, power_B, i_axis, overlap_x, overlap_y, overlap_z, overlap &
+! !$OMP        , alpha, beta, i, j, n, l, c, power_tmp, integ_m, integ_p, deriv_tmp )                   &
+! !$OMP SHARED(prim_ao_i, prim_ao_j, ao_coef_normalized_ordered_transp, ao_expo_ordered_transp, dim1)
 
     deriv_tmp = 0.d0
 
@@ -140,7 +142,7 @@ double precision function fst_deriv_overlap(i_axis, i_nucl, i, j)
         deriv_tmp = deriv_tmp + c * (integ_m + integ_p)
       enddo
     enddo
- !$OMP END PARALLEL DO
+! !$OMP END PARALLEL DO
 
     fst_deriv_overlap = fst_deriv_overlap + deriv_tmp
 

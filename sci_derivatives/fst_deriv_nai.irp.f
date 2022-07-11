@@ -16,10 +16,13 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
   integer, intent(in) :: i_nucl ! index of nuclueus
   integer, intent(in) :: i, j
 
-  integer             :: ii, n, l, k, power_A(3), power_B(3)
+  integer             :: ii, k, l, m, n, power_A(3), power_B(3), n_pt_in
+  integer             :: prim_ao_i, prim_ao_j
   double precision    :: alpha, beta, c, A_center(3), B_center(3), C_center(3)
   double precision    :: power_tmp, deriv_tmp, Z, p
   double precision    :: A_center_x, B_center_x, C_center_x, P_center_x
+  double precision    :: integ_m, integ_p, integ_sum
+  double precision    :: integ_0, integ_1, integ_2
 
   double precision    :: NAI_standard, NAI_shift_t2
 
@@ -36,23 +39,24 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
 
   enddo
 
+  n_pt_in = n_pt_max_integrals
   prim_ao_j = ao_prim_num(j)
   prim_ao_i = ao_prim_num(i)
 
-  n_pt_in = n_pt_max_integrals
-
   ! ---
 
-  if(i_axis .eq. ao_nucl(j)) then
+  if(i_nucl .eq. ao_nucl(j)) then
 
- !$OMP PARALLEL       &
- !$OMP DEFAULT (NONE) &
- !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, c, A_center, B_center, C_center            &
- !$OMP         , power_A, power_B, power_tmp, Z, integ_sum, integ_m, integ_p, deriv_tmp )       &
- !$OMP SHARED ( prim_ao_j, prim_ao_i, ao_expo_ordered_transp, ao_coef_normalized_ordered_transp &
- !$OMP        , nucl_coord, nucl_num, nucl_charge, n_pt_in )
 
- !$OMP DO SCHEDULE (dynamic)
+! !$OMP PARALLEL                                                                                    &
+! !$OMP DEFAULT (NONE)                                                                              &
+! !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, c, A_center, B_center, C_center               &
+! !$OMP         , power_A, power_B, power_tmp, Z, integ_sum, integ_m, integ_p, deriv_tmp, n_pt_in   &
+! !$OMP         , prim_ao_i, prim_ao_j )                                                            &
+! !$OMP SHARED ( ao_expo_ordered_transp, ao_coef_normalized_ordered_transp    &
+! !$OMP        , nucl_coord, nucl_num, nucl_charge )
+!
+! !$OMP DO SCHEDULE (dynamic)
 
     deriv_tmp = 0.d0
 
@@ -108,8 +112,8 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
       enddo
     enddo
 
- !$OMP END DO
- !$OMP END PARALLEL
+! !$OMP END DO
+! !$OMP END PARALLEL
 
     fst_deriv_nai = fst_deriv_nai + deriv_tmp
 
@@ -117,16 +121,16 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
 
   ! ---
 
-  if(i_axis .eq. ao_nucl(i)) then
+  if(i_nucl .eq. ao_nucl(i)) then
 
- !$OMP PARALLEL       &
- !$OMP DEFAULT (NONE) &
- !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, c, A_center, B_center, C_center            &
- !$OMP         , power_A, power_B, power_tmp, Z, integ_sum, integ_m, integ_p, deriv_tmp )       &
- !$OMP SHARED ( prim_ao_j, prim_ao_i, ao_expo_ordered_transp, ao_coef_normalized_ordered_transp &
- !$OMP        , nucl_coord, nucl_num, nucl_charge, n_pt_in )
-
- !$OMP DO SCHEDULE (dynamic)
+! !$OMP PARALLEL       &
+! !$OMP DEFAULT (NONE) &
+! !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, c, A_center, B_center, C_center            &
+! !$OMP         , power_A, power_B, power_tmp, Z, integ_sum, integ_m, integ_p, deriv_tmp )       &
+! !$OMP SHARED ( prim_ao_j, prim_ao_i, ao_expo_ordered_transp, ao_coef_normalized_ordered_transp &
+! !$OMP        , nucl_coord, nucl_num, nucl_charge, n_pt_in )
+!
+! !$OMP DO SCHEDULE (dynamic)
 
     deriv_tmp = 0.d0
 
@@ -182,8 +186,8 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
       enddo
     enddo
 
- !$OMP END DO
- !$OMP END PARALLEL
+! !$OMP END DO
+! !$OMP END PARALLEL
 
     fst_deriv_nai = fst_deriv_nai + deriv_tmp
 
@@ -191,7 +195,7 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
 
   ! ---
 
-  k = i_axis
+  k = i_nucl
   Z = nucl_charge(k)
   C_center(1:3) = nucl_coord(k,1:3)
 
@@ -199,15 +203,14 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
   B_center_x = B_center(i_axis)
   C_center_x = C_center(i_axis)
 
- !$OMP PARALLEL       &
- !$OMP DEFAULT (NONE) &
- !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, p, c, A_center, B_center, C_center, P_center_x            &
- !$OMP         , power_A, power_B, power_tmp, integ_0, integ_1, integ_2, deriv_tmp )       &
- !$OMP SHARED ( prim_ao_j, prim_ao_i, ao_expo_ordered_transp, ao_coef_normalized_ordered_transp &
- !$OMP        , A_center_x, B_center_x, C_center_x, Z &
- !$OMP        , nucl_coord, nucl_num, nucl_charge, n_pt_in )
-
- !$OMP DO SCHEDULE (dynamic)
+! !$OMP PARALLEL                                                                                     &
+! !$OMP DEFAULT (NONE)                                                                               &
+! !$OMP PRIVATE ( i, j, k, l, m, i_axis, alpha, beta, p, c, A_center, B_center, C_center, P_center_x &
+! !$OMP         , power_A, power_B, power_tmp, integ_0, integ_1, integ_2, deriv_tmp, n_pt_in )       &
+! !$OMP SHARED ( prim_ao_j, prim_ao_i, ao_expo_ordered_transp, ao_coef_normalized_ordered_transp     &
+! !$OMP        , A_center_x, B_center_x, C_center_x, Z, nucl_coord, nucl_num, nucl_charge )
+!
+! !$OMP DO SCHEDULE (dynamic)
 
   deriv_tmp = 0.d0
 
@@ -265,8 +268,8 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
     enddo
   enddo
 
- !$OMP END DO
- !$OMP END PARALLEL
+! !$OMP END DO
+! !$OMP END PARALLEL
 
   fst_deriv_nai = fst_deriv_nai + deriv_tmp
 
@@ -291,12 +294,12 @@ double precision function NAI_standard(A_center, B_center, power_A, power_B, alp
 
 
   dist_AB = (A_center(1) - B_center(1)) * (A_center(1) - B_center(1)) &
-          & (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
-          & (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) &
+          + (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
+          + (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) 
 
   dist_AC = (A_center(1) - C_center(1)) * (A_center(1) - C_center(1)) &
-          & (A_center(2) - C_center(2)) * (A_center(2) - C_center(2)) &
-          & (A_center(3) - C_center(3)) * (A_center(3) - C_center(3)) &
+          + (A_center(2) - C_center(2)) * (A_center(2) - C_center(2)) &
+          + (A_center(3) - C_center(3)) * (A_center(3) - C_center(3)) 
   
   if((dist_AB .lt. 1d-12) .and. (dist_AC .lt. 1d-12)) then
     NAI_standard = 0.d0
@@ -365,12 +368,12 @@ double precision function NAI_shift_t2(A_center, B_center, power_A, power_B, alp
 
 
   dist_AB = (A_center(1) - B_center(1)) * (A_center(1) - B_center(1)) &
-          & (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
-          & (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) &
+          + (A_center(2) - B_center(2)) * (A_center(2) - B_center(2)) &
+          + (A_center(3) - B_center(3)) * (A_center(3) - B_center(3)) 
 
   dist_AC = (A_center(1) - C_center(1)) * (A_center(1) - C_center(1)) &
-          & (A_center(2) - C_center(2)) * (A_center(2) - C_center(2)) &
-          & (A_center(3) - C_center(3)) * (A_center(3) - C_center(3)) &
+          + (A_center(2) - C_center(2)) * (A_center(2) - C_center(2)) &
+          + (A_center(3) - C_center(3)) * (A_center(3) - C_center(3)) 
   
   if((dist_AB .lt. 1d-12) .and. (dist_AC .lt. 1d-12)) then
     NAI_shift_t2 = 0.d0

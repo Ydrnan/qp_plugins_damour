@@ -5,7 +5,7 @@ double precision function fst_deriv_nai(i_axis, i_nucl, i, j)
 
   BEGIN_DOC
   ! 
-  ! \partial_a < \mu | -\sum_n Zn / |r - Rn| | \nu>
+  ! \partial_a < Gi | -\sum_n Zn / |r - Rn| | Gj >
   ! where a = xa, ya or za 
   !
   END_DOC

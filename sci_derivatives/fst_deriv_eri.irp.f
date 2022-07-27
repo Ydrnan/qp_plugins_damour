@@ -34,6 +34,12 @@ double precision function fst_deriv_eri(i_axis, i_nucl, i, j, k, l)
   double precision    :: expo1, expo2, expo3, expo4
 
   double precision    :: general_primitive_integral
+  double precision    :: fst_deriv_eri_schwartz
+
+  if(ao_prim_num(i) * ao_prim_num(j) * ao_prim_num(k) * ao_prim_num(l) > 1024) then
+    fst_deriv_eri = fst_deriv_eri_schwartz(i_axis, i_nucl, i, j, k, l)
+    return
+  endif
 
 
   fst_deriv_eri = 0.d0

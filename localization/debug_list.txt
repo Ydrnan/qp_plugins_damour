@@ -1,0 +1,7 @@
+# ezfio               debug_str          results      threshold
+benzene_fb.ezfio      localization       0.0          1e-3
+benzene_fb.ezfio      debug_gradient_loc 0.0          1e-12
+benzene_fb.ezfio      debug_hessian_loc  0.0          1e-12
+benzene_pm.ezfio      localization       0.0          1e-3
+benzene_pm.ezfio      debug_gradient_loc 0.0          1e-12
+benzene_pm.ezfio      debug_hessian_loc  0.0          1e-12

@@ -929,7 +929,7 @@ subroutine run_localization
 end   
 #+END_SRC
 
-** Rassemblement bourrin
+** Gathering
 Gradient/hessian/criterion for the localization:
 They are chosen in function of the localization method
 

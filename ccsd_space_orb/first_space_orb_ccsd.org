@@ -61,7 +61,7 @@ program first_space_orb_ccsd
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          delta(i,j,a,b) = f_v(a) + f_v(b) - f_o(i) - f_o(j)
+          delta(i,j,a,b) = fcc_v(a) + fcc_v(b) - fcc_o(i) - fcc_o(j)
         enddo
       enddo
     enddo
@@ -100,11 +100,11 @@ program first_space_orb_ccsd
     r1 = 0d0
     do beta = 1, nV
       do u = 1, nO
-        r1(u,beta) = f_ov(u,beta)
+        r1(u,beta) = fcc_ov(u,beta)
 
         do i = 1, nO
           do a = 1, nV
-            r1(u,beta) = r1(u,beta) - 2d0 * f_vo(a,i) * t1(i,beta) * t1(u,a)
+            r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
           enddo
         enddo
 
@@ -272,7 +272,7 @@ program first_space_orb_ccsd
     ! Update t1
     do a = 1, nV
       do i = 1, nO
-        t1(i,a) = t1(i,a) - r1(i,a) / (f_v(a) - f_o(i))
+        t1(i,a) = t1(i,a) - r1(i,a) / (fcc_v(a) - fcc_o(i))
       enddo
     enddo
 
@@ -340,7 +340,7 @@ subroutine compute_e_ccsd(tau,t1,energy)
   energy = 0d0
   do i = 1, nO
     do a = 1, nV
-      energy = energy + 2d0 * f_vo(a,i) * t1(i,a)
+      energy = energy + 2d0 * fcc_vo(a,i) * t1(i,a)
     enddo
   enddo
   do b = 1, nV
@@ -376,7 +376,7 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
 
   do i = 1, nO
     do u = 1, nO
-      H_oo(u,i) = f_oo(u,i)
+      H_oo(u,i) = fcc_oo(u,i)
 
       do j = 1, nO
         do a = 1, nV
@@ -412,7 +412,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   do beta = 1, nV
     do a = 1, nV
-      H_vv(a,beta) = f_vv(a,beta)
+      H_vv(a,beta) = fcc_vv(a,beta)
 
       do j = 1, nO
         do i = 1, nO
@@ -447,7 +447,7 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
   do i = 1, nO
     do a = 1, nV
-      H_vo(a,i) = f_vo(a,i)
+      H_vo(a,i) = fcc_vo(a,i)
 
       do j = 1, nO
         do b = 1, nV
@@ -562,7 +562,7 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
       g_occ(u,i) = H_oo(u,i)
       
       do a = 1, nV
-        g_occ(u,i) = g_occ(u,i) + f_vo(a,i) * t1(u,a)
+        g_occ(u,i) = g_occ(u,i) + fcc_vo(a,i) * t1(u,a)
         
         do j = 1, nO
           g_occ(u,i) = g_occ(u,i) + (2d0 * v_ovoo(u,a,i,j) - v_ovoo(u,a,j,i)) * t1(j,a)
@@ -597,7 +597,7 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
       g_vir(a,beta) = H_vv(a,beta)
       
       do i = 1, nO
-        g_vir(a,beta) = g_vir(a,beta) - f_vo(a,i) * t1(i,beta)
+        g_vir(a,beta) = g_vir(a,beta) - fcc_vo(a,i) * t1(i,beta)
         
         do b = 1, nV
           g_vir(a,beta) = g_vir(a,beta) + (2d0 * v_vvvo(a,b,beta,i) - v_vvvo(b,a,beta,i)) * t1(i,b)
@@ -731,7 +731,7 @@ subroutine space_ccsd_par_t_energy(t1,t2,W,V,energy)
         do c = 1, nV
           do b = 1, nV
             do a = 1, nV
-              energy = energy + (4d0 * W(i,j,k,a,b,c) + W(i,j,k,b,c,a) + W(i,j,k,c,a,b)) * (V(i,j,k,a,b,c) - V(i,j,k,c,b,a)) / (f_o(i) + f_o(j) + f_o(k) - f_v(a) - f_v(b) - f_v(c))  !delta_ooovvv(i,j,k,a,b,c)
+              energy = energy + (4d0 * W(i,j,k,a,b,c) + W(i,j,k,b,c,a) + W(i,j,k,c,a,b)) * (V(i,j,k,a,b,c) - V(i,j,k,c,b,a)) / (fcc_o(i) + fcc_o(j) + fcc_o(k) - fcc_v(a) - fcc_v(b) - fcc_v(c))  !delta_ooovvv(i,j,k,a,b,c)
             enddo
           enddo
         enddo

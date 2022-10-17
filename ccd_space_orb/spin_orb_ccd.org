@@ -112,9 +112,9 @@ program spin_orb_ccd
   elseif (sccd_method == 'bi_int') then
     print*,'Selected CCD on: |<ij|ab>| > e'
   elseif (sccd_method == 'guess_mp2') then
-    print*,'Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e' 
+    print*,'Selected CCD on: |<ij|ab>|/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e' 
   elseif (sccd_method == 'estimated_e') then
-    print*,'Selected CCD on: |<ij|ab>|^2/(f_aa+f_bb-f_ii-f_jj) > e'
+    print*,'Selected CCD on: |<ij|ab>|^2/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e'
   else
     print*,'Invalid sccd_method:',  sccd_method
     print*,'Program will abort'
@@ -370,14 +370,14 @@ function is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)
     else
       is_selected = .False.
     endif
-  ! Selected CCD on: |<ij|ab>|/(f_aa+f_bb-f_ii-f_jj) > e
+  ! Selected CCD on: |<ij|ab>|/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e
   elseif (sccd_method == 'guess_mp2') then
     if ((dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b))/max_int_over_delta >= epsilon) then
       is_selected = .True.
     else
       is_selected = .False.
     endif
-  ! Selected CCD on: |<ij|ab>|^2/(f_aa+f_bb-f_ii-f_jj) > e
+  ! Selected CCD on: |<ij|ab>|^2/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e
   elseif (sccd_method == 'estimated_e') then
     if (dsqrt((two_e_int_spin_orb(i,j,tmp_a,tmp_b)**2/delta(i,j,a,b))/max_int2_over_delta) >= epsilon) then
       is_selected = .True.

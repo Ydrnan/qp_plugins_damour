@@ -1,13 +1,13 @@
 * Fock matrices
 
-** f_pp
+** fcc_pp
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
 BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_act_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_p^p
+  ! my fock matrix elements fcc_p^p
   ! p: active or virtual MO
   END_DOC
 
@@ -28,7 +28,7 @@ BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_act_orb)]
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_i^i 
+  ! my fock matrix elements fcc_i^i 
   ! i: active MO
   END_DOC
 
@@ -49,7 +49,7 @@ BEGIN_PROVIDER [double precision, fock_matrix_aa, (dim_list_virt_orb)]
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_a^a
+  ! my fock matrix elements fcc_a^a
   ! a: virtual MO
   END_DOC
 
@@ -66,12 +66,12 @@ END_PROVIDER
 
 ** Fock matrix
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_pq, (dim_list_act_virt_orb, dim_list_act_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_act_virt_orb, dim_list_act_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_p^q 
+  ! my fock matrix elements fcc_p^q 
   ! p: active or virtual spatial MO
   END_DOC
 
@@ -81,7 +81,7 @@ BEGIN_PROVIDER [double precision, f_pq, (dim_list_act_virt_orb, dim_list_act_vir
     tmp_q = list_act_virt(q)
     do p = 1, dim_list_act_virt_orb
       tmp_p = list_act_virt(p)
-      f_pq(p,q) = fock_matrix_mo(tmp_p,tmp_q)
+      fcc_pq(p,q) = fock_matrix_mo(tmp_p,tmp_q)
     enddo
   enddo
 
@@ -89,12 +89,12 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_vo, (dim_list_virt_orb, dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_act_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_a^i
+  ! my fock matrix elements fcc_a^i
   ! i: active spatial MO
   ! a: virtual spatial MO
   END_DOC
@@ -108,7 +108,7 @@ BEGIN_PROVIDER [double precision, f_vo, (dim_list_virt_orb, dim_list_act_orb)]
   do i= 1, nO
     do a = 1, nV
       tmp_a= a + nO
-      f_vo(a,i) = f_pq(tmp_a,i)
+      fcc_vo(a,i) = fcc_pq(tmp_a,i)
     enddo
   enddo
 
@@ -116,12 +116,12 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_ov, (dim_list_act_orb, dim_list_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_act_orb, dim_list_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_i^a
+  ! my fock matrix elements fcc_i^a
   ! i: active spatial MO
   ! a: virtual spatial MO
   END_DOC
@@ -135,7 +135,7 @@ BEGIN_PROVIDER [double precision, f_ov, (dim_list_act_orb, dim_list_virt_orb)]
     do a = 1, nV
       tmp_a= a + nO
       do i = 1, nO
-      f_ov(i,a) = f_pq(i,tmp_a)
+      fcc_ov(i,a) = fcc_pq(i,tmp_a)
     enddo
   enddo
 
@@ -143,12 +143,12 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_oo, (dim_list_act_orb, dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_act_orb, dim_list_act_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_i^j
+  ! my fock matrix elements fcc_i^j
   ! i,j: active spatial MOs
   END_DOC
 
@@ -159,7 +159,7 @@ BEGIN_PROVIDER [double precision, f_oo, (dim_list_act_orb, dim_list_act_orb)]
   
   do j= 1, nO
     do i = 1, nO
-      f_oo(i,j) = f_pq(i,j)
+      fcc_oo(i,j) = fcc_pq(i,j)
     enddo
   enddo
 
@@ -167,12 +167,12 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_o, (dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_o, (dim_list_act_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_i^i
+  ! my fock matrix elements fcc_i^i
   ! i: active spatial MO
   END_DOC
 
@@ -182,19 +182,19 @@ BEGIN_PROVIDER [double precision, f_o, (dim_list_act_orb)]
   nO = dim_list_act_orb
   
   do i = 1, nO
-    f_o(i) = f_oo(i,i)
+    fcc_o(i) = fcc_oo(i,i)
   enddo
 
 END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_vv, (dim_list_virt_orb, dim_list_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_vv, (dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_a^b
+  ! my fock matrix elements fcc_a^b
   ! a,b: virtual spatial MOs
   END_DOC
 
@@ -208,7 +208,7 @@ BEGIN_PROVIDER [double precision, f_vv, (dim_list_virt_orb, dim_list_virt_orb)]
     tmp_b = b + nO
     do a = 1, nV
       tmp_a = a + nO
-      f_vv(a,b) = f_pq(tmp_a,tmp_b)
+      fcc_vv(a,b) = fcc_pq(tmp_a,tmp_b)
     enddo
   enddo
 
@@ -216,12 +216,12 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, f_v, (dim_list_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_v, (dim_list_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
-  ! my fock matrix elements f_a^a
+  ! my fock matrix elements fcc_a^a
   ! a: virtual spatial MO
   END_DOC
 
@@ -231,7 +231,7 @@ BEGIN_PROVIDER [double precision, f_v, (dim_list_virt_orb)]
   nV = dim_list_virt_orb
   
   do a = 1, nV
-    f_v(a) = f_vv(a,a)
+    fcc_v(a) = fcc_vv(a,a)
   enddo
 
 END_PROVIDER

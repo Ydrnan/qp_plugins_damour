@@ -4,10 +4,10 @@ cite kossoski
 
 Full jacobian:
 \begin{align*}
-J_{ia,jb} &= [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
+J_{ia,jb} &= [ 2(fcc_a^a - fcc_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
 &+ [ v_{aa}^{bb} - v_{jj}^{aa} t_i^a + (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a ] \delta_{ij} \\
 &+ [ v_{ii}^{jj} - v_{ii}^{bb} t_i^a + (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c ] \delta_{ab} \\
-&= [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
+&= [ 2(fcc_a^a - fcc_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} \delta_{ab} \\
 &+ [ v_{aa}^{bb} - v_{ii}^{aa} t_i^a + (1 - 2 \delta_{ab}) \sum_{k \neq i} v_{kk}^{bb} t_k^a ] \delta_{ij} \\
 &+ [ v_{ii}^{jj} - v_{ii}^{aa} t_i^a + (1 - 2 \delta_{ij}) \sum_{c \neq a} v_{jj}^{cc} t_i^c ] \delta_{ab}
 \end{align*}
@@ -33,10 +33,10 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
 
   t2_jacobian = 0d0
   
-  ! [ 2(f_a^a - f_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai} ] \delta_{ij} \delta_{ab}
+  ! [ 2(fcc_a^a - fcc_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai} ] \delta_{ij} \delta_{ab}
   do a = 1, nV
     do i = 1, nO
-      t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (f_v(a) - f_o(i)) &
+      t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (fcc_v(a) - fcc_o(i)) &
                   - 4d0 * two_e_ints_iaia(i,a) + 2d0 * two_e_ints_iaai(i,a)
     enddo
   enddo
@@ -183,10 +183,10 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   enddo
   !print*,'yV2', yV2(:,:)
 
-  ! 2 (f_a^a - f_i^i) - 4 v_ia^ia + 2 v_ia^ai + v_aa^aa + v_ii^ii - \sum_k v_kk^aa t_k^a - \sum_c v_ii^cc t_i^c
+  ! 2 (fcc_a^a - fcc_i^i) - 4 v_ia^ia + 2 v_ia^ai + v_aa^aa + v_ii^ii - \sum_k v_kk^aa t_k^a - \sum_c v_ii^cc t_i^c
   do a = 1, nV
     do i = 1, nO
-      t2_jacobian(i,a,i,a) = 2d0*(f_v(a) - f_o(i)) &
+      t2_jacobian(i,a,i,a) = 2d0*(fcc_v(a) - fcc_o(i)) &
       - 4.0d0*two_e_ints_iaia(i,a) + 2.0d0*two_e_ints_iaai(i,a) + two_e_ints_aabb(a,a) + two_e_ints_iijj(i,i) &
       - yV1(a) - yO1(i) 
     enddo

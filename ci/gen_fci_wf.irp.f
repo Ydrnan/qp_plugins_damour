@@ -21,6 +21,13 @@ subroutine gen_fci_wf
   integer :: degree, idx_degree, n_e
   integer :: max_exc, max_exc_a, exc_a, max_exc_b, exc_b
 
+  print*,''
+  print*,'======================================='
+  print*,'Excitation max:', excitation_max
+  print*,'Seniority  max:', seniority_max
+  print*,'======================================='
+  print*,''
+
   ! Max excitation degree alpha + beta
   if (excitation_max == -1) then
     max_exc = min(elec_alpha_num+elec_beta_num,2*mo_num-elec_alpha_num-elec_beta_num)
@@ -149,6 +156,7 @@ subroutine gen_fci_wf
   n_det_a = 1
 
   ! Excitations
+  print*,'Number of alpha configurations for each excitation degree:'
   do i = 2, max_exc_a + 1
     beg_degree_det_a(i) = end_degree_det_a(i-1) + 1
     n_degree_det_a(i) =  n_degree_occ_a(i) * n_degree_vir_a(i)
@@ -275,6 +283,7 @@ subroutine gen_fci_wf
   n_det_b = 1
 
   ! Excitations
+  print*,'Number of beta configurations for each excitation degree:'
   do i = 2, max_exc_b + 1
     beg_degree_det_b(i) = end_degree_det_b(i-1) + 1
     n_degree_det_b(i)   = n_degree_occ_b(i) * n_degree_vir_b(i)
@@ -324,6 +333,7 @@ subroutine gen_fci_wf
   n_det_ab = 1
 
   ! Excitations
+  print*,'Number of det for each excitation degree'
   do k = 2, max_exc + 1
     do j = 1, max_exc_b + 1
       do i = 1, max_exc_a + 1
@@ -331,22 +341,21 @@ subroutine gen_fci_wf
           cycle
         endif 
         n_degree_det_ab(k) = n_degree_det_ab(k) + n_degree_det_a(i) * n_degree_det_b(j)
-        write(*,'(I3,I3,I3,I10)') k-1,i-1,j-1,n_degree_det_a(i) * n_degree_det_b(j)
+        !write(*,'(I3,I3,I3,I10)') k-1,i-1,j-1,n_degree_det_a(i) * n_degree_det_b(j)
       enddo
     enddo
     beg_degree_det_ab(k) = end_degree_det_ab(k-1) + 1
     end_degree_det_ab(k) = beg_degree_det_ab(k) + n_degree_det_ab(k) - 1
     n_det_ab = n_det_ab + n_degree_det_ab(k)
     print*,'Tot:',k-1, n_degree_det_ab(k)
-    print*,'beg', beg_degree_det_ab(k) 
-    print*,'end', end_degree_det_ab(k)
+    !print*,'beg', beg_degree_det_ab(k) 
+    !print*,'end', end_degree_det_ab(k)
   enddo
   print*,'Total:',n_det_ab
 
   ! Generation of unique determinants (with alpha and beta part) for each excitation degree
   ! from the different unique alpha and beta parts
   allocate(det_ab(mo_num,2,n_det_ab))
-
   j = 1
   do i = 1, max_exc + 1
     do u = 1, max_exc_a + 1
@@ -381,11 +390,17 @@ subroutine gen_fci_wf
   enddo
 
   ! Save the wave function
+  print*,'Save the wave function...'
   call fill_H_apply_buffer_no_selection(n_det_ab,det_bit_ab,N_int,0)
   call copy_H_apply_buffer_to_wf
   SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  call RANDOM_NUMBER(psi_coef)
+  psi_coef(1,1) = 100d0
+  call normalize(psi_coef,n_det_ab)
+  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
 
   call save_wavefunction
+  print*,'Done'
 
   deallocate(occ_a,beg_degree_occ_a,n_degree_occ_a,end_degree_occ_a)
   deallocate(vir_a,beg_degree_vir_a,n_degree_vir_a,end_degree_vir_a)

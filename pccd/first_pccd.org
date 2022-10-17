@@ -14,13 +14,13 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 \end{align*}
 
 \begin{align*}
-0 &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+0 &= v_{ii}^{aa} + 2(fcc_a^a - fcc_i^i - \sum_{j} t_j^a v_{aa}^{jj}
 - \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
 &-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
 &+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
 + \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
 \end{align*}
-with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
+with $fcc_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
 #+BEGIN_SRC f90 :comments org :tangle first_pccd.irp.f

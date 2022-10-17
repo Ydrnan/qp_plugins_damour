@@ -48,9 +48,9 @@ subroutine run_S2pCCD(epsilon,real_e)
        if (sccd_method == 'bi_int') then
          list_crit(p) = dabs(two_e_ints_iiaa(i,a))
        elseif (sccd_method == 'guess_mp2') then
-         list_crit(p) = dabs(two_e_ints_iiaa(i,a)/(2d0 * f_v(a) - 2d0 * f_o(i)))
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)/(2d0 * fcc_v(a) - 2d0 * fcc_o(i)))
        elseif (sccd_method == 'estimated_e') then
-         list_crit(p) = dabs(two_e_ints_iiaa(i,a)**2/(2d0 * f_v(a) - 2d0 * f_o(i)))
+         list_crit(p) = dabs(two_e_ints_iiaa(i,a)**2/(2d0 * fcc_v(a) - 2d0 * fcc_o(i)))
        else
           print*,'Nothing to do, abort'
           call abort
@@ -106,10 +106,10 @@ subroutine run_S2pCCD(epsilon,real_e)
      i = list_2d_key(p,1)
      a = list_2d_key(p,2)
      t2(i,a) = two_e_ints_iiaa(i,a) &
-        /(2d0 * f_v(a) - 2d0 * f_o(i))
+        /(2d0 * fcc_v(a) - 2d0 * fcc_o(i))
      !print*,i,a,t2(i,a), t2(i,a)*normalization_factor
      list_t2(p) =  two_e_ints_iiaa(i,a) &
-        /(2d0 * f_v(a) - 2d0 * f_o(i))
+        /(2d0 * fcc_v(a) - 2d0 * fcc_o(i))
   enddo
 
   ! Sort the t2 by ascending order of indexes
@@ -218,7 +218,7 @@ subroutine run_S2pCCD(epsilon,real_e)
     tmp_residue = 0d0
     do a = 1, nV
       do i = 1, nO
-         tmp_residue(i,a) = two_e_ints_iiaa(i,a) + 2d0*(f_v(a) - f_o(i) - U1(a) - U2(i)) * t2(i,a) &
+         tmp_residue(i,a) = two_e_ints_iiaa(i,a) + 2d0*(fcc_v(a) - fcc_o(i) - U1(a) - U2(i)) * t2(i,a) &
               - 2d0*(2d0 * two_e_ints_iaia(i,a) - two_e_ints_aiia(a,i) - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &
               + U3(i,a) + U4(i,a) + U5(i,a)
          !print*,'r',i,a,tmp_residue(i,a)

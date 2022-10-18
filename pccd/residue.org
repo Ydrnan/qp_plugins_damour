@@ -12,14 +12,14 @@ E= <0|H|0> + \sum_{ia} t_i^a v_{ii}^{aa}
 \end{align*}
 
 \begin{align*}
-r_i^a &= v_{ii}^{aa} + 2(f_a^a - f_i^i - \sum_{j} t_j^a v_{aa}^{jj}
+r_i^a &= v_{ii}^{aa} + 2(fcc_a^a - fcc_i^i - \sum_{j} t_j^a v_{aa}^{jj}
 - \sum_{b} t_i^b v_{bb}^{ii})t_i^a \\
 &-2(2 v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
 &+ \sum_{b} t_i^b v_{bb}^{aa} +  \sum_{j} t_j^a v_{ii}^{jj}
 + \sum_{jb} v_{bb}^{jj} t_j^a t_i^b
 \end{align*}
 \begin{align*}
-&= v_{ii}^{aa} + 2(f_a^a - f_i^i - U_{1_a} - U_{2_i}) t_i^a \\
+&= v_{ii}^{aa} + 2(fcc_a^a - fcc_i^i - U_{1_a} - U_{2_i}) t_i^a \\
 &- 2(2v_{ia}^{ia} - v_{ai}^{ia} - v_{aa}^{ii} t_i^a) t_i^a \\
 &+ U_{3_i}^a + U_{4_i}^a + U_{5_i}^a
 \end{align*}
@@ -30,7 +30,7 @@ $$\sum_b t_i^b v_{bb}^{aa}=U_{3_i}^a$$
 $$\sum_j t_j^a v_{ii}^{jj} = U_{4_i}^a$$
 $$\sum_{b} v_{bb}^{jj} t_i^b = X_{i}^{j}$$
 $$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a = U_{5_i}^a$$
-with $f_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
+with $fcc_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
 #+BEGIN_SRC f90 :comments org :tangle residue.irp.f
@@ -59,7 +59,7 @@ subroutine residue_pccd(t2, U1, U2, U3, U4, U5, residue)
   do a = 1, nV
      do i = 1, nO
         residue(i,a) = two_e_ints_iiaa(i,a) &
-          + 2d0 *(f_v(a) - f_o(i) - U1(a) - U2(i)) * t2(i,a) &
+          + 2d0 *(fcc_v(a) - fcc_o(i) - U1(a) - U2(i)) * t2(i,a) &
           - 2d0*(2d0 * two_e_ints_iaia(i,a) &
           - two_e_ints_aiia(a,i) &
           - two_e_ints_aaii(a,i) * t2(i,a)) * t2(i,a) &

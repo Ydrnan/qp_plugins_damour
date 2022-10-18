@@ -96,13 +96,13 @@ subroutine run
     print*,'******************************'
     print*,'Excitation energies (eV)    (CISD+Q)'
     do i = 2, N_states
-      print*, i ,(CI_energy(i) - CI_energy(1))/0.0367502d0, &
-        (cisdq(i) - cisdq(1)) / 0.0367502d0
+      print*, i ,(CI_energy(i) - CI_energy(1)) * ha_to_ev, &
+        (cisdq(i) - cisdq(1)) * ha_to_ev
     enddo
   endif
 
   ! Dipoles
-  call print_dipole_moment_xyz_v2
+  call print_dipole_moment
   call print_transition_dipole_moment
   call print_oscillator_strength
 

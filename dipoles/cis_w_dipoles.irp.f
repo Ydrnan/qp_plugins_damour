@@ -74,7 +74,7 @@ subroutine run
     print*,'******************************'
     print*,'Excitation energies '
     do i = 2, N_states
-      print*, i ,CI_energy(i) - CI_energy(1), (CI_energy(i) - CI_energy(1))/0.0367502d0
+      print*, i ,CI_energy(i) - CI_energy(1), (CI_energy(i) - CI_energy(1)) * ha_to_ev
     enddo
     print*,''
   endif
@@ -85,7 +85,7 @@ subroutine run
   call save_wavefunction_truncated(save_threshold)
   
   ! Dipoles
-  call print_dipole_moment_xyz_v2
+  call print_dipole_moment
   call print_transition_dipole_moment
   call print_oscillator_strength
 

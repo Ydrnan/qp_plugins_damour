@@ -1,0 +1,4 @@
+#
+localization              qp_run localization ezfio | grep "Norm of the gradient:"| tail -n 1 | awk '{printf $5}'
+debug_gradient_loc        qp_run debug_gradient_loc ezfio | grep "Max error" | awk '{printf $3 }'
+debug_hessian_loc         qp_run debug_hessian_loc ezfio | grep "Max error" | awk '{printf $3 }'

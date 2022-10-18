@@ -1,0 +1,6 @@
+# 
+debug_dip0       qp_run print_dipole_xyz ezfio | grep -A 4  "Dipole moments (D)" | grep " 0 " | tail -n 1 | awk '{printf $5}'
+debug_dip1       qp_run print_dipole_xyz ezfio | grep -A 4  "Dipole moments (D)" | grep " 1 " | tail -n 1 | awk '{printf $5}'
+debug_fl         qp_run print_dipole_xyz ezfio | grep "Transition n." | grep " 1:" | tail -n 1 | awk '{printf $12}' | sed "s/,//"
+debug_fv         qp_run print_dipole_xyz ezfio | grep "Transition n." | grep " 1:" | tail -n 1 | awk '{printf $14}' | sed "s/,//"
+debug_fm         qp_run print_dipole_xyz ezfio | grep "Transition n." | grep " 1:" | tail -n 1 | awk '{printf $16}' | sed "s/,//"

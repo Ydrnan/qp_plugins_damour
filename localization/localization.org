@@ -64,144 +64,13 @@ $$ C_2 = \sum_{i>j, \ i=1}^N \left[  < \phi_i | r | \phi_i > -  <
 or
 $$ C_3 = \sum_{i=1}^N \left[ < \phi_i | r | \phi_i > \right]^2.$$
 
-Where $\phi_i$ is an MO and $N$ the number of MOs,
-\begin{align*}
-< \phi_i | r^2 | \phi_i > &= < \phi_i | x^2 | \phi_i >  \\
-&+ < \phi_i | y^2 | \phi_i > \\
-&+ < \phi_i | z^2 | \phi_i >
-\end{align*}
-and
-\begin{align*}
-< \phi_i | r | \phi_i >^2 &= < \phi_i | x | \phi_i >^2  \\
-&+ < \phi_i | y | \phi_i >^2 \\
-&+ < \phi_i | z | \phi_i >^2
-\end{align*}
-
- 
-Starting with an initial set of MOs $\left\{\phi_i\right\}_{i=1}^N$, we
-are looking for a new set of MOs $\left\{\tilde{\phi}_i\right\}_{i=1}^N$ which
-minimizes the Foster-Boys criterion (or minimizes minus the criterion
-depending of the criterion between $C_{FB}$, $C_2$ and $C_3$. This new
-set of MOs can be found by applying a unitary transformation 
-$\textbf{R}$ s.t. $\textbf{R} \cdot \textbf{R}^T = \textbf{R}^T \cdot
-\textbf{R} = \textbf{I}$ 
-(with $\textbf{I}$ the identity matrix) on the
-coefficients of the MOs. The unitary transformation matrix or rotation 
-matrix is obtained by exponentiating an antihermithian matrix
-$\textbf{X}$, the elements $\textbf{X}_{ij}$ correspond to the
-rotation angle between the MO $i$ and the MO $j$. 
-In the case where two MOs ($\phi_p$,$\phi_q$) are combined between
-them at each iteration it is the Jacobi sweep method and the related
-rotation matrix is trivial: 
-\begin{align*}
-\textbf{R}=
-\begin{pmatrix}
-\cos(\theta_{pq}) & \sin(\theta_{pq}) \\
-- \sin(\theta_{pq}) & \cos(\theta_{pq})
-\end{pmatrix}
-\end{align*}
-
-The application of $\textbf{R}$ on $\phi_p$ and $\phi_q$ leads to:
-\begin{align*}
-\tilde{\phi}_p &=  \phi_p \cos(\theta_{pq}) + \phi_q \sin(\theta_{pq}) \\
-\tilde{\phi}_q &= -\phi_p \sin(\theta_{pq}) + \phi_q \cos(\theta_{pq})
-\end{align*}
-
-Consequently, the criterion becomes
-
-\begin{align*}
-C_{FB} &= \sum_{i=1}^N \left[ < \phi_i | r^2 | \phi_i > 
-- < \phi_i | r | \phi_i >^2 \right] \\ 
-&- \left[ < \phi_{p}| r^2 | \phi_{p} > - < \phi_{p} | r |
-\phi_{p} >^2 +  < \phi_{q} | r^2 | \phi_{q}
-> - < \phi_{q} | r | \phi_{q} >^2 \right] \\
-&+ \left[ < \tilde{\phi}_p| r^2 | \tilde{\phi}_p > - < \tilde{\phi}_p | r |
-\tilde{\phi}_p >^2 +  < \tilde{\phi}_q | r^2 | \tilde{\phi}_q
-> - < \tilde{\phi}_q | r | \tilde{\phi}_q >^2 \right] 
-\end{align*}
-
 Noting 
 $$A_{ii} = < \phi_i | r^2 | \phi_i > $$
 $$B_{ii} = < \phi_i | r | \phi_i > $$
-$$\tilde{\phi_p} = \tilde{p} $$ 
 
-\begin{align*}
-C_{FB}(\theta) &= \sum_{i=1}^N \left[ A_{ii} - A_{jj} \right] \\ 
-&- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
-&+ \left[ < \tilde{p}| r^2 | \tilde{p} > - < \tilde{p} | r |
-\tilde{p} >^2 +  < \tilde{q} | r^2 | {\tilde{q}}
-> - < \tilde{q} | r | \tilde{q} >^2 \right] 
-\end{align*}
-
-From that we have
-\begin{align*}
-< \tilde{p}| r^2 | \tilde{p} > &= <  p \cos(\theta) + q \sin(\theta) | r^2 | p \cos(\theta) + q \sin(\theta) > \\
-&= \cos^2(\theta) A_{pp} + \sin^2(\theta) A_{qq} + 2 \sin(2 \theta) A_{pq}
-\end{align*}
-
-and 
-\begin{align*}
-< \tilde{q}| r^2 | \tilde{q} > &= <  -p \sin(\theta) + q \cos(\theta) | r^2 | -p \sin(\theta) + q \cos(\theta) > \\
-&= \sin^2(\theta) A_{pp} + \cos^2(\theta) A_{qq} - 2 \sin(2 \theta) A_{pq}
-\end{align*}
-
-which leads to
-\begin{align*}
-< \tilde{p}| r^2 | \tilde{p} > + < \tilde{q}| r^2 | \tilde{q} > =
-A_{pp} + A_{qq}.
-\end{align*}
-
-Clearly, these two terms do not depend of the rotation angle
-$\theta_{pq}$. For that reason the derivatives with respect to $\textbf{X}$ of $C_{FB}$ is the same
-that $-C_3$.
-
-And for the two other terms
-\begin{align*}
-< \tilde{p}| r | \tilde{p} >^2 &= <  p \cos(\theta) + q \sin(\theta) | r | p \cos(\theta) + q \sin(\theta) >^2 \\
-&= (\cos^2(\theta) B_{pp} + \sin^2(\theta) B_{qq} + 2 \sin(2 \theta) B_{pq})^2
-\end{align*}
-
-\begin{align*}
-< \tilde{q}| r | \tilde{q} >^2 &= <  -p \sin(\theta) + q \cos(\theta) | r | -p \sin(\theta) + q \cos(\theta) >^2 \\
-&= (\sin^2(\theta) B_{pp} + \cos^2(\theta) B_{qq} - 2 \sin(2 \theta) B_{pq})^2
-\end{align*}
-
-So we have
-\begin{align*}
-< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 &= (\cos^4(\theta) + \sin^4(\theta)) B_{pp}^2 \\
-&+ (\cos^4(\theta) + \sin^4(\theta)) B_{qq}^2 \\
-&+ (2 \cos^2(\theta)\sin(2 \theta) - 2 \sin^2(\theta)\sin(2 \theta)) B_{qq} B_{pq} \\
-&+ (2 \sin^2(\theta)\sin(2 \theta) - 2 \cos^2(\theta)\sin(2 \theta)) B_{pp} B_{pq} \\
-&+ 4 \cos^2(\theta) \sin^2(\theta) B_{pp} B_{qq} \\
-&+ 2 \sin^2(2 \theta) B_{pq}^2.
-\end{align*}
-
-Since:
-$$\cos^2(\theta) - \sin^2(\theta) = \cos(2 \theta) $$
-$$\sin(\theta) \cos(\theta) = \frac{1}{2} \sin(2 \theta) $$
-$$\sin^2(\theta) = \frac{1 - \cos(2 \theta)}{2}  $$
-It becomes
-\begin{align*}
-< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 &= (\cos^4(\theta) + \sin^4(\theta)) (B_{pp}^2 + B_{pp}^2) \\
-&+ \sin(4\theta) B_{pq} (-B_{pp} + B_{qq}) \\
-&+ \sin^2(2\theta) B_{pp} B_{qq} \\
-&+ 2 \sin^2(2\theta) B_{pq}^2
-\end{align*}
-
-And with
-$$ \cos^4(\theta) + \sin^4(\theta) = \frac{1}{4} (3 + \cos(4\theta))$$
-
-we have
-\begin{align*}
-< \tilde{p}| r | \tilde{p} >^2 + < \tilde{q}| r | \tilde{q} >^2 
-&= B_{pp}^2 + B_{qq}^2 -\frac{1}{4} [(1-\cos(4\theta) \beta + \sin(4\theta) \gamma].
-\end{align*}
-
-with
 $$ \beta = (B_{pp} - B_{qq})^2 - 4 B_{pq}^2 $$ 
 $$ \gamma = 4 B_{pq} (B_{pp} - B_{qq}) $$
 
-Consequently:
 \begin{align*}
 C_{FB}(\theta) &= \sum_{i=1}^N \left[ A_{ii} - B_{ii}^2 \right] \\ 
 &- \left[  A_{pp} - B_{pp}^2 +  A_{qq} - B_{qq}^2 \right] \\
@@ -256,24 +125,6 @@ second moment of the MO spread. For the MO i, the locality criterion is
 &= \sqrt{ <i|x^2|i> - <i|x|i>^2 + <i|y^2|i> - <i|y|i>^2 + <i|z^2|i> - <i|z|i>^2}
 \end{align*} 
 
-Localization procedure:
-
-To do the localization we have compute the gradient and the
-diagonal hessian of the Foster-Boys criterion with respect to the MO
-rotations and we minimize it with the Newton method.
-Since we already have compute the first and second derivatives of the
-FB criterion with respect to the MO rotations (for $\theta = 0$) we have the analytical gradient
-and diagonal hessian. Hovik uses an other method in her algorithm and
-it seems to work very for big systems.
-
-In order to avoid the problem of starting on a saddle point, the
-localization procedure starts by giving a little kick in the MOs, by
-putting "kick in mos" true, in order to break the symmetry and escape
-from a possible saddle point.
-
-In order to speed up the iteration we compute the gradient, the
-diagonal hessian and the step in temporary matrices of the size
-(number MOs in mo class by number MOs in mo class)
 
 *** Pipek-Mezey localization
 -cite pipek mezey 1989
@@ -283,51 +134,6 @@ DOI: 10.1063/1.456588
 Foster-Boys localization does not preserve the $\sigma - \pi$ separation of the
 MOs, it leads to "banana" orbitals. The Pipek-Mezey localization
 normally preserves this separation.
-
-Their localization method starts from fact that the localization of the
-MOs can be definined as
-\begin{align*}
-d_i = \left( \sum_{A = 1}^N (Q_A^i)^2 \right)^{-1}, \quad 0 < d_i < N
-\end{align*}
-with $A$ representing the differents atoms of the moleculs and $Q_A^i$
-the Mulliken population of the MO $i$. 
-From that the mean delocalization is 
-\begin{align*}
-D^{-1} = n^{-1} \sum_{i=1}^n d_i^{-1}, \quad 0 < D \leq D_{max} \leq N
-\end{align*}
-where
-\begin{align*}
-D_{max} &= \frac{n^2}{\sum_{A=1}^N \textbf{Q}_A^2} \\
-&= \frac{\left( \sum_{A=1}^N \textbf{Q}_A\right)^2}{\sum_{A=1}^N \textbf{Q}_A^2}
-\end{align*}
-"with $\textbf{Q}_A$ is the total atomic charges
-(populations) which are invariant to any unitary transformation."
-" $D$ measures the mean extension of the one-electron orbitals
-As for the Foster-Boys method we have to search the unitary
-transformation which minimizes $D$. "
-
-They defined for each AOs $|\mu>$ the corresponding operator 
-\begin{align*}
-P_{\mu} = P_{\mu}^{\dagger} = \frac{1}{2}
-\left( |\tilde{\mu} > < \mu| + |\mu > < \tilde{\mu}| \right)
-\end{align*}
-with
-\begin{align*}
-|\tilde{\mu} > = \sum_{\nu} (\textbf{S})^{-1}_{\nu \mu} |\nu>
-\end{align*}
-and $\textbf{S}$ the overlap matrix,
-\begin{align*}
-S_{\mu \nu} = < \mu | \nu >
-\end{align*}
-
-Then the population operator is defined as
-\begin{align*}
-P_A = P_A^{\dagger} = \sum_{\mu \in A} P_{\mu}
-\end{align*}
-and the atomic population of (normalized) MO $|i>$ is 
-\begin{align*}
-Q_A^i = < i | P_A | i >
-\end{align*}
 
 The optimum functional $\mathcal{P}$ is obtained for the maximum of
 $D^{-1}$
@@ -364,6 +170,23 @@ So similarly the first and second derivatives are
 \begin{align*}
 \left. \frac{\partial^2 \mathcal{P} (\theta)}{\partial \theta^2}\right|_{\theta=0} = 4 \beta^{PM}
 \end{align*}
+
+** Localization procedure
+
+Localization procedure:
+
+To do the localization we compute the gradient and the
+diagonal hessian of the Foster-Boys criterion with respect to the MO
+rotations and we minimize it with the Newton method.
+
+In order to avoid the problem of starting on a saddle point, the
+localization procedure starts by giving a little kick in the MOs, by
+putting "kick in mos" true, in order to break the symmetry and escape
+from a possible saddle point.
+
+In order to speed up the iteration we compute the gradient, the
+diagonal hessian and the step in temporary matrices of the size
+(number MOs in mo class by number MOs in mo class)
 
 ** Remarks
 
@@ -622,8 +445,8 @@ subroutine run_localization
   print*, 'Security mo_class:', security_mo_class
 
   ! The default mo_classes are setted only if the MOs to localize are not specified
-  if (security_mo_class .and. (dim_list_act_orb == mo_num .or. &
-      dim_list_core_orb + dim_list_act_orb == mo_num)) then
+  if (security_mo_class .and. (n_act_orb == mo_num .or. &
+      n_core_orb + n_act_orb == mo_num)) then
 
     print*, 'WARNING'
     print*, 'You must set different mo_class with qp set_mo_class'
@@ -835,7 +658,7 @@ subroutine run_localization
 
         ! Internal loop exit condition
         if (must_exit) then
-          print*,'trust_region_step_w_expected_e sent the message : Exit'
+          print*,'trust_region_step_w_expected_e sent: Exit'
           exit 
         endif
 
@@ -847,7 +670,7 @@ subroutine run_localization
              info, enforce_step_cancellation)
 
         if (enforce_step_cancellation) then
-          print*, 'Forces the step cancellation, too large error in the rotation matrix'
+          print*, 'Step cancellation, too large error in the rotation matrix'
           rho = 0d0
           cycle
         endif
@@ -929,7 +752,7 @@ subroutine run_localization
 end   
 #+END_SRC
 
-** Rassemblement bourrin
+** Gathering
 Gradient/hessian/criterion for the localization:
 They are chosen in function of the localization method
 
@@ -992,7 +815,7 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
 
   if (localization_method == 'boys') then
     call hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
-    !call hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
+    !call hessian_FB(tmp_n, tmp_list_size, tmp_list, H) ! non OMP for debugging
   elseif (localization_method == 'pipek') then
     call hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   else
@@ -1021,9 +844,7 @@ subroutine criterion_localization(tmp_list_size, tmp_list,criterion)
     call criterion_FB(tmp_list_size, tmp_list, criterion)
   elseif (localization_method == 'pipek') then
     !call criterion_PM(tmp_list_size, tmp_list,criterion)
-    !print*,'v1', criterion
     call criterion_PM_v3(tmp_list_size, tmp_list, criterion)
-    !print*,'v3', criterion
   else
     criterion = 0d0
   endif
@@ -1735,29 +1556,29 @@ subroutine hess_pipek(tmp_n, tmp_list_size, tmp_list, H)
     H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) < max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Min elem H:', max_elem
-
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) > max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Max elem H:', max_elem
-  
-  max_elem = 1d10
-  do tmp_k = 1, tmp_n
-    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Near 0 elem H:', max_elem
+!  max_elem = 0d0
+!  do tmp_k = 1, tmp_n
+!    if (H(tmp_k,tmp_k) < max_elem) then
+!      max_elem = H(tmp_k,tmp_k)
+!    endif
+!  enddo
+!  print*, 'Min elem H:', max_elem
+!
+!  max_elem = 0d0
+!  do tmp_k = 1, tmp_n
+!    if (H(tmp_k,tmp_k) > max_elem) then
+!      max_elem = H(tmp_k,tmp_k)
+!    endif
+!  enddo
+!  print*, 'Max elem H:', max_elem
+!  
+!  max_elem = 1d10
+!  do tmp_k = 1, tmp_n
+!    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
+!      max_elem = H(tmp_k,tmp_k)
+!    endif
+!  enddo
+!  print*, 'Near 0 elem H:', max_elem
 
   ! Deallocation
   deallocate(beta,tmp_int)
@@ -2344,221 +2165,6 @@ subroutine compute_std_var_sp_ext(spatial_extent, list, list_size, average, std_
   std_var = dsqrt(1d0/DBLE(list_size) * std_var)
 
 end
-#+END_SRC
-
-** Pairwise
-#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
-! Doesn't work during the last try but was working at one moment, idk
-subroutine compute_theta_FB(m_theta)
-
-  include 'constants.h'
-
-  implicit none
-  
-  integer :: i,j
-  double precision, intent(out) :: m_theta(mo_num, mo_num)
-
-  double precision, allocatable :: A12(:,:), B12(:,:)
-
-  allocate(A12(mo_num, mo_num), B12(mo_num, mo_num))
-  
-  !A12
-  do j = 1, mo_num
-    do i = 1, mo_num
-      A12(i,j) = mo_dipole_x(i,j) * mo_dipole_x(i,j) &
-                 - 0.25d0 * (mo_dipole_x(i,i) - mo_dipole_x(j,j)) * &
-                 (mo_dipole_x(i,i) - mo_dipole_x(j,j)) &
-                + &
-                mo_dipole_y(i,j) * mo_dipole_y(i,j) &
-                 - 0.25d0 * (mo_dipole_y(i,i) - mo_dipole_y(j,j)) * &
-                 (mo_dipole_y(i,i) - mo_dipole_y(j,j)) &
-                + &
-                mo_dipole_z(i,j) * mo_dipole_z(i,j) &
-                 - 0.25d0 * (mo_dipole_z(i,i) - mo_dipole_z(j,j)) * &
-                 (mo_dipole_z(i,i) - mo_dipole_z(j,j))
-    enddo
-  enddo
-
-  ! B12
-  do j = 1, mo_num
-    do i = 1, mo_num
-      B12(i,j) = (mo_dipole_x(i,i) - mo_dipole_x(j,j)) * mo_dipole_x(i,j) &
-                 + &
-                 (mo_dipole_y(i,i) - mo_dipole_y(j,j)) * mo_dipole_y(i,j) &
-                 + &
-                 (mo_dipole_z(i,i) - mo_dipole_z(j,j)) * mo_dipole_z(i,j)
-    enddo
-  enddo
-
-  ! m_theta
-  do j = 1, mo_num
-    do i = 1, mo_num
-      if (i == j) then
-        m_theta(i,j) = 0d0     !(-B12(i,j), A12(i,j)) ?? pourquoi j'avais mis le - ici ????
-      elseif (0.25d0 * atan2(B12(i,j), -A12(i,j)) >= 0d0) then
-        m_theta(i,j) =  0d0 * pi * 0.25d0 + 0.25d0 * atan2(B12(i,j), -A12(i,j))
-      else
-        m_theta(i,j) = - 0d0 *pi * 0.25d0 + 0.25d0 * atan2(B12(i,j), -A12(i,j))
-      endif
-    enddo
-  enddo
-
-  deallocate(A12,B12)
-
-end subroutine
-
-subroutine compute_theta_PM(list_size,list,m_theta)
-
-  implicit none
-
-  integer, intent(in) :: list_size, list(list_size)
-  double precision, intent(out) :: m_theta(mo_num,mo_num) 
-  integer :: i,j, a, b, rho, mu,tmp_i,tmp_j
-  double precision, allocatable :: A12(:,:), B12(:,:), tmp_int(:,:)
-  double precision :: atan2
-
-  allocate(A12(mo_num,mo_num),B12(mo_num,mo_num), tmp_int(mo_num,mo_num))
-  A12 = 0d0
-  B12 = 0d0
-  do a = 1, nucl_num ! loop over the nuclei
-    tmp_int = 0d0
-
-    do tmp_j = 1, list_size
-      j = list(tmp_j)
-      do tmp_i = 1, list_size
-        i = list(tmp_i)
-        do rho = 1, ao_num ! loop over all the AOs
-          do b = 1, nucl_n_aos(a) ! loop over the number of AOs which belongs to the nuclei a
-            mu = nucl_aos(a,b)
-
-            tmp_int(i,j) = tmp_int(i,j) + 0.5d0 * (mo_coef(rho,i) * ao_overlap(rho,mu) * mo_coef(mu,j) &
-                                   + mo_coef(mu,i) * ao_overlap(mu,rho) * mo_coef(rho,j))
-
-          enddo
-        enddo  
-      enddo
-    enddo
-
-   do j = 1, mo_num
-      do i = 1, mo_num
-
-        A12(i,j) = A12(i,j) + tmp_int(i,j)**2 - 0.25d0 *(tmp_int(i,i) - tmp_int(j,j))**2
-
-      enddo
-    enddo
-
-    do j = 1, mo_num
-      do i = 1, mo_num
-
-        B12(i,j) = B12(i,j) + tmp_int(i,j) * (tmp_int(i,i) - tmp_int(j,j))
-
-      enddo
-    enddo
-
-  enddo
-
-  ! m_theta
-  do tmp_j = 1, list_size
-    j = list(tmp_j)
-    do tmp_i = 1, list_size
-      i = list(tmp_i)
-      if (i == j) then
-        m_theta(i,j) = 0d0 
-      else
-        m_theta(i,j) = 0.25d0 * atan2(B12(i,j), -A12(i,j))
-      endif
-    enddo
-  enddo
-
-  do i = 1, mo_num
-    write(*,'(10E12.5)') m_theta(i,:)
-  enddo
-
-  deallocate(A12,B12)
-  
-end
-
-subroutine research_max_theta(mo_beg, mo_end, m_theta, i_theta_max, j_theta_max, theta_max)
-
-  implicit none
-
-  integer, intent(in) :: mo_beg, mo_end
-  double precision, intent(in) :: m_theta(mo_num, mo_num)
-  integer, intent(out) :: i_theta_max, j_theta_max
-  double precision, intent(out) :: theta_max
-  integer :: i,j
-  
-  ! research the max theta for the MOs between mo_beg and mo_end
-
-  theta_max = 0d0
-  do j = mo_beg, mo_end
-    do i = mo_beg, mo_end
-      if (ABS(theta_max) <= ABS(m_theta(i,j))) then
-        i_theta_max = i 
-        j_theta_max = j 
-        theta_max =  m_theta(i,j)
-      endif
-    enddo
-  enddo
-
-end subroutine
-
-subroutine apply_pairwise_rotation(i_theta_max, j_theta_max, theta_max)
-
-  implicit none
-
-  integer, intent(in) :: i_theta_max, j_theta_max
-  double precision, intent(in) :: theta_max
-  double precision, allocatable :: new_mos(:,:)
-  integer :: k
-
-  allocate(new_mos(ao_num, mo_num))
-
-  ! Rotation
-  new_mos = mo_coef
-
-  do k = 1, ao_num
-    new_mos(k, i_theta_max) = mo_coef(k, i_theta_max) * cos(theta_max) &
-                            + mo_coef(k, j_theta_max) * sin(theta_max)
-    new_mos(k, j_theta_max) = - mo_coef(k, i_theta_max) * sin(theta_max) &
-                            + mo_coef(k, j_theta_max) * cos(theta_max)
-  enddo
-
-  mo_coef = new_mos
-  call save_mos()
-  
-end subroutine
-
-! It works but it needs the four index integrals... => bad
-!subroutine compute_hf_energy()
-!
-!  implicit none
-!
-!  double precision :: energy, mo_two_e_integral
-!  integer :: i,j,k,l
-!
-!  energy = 0d0
-!  do j = 1, mo_num
-!    do i = 1, mo_num
-!      energy = energy + mo_one_e_integrals(i,j) * one_e_dm_mo(i,j)
-!    enddo
-!  enddo
-!
-!  do l = 1, mo_num
-!    do k = 1, mo_num
-!      do j = 1, mo_num
-!        do i = 1, mo_num
-!          energy = energy +0.5d0 * mo_two_e_integral(i,j,k,l) * two_e_dm_mo(i,j,k,l)
-!        enddo
-!      enddo
-!    enddo
-!  enddo
-!
-!  energy = energy + nuclear_repulsion
-!
-!  print*,'energy scf', energy
-!
-!end subroutine
 #+END_SRC
 
 ** Utils

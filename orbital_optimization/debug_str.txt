@@ -1,0 +1,6 @@
+# 
+debug_hessian_opt             qp_run debug_hessian_opt ezfio | grep "Max error :" | awk '{printf $4 }'                    
+debug_hessian_list_opt        qp_run debug_hessian_list_opt ezfio | grep "Max error :" | awk '{printf $4 }'          
+debug_gradient_opt            qp_run debug_gradient_opt ezfio | grep "Max error :" | awk '{printf $4 }'    
+debug_gradient_list_opt       qp_run debug_gradient_list_opt ezfio | grep "Max error :" | awk '{printf $4 }'          
+orb_opt_trust_v2              qp_run orb_opt_trust_v2 ezfio | grep "Energy of state " | tail -n 1 | awk '{printf $6}'

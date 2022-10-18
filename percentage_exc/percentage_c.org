@@ -1,0 +1,313 @@
+* Percentage C
+
+Program to print the contribution of each excitation degree to the
+norm of the wave function.
+
+By setting:
+qp set percent_exc ref_type 2
+you can replace the HF reference by one or many determinants.
+To do that you have to create a file "ref.txt" containing on the first
+line the number of determinants for your reference, and one
+determinant per line by writing the 2 N_int integer of each
+determinants (the first N_int integer for the alpha part and the last
+N_int integer for the beta part).
+
+#+BEGIN_SRC f90 :comments org :tangle print_percentage_c.irp.f
+program print_percentage_c
+
+  implicit none
+
+  BEGIN_DOC
+  ! %C_k = % of contribution of the k excited determinants to the norm of the wave function
+  END_DOC
+
+  read_wf = .True.
+  TOUCH read_wf
+
+  call run_print_percentage_c
+
+end
+#+END_SRC
+
+Provided
+| max_exc_degree    | integer | maximum excitation degree        |
+| percentage_in_exp | logical | to use or not exponential format |
+
+internal
+| percentage(max_exc_degree+1,N_states) | double precision | The ith element is the percentage of |
+|                                       |                  | the i-1 coefficients/excitations     |
+| list_states(N_states)                 | integer          | list of states                       |
+| accu(N_states)                        | double precision | temporary array                      |
+| exc                                   | character        | excitation degree                    |
+
+#+BEGIN_SRC f90 :comments org :tangle percentage_c.irp.f
+subroutine run_print_percentage_c
+
+  implicit none
+
+  integer :: i,s
+  integer, allocatable :: list_states(:)
+  double precision, allocatable :: percentage(:,:), accu(:)
+  character(len=2) :: exc
+
+  allocate(percentage(max_exc_degree+1, n_states), accu(n_states), list_states(n_states))
+
+  call percentage_c(percentage)
+
+  ! List of states
+  do s = 1, n_states
+   list_states(s) = s
+  enddo   
+
+  print*,''
+  print*,'==============='
+  print*,'### Summary ###'
+  print*,'==============='
+  
+  ! Percentage per excitation degree  
+  print*,''
+  print*,'Percentage of the excitations per state:'
+  write(*,'(A4,100(I12))') '', list_states(:)
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), percentage(i,:)
+    enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), percentage(i,:)
+    enddo
+  endif
+
+  ! Percentage per excitation degree in intermediate normalization
+  print*,''
+  print*,'Percentage of the excitations'
+  print*,'in intermediate normalization, %C0=1:'
+  print*,'Warning: Will be NaN/Infinity if %C0 = 0'
+  write(*,'(A4,100(I12))') '', list_states(:)
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), percentage(i,:)/percentage(1,:)
+    enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), percentage(i,:)/percentage(1,:)
+    enddo
+  endif
+
+  ! Sum of the percentages of the different excitation degrees
+  print*,''
+  print*,'Sum of the contributions per state:'
+  write(*,'(A4,100(I12))') '', list_states(:)
+  accu = 0d0
+  if (percentage_in_exp) then
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), accu(:)
+    enddo
+  else
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), accu(:)
+    enddo
+  endif
+
+  ! Missing contribution after the addition of the contributions of the previous
+  ! excitation degrees
+  print*,''
+  print*,'Missing contributions per state:'
+  write(*,'(A4,100(I12))') '', list_states(:)
+  if (percentage_in_exp) then
+    accu = 0d0
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), 100d0-accu(:)        
+    enddo
+  else
+    accu = 0d0
+    do i = 1, min(max_exc_degree+1,nb_max_percentage)
+      do s = 1, n_states
+        accu(s) = accu(s) + percentage(i,s)
+      enddo
+      write (exc,'(I2)') i-1
+      write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), 100d0-accu(:)        
+    enddo
+  endif
+
+  deallocate(percentage, accu, list_states)
+
+end
+#+END_SRC
+
+** Calculation of the percentages
+
+\begin{equation}
+C_i = \sum_i c_i^2
+\end{equation}
+
+Provided
+| N_states                 | integer            | number of states          |
+| max_exc_degree           | integer            | maximum excitation degree |
+| HF_bitmask               | integer(bitstring) | HF determinants           |
+| psi_det(N_int,2,N_det)   | integer(bitstring) | Determinants              |
+| psi_coef(N_det,N_states) | double precision   | CI coefficients           |
+| N_int                    | integer            | Number of int per det     |
+| N_det                    | integer            | Number of det             |
+
+Out
+| percentage(max_exc_degree + 1, n_states) | double precision | The ith element is the percentage of |
+|                                          |                  | the i-1 coefficients/excitations     |
+
+Internal
+| degree                    | integer           | excitation degree                              |
+| ndet_ref                  | integer           | number of reference determinants               |
+| idx_det(ndet_ref)         | integer           | index of the HF det / reference det in psi_det |
+| ref_det(N_int,2,ndet_ref) | integer(bit_kind) |                                                |
+| i,s                       | integer           | dummy indexes                                  |
+
+#+BEGIN_SRC f90 :comments org :tangle percentage_c.irp.f
+subroutine percentage_c(percentage)
+
+  implicit none
+
+  ! out
+  double precision, intent(out)  :: percentage(max_exc_degree + 1, N_states) 
+
+  ! internal
+  integer                        :: i,j, s, degree, ndet_ref
+  integer, allocatable           :: idx_det(:)
+  integer(bit_kind), allocatable :: ref_det(:,:,:)
+  double precision, allocatable  :: tmp_percentage(:,:,:)
+  integer, allocatable           :: list_states(:)
+  character(len=2)               :: exc
+
+  allocate(list_states(N_states))
+
+  list_states = 0
+  
+  ! %C(n,s_state) = \sum_i psi_coef(i,s)**2 s.t. excitation_degree(|ref>,|i>) = n
+
+  ! HF ref
+  if (ref_type == 1) then
+    ! Contribution of HF det
+    print*,'HF reference:'
+    ndet_ref = 1
+    allocate(ref_det(N_int,2,ndet_ref))
+    ref_det(:,:,1) = HF_bitmask
+    call print_det(ref_det(1,1,1), N_int)
+    print*,''
+
+  elseif (ref_type == 2) then
+    ! Non-HF det or list of dets
+    print*,'Non-HF reference:'
+     
+    open(unit=11,file='ref.txt')
+      read(11,*) ndet_ref
+      allocate(ref_det(N_int,2,ndet_ref))
+         
+      do i = 1, ndet_ref
+        read(11,*) ref_det(:,:,i)
+      enddo
+    close(11)
+    
+    do i = 1, ndet_ref
+      print*, i
+      call print_det(ref_det(1,1,i), N_int)
+      print*,''
+    enddo
+  else
+     ! Unknown
+     print*, 'Unknown ref type, choose 1 or 2, abort'
+     call abort
+  endif
+  
+  ! indexes
+  allocate(idx_det(ndet_ref))
+  idx_det = 0
+  do i = 1, ndet_ref
+    call find_det(ref_det(1,1,i),idx_det(i))
+  enddo
+
+  allocate(tmp_percentage(ndet_ref, max_exc_degree + 1, N_states))
+  percentage = 0d0
+  tmp_percentage = 0d0
+  
+  ! Ref
+  do s = 1, N_states
+    do i = 1, ndet_ref
+      percentage(1,s) = percentage(1,s) + psi_coef(idx_det(i),s)**2
+      tmp_percentage(i,1,s) = tmp_percentage(i,1,s) + psi_coef(idx_det(i),s)**2
+    enddo
+  enddo
+  
+  ! Others determinants
+  do i = 1, N_det
+    do j = 1, ndet_ref 
+      call get_excitation_degree(ref_det(1,1,j), psi_det(1,1,i), degree, N_int)
+      if (degree == 0) then
+        cycle
+      endif
+      do s = 1, N_states
+        percentage(degree+1, s) = percentage(degree+1, s) + psi_coef(i,s)**2
+        tmp_percentage(j,degree+1, s) = tmp_percentage(j,degree+1, s) + psi_coef(i,s)**2
+      enddo
+    enddo
+  enddo
+
+  percentage = 0d0
+  do i = 1, ndet_ref
+    do j = 1, size(percentage,1)
+      do s = 1, N_states
+        percentage(j,s) = percentage(j,s) + tmp_percentage(i,j,s)
+      enddo
+    enddo
+  enddo
+  
+  percentage = percentage * 100d0 / ndet_ref
+  tmp_percentage = tmp_percentage * 100d0
+  
+  ! List of states
+  do s = 1, n_states
+   list_states(s) = s
+  enddo
+
+  ! %C_n for each determinant of the non-HF reference
+  if (ndet_ref > 1) then
+    print*,''
+    print*,'%C_n per state for each determinant of the non-HF reference:'
+    do j = 1, ndet_ref
+      print*,'For:'
+      call print_det(ref_det(1,1,j),N_int)
+      ! Percentage per excitation degree
+      write(*,'(A4,100(I12))') '', list_states(:)
+      if (percentage_in_exp) then
+        do i = 1, min(max_exc_degree+1,nb_max_percentage)
+          write (exc,'(I2)') i-1
+          write (*, '(A2,A2,100(1pE12.4))') '%C', adjustl(exc), tmp_percentage(j,i,:)
+        enddo
+      else
+        do i = 1, min(max_exc_degree+1,nb_max_percentage)
+          write (exc,'(I2)') i-1
+          write (*, '(A2,A2,100(F12.4))') '%C', adjustl(exc), tmp_percentage(j,i,:)
+        enddo
+      endif
+      print*,''
+    enddo
+  endif
+  
+  deallocate(ref_det,idx_det)
+  
+end
+#+END_SRC

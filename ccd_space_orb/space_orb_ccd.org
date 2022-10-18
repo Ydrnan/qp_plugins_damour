@@ -1405,7 +1405,7 @@ subroutine space_ccd_g_occ(t2,g_occ)
 
   do k = 1, nO
     do i = 1, nO
-      g_occ(i,k) = f_oo(i,k)
+      g_occ(i,k) = fcc_oo(i,k)
     enddo
   enddo
   
@@ -1478,7 +1478,7 @@ subroutine space_ccd_g_vir(t2,g_vir)
 
   do a = 1, nV
     do c = 1, nV
-      g_vir(c,a) = f_vv(c,a)
+      g_vir(c,a) = fcc_vv(c,a)
     enddo
   enddo
 

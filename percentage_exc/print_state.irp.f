@@ -50,12 +50,12 @@ subroutine print_state(istate)
     write(*,'(A6,I10,A8,I4,A11,1pE14.6)') 'Det n. ', i, ', state n.', istate, ', |coef| = ', coef(i)
 
     ! Exc / ref
-    call get_excitation_degree(psi_det(N_int,1,1),psi_det(N_int,1,det(i)),degree,N_int)
+    call get_excitation_degree(psi_det(1,1,1),psi_det(1,1,det(i)),degree,N_int)
     write(*,'(A20,I3)') 'Excitation degree = ', degree
 
     ! Print exc
     if (degree <= 4 .and. degree > 0) then
-      call get_excitation_spin(psi_det_alpha(N_int,1),psi_det_alpha(N_int,det(i)),exc,degree,phase,N_int) 
+      call get_excitation_spin(psi_det_alpha(1,1),psi_det_alpha(1,det(i)),exc,degree,phase,N_int) 
       call decode_exc_spin(exc,h1,p1,h2,p2)
       if (degree == 1 ) then
         write(*,'(A4,I4,A3,I4)') 'Exc:', h1, ' ->', p1
@@ -63,7 +63,7 @@ subroutine print_state(istate)
         write(*,'(A4,I4,A3,I4,A1,I4,A3,I4)') 'Exc:', h1, ' ->', p1, ',', h2, ' ->', p2
       endif
 
-      call get_excitation_spin(psi_det_beta(N_int,1),psi_det_beta(N_int,det(i)),exc,degree,phase,N_int)
+      call get_excitation_spin(psi_det_beta(1,1),psi_det_beta(1,det(i)),exc,degree,phase,N_int)
       call decode_exc_spin(exc,h1,p1,h2,p2)
       if (degree == 1) then
         write(*,'(A4,I4,A3,I4)') 'Exc:', h1, ' ->', p1
@@ -73,7 +73,7 @@ subroutine print_state(istate)
     endif
 
     ! Print det
-    call print_det(psi_det(N_int,1,det(i)),N_int)
+    call print_det(psi_det(1,1,det(i)),N_int)
 
     i = i+1
     if (i > N_det) then

@@ -15,7 +15,7 @@ Internal:
 | lwork          | integer          | for Lapack                                      |
 | work(lwork,n)  | double precision | temporary array for Lapack                      |
 | info           | integer          | if 0 -> ok, else problem in the diagonalization |
-| i              | integer          | index                                           |
+| i,j            | integer          | dummy indexes                                   |
 
 #+BEGIN_SRC f90 :comments org :tangle diagonalization_hessian.irp.f
 subroutine diagonalization_hessian(n,H,e_val,w)
@@ -35,8 +35,9 @@ subroutine diagonalization_hessian(n,H,e_val,w)
 
   ! internal
   double precision, allocatable :: work(:,:)
+  integer, allocatable          :: key(:)
   integer                       :: info,lwork
-  integer                       :: i
+  integer                       :: i,j
   integer                       :: nb_negative_vp
   double precision              :: t1,t2,t3
 
@@ -45,51 +46,81 @@ subroutine diagonalization_hessian(n,H,e_val,w)
 
   call wall_time(t1)
 
-  ! Allocation
-  ! For Lapack
-  lwork=3*n-1
+  if (optimization_method == 'full') then
+    ! Allocation
+    ! For Lapack
+    lwork=3*n-1
 
-  allocate(work(lwork,n))
+    allocate(work(lwork,n))
 
-  ! Calculation
+    ! Calculation
 
-  ! Copy the hessian matrix, the eigenvectors will be store in W
-  W=H
+    ! Copy the hessian matrix, the eigenvectors will be store in W
+    W=H
 
-  ! Diagonalization of the hessian
-  call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
+    ! Diagonalization of the hessian
+    call dsyev('V','U',n,W,size(W,1),e_val,work,lwork,info)
 
-  if (info /= 0) then
-      print*, 'Error diagonalization : diagonalization_hessian'
-      print*, 'info = ', info
-      call ABORT
-  endif
-
-  if (debug) then
-    print *, 'vp Hess:'
-    write(*,'(100(F10.5))')  real(e_val(:))
-  endif
-
-  ! Number of negative eigenvalues
-  nb_negative_vp = 0
-  do i = 1, n
-    if (e_val(i) < 0d0) then
-      nb_negative_vp = nb_negative_vp + 1
-      print*,'e_val < 0 :', e_val(i)
+    if (info /= 0) then
+        print*, 'Error diagonalization : diagonalization_hessian'
+        print*, 'info = ', info
+        call ABORT
     endif
-  enddo
-  print*,'Number of negative eigenvalues:', nb_negative_vp
 
-  nb_negative_vp = 0
-  do i = 1, n
-    if (e_val(i) < -thresh_eig) then
-      nb_negative_vp = nb_negative_vp + 1
+    if (debug) then
+      print *, 'vp Hess:'
+      write(*,'(100(F10.5))')  real(e_val(:))
     endif
-  enddo
-  print*,'Number of negative eigenvalues <', -thresh_eig,':', nb_negative_vp  
 
-  ! Deallocation
-  deallocate(work)
+    ! Number of negative eigenvalues
+    nb_negative_vp = 0
+    do i = 1, n
+      if (e_val(i) < 0d0) then
+        nb_negative_vp = nb_negative_vp + 1
+        print*,'e_val < 0 :', e_val(i)
+      endif
+    enddo
+    print*,'Number of negative eigenvalues:', nb_negative_vp
+
+    nb_negative_vp = 0
+    do i = 1, n
+      if (e_val(i) < -thresh_eig) then
+        nb_negative_vp = nb_negative_vp + 1
+      endif
+    enddo
+    print*,'Number of negative eigenvalues <', -thresh_eig,':', nb_negative_vp  
+
+    ! Deallocation
+    deallocate(work)
+
+  elseif (optimization_method == 'diag') then
+    ! Diagonalization of the diagonal hessian by hands
+    allocate(key(n))
+    
+    do i = 1, n
+      e_val(i) = H(i,i)
+    enddo
+
+    ! Key list for dsort
+    do i = 1, n 
+      key(i) = i
+    enddo
+
+    ! Sort of the eigenvalues
+    call dsort(e_val, key, n)
+
+    ! Eigenvectors
+    W = 0d0
+    do i = 1, n
+      j = key(i)
+      W(j,i) = 1d0
+    enddo
+
+    deallocate(key)
+  else
+    print*,'Diagonalization_hessian, abort'
+    call abort
+  endif
 
   call wall_time(t2)
   t3 = t2 - t1

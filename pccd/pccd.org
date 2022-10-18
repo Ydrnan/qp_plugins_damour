@@ -5,8 +5,16 @@ program pccd
   implicit none
 
   call run_pccd
-  
-  call run_s_pccd
+
+  !epsilon_t2 = 1.00001d0
+  !TOUCH epsilon_t2
+  !do while (epsilon_t2 > 1d-8)
+  !  call run_s_pccd
+  !  call run_s_pccd_v2
+  !  epsilon_t2 = epsilon_t2 * 0.9d0
+  !  TOUCH epsilon_t2
+  !enddo
+
   
   !epsilon = 1d0
   !do while (epsilon > 1d-8)

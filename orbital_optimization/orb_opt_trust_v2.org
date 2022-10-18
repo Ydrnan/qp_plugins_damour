@@ -128,6 +128,8 @@ subroutine run_orb_opt_trust_v2
   elseif (optimization_method == 'diag') then
     print*,'Diagonal hessian'
   elseif (optimization_method == 'none') then
+    print*,'No hessian'
+  else
     print*,'Unknown optimization_method, please select full, diag or none'
     call abort
   endif
@@ -151,14 +153,6 @@ subroutine run_orb_opt_trust_v2
 #+END_SRC
 
 ** Calculations
-*** Initialization
-
-#+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
-  ! Initialization of the CI energy
-!  call diagonalize_ci
-
-#+END_SRC
-
 *** Algorithm
 
 Here is the main algorithm of the optimization:
@@ -174,6 +168,7 @@ Here is the main algorithm of the optimization:
 
 #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
   ! Loop until the convergence of the optimization
+  ! call diagonalize_ci 
 
   !### Initialization ###
   nb_iter = 0
@@ -182,31 +177,33 @@ Here is the main algorithm of the optimization:
   tmp_list = list_act ! Optimization of the active MOs
   nb_cancel_tot = 0
 
-  ! Renormalization of the weight of the states
-  if (normalized_st_av_weight) then
-    ! To put the same weight everywhere
-    do i = 1, N_states
-      state_average_weight(i) = 1d0/DBLE(N_states)
-    enddo
-    TOUCH state_average_weight
-  elseif (normalized_st_weight) then
-    ! To normalize the weights
-    normalization_factor = 0d0
-    do i = 1, N_states
-      normalization_factor = normalization_factor + state_average_weight(i)**2
-    enddo
-    normalization_factor = 1d0 / dsqrt(normalization_factor)
-    
-    do i = 1, N_states
-      state_average_weight(i) = state_average_weight(i) * normalization_factor
-    enddo
-    TOUCH state_average_weight
-  else
-    ! Nothing
-  endif
-  print*, 'Number of states:', N_states
-  print*, 'State average weights:'
-  print*, state_average_weight(:)
+  ! Renormalization of the weights of the states
+  call state_weight_normalization
+
+  !if (normalized_st_av_weight) then
+  !  ! To put the same weight everywhere
+  !  do i = 1, N_states
+  !    state_average_weight(i) = 1d0/DBLE(N_states)
+  !  enddo
+  !  TOUCH state_average_weight
+  !elseif (normalized_st_weight) then
+  !  ! To normalize the weights
+  !  normalization_factor = 0d0
+  !  do i = 1, N_states
+  !    normalization_factor = normalization_factor + state_average_weight(i)**2
+  !  enddo
+  !  normalization_factor = 1d0 / dsqrt(normalization_factor)
+  !  
+  !  do i = 1, N_states
+  !    state_average_weight(i) = state_average_weight(i) * normalization_factor
+  !  enddo
+  !  TOUCH state_average_weight
+  !else
+  !  ! Nothing
+  !endif
+  !print*, 'Number of states:', N_states
+  !print*, 'State average weights:'
+  !print*, state_average_weight(:)
 
   ! Compute the criterion before the loop
   call state_average_energy(prev_criterion)

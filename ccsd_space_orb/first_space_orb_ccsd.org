@@ -17,7 +17,7 @@ program first_space_orb_ccsd
   integer :: nO, nV
   integer :: nb_iter
   double precision :: get_two_e_integral
-  double precision :: energy, max_elem
+  double precision :: energy, max_elem, max_r, max_r1, max_r2
   logical :: not_converged
 
   double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
@@ -38,6 +38,21 @@ program first_space_orb_ccsd
   
   PROVIDE mo_two_e_integrals_in_map
 
+  if (elec_alpha_num /= elec_beta_num) then
+    print*, 'Only for closed shell systems'
+    print*, 'elec_alpha_num=',elec_alpha_num
+    print*, 'elec_beta_num=',elec_beta_num
+    print*, 'abort'
+    call abort
+  endif
+  if (n_act_orb == mo_num .or. n_act_orb + n_core_orb == mo_num) then
+    print*, 'Set the mo_class before the calculation'
+    print*, 'for the occupied orbitals -> actives'
+    print*, 'for the virtual orbitals -> virtuals'
+    print*, 'abort'
+    call abort
+  endif
+
   print*,'hf_energy', hf_energy
 
   ! Delta
@@ -46,7 +61,7 @@ program first_space_orb_ccsd
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          delta(i,j,a,b) = f_v(a) + f_v(b) - f_o(i) - f_o(j)
+          delta(i,j,a,b) = fcc_v(a) + fcc_v(b) - fcc_o(i) - fcc_o(j)
         enddo
       enddo
     enddo
@@ -69,29 +84,14 @@ program first_space_orb_ccsd
   ! Init t2
   tau = t2
 
+  max_r = 1d0
   nb_iter = 0
-  do while (nb_iter < 25)
+  do while (max_r > 1d-6)
+    print*,'Iter. n.:', nb_iter
   
     ! energy
-    energy = 0d0
-    do i = 1, nO
-      do a = 1, nV
-        energy = energy + 2d0 * f_vo(a,i) * t1(i,a)
-      enddo
-    enddo
-    do b = 1, nV
-      tmp_b = b + nO
-      do a = 1, nV
-        tmp_a = a + nO
-        do j = 1, nO
-          do i = 1, nO
-            energy = energy + tau(i,j,a,b) * w_oovv(i,j,a,b)
-         enddo
-        enddo
-      enddo
-    enddo
-    energy = energy + hf_energy
-    print*, 'E_CCSD', energy
+    call compute_e_ccsd(tau,t1,energy)
+    print*, 'E_CCSD', hf_energy + energy
 
     call compute_H_oo(t1,t2,tau,H_oo)
     call compute_H_vv(t1,t2,tau,H_vv)
@@ -100,11 +100,11 @@ program first_space_orb_ccsd
     r1 = 0d0
     do beta = 1, nV
       do u = 1, nO
-        r1(u,beta) = f_ov(u,beta)
+        r1(u,beta) = fcc_ov(u,beta)
 
         do i = 1, nO
           do a = 1, nV
-            r1(u,beta) = r1(u,beta) - 2d0 * f_vo(a,i) * t1(i,beta) * t1(u,a)
+            r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
           enddo
         enddo
 
@@ -231,29 +231,31 @@ program first_space_orb_ccsd
       enddo
     enddo
 
-    max_elem = 0d0
+    max_r2 = 0d0
     do b = 1, nV
       do a = 1, nV
         do j = 1, nO
           do i = 1, nO
-            if (max_elem < dabs(r2(i,j,a,b))) then
-              max_elem = dabs(r2(i,j,a,b))
+            if (max_r2 < dabs(r2(i,j,a,b))) then
+              max_r2 = dabs(r2(i,j,a,b))
             endif
           enddo
         enddo
       enddo
     enddo
-    print*,'max r2', max_elem
+    print*,'max r2', max_r2
 
-    max_elem = 0d0
+    max_r1 = 0d0
     do a = 1, nV
       do i = 1, nO
-        if (max_elem < dabs(r1(i,a))) then
-          max_elem = dabs(r1(i,a))
+        if (max_r1 < dabs(r1(i,a))) then
+          max_r1 = dabs(r1(i,a))
         endif
       enddo
     enddo
-    print*,'max r1', max_elem
+    print*,'max r1', max_r1
+
+    max_r = MAX(max_r1,max_r2)
 
 
     ! Update t2
@@ -270,7 +272,7 @@ program first_space_orb_ccsd
     ! Update t1
     do a = 1, nV
       do i = 1, nO
-        t1(i,a) = t1(i,a) - r1(i,a) / (f_v(a) - f_o(i))
+        t1(i,a) = t1(i,a) - r1(i,a) / (fcc_v(a) - fcc_o(i))
       enddo
     enddo
 
@@ -288,25 +290,69 @@ program first_space_orb_ccsd
     nb_iter = nb_iter + 1
   enddo
 
+  call compute_e_ccsd(tau,t1,energy)
+  print*,''
+  print*,'E_CCSD:', hf_energy + energy
+
   ! CCSD(T)
   double precision, allocatable :: W1(:,:,:,:,:,:)
   double precision, allocatable :: V1(:,:,:,:,:,:)
   double precision :: e_ccsdt
-  allocate(W1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
-  allocate(V1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
 
-  call form_w(t2,W1)
-  call form_v(t1,w1,v1)
-  call space_ccsd_par_t_energy(t1,t2,W1,V1,e_ccsdt)
+  if (elec_alpha_num + elec_beta_num > 2) then 
+    allocate(W1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
+    allocate(V1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
 
-  print*,"delta (T):", e_ccsdt
-  print*,"E_CCSD(T):", energy + e_ccsdt
+    call form_w(t2,W1)
+    call form_v(t1,w1,v1)
+    call space_ccsd_par_t_energy(t1,t2,W1,V1,e_ccsdt)
 
-  deallocate(v1,w1)
+    print*,''
+    print*,"delta (T):", e_ccsdt
+    print*,"E_CCSD(T):", hf_energy + energy + e_ccsdt
+
+    deallocate(v1,w1)
+  endif
 
   deallocate(t1,r1,t2,r2,delta,tau)
   deallocate(g_occ,g_vir,J1,K1,A1,B1,H_oo,H_vv,H_vo)
 
+end
+#+END_SRC
+
+
+#+BEGIN_SRC f90 :comments org :tangle first_space_orb_ccsd.irp.f
+subroutine compute_e_ccsd(tau,t1,energy)
+
+  implicit none
+
+  double precision, intent(in) :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(out) :: energy
+
+  ! internal
+  integer :: nO, nV
+  integer :: i,j,a,b
+
+  nO = dim_list_act_orb
+  nV = dim_list_virt_orb
+  
+  energy = 0d0
+  do i = 1, nO
+    do a = 1, nV
+      energy = energy + 2d0 * fcc_vo(a,i) * t1(i,a)
+    enddo
+  enddo
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          energy = energy + tau(i,j,a,b) * w_oovv(i,j,a,b)
+       enddo
+      enddo
+    enddo
+  enddo
+  
 end
 #+END_SRC
 
@@ -330,7 +376,7 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
 
   do i = 1, nO
     do u = 1, nO
-      H_oo(u,i) = f_oo(u,i)
+      H_oo(u,i) = fcc_oo(u,i)
 
       do j = 1, nO
         do a = 1, nV
@@ -366,7 +412,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   do beta = 1, nV
     do a = 1, nV
-      H_vv(a,beta) = f_vv(a,beta)
+      H_vv(a,beta) = fcc_vv(a,beta)
 
       do j = 1, nO
         do i = 1, nO
@@ -401,7 +447,7 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
   do i = 1, nO
     do a = 1, nV
-      H_vo(a,i) = f_vo(a,i)
+      H_vo(a,i) = fcc_vo(a,i)
 
       do j = 1, nO
         do b = 1, nV
@@ -516,7 +562,7 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
       g_occ(u,i) = H_oo(u,i)
       
       do a = 1, nV
-        g_occ(u,i) = g_occ(u,i) + f_vo(a,i) * t1(u,a)
+        g_occ(u,i) = g_occ(u,i) + fcc_vo(a,i) * t1(u,a)
         
         do j = 1, nO
           g_occ(u,i) = g_occ(u,i) + (2d0 * v_ovoo(u,a,i,j) - v_ovoo(u,a,j,i)) * t1(j,a)
@@ -551,7 +597,7 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
       g_vir(a,beta) = H_vv(a,beta)
       
       do i = 1, nO
-        g_vir(a,beta) = g_vir(a,beta) - f_vo(a,i) * t1(i,beta)
+        g_vir(a,beta) = g_vir(a,beta) - fcc_vo(a,i) * t1(i,beta)
         
         do b = 1, nV
           g_vir(a,beta) = g_vir(a,beta) + (2d0 * v_vvvo(a,b,beta,i) - v_vvvo(b,a,beta,i)) * t1(i,b)
@@ -685,7 +731,7 @@ subroutine space_ccsd_par_t_energy(t1,t2,W,V,energy)
         do c = 1, nV
           do b = 1, nV
             do a = 1, nV
-              energy = energy + (4d0 * W(i,j,k,a,b,c) + W(i,j,k,b,c,a) + W(i,j,k,c,a,b)) * (V(i,j,k,a,b,c) - V(i,j,k,c,b,a)) / (f_o(i) + f_o(j) + f_o(k) - f_v(a) - f_v(b) - f_v(c))  !delta_ooovvv(i,j,k,a,b,c)
+              energy = energy + (4d0 * W(i,j,k,a,b,c) + W(i,j,k,b,c,a) + W(i,j,k,c,a,b)) * (V(i,j,k,a,b,c) - V(i,j,k,c,b,a)) / (fcc_o(i) + fcc_o(j) + fcc_o(k) - fcc_v(a) - fcc_v(b) - fcc_v(c))  !delta_ooovvv(i,j,k,a,b,c)
             enddo
           enddo
         enddo

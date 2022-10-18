@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Check if the QP_ROOT environment variable is set.
+if [[ -z ${QP_ROOT} ]]
+then
+  print "The QP_ROOT environment variable is not set."
+  print "Please reload the quantum_package.rc file."
+  exit -1
+fi
+
+which emacs
+if [[ $? -ne 0 ]] ; then
+   echo "Please install Emacs to generate the source code"
+   exit 1
+fi
+
+for element in *.org
+do
+  emacs --batch $element -f org-babel-tangle
+done
+

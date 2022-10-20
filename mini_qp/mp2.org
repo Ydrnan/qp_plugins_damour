@@ -4,7 +4,7 @@ program mp2
   implicit none
 
   call run_mp2()
-  call run_mp2_ont_det()
+  call run_mp2_sp()
 
 end
 #+end_src
@@ -51,126 +51,225 @@ end
 #+end_src
 
 #+begin_src f90 :comments org :tangle mp2.irp.f
-subroutine run_mp2_ont_det()
+subroutine run_mp2_sp
 
   use bitmasks
   implicit none
 
-  double precision              :: E, mo_two_e_integral, div
-  integer                       :: i,j,a,b,tmp_i,tmp_j,tmp_a,tmp_b
-  integer                       :: nI, nV, nA
-
+  integer                        :: i,j,a,b
+  integer                        :: tmp_i,tmp_j,tmp_a,tmp_b
+  integer                        :: si,sj,sa,sb
+  integer                        :: s1,h1,tmp_h1
+  integer                        :: nOa,nVa,nOb,nVb,nO,nV
+  integer                        :: ni,nj,na,nb
+  integer                        :: idx_oa,idx_ob,idx_va,idx_vb
+  double precision               :: E2, mo_two_e_integral, div, H_ii
   integer(bit_kind), allocatable :: det(:,:), res(:,:)
-  logical, allocatable :: act_p(:,:)
-  integer :: s1,s2,h1,tmp_h
-  logical :: is_p
+  logical                        :: is_p
+  integer, allocatable           :: occ_a(:), vir_a(:)
+  integer, allocatable           :: occ_b(:), vir_b(:)
+  integer, allocatable           :: act_occ_a(:), act_vir_a(:)
+  integer, allocatable           :: act_occ_b(:), act_vir_b(:)
+  double precision, allocatable  :: fock_diag_tmp(:,:)
 
-  nI = n_inact_orb
-  nA = n_act_orb
-  nV = n_virt_orb
-
-  print*,'n_inact_orb =', n_inact_orb
-  print*,'n_act_orb   =', n_act_orb
-  print*,'n_virt_orb  =', n_virt_orb
+  ! Frozen core
+  nO = elec_alpha_num - n_core_orb
+  nV = mo_num - elec_alpha_num
+  nOA = elec_alpha_num - n_core_orb - n_inact_orb
+  nVA = n_act_orb - nOA
   
-  allocate(det(N_int,2), res(N_int,2), act_p(2,nA))
+  allocate(det(N_int,2), res(N_int,2))
+  allocate(occ_a(nO), vir_a(nV))
+  allocate(occ_b(nO), vir_b(nV))
+  allocate(act_occ_a(max(1,nOA)), act_vir_a(max(1,nVA)))
+  allocate(act_occ_b(max(1,nOA)), act_vir_b(max(1,nVA)))
+  allocate(fock_diag_tmp(2,mo_num+1))
   
-  det(:,:) = psi_det(:,:,1)
+  det(:,:) = psi_det(:,:,3)
 
-  ! List of occupied
-  !call bitstring_to_list(det(:,1), occ_a, mo_num, N_int)
-  !call bitstring_to_list(det(:,2), occ_b, mo_num , N_int)
-  !print*,'occ a', occ_a
+  call build_fock_tmp(fock_diag_tmp,det,N_int)
 
+  ! List of occupied/virtual spin orbitals
+  idx_oa = 1
+  idx_ob = 1
+  idx_va = 1
+  idx_vb = 1
   do s1 = 1, 2
-    do h1 = 1, nA
-      tmp_h = list_act(h1)
-      call apply_hole(det,s1,tmp_h,res,is_p,N_int)
-      act_p(s1,h1) = is_p
+    do h1 = n_core_orb+1, mo_num
+      call apply_hole(det,s1,h1,res,is_p,N_int)
+      if (is_p) then
+        if (s1 == 1) then
+          occ_a(idx_oa) = h1
+          idx_oa = idx_oa+1
+        else
+          occ_b(idx_ob) = h1
+          idx_ob = idx_ob+1
+        endif
+      else
+        if (s1 == 1) then
+          vir_a(idx_va) = h1
+          idx_va = idx_va+1
+        else
+          vir_b(idx_vb) = h1
+          idx_vb = idx_vb+1
+        endif
+      endif   
     enddo
   enddo
 
-  print*,'act_p'
-  print*,act_p(1,:)
-  print*,act_p(2,:)
-  
-  ! Inact -> virt
-  ! sum_i^inact sum_j^inact
-  E = 0d0
-  do tmp_b = 1, nV
-    b = list_virt(tmp_b)
-    do tmp_a = 1, nV
-      a = list_virt(tmp_a)
-      do tmp_j = 1, nI
-        j = list_inact(tmp_j)
-        do tmp_i = 1, nI
-           i = list_inact(tmp_i)
-           E = E - ( 2d0 * (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 &
-                     + 2d0 * mo_two_e_integral(i,j,a,b)**2                              &
-                     + 2d0 * mo_two_e_integral(i,j,b,a)**2 )                            &
-              / (fock_matrix_mo(a,a) + fock_matrix_mo(b,b)                              &
-               - fock_matrix_mo(i,i) - fock_matrix_mo(j,j))
-        enddo
-      enddo
+  ! List of occupied/virtual active spin orbitals
+  idx_oa = 1
+  idx_ob = 1
+  idx_va = 1
+  idx_vb = 1
+  do s1 = 1,2
+    do tmp_h1 = 1, n_act_orb
+      h1 = list_act(tmp_h1)
+      call apply_hole(det,s1,h1,res,is_p,N_int)
+      if (is_p) then
+        if (s1 == 1) then
+          act_occ_a(idx_oa) = h1
+          idx_oa = idx_oa+1
+        else
+          act_occ_b(idx_ob) = h1
+          idx_ob = idx_ob+1
+        endif
+      else
+        if (s1 == 1) then
+          act_vir_a(idx_va) = h1
+          idx_va = idx_va+1
+        else
+          act_vir_b(idx_vb) = h1
+          idx_vb = idx_vb+1
+        endif
+      endif   
     enddo
   enddo
 
-  ! Act -> virt
-
-  ! sum_i^occ sum_j^occ = sum_i^inact sum_j^inact
-  !                     + sum_i^act,occ sum_j^act,occ
-  !                     + sum_i^inact sum_j^act,occ
-  !                     + sum_i^act,occ sum_j^inact
-
-  ! sum_i^act sum_j^act
-  ! sum_a^vir sum_b^vir
-  do tmp_b = 1, nV
-    b = list_virt(tmp_b)
-    do tmp_a = 1, nV
-      a = list_virt(tmp_a)
-      do tmp_j = 1, nA
-         
-        do s2 = 1, 2
-          j = list_act(tmp_j)
-          if (act_p(s2,tmp_j)) then
-             
-            do tmp_i = 1, nA
-              do s1 = 1, 2
-                i = list_act(tmp_i)
-                if (act_p(s1,tmp_i)) then
-                   
-                  div = 1d0 / (fock_matrix_mo(a,a) + fock_matrix_mo(b,b)  &
-                               - fock_matrix_mo(i,i) - fock_matrix_mo(j,j))
-                  if (s1 == s2) then
-                     E = E - (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
-                  else
-                     E = E - (mo_two_e_integral(i,j,a,b)**2 + mo_two_e_integral(i,j,b,a)**2) * div
-                  endif
-                  
-                endif
-              enddo
-            enddo
+  ! E2
+  E2 = 0d0
+  do tmp_i = 1, 2*nO
+    if (tmp_i <= nO) then
+      si = 1
+      i  = occ_a(tmp_i)
+    else
+      si = 2
+      i  = occ_b(tmp_i - nO)
+    endif
+    do tmp_j = 1, 2*nO
+      if (tmp_j <= nO) then
+        sj = 1
+        j  = occ_a(tmp_j)
+      else
+        sj = 2
+        j  = occ_b(tmp_j - nO)
+      endif
+      do tmp_a = 1, 2*nV
+        if (tmp_a <= nV) then
+          sa = 1
+          a  = vir_a(tmp_a)
+        else
+          sa = 2
+          a  = vir_b(tmp_a - nV)
+        endif
+        do tmp_b = 1, 2*nV
+          if (tmp_b <= nV) then
+            sb = 1
+            b  = vir_a(tmp_b)
+          else
+            sb = 2
+            b  = vir_b(tmp_b - nV)
           endif
+          
+          div = 1d0 / (fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
+                        - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j))
+          ! < s1 s1 || s1 s1 >
+          if (si == sa .and. sj == sb .and. si == sj) then
+             E2 = E2 - (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+          ! < s1 s2 || s1 s2 >
+          else if (si == sa .and. sj == sb) then
+             E2 = E2 - mo_two_e_integral(i,j,a,b)**2 * div
+          ! < s1 s2 || s2 s1 >
+          else if (si == sb .and. sj == sa) then
+             E2 = E2 - mo_two_e_integral(i,j,b,a)**2 * div
+          endif
+          
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! E2 - E2 active-active
+  do tmp_i = 1, 2*nOA
+    if (tmp_i <= nOA) then
+      si = 1
+      i  = act_occ_a(tmp_i)
+    else
+      si = 2
+      i  = act_occ_b(tmp_i - nOA)
+    endif
+    do tmp_j = 1, 2*nOA
+      if (tmp_j <= nOA) then
+        sj = 1
+        j  = act_occ_a(tmp_j)
+      else
+        sj = 2
+        j  = act_occ_b(tmp_j - nOA)
+      endif
+      do tmp_a = 1, 2*nVA
+        if (tmp_a <= nVA) then
+          sa = 1
+          a  = act_vir_a(tmp_a)
+        else
+          sa = 2
+          a  = act_vir_b(tmp_a - nVA)
+        endif
+        do tmp_b = 1, 2*nVA
+          if (tmp_b <= nVA) then
+            sb = 1
+            b  = act_vir_a(tmp_b)
+          else
+            sb = 2
+            b  = act_vir_b(tmp_b - nVA)
+          endif
+           
+          div = 1d0 / (fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
+                        - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j))
+          ! < s1 s1 || s1 s1 >
+          if (si == sa .and. sj == sb .and. si == sj) then
+             E2 = E2 + (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+          ! < s1 s2 || s1 s2 >
+          else if (si == sa .and. sj == sb) then
+             E2 = E2 + mo_two_e_integral(i,j,a,b)**2 * div
+          ! < s1 s2 || s2 s1 >
+          else if (si == sb .and. sj == sa) then
+             E2 = E2 + mo_two_e_integral(i,j,b,a)**2 * div
+          endif
+           
         enddo
       enddo
     enddo
   enddo
   
-
-  ! Inact -> act
-
-  ! Act -> act
-
   ! Final energy
-  E = E * 0.25d0
+  E2 = E2 * 0.25d0
+
+  ! E of the det
+  call i_H_j(det,det,N_int,H_ii)
+  H_ii = H_ii + nuclear_repulsion
   
-  print*,'E(SCF)=', hf_energy
-  print*,'E(MP2)=', E
-  print*,'Total =', E+hf_energy
+  print*,'SP'
+  print*,'E(det)=', H_ii
+  print*,'E(MP2)=', E2
+  print*,'Total =', H_ii+E2
+
+  deallocate(occ_b,vir_b)
+  deallocate(occ_a,vir_a)
+  deallocate(act_occ_a,act_vir_a)
+  deallocate(act_occ_b,act_vir_b)
+  deallocate(det,res,fock_diag_tmp)
   
-  deallocate(det,res,act_p)
-  
-end
+end  
 #+end_src
 
 #+begin_src f90 :comments org :tangle mp2.irp.f

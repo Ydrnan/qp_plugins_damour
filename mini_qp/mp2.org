@@ -1,10 +1,93 @@
 #+begin_src f90 :comments org :tangle mp2.irp.f
-program mp2
+program run
 
   implicit none
 
-  call run_mp2()
-  call run_mp2_sp()
+  read_wf = .True.
+  call mp2
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle mp2.irp.f
+subroutine mp2
+
+  implicit none
+
+  integer                       :: i,j
+  double precision              :: E2
+  double precision, allocatable :: H(:,:)
+
+  allocate(H(N_det,N_det))
+  
+  !call run_mp2()
+  !call run_mp2_sp(psi_det(:,:,1),E2)
+
+  call build_H(H)
+  call diag_H(H,2)
+
+  do i = 1, N_det
+     call run_mp2_sp(psi_det(:,:,i), E2)
+     !if (dabs(E2) >= 20.0) then
+     !   print*,'det',i
+     !   print*,'E2' ,E2
+     !   call print_det(psi_det(:,:,i),N_int)
+     !   call abort
+     !endif
+     H(i,i) = H(i,i) + E2
+  enddo
+  
+  call diag_H(H,2)
+
+  deallocate(H)
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle mp2.irp.f
+subroutine build_H(H)
+
+  implicit none
+
+  double precision, intent(out) :: H(N_det,N_det)
+
+  integer                       :: i,j
+  double precision              :: h_ij
+
+  do j = 1, N_det
+    do i = 1, N_det
+      call i_H_j(psi_det(:,:,i), psi_det(:,:,j), N_int, h_ij)
+      H(i,j) = h_ij
+    enddo
+  enddo
+
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle mp2.irp.f
+subroutine diag_H(H,n_val)
+
+  implicit none
+
+  integer, intent(in)           :: n_val
+  double precision, intent(in)  :: H(N_det,N_det)
+  double precision, allocatable :: eigvalues(:), eigvectors(:,:)
+  integer                       :: i
+
+  allocate(eigvalues(N_det),eigvectors(N_det,N_det))
+
+  call lapack_diag(eigvalues,eigvectors,H,N_det,N_det)
+
+  print*,''
+  print*,'============'
+  print*,'Eigenvalues:'
+  do i = 1, n_val
+     print*,eigvalues(i) + nuclear_repulsion
+  enddo
+  print*,'============'
+  print*,'Correlation:', eigvalues(1) - (hf_energy - nuclear_repulsion)
+
+  deallocate(eigvalues,eigvectors)
 
 end
 #+end_src
@@ -51,11 +134,14 @@ end
 #+end_src
 
 #+begin_src f90 :comments org :tangle mp2.irp.f
-subroutine run_mp2_sp
+subroutine run_mp2_sp(det,E2)
 
   use bitmasks
   implicit none
 
+  integer(bit_kind), intent(in)  :: det(N_int,2)
+  double precision, intent(out)  :: E2
+  
   integer                        :: i,j,a,b
   integer                        :: tmp_i,tmp_j,tmp_a,tmp_b
   integer                        :: si,sj,sa,sb
@@ -63,8 +149,8 @@ subroutine run_mp2_sp
   integer                        :: nOa,nVa,nOb,nVb,nO,nV
   integer                        :: ni,nj,na,nb
   integer                        :: idx_oa,idx_ob,idx_va,idx_vb
-  double precision               :: E2, mo_two_e_integral, div, H_ii
-  integer(bit_kind), allocatable :: det(:,:), res(:,:)
+  double precision               :: mo_two_e_integral, div, H_ii, E_act, tmp, v, delta_E
+  integer(bit_kind), allocatable :: res(:,:)
   logical                        :: is_p
   integer, allocatable           :: occ_a(:), vir_a(:)
   integer, allocatable           :: occ_b(:), vir_b(:)
@@ -78,16 +164,16 @@ subroutine run_mp2_sp
   nOA = elec_alpha_num - n_core_orb - n_inact_orb
   nVA = n_act_orb - nOA
   
-  allocate(det(N_int,2), res(N_int,2))
+  allocate(res(N_int,2))
   allocate(occ_a(nO), vir_a(nV))
   allocate(occ_b(nO), vir_b(nV))
   allocate(act_occ_a(max(1,nOA)), act_vir_a(max(1,nVA)))
   allocate(act_occ_b(max(1,nOA)), act_vir_b(max(1,nVA)))
   allocate(fock_diag_tmp(2,mo_num+1))
-  
-  det(:,:) = psi_det(:,:,3)
 
   call build_fock_tmp(fock_diag_tmp,det,N_int)
+  print*,fock_diag_tmp(1,1:mo_num)
+  print*,fock_diag_tmp(2,1:mo_num)
 
   ! List of occupied/virtual spin orbitals
   idx_oa = 1
@@ -146,6 +232,14 @@ subroutine run_mp2_sp
     enddo
   enddo
 
+  !call print_det(det,N_int)
+  !print*,'Act MOs'
+  !print*,list_act
+  !print*,act_occ_a
+  !print*,act_occ_b
+  !print*,act_vir_a
+  !print*,act_vir_b
+
   ! E2
   E2 = 0d0
   do tmp_i = 1, 2*nO
@@ -181,23 +275,51 @@ subroutine run_mp2_sp
             b  = vir_b(tmp_b - nV)
           endif
           
-          div = 1d0 / (fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
-                        - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j))
+          !print*,i,j,a,b
+          !print*,fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j)
+          !div = 1d0 / (fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
+          !              - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j))
+          !! < s1 s1 || s1 s1 >
+          !if (si == sa .and. sj == sb .and. si == sj) then
+          !   E2 = E2 - (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+          !! < s1 s2 || s1 s2 >
+          !else if (si == sa .and. sj == sb) then
+          !   E2 = E2 - mo_two_e_integral(i,j,a,b)**2 * div
+          !! < s1 s2 || s2 s1 >
+          !else if (si == sb .and. sj == sa) then
+          !   E2 = E2 - mo_two_e_integral(i,j,b,a)**2 * div
+          !endif
+
           ! < s1 s1 || s1 s1 >
           if (si == sa .and. sj == sb .and. si == sj) then
-             E2 = E2 - (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+             v = (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))
           ! < s1 s2 || s1 s2 >
           else if (si == sa .and. sj == sb) then
-             E2 = E2 - mo_two_e_integral(i,j,a,b)**2 * div
+             v = mo_two_e_integral(i,j,a,b)
           ! < s1 s2 || s2 s1 >
           else if (si == sb .and. sj == sa) then
-             E2 = E2 - mo_two_e_integral(i,j,b,a)**2 * div
+             v = mo_two_e_integral(i,j,b,a)
+          else
+             cycle
           endif
+          
+          delta_E = fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
+                  - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j)
+          v = 2d0 * v
+          tmp = dsqrt(delta_E * delta_E + v * v)
+          if (delta_E < 0.d0) then
+              tmp = -tmp
+          endif
+          E2 = E2 - 0.5d0 * (tmp - delta_E)
           
         enddo
       enddo
     enddo
   enddo
+
+  print*,'E2 1:', E2 * 0.25d0
+
+  E_act = E2
 
   ! E2 - E2 active-active
   do tmp_i = 1, 2*nOA
@@ -232,24 +354,51 @@ subroutine run_mp2_sp
             sb = 2
             b  = act_vir_b(tmp_b - nVA)
           endif
-           
+
           div = 1d0 / (fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
                         - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j))
+          !print*,i,j,a,b
+          !print*,fock_diag_tmp(sa,a), fock_diag_tmp(sb,b), - fock_diag_tmp(si,i), - fock_diag_tmp(sj,j)
+          !print*,fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j)
+          ! < s1 s1 || s1 s1 >
+          !if (si == sa .and. sj == sb .and. si == sj) then
+          !   E2 = E2 + (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+          !! < s1 s2 || s1 s2 >
+          !else if (si == sa .and. sj == sb) then
+          !   E2 = E2 + mo_two_e_integral(i,j,a,b)**2 * div
+          !! < s1 s2 || s2 s1 >
+          !else if (si == sb .and. sj == sa) then
+          !   E2 = E2 + mo_two_e_integral(i,j,b,a)**2 * div
+          !endif
+
           ! < s1 s1 || s1 s1 >
           if (si == sa .and. sj == sb .and. si == sj) then
-             E2 = E2 + (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))**2 * div
+             v = (mo_two_e_integral(i,j,a,b) - mo_two_e_integral(i,j,b,a))
           ! < s1 s2 || s1 s2 >
           else if (si == sa .and. sj == sb) then
-             E2 = E2 + mo_two_e_integral(i,j,a,b)**2 * div
+             v = mo_two_e_integral(i,j,a,b)
           ! < s1 s2 || s2 s1 >
           else if (si == sb .and. sj == sa) then
-             E2 = E2 + mo_two_e_integral(i,j,b,a)**2 * div
+             v = mo_two_e_integral(i,j,b,a)
+          else
+             cycle
           endif
+          
+          delta_E = fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
+                  - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j)
+          v = 2d0 * v
+          tmp = dsqrt(delta_E * delta_E + v * v)
+          if (delta_E < 0.d0) then
+              tmp = -tmp
+          endif
+          E2 = E2 + 0.5d0 * (tmp - delta_E)
            
         enddo
       enddo
     enddo
   enddo
+
+  E_act = (E_act - E2) * 0.25d0
   
   ! Final energy
   E2 = E2 * 0.25d0
@@ -259,15 +408,16 @@ subroutine run_mp2_sp
   H_ii = H_ii + nuclear_repulsion
   
   print*,'SP'
-  print*,'E(det)=', H_ii
-  print*,'E(MP2)=', E2
+  print*,'E(det)=    ', H_ii
+  print*,'E(MP2)=    ', E2
+  print*,'E(MP2 act)=', E_act
   print*,'Total =', H_ii+E2
 
   deallocate(occ_b,vir_b)
   deallocate(occ_a,vir_a)
   deallocate(act_occ_a,act_vir_a)
   deallocate(act_occ_b,act_vir_b)
-  deallocate(det,res,fock_diag_tmp)
+  deallocate(res,fock_diag_tmp)
   
 end  
 #+end_src
@@ -359,8 +509,8 @@ subroutine test_E_mono_det()
   double precision, allocatable :: fock_diag_tmp(:,:)
   allocate(fock_diag_tmp(2,mo_num+1))
 
-  call build_fock_tmp(fock_diag_tmp,psi_det(N_int,:,2),N_int)
-  call print_det(psi_det(N_int,:,2),N_int)
+  call build_fock_tmp(fock_diag_tmp,psi_det(N_int,:,1),N_int)
+  call print_det(psi_det(N_int,:,1),N_int)
  
   do i = 1, mo_num
     write(*,'(10F12.3)') fock_matrix_mo(i,:)

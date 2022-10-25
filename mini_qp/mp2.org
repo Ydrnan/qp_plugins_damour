@@ -24,20 +24,14 @@ subroutine mp2
   !call run_mp2_sp(psi_det(:,:,1),E2)
 
   call build_H(H)
-  call diag_H(H,2)
+  call diag_H(H,4)
 
   do i = 1, N_det
      call run_mp2_sp(psi_det(:,:,i), E2)
-     !if (dabs(E2) >= 20.0) then
-     !   print*,'det',i
-     !   print*,'E2' ,E2
-     !   call print_det(psi_det(:,:,i),N_int)
-     !   call abort
-     !endif
      H(i,i) = H(i,i) + E2
   enddo
   
-  call diag_H(H,2)
+  call diag_H(H,4)
 
   deallocate(H)
   
@@ -85,7 +79,6 @@ subroutine diag_H(H,n_val)
      print*,eigvalues(i) + nuclear_repulsion
   enddo
   print*,'============'
-  print*,'Correlation:', eigvalues(1) - (hf_energy - nuclear_repulsion)
 
   deallocate(eigvalues,eigvectors)
 
@@ -145,11 +138,14 @@ subroutine run_mp2_sp(det,E2)
   integer                        :: i,j,a,b
   integer                        :: tmp_i,tmp_j,tmp_a,tmp_b
   integer                        :: si,sj,sa,sb
-  integer                        :: s1,h1,tmp_h1
+  integer                        :: s1,h1,tmp_h1,s2,h2,p1,p2
+  integer                        :: degree
   integer                        :: nOa,nVa,nOb,nVb,nO,nV
   integer                        :: ni,nj,na,nb
+  integer                        :: exc(0:2, 2, 2)
   integer                        :: idx_oa,idx_ob,idx_va,idx_vb
   double precision               :: mo_two_e_integral, div, H_ii, E_act, tmp, v, delta_E
+  double precision               :: phase 
   integer(bit_kind), allocatable :: res(:,:)
   logical                        :: is_p
   integer, allocatable           :: occ_a(:), vir_a(:)
@@ -172,8 +168,8 @@ subroutine run_mp2_sp(det,E2)
   allocate(fock_diag_tmp(2,mo_num+1))
 
   call build_fock_tmp(fock_diag_tmp,det,N_int)
-  print*,fock_diag_tmp(1,1:mo_num)
-  print*,fock_diag_tmp(2,1:mo_num)
+  !print*,fock_diag_tmp(1,1:mo_num)
+  !print*,fock_diag_tmp(2,1:mo_num)
 
   ! List of occupied/virtual spin orbitals
   idx_oa = 1
@@ -228,7 +224,7 @@ subroutine run_mp2_sp(det,E2)
           act_vir_b(idx_vb) = h1
           idx_vb = idx_vb+1
         endif
-      endif   
+      endif
     enddo
   enddo
 
@@ -302,7 +298,8 @@ subroutine run_mp2_sp(det,E2)
           else
              cycle
           endif
-          
+
+          ! Diag 2 by 2 to avoid the division by 0
           delta_E = fock_diag_tmp(sa,a) + fock_diag_tmp(sb,b) &
                   - fock_diag_tmp(si,i) - fock_diag_tmp(sj,j)
           v = 2d0 * v
@@ -317,7 +314,7 @@ subroutine run_mp2_sp(det,E2)
     enddo
   enddo
 
-  print*,'E2 1:', E2 * 0.25d0
+  !print*,'E2 1:', E2 * 0.25d0
 
   E_act = E2
 
@@ -391,7 +388,7 @@ subroutine run_mp2_sp(det,E2)
           if (delta_E < 0.d0) then
               tmp = -tmp
           endif
-          E2 = E2 + 0.5d0 * (tmp - delta_E)
+          !E2 = E2 + 0.5d0 * (tmp - delta_E)
            
         enddo
       enddo
@@ -403,15 +400,33 @@ subroutine run_mp2_sp(det,E2)
   ! Final energy
   E2 = E2 * 0.25d0
 
+  do i = 1, N_det
+     call get_excitation_degree(det,psi_det(:,:,i),degree,N_int)
+     if (degree /= 2) then
+        cycle
+     endif
+     call get_excitation(det,psi_det(:,:,i),exc,degree,phase,N_int)
+     call decode_exc(exc,degree,h1,p1,h2,p2,s1,s2)
+     call i_H_j(det,psi_det(:,:,i),N_int,v)
+     delta_E = fock_diag_tmp(s1,p1) + fock_diag_tmp(s2,p2) &
+             - fock_diag_tmp(s1,h1) - fock_diag_tmp(s2,h2)
+     v = 2d0 * v
+     tmp = dsqrt(delta_E * delta_E + v * v)
+     if (delta_E < 0.d0) then
+         tmp = -tmp
+     endif
+     E2 = E2 + 0.5d0 * (tmp - delta_E)
+  enddo
+
   ! E of the det
   call i_H_j(det,det,N_int,H_ii)
   H_ii = H_ii + nuclear_repulsion
   
-  print*,'SP'
-  print*,'E(det)=    ', H_ii
-  print*,'E(MP2)=    ', E2
-  print*,'E(MP2 act)=', E_act
-  print*,'Total =', H_ii+E2
+  !print*,'SP'
+  !print*,'E(det)=    ', H_ii
+  !print*,'E(MP2)=    ', E2
+  !print*,'E(MP2 act)=', E_act
+  !print*,'Total =', H_ii+E2
 
   deallocate(occ_b,vir_b)
   deallocate(occ_a,vir_a)

@@ -324,7 +324,7 @@ def extract_dip(n_states,fname, **kwargs):
    
             print("%s %2d %s %s %s" %("\nTransition n.",tr_state,", oscillator strength in",gauge,"gauge" ))
             print("%3s %10s %14s %9s"%("n","a","b  ","R^2"))
-    
+
             for nb_points in range(3,min(8,n_data)+1):
                 i = nb_points-3
                 # f(x) = a * x + b
@@ -369,7 +369,7 @@ def extract_dip(n_states,fname, **kwargs):
 
             print("%s %2d %s %s %s" %("\nTransition n.",tr_state,", oscillator strength in",gauge,"gauge" ))
             print("%3s %14s %14s %14s %9s"%("n","a","b","c  ","R^2"))
-  
+
             for nb_points in range(3,min(8,n_data)+1):
                 i = nb_points-3
                 # f(x) = a * x**2 + b * x + c

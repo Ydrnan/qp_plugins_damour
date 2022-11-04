@@ -19,6 +19,9 @@ subroutine cipsi_mp2
   double precision, allocatable :: v_aaaa(:,:,:,:)
   double precision, allocatable :: v_abab(:,:,:,:)
   double precision, allocatable :: v_abba(:,:,:,:)
+  
+  integer                       :: omp_get_max_active_levels
+  integer                       :: nb_levels
 
   allocate(v_aaaa(mo_num,mo_num,mo_num,mo_num))
   allocate(v_abab(mo_num,mo_num,mo_num,mo_num))
@@ -76,6 +79,8 @@ subroutine cipsi_mp2
   !print*,'# MP2 ',CI_energy_dressed(1:N_states) - CI_energy(1:N_states)
   
   call wall_time(t0)
+  nb_levels = omp_get_max_active_levels()
+  call omp_set_max_active_levels(1)
   !$OMP PARALLEL &
   !$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing_column_h,N_det) &
   !$OMP PRIVATE(j,E2_v2) &
@@ -87,6 +92,7 @@ subroutine cipsi_mp2
   enddo
   !$OMP END DO
   !$OMP END PARALLEL
+  call omp_set_max_active_levels(nb_levels)
   call wall_time(t1)
   print*,'Time:',t1-t0
 

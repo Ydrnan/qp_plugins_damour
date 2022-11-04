@@ -95,7 +95,7 @@ subroutine run_stochastic_cipsi_mp2
        pt2_data, pt2_data_err, N_det,N_configuration,N_states,psi_s2)
 
     call save_energy(psi_energy_with_nucl_rep, pt2_data % pt2)
-    call cipsi_mp2()
+    call cipsi_mp2(ci_energy,psi_det,N_det,N_states_diag,N_states)
 
     call save_iterations(psi_energy_with_nucl_rep(1:N_states),pt2_data % rpt2,N_det)
     call print_extrapolated_energy()
@@ -136,7 +136,7 @@ subroutine run_stochastic_cipsi_mp2
     call print_summary(psi_energy_with_nucl_rep, &
        pt2_data , pt2_data_err, N_det, N_configuration, N_states, psi_s2)
     call save_iterations(psi_energy_with_nucl_rep(1:N_states),pt2_data % rpt2,N_det)
-    call cipsi_mp2()
+    call cipsi_mp2(ci_energy,psi_det,N_det,N_states_diag,N_states)
     call print_extrapolated_energy()
   endif
   call pt2_dealloc(pt2_data)

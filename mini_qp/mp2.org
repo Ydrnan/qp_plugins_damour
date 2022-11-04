@@ -4,16 +4,20 @@ program run
   implicit none
 
   read_wf = .True.
-  call cipsi_mp2
+  call cipsi_mp2(ci_energy,psi_det,N_det,N_states_diag,N_states)
   
 end
 #+end_src
 
 #+begin_src f90 :comments org :tangle cipsi_mp2.irp.f
-subroutine cipsi_mp2
+subroutine cipsi_mp2(E0,psidet,Ndet,N_st_diag,N_st)
 
+  use bitmasks
   implicit none
 
+  integer, intent(in)           :: N_st, N_st_diag, Ndet
+  double precision, intent(in)  :: E0(N_st)
+  integer(bit_kind), intent(in) :: psidet(N_int,2,Ndet)
   integer                       :: i,j
   double precision              :: E2, E2_v2, t0, t1
   double precision, allocatable :: v_aaaa(:,:,:,:)
@@ -25,7 +29,7 @@ subroutine cipsi_mp2
 
   double precision, allocatable :: dressing(:), d_energies(:)
 
-  allocate(dressing(N_det), d_energies(N_states_diag))
+  allocate(dressing(Ndet), d_energies(N_st_diag))
 
   allocate(v_aaaa(mo_num,mo_num,mo_num,mo_num))
   allocate(v_abab(mo_num,mo_num,mo_num,mo_num))
@@ -86,12 +90,12 @@ subroutine cipsi_mp2
   nb_levels = omp_get_max_active_levels()
   call omp_set_max_active_levels(1)
   !$OMP PARALLEL &
-  !$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing,N_det) &
+  !$OMP SHARED(psidet,v_aaaa,v_abab,v_abba,dressing,Ndet) &
   !$OMP PRIVATE(j,E2_v2) &
   !$OMP DEFAULT(NONE) 
   !$OMP DO
-  do j = 1, N_det
-     call run_mp2_sp_v1(psi_det(:,:,j), v_aaaa, v_abab, v_abba, E2_v2)
+  do j = 1, Ndet
+     call run_mp2_sp_v1(psidet(:,:,j), v_aaaa, v_abab, v_abba, E2_v2)
      !dressing_column_h(j,1) = E2_v2
      dressing(j) = E2_v2
   enddo
@@ -105,8 +109,9 @@ subroutine cipsi_mp2
   print*,'================='
   print*,'After H dressing'
 
-  call dav_dressed(dressing,N_det,d_energies,N_states_diag,N_states)
+  call dav_dressed(dressing,Ndet,d_energies,N_st_diag,N_st)
 
+  print*,'# MP2 ',d_energies(1:N_st) + nuclear_repulsion - E0(1:N_st)
   !print*,'# MP2 ', ci_energy_dressed(1:N_states) - ci_energy(1:N_states)
   !print*,'# S^2 ', ci_eigenvectors_s2_dressed(1:N_states)
   

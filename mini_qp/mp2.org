@@ -23,6 +23,10 @@ subroutine cipsi_mp2
   integer                       :: omp_get_max_active_levels
   integer                       :: nb_levels
 
+  double precision, allocatable :: dressing(:), d_energies(:)
+
+  allocate(dressing(N_det), d_energies(N_states_diag))
+
   allocate(v_aaaa(mo_num,mo_num,mo_num,mo_num))
   allocate(v_abab(mo_num,mo_num,mo_num,mo_num))
   allocate(v_abba(mo_num,mo_num,mo_num,mo_num))
@@ -48,32 +52,32 @@ subroutine cipsi_mp2
   print*,'================='
   print*,'Before H dressing'
 
-  print*,'E     ', ci_energy(1:N_states)
-  print*,'S^2   ', ci_s2(1:N_states)
+  !print*,'E     ', ci_energy(1:N_states)
+  !print*,'S^2   ', ci_s2(1:N_states)
 
   call w_aaaa(v_aaaa)
   call w_abab(v_abab)
   call w_abba(v_abba)
   
-  !call wall_time(t0)
-  !$OMP PARALLEL &
-  !$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing_column_h,N_det) &
-  !$OMP PRIVATE(j,E2_v2,E2) &
-  !$OMP DEFAULT(NONE) 
-  !OMP DO
-  !do j = 1, N_det
-  !   call run_mp2_sp_v0(psi_det(:,:,j), E2)
-     !call run_mp2_sp_v1(psi_det(:,:,j), v_aaaa, v_abab, v_abba, E2_v2)
-     !if (dabs(E2-E2_v2) > 1d-12) then
-     !  call abort
-     !endif
-     !print*,E2
-  !   dressing_column_h(j,1) = E2
-  !enddo
-  !OMP END DO
-  !$OMP END PARALLEL
-  !call wall_time(t1)
-  !print*,'Time:',t1-t0
+  !!call wall_time(t0)
+  !!$OMP PARALLEL &
+  !!$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing_column_h,N_det) &
+  !!$OMP PRIVATE(j,E2_v2,E2) &
+  !!$OMP DEFAULT(NONE) 
+  !!OMP DO
+  !!do j = 1, N_det
+  !!   call run_mp2_sp_v0(psi_det(:,:,j), E2)
+  !   !call run_mp2_sp_v1(psi_det(:,:,j), v_aaaa, v_abab, v_abba, E2_v2)
+  !   !if (dabs(E2-E2_v2) > 1d-12) then
+  !   !  call abort
+  !   !endif
+  !   !print*,E2
+  !!   dressing_column_h(j,1) = E2
+  !!enddo
+  !!OMP END DO
+  !!$OMP END PARALLEL
+  !!call wall_time(t1)
+  !!print*,'Time:',t1-t0
 
   !TOUCH dressing_column_h
   !print*,'# MP2 ',CI_energy_dressed(1:N_states) - CI_energy(1:N_states)
@@ -82,33 +86,35 @@ subroutine cipsi_mp2
   nb_levels = omp_get_max_active_levels()
   call omp_set_max_active_levels(1)
   !$OMP PARALLEL &
-  !$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing_column_h,N_det) &
+  !$OMP SHARED(psi_det,v_aaaa,v_abab,v_abba,dressing,N_det) &
   !$OMP PRIVATE(j,E2_v2) &
   !$OMP DEFAULT(NONE) 
   !$OMP DO
   do j = 1, N_det
      call run_mp2_sp_v1(psi_det(:,:,j), v_aaaa, v_abab, v_abba, E2_v2)
-     dressing_column_h(j,1) = E2_v2
+     !dressing_column_h(j,1) = E2_v2
+     dressing(j) = E2_v2
   enddo
   !$OMP END DO
   !$OMP END PARALLEL
   call omp_set_max_active_levels(nb_levels)
   call wall_time(t1)
   print*,'Time:',t1-t0
-
-  TOUCH dressing_column_h
   
   print*,''
   print*,'================='
   print*,'After H dressing'
 
-  print*,'# MP2 ', ci_energy_dressed(1:N_states) - ci_energy(1:N_states)
-  print*,'# S^2 ', ci_eigenvectors_s2_dressed(1:N_states)
+  call dav_dressed(dressing,N_det,d_energies,N_states_diag,N_states)
+
+  !print*,'# MP2 ', ci_energy_dressed(1:N_states) - ci_energy(1:N_states)
+  !print*,'# S^2 ', ci_eigenvectors_s2_dressed(1:N_states)
   
   !call diag_H(H,4)
 
   !deallocate(H)
   deallocate(v_aaaa,v_abab,v_abba)
+  deallocate(dressing,d_energies)
   
 end
 #+end_src

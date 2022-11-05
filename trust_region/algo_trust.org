@@ -23,90 +23,89 @@ the hessian and the gradient are recomputed to produce a new step.
 
 Example:
 
-#+BEGIN_SRC f90 :comments org
-  !### Initialization ###
-  delta = 0d0
-  nb_iter = 0 ! Must start at 0 !!!
-  rho = 0.5d0
-  not_converged = .True.
-
-  ! ### TODO ###
-  ! Compute the criterion before the loop
-  call #your_criterion(prev_criterion)
-
-  do while (not_converged)
-    ! ### TODO ## 
-    ! Call your gradient
-    ! Call you hessian
-    call #your_gradient(v_grad) (1D array)
-    call #your_hessian(H) (2D array) 
-
-    ! ### TODO ###
-    ! Diagonalization of the hessian 
-    call diagonalization_hessian(n,H,e_val,w)
-
-    cancel_step = .True. ! To enter in the loop just after 
-    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
-    do while (cancel_step)
-
-      ! Hessian,gradient,Criterion -> x 
-      call trust_region_step_w_expected_e(tmp_n,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
-
-      if (must_exit) then
-        ! ### Message ###
-        ! if step_in_trust_region sets must_exit on true for numerical reasons
-        print*,'algo_trust1 sends the message : Exit'
-        !### exit ###
-      endif
-
-      !### TODO ###  
-      ! Compute x -> m_x
-      ! Compute m_x -> R
-      ! Apply R and keep the previous MOs...
-      ! Update/touch 
-      ! Compute the new criterion/energy -> criterion
-
-      call #your_routine_1D_to_2D_antisymmetric_array(x,m_x)
-      call #your_routine_2D_antisymmetric_array_to_rotation_matrix(m_x,R)
-      call #your_routine_to_apply_the_rotation_matrix(R,prev_mos)
-
-      TOUCH #your_variables
-      
-      call #your_criterion(criterion)
-
-      ! Criterion -> step accepted or rejected 
-      call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
-
-      ! ### TODO ###
-      !if (cancel_step) then
-      ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
-      !endif
-      #if (cancel_step) then
-        #mo_coef = prev_mos
-        ! pas besoin de recalculer vu qu'on garde le gradient et le hessien
-      #endif
-
-    enddo
-
-    !call save_mos() !### depend of the time for 1 iteration
-
-    ! To exit the external loop if must_exit = .True.
-    if (must_exit) then
-      !### exit ###
-    endif 
-
-    ! Step accepted, nb iteration + 1
-    nb_iter = nb_iter + 1
-
-    ! ### TODO ###
-    !if (###Conditions###) then
-    ! no_converged = .False.
-    !endif
-    #if (#your_conditions) then
-    #  not_converged = .False.
-    #endif
-
-  enddo
+#+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
+!  !### Initialization ###
+!  delta = 0d0
+!  nb_iter = 0 ! Must start at 0 !!!
+!  rho = 0.5d0
+!  not_converged = .True.
+!
+!  ! ### TODO ###
+!  ! Compute the criterion before the loop
+!  call #your_criterion(prev_criterion)
+!
+!  do while (not_converged)
+!    ! ### TODO ## 
+!    ! Call your gradient
+!    ! Call you hessian
+!    call #your_gradient(v_grad) (1D array)
+!    call #your_hessian(H) (2D array) 
+!
+!    ! ### TODO ###
+!    ! Diagonalization of the hessian 
+!    call diagonalization_hessian(n,H,e_val,w)
+!
+!    cancel_step = .True. ! To enter in the loop just after 
+!    ! Loop to Reduce the trust radius until the criterion decreases and rho >= thresh_rho
+!    do while (cancel_step)
+!
+!      ! Hessian,gradient,Criterion -> x 
+!      call trust_region_step_w_expected_e(tmp_n,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit)
+!
+!      if (must_exit) then
+!        ! ### Message ###
+!        ! if step_in_trust_region sets must_exit on true for numerical reasons
+!        print*,'algo_trust1 sends the message : Exit'
+!        !### exit ###
+!      endif
+!
+!      !### TODO ###  
+!      ! Compute x -> m_x
+!      ! Compute m_x -> R
+!      ! Apply R and keep the previous MOs...
+!      ! Update/touch 
+!      ! Compute the new criterion/energy -> criterion
+!
+!      call #your_routine_1D_to_2D_antisymmetric_array(x,m_x)
+!      call #your_routine_2D_antisymmetric_array_to_rotation_matrix(m_x,R)
+!      call #your_routine_to_apply_the_rotation_matrix(R,prev_mos)
+!
+!      TOUCH #your_variables
+!      
+!      call #your_criterion(criterion)
+!
+!      ! Criterion -> step accepted or rejected 
+!      call trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
+!
+!      ! ### TODO ###
+!      !if (cancel_step) then
+!      ! Cancel the previous step (mo_coef = prev_mos if you keep them...)
+!      !endif
+!      #if (cancel_step) then
+!        #mo_coef = prev_mos
+!      #endif
+!
+!    enddo
+!
+!    !call save_mos() !### depend of the time for 1 iteration
+!
+!    ! To exit the external loop if must_exit = .True.
+!    if (must_exit) then
+!      !### exit ###
+!    endif 
+!
+!    ! Step accepted, nb iteration + 1
+!    nb_iter = nb_iter + 1
+!
+!    ! ### TODO ###
+!    !if (###Conditions###) then
+!    ! no_converged = .False.
+!    !endif
+!    #if (#your_conditions) then
+!    #  not_converged = .False.
+!    #endif
+!
+!  enddo
 #+END_SRC
 
 Variables:
@@ -136,6 +135,10 @@ Output:
 subroutine trust_region_step_w_expected_e(n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute the step and the expected criterion/energy after the step
+  !END_DOC
 
   implicit none
 
@@ -204,6 +207,10 @@ Output:
 subroutine trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute if the step should be cancelled
+  !END_DOC
 
   implicit none
  

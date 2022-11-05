@@ -61,30 +61,35 @@ subroutine rotation_matrix(A,LDA,R,LDR,n,info,enforce_step_cancellation)
 
   implicit none
 
+  !BEGIN_DOC
+  ! Rotation matrix to rotate the molecular orbitals.
+  ! If the rotation is too large the transformation is not unitary and must be cancelled.
+  !END_DOC
+
   include 'constants.h'
 
   ! Variables
 
   ! in
-  integer, intent(in)           :: n,LDA,LDR
-  double precision, intent(inout)  :: A(LDA,n)
+  integer, intent(in)             :: n,LDA,LDR
+  double precision, intent(inout) :: A(LDA,n)
 
   ! out
-  double precision, intent(out) :: R(LDR,n)
-  integer, intent(out)          :: info
-  logical, intent(out)          :: enforce_step_cancellation
+  double precision, intent(out)   :: R(LDR,n)
+  integer, intent(out)            :: info
+  logical, intent(out)            :: enforce_step_cancellation
 
   ! internal
-  double precision, allocatable :: B(:,:) 
-  double precision, allocatable :: work(:,:) 
-  double precision, allocatable :: W(:,:), e_val(:)
-  double precision, allocatable :: m_diag(:,:),cos_tau(:,:),sin_tau(:,:),tau_m1(:,:)
-  double precision, allocatable :: part_1(:,:),part_1a(:,:)
-  double precision, allocatable :: part_2(:,:),part_2a(:,:),part_2b(:,:),part_2c(:,:)
-  double precision, allocatable :: RR_t(:,:)
-  integer                       :: i,j
-  integer                       :: info2, lwork ! for dsyev
-  double precision              :: norm, max_elem, max_elem_A, t1,t2,t3
+  double precision, allocatable   :: B(:,:) 
+  double precision, allocatable   :: work(:,:) 
+  double precision, allocatable   :: W(:,:), e_val(:)
+  double precision, allocatable   :: m_diag(:,:),cos_tau(:,:),sin_tau(:,:),tau_m1(:,:)
+  double precision, allocatable   :: part_1(:,:),part_1a(:,:)
+  double precision, allocatable   :: part_2(:,:),part_2a(:,:),part_2b(:,:),part_2c(:,:)
+  double precision, allocatable   :: RR_t(:,:)
+  integer                         :: i,j
+  integer                         :: info2, lwork ! for dsyev
+  double precision                :: norm, max_elem, max_elem_A, t1,t2,t3
 
   ! function
   double precision              :: dnrm2

@@ -31,16 +31,20 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_expected_e.irp.f
 subroutine trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
    
-  include 'constants.h' 
+  include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute the expected criterion/energy after the application of the step x
+  !END_DOC
 
   implicit none
 
   ! Variables
 
   ! in
-  integer, intent(in)          :: n
-  double precision, intent(in) :: v_grad(n),H(n,n),x(n)
-  double precision, intent(in) :: prev_energy
+  integer, intent(in)           :: n
+  double precision, intent(in)  :: v_grad(n),H(n,n),x(n)
+  double precision, intent(in)  :: prev_energy
 
   ! out
   double precision, intent(out) :: e_model
@@ -49,7 +53,7 @@ subroutine trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
   double precision              :: part_1, part_2, t1,t2,t3
   double precision, allocatable :: part_2a(:)
 
-  integer :: i,j
+  integer                       :: i,j
 
   !Function
   double precision              :: ddot

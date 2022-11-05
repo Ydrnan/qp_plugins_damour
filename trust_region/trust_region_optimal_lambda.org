@@ -153,41 +153,45 @@ subroutine trust_region_optimal_lambda(n,e_val,tmp_wtg,delta,lambda)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Research the optimal lambda to constrain the step size in the trust region
+  !END_DOC
+
   implicit none
   
   ! Variables
   
   ! in
-  integer, intent(in) :: n
+  integer, intent(in)             :: n
   double precision, intent(inout) :: e_val(n)
-  double precision, intent(in) :: delta
-  double precision, intent(in) :: tmp_wtg(n)
+  double precision, intent(in)    :: delta
+  double precision, intent(in)    :: tmp_wtg(n)
 
   ! out
-  double precision, intent(out) :: lambda
+  double precision, intent(out)   :: lambda
 
   ! Internal
-  double precision :: d1_N, d2_N, f_N, prev_f_N
-  double precision :: prev_f_R, f_R
-  double precision :: model
-  double precision :: d_1, d_2
-  double precision :: t1,t2,t3
-  integer          :: i
-  double precision :: epsilon
-  double precision :: y
-  double precision :: prev_lambda
-  double precision :: rho_2
-  double precision :: alpha
-  integer          :: version
+  double precision                :: d1_N, d2_N, f_N, prev_f_N
+  double precision                :: prev_f_R, f_R
+  double precision                :: model
+  double precision                :: d_1, d_2
+  double precision                :: t1,t2,t3
+  integer                         :: i
+  double precision                :: epsilon
+  double precision                :: y
+  double precision                :: prev_lambda
+  double precision                :: rho_2
+  double precision                :: alpha
+  integer                         :: version
 
   ! Functions
-  double precision :: d1_norm_trust_region,d1_norm_trust_region_omp
-  double precision :: d2_norm_trust_region, d2_norm_trust_region_omp
-  double precision :: f_norm_trust_region, f_norm_trust_region_omp
-  double precision :: d1_norm_inverse_trust_region
-  double precision :: d2_norm_inverse_trust_region
-  double precision :: d1_norm_inverse_trust_region_omp
-  double precision :: d2_norm_inverse_trust_region_omp
+  double precision                :: d1_norm_trust_region,d1_norm_trust_region_omp
+  double precision                :: d2_norm_trust_region, d2_norm_trust_region_omp
+  double precision                :: f_norm_trust_region, f_norm_trust_region_omp
+  double precision                :: d1_norm_inverse_trust_region
+  double precision                :: d2_norm_inverse_trust_region
+  double precision                :: d1_norm_inverse_trust_region_omp
+  double precision                :: d2_norm_inverse_trust_region_omp
 
   print*,''
   print*,'---Trust_newton---'
@@ -496,13 +500,17 @@ Internal:
 | i,j        | integer          | indexes                            |
 
 Function:
-| d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
+| d1_norm_trust_region | double precision | first derivative with respect to lambda of (norm(x)^2 - Delta^2)^2 |
 
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   
   use omp_lib
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute the first derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2
+  !END_DOC
 
   implicit none
 
@@ -629,7 +637,7 @@ Internal:
 | i,j        | integer          | indexes                            |
 
 Function:
-| d2_norm_trust_region | double precision | second derivative with respect to lambda of norm(x)^2 - Delta^2 |
+| d2_norm_trust_region | double precision | second derivative with respect to lambda of (norm(x)^2 - Delta^2)^2 |
 
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
@@ -637,23 +645,27 @@ function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   use omp_lib
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the second derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2
+  !END_DOC
+  
   implicit none
 
   ! Variables
 
   ! in
-  integer, intent(in) :: n
-  double precision, intent(in) :: e_val(n)
-  double precision, intent(in) :: tmp_wtg(n)
-  double precision, intent(in) :: lambda
-  double precision, intent(in) :: delta
+  integer, intent(in)           :: n
+  double precision, intent(in)  :: e_val(n)
+  double precision, intent(in)  :: tmp_wtg(n)
+  double precision, intent(in)  :: lambda
+  double precision, intent(in)  :: delta
 
   ! Functions
-  double precision :: d2_norm_trust_region_omp
-  double precision :: ddot
+  double precision              :: d2_norm_trust_region_omp
+  double precision              :: ddot
 
   ! Internal
-  double precision :: accu1,accu2,accu3
+  double precision              :: accu1,accu2,accu3
   double precision, allocatable :: tmp_accu1(:), tmp_accu2(:), tmp_accu3(:)
   integer :: i, j
   
@@ -779,23 +791,29 @@ Internal:
 function f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
 
   use omp_lib
+
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute ||x(lambda)||^2
+  !END_DOC
+  
   implicit none
 
   ! Variables
 
   ! in
-  integer, intent(in) :: n
-  double precision, intent(in) :: e_val(n)
-  double precision, intent(in) :: tmp_wtg(n)
-  double precision, intent(in) :: lambda
+  integer, intent(in)           :: n
+  double precision, intent(in)  :: e_val(n)
+  double precision, intent(in)  :: tmp_wtg(n)
+  double precision, intent(in)  :: lambda
  
   ! functions
-  double precision :: f_norm_trust_region_omp
+  double precision              :: f_norm_trust_region_omp
  
   ! internal
   double precision, allocatable :: tmp_fN(:)
-  integer :: i,j
+  integer                       :: i,j
 
   ! Allocation
   allocate(tmp_fN(n))
@@ -880,14 +898,18 @@ Internal:
 | i,j   | integer          | indexes                                |
 
 Function:
-| d1_norm_trust_region | double precision | first derivative with respect to lambda of norm(x)^2 - Delta^2 |
-| ddot                 | double precision | blas dot product                                               |
+| d1_norm_trust_region | double precision | first derivative with respect to lambda of (norm(x)^2 - Delta^2)^2 |
+| ddot                 | double precision | blas dot product                                                   |
 
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the first derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2 
+  !END_DOC
+  
   implicit none
 
   ! Variables
@@ -901,12 +923,12 @@ function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: delta
 
   ! Internal
-  double precision :: wtg, accu1, accu2
-  integer          :: i, j
+  double precision             :: wtg, accu1, accu2
+  integer                      :: i, j
 
   ! Functions
-  double precision :: d1_norm_trust_region
-  double precision :: ddot
+  double precision             :: d1_norm_trust_region
+  double precision             :: ddot
 
   ! Initialization
   accu1 = 0d0
@@ -981,6 +1003,10 @@ Function:
 function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute the second derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2 
+  !END_DOC
 
   implicit none
 
@@ -1081,22 +1107,26 @@ function f_norm_trust_region(n,e_val,tmp_wtg,lambda)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute ||x(lambda)||^2
+  !END_DOC
+  
   implicit none
 
   ! Variables
 
   ! in
-  integer, intent(in) :: n
+  integer, intent(in)          :: n
   double precision, intent(in) :: e_val(n)
   double precision, intent(in) :: tmp_wtg(n)
   double precision, intent(in) :: lambda
   
   ! function
-  double precision :: f_norm_trust_region
-  double precision :: ddot
+  double precision             :: f_norm_trust_region
+  double precision             :: ddot
 
   ! internal
-  integer :: i,j
+  integer                      :: i,j
 
   ! Initialization
   f_norm_trust_region = 0d0
@@ -1160,24 +1190,28 @@ function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   use omp_lib
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the first derivative of (1/||x||^2 - 1/Delta^2)^2
+  !END_DOC
+
   implicit none
 
   ! Variables
   
   ! in
-  integer, intent(in)          :: n
-  double precision, intent(in) :: e_val(n)
-  double precision, intent(in) :: tmp_wtg(n)
-  double precision, intent(in) :: lambda
-  double precision, intent(in) :: delta
+  integer, intent(in)           :: n
+  double precision, intent(in)  :: e_val(n)
+  double precision, intent(in)  :: tmp_wtg(n)
+  double precision, intent(in)  :: lambda
+  double precision, intent(in)  :: delta
 
   ! Internal
-  double precision :: accu1, accu2
-  integer          :: i,j
+  double precision              :: accu1, accu2
+  integer                       :: i,j
   double precision, allocatable :: tmp_accu1(:), tmp_accu2(:)
 
   ! Functions
-  double precision :: d1_norm_inverse_trust_region_omp
+  double precision              :: d1_norm_inverse_trust_region_omp
 
   ! Allocation
   allocate(tmp_accu1(n), tmp_accu2(n))
@@ -1312,6 +1346,10 @@ function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   use omp_lib
   include 'constants.h'
+
+  !BEGIN_DOC
+  ! Compute the second derivative of (1/||x||^2 - 1/Delta^2)^2
+  !END_DOC
 
   implicit none
 
@@ -1468,6 +1506,10 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the first derivative of (1/||x||^2 - 1/Delta^2)^2
+  !END_DOC
+
   implicit none
 
   ! Variables
@@ -1481,11 +1523,11 @@ function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: delta
 
   ! Internal
-  double precision :: wtg, accu1, accu2
-  integer          :: i,j
+  double precision             :: wtg, accu1, accu2
+  integer                      :: i,j
 
   ! Functions
-  double precision :: d1_norm_inverse_trust_region
+  double precision             :: d1_norm_inverse_trust_region
   
   accu1 = 0d0
   accu2 = 0d0
@@ -1559,6 +1601,10 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the second derivative of (1/||x||^2 - 1/Delta^2)^2
+  !END_DOC
+
   implicit none
 
   ! Variables
@@ -1572,11 +1618,11 @@ function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
   double precision, intent(in) :: delta
 
   ! Internal
-  double precision :: wtg, accu1, accu2, accu3
-  integer          :: i,j
+  double precision             :: wtg, accu1, accu2, accu3
+  integer                      :: i,j
 
   ! Functions
-  double precision :: d2_norm_inverse_trust_region
+  double precision             :: d2_norm_inverse_trust_region
   
   accu1 = 0d0
   accu2 = 0d0

@@ -375,6 +375,10 @@ subroutine trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compuet the step in the trust region
+  !END_DOC
+
   implicit none
 
   ! Variables
@@ -401,8 +405,8 @@ subroutine trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
 
 
   ! Functions
-  double precision :: ddot, dnrm2
-  double precision :: f_norm_trust_region_omp
+  double precision                :: ddot, dnrm2
+  double precision                :: f_norm_trust_region_omp
 
   print*,''
   print*,'=================='

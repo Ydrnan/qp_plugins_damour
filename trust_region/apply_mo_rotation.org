@@ -25,6 +25,10 @@ subroutine apply_mo_rotation(R,prev_mos)
   
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute the new MOs knowing the rotation matrix
+  !END_DOC
+
   implicit none
 
   ! Variables

@@ -11,6 +11,10 @@
 #+BEGIN_SRC f90 :comments org :tangle break_spatial_sym.irp.f
 program break_spatial_sym
 
+  !BEGIN_DOC
+  ! Break the symmetry of the MOs with a rotation
+  !END_DOC
+
   implicit none
 
   kick_in_mos = .True.

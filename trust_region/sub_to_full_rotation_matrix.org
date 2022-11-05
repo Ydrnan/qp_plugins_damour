@@ -3,13 +3,13 @@
 Usually, we are using a list of MOs, for exemple the active ones. When
 we compute a rotation matrix to rotate the MOs, we just compute a
 rotation matrix for these MOs in order to reduce the size of the
-matrix which has to be compute. Since the computation of a rotation
+matrix which has to be computed. Since the computation of a rotation
 matrix scale in $O(N^3)$ with $N$ the number of MOs, it's better to
 reuce the number of MOs involved.
 After that we replace the rotation matrix in the full space by
 building the elements of the rotation matrix in the full space from
 the elements of the rotation matrix in the subspace and adding some 0
-on the extra diagonal elements and some 1 on the diagonal elements,
+on the extradiagonal elements and some 1 on the diagonal elements,
 for the MOs that are not involved in the rotation.
 
 Provided:
@@ -32,17 +32,21 @@ Internal:
 #+BEGIN_SRC f90 :comments org :tangle sub_to_full_rotation_matrix.irp.f 
 subroutine sub_to_full_rotation_matrix(m,tmp_list,tmp_R,R)
 
+  !BEGIN_DOC
+  ! Compute the full rotation matrix from a smaller one
+  !END_DOC
+  
   implicit none
 
   ! in
-  integer, intent(in) :: m, tmp_list(m)
-  double precision, intent(in) :: tmp_R(m,m)
+  integer, intent(in)           :: m, tmp_list(m)
+  double precision, intent(in)  :: tmp_R(m,m)
   
   ! out
   double precision, intent(out) :: R(mo_num,mo_num)
  
   ! internal
-  integer :: i,j,tmp_i,tmp_j
+  integer                       :: i,j,tmp_i,tmp_j
 
   ! tmp_R to R, subspace to full space
   R = 0d0

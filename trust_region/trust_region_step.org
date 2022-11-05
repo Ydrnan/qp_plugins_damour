@@ -373,7 +373,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_step.irp.f
 subroutine trust_region_step(n,nb_iter,v_grad,rho,e_val,w,x,delta)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compuet the step in the trust region

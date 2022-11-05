@@ -134,7 +134,7 @@ Output:
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
 subroutine trust_region_step_w_expected_e(n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,x,must_exit)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the step and the expected criterion/energy after the step
@@ -206,7 +206,7 @@ Output:
 #+BEGIN_SRC f90 :comments org :tangle algo_trust.irp.f
 subroutine trust_region_is_step_cancelled(nb_iter,prev_criterion, criterion, criterion_model,rho,cancel_step)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute if the step should be cancelled

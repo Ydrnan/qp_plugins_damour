@@ -31,7 +31,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_expected_e.irp.f
 subroutine trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
    
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the expected criterion/energy after the application of the step x

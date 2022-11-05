@@ -34,7 +34,7 @@ Ouput:
 #+BEGIN_SRC f90 :comments org :tangle vec_to_mat_index.irp.f
 subroutine vec_to_mat_index(i,p,q)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the indexes (p,q) of the element in the lower diagonal matrix knowing

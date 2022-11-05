@@ -45,7 +45,7 @@ Internal:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_rho.irp.f
 subroutine trust_region_rho(prev_energy, energy,e_model,rho)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute rho, the agreement between the predicted criterion/energy and the real one

@@ -23,7 +23,7 @@ Internal:
 #+BEGIN_SRC f90 :comments org :tangle apply_mo_rotation.irp.f
 subroutine apply_mo_rotation(R,prev_mos)
   
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the new MOs knowing the rotation matrix

@@ -151,7 +151,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 subroutine trust_region_optimal_lambda(n,e_val,tmp_wtg,delta,lambda)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Research the optimal lambda to constrain the step size in the trust region
@@ -506,7 +506,7 @@ Function:
 function d1_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   
   use omp_lib
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the first derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2
@@ -643,7 +643,7 @@ Function:
 function d2_norm_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
   
   use omp_lib
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the second derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2
@@ -792,7 +792,7 @@ function f_norm_trust_region_omp(n,e_val,tmp_wtg,lambda)
 
   use omp_lib
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute ||x(lambda)||^2
@@ -904,7 +904,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d1_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the first derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2 
@@ -1002,7 +1002,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d2_norm_trust_region(n,e_val,w,v_grad,lambda,delta)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the second derivative with respect to lambda of (||x(lambda)||^2 - Delta^2)^2 
@@ -1105,7 +1105,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function f_norm_trust_region(n,e_val,tmp_wtg,lambda)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute ||x(lambda)||^2
@@ -1188,7 +1188,7 @@ Function:
 function d1_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   use omp_lib
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the first derivative of (1/||x||^2 - 1/Delta^2)^2
@@ -1345,7 +1345,7 @@ Function:
 function d2_norm_inverse_trust_region_omp(n,e_val,tmp_wtg,lambda,delta)
 
   use omp_lib
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the second derivative of (1/||x||^2 - 1/Delta^2)^2
@@ -1504,7 +1504,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d1_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the first derivative of (1/||x||^2 - 1/Delta^2)^2
@@ -1599,7 +1599,7 @@ Function:
 #+BEGIN_SRC f90 :comments org :tangle trust_region_optimal_lambda.irp.f
 function d2_norm_inverse_trust_region(n,e_val,w,v_grad,lambda,delta)
 
-  include 'constants.h'
+  include 'pi.h'
 
   !BEGIN_DOC
   ! Compute the second derivative of (1/||x||^2 - 1/Delta^2)^2

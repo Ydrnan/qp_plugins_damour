@@ -344,7 +344,7 @@ subroutine algo_trust_template(tmp_n, tmp_list_size, tmp_list)
           TOUCH mo_coef C_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER
 
           ! To update the other parameters if needed
-          call update_parameters()
+          call #update_parameters()
 
           ! To enforce the program to provide new criterion after the update
           ! of the parameters
@@ -505,7 +505,7 @@ subroutine algo_trust_cartesian_template(tmp_n)
           TOUCH X_PROVIDER H_PROVIDER g_PROVIDER cc_PROVIDER 
 
           ! To update the other parameters if needed
-          call update_parameters()
+          call #update_parameters()
 
           ! New criterion
           PROVIDE C_PROVIDER ! Unnecessary

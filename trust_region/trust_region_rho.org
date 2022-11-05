@@ -47,20 +47,24 @@ subroutine trust_region_rho(prev_energy, energy,e_model,rho)
 
   include 'constants.h'
 
+  !BEGIN_DOC
+  ! Compute rho, the agreement between the predicted criterion/energy and the real one
+  !END_DOC
+
   implicit none
    
   ! Variables
 
   ! In
-  double precision, intent(inout)  :: prev_energy
-  double precision, intent(in)  :: e_model, energy
+  double precision, intent(inout) :: prev_energy
+  double precision, intent(in)    :: e_model, energy
   
   ! Out
-  double precision, intent(out) :: rho
+  double precision, intent(out)   :: rho
 
   ! Internal
-  double precision :: t1, t2, t3
-  integer :: i
+  double precision                :: t1, t2, t3
+  integer                         :: i
 
   print*,''
   print*,'---Rho_model---'

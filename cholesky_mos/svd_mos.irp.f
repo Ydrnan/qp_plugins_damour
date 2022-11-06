@@ -110,6 +110,7 @@ subroutine ao_decomposition()
       e(i) = 0d0
     endif
   enddo
+  print*,'Reduction',n_alpha,ao_num**2
 
   !n_alpha = ao_num**2-1
 

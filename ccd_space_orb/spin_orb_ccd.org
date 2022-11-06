@@ -73,6 +73,12 @@ program spin_orb_ccd
   
   PROVIDE mo_two_e_integrals_in_map
 
+  if (n_core_orb > 0) then
+    print*,'Sorry, cannot be used with frozen core orbitals...'
+    print*,'abort'
+    call abort
+  endif
+
   n_occ = elec_alpha_num + elec_beta_num
   n_vir = 2*mo_num - (elec_alpha_num + elec_beta_num)
 
@@ -106,36 +112,10 @@ program spin_orb_ccd
   enddo
   !print*,'int',delta(:,:,:,:)
 
-  ! test S-CCD
-  if (sccd_method == 'none') then
-    print*,'Normal CCD'
-  elseif (sccd_method == 'bi_int') then
-    print*,'Selected CCD on: |<ij|ab>| > e'
-  elseif (sccd_method == 'guess_mp2') then
-    print*,'Selected CCD on: |<ij|ab>|/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e' 
-  elseif (sccd_method == 'estimated_e') then
-    print*,'Selected CCD on: |<ij|ab>|^2/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e'
-  else
-    print*,'Invalid sccd_method:',  sccd_method
-    print*,'Program will abort'
-    call abort
-  endif
-
-  epsilon = 0d-0
-
-!do while (epsilon > 1d-4)   
-
-  print*, 'epsilon:', epsilon
-
   ! delta
   call compute_delta(n_occ, n_vir, delta)
   !print*,'delta',delta(:,:,:,:)
 
-  call normalized_epsilon(n_occ, n_vir, delta)
-  print*,'Max int:', max_int
-  print*,'Max int over delta:', max_int_over_delta
-  print*,'Max int2 over delta:', max_int2_over_delta
-  
   call guess_t2(n_occ, n_vir, delta, epsilon, t2)
 
   call ccd_energy(t2, n_occ, n_vir, energy)
@@ -173,40 +153,7 @@ program spin_orb_ccd
     print*,nb_iter,energy, max_elem
 
     if (max_elem < thresh_conv ) then
-      nb_parameters = 0
-      !k = 1
-      do b = 1, n_vir
-        tmp_b = n_occ + b
-        do a = 1, n_vir
-          tmp_a = n_occ + a
-          do j = 1, n_occ
-            do i = 1, n_occ
-               !sorted_t2(k) = -dabs(0.25d0*t2(i,j,a,b)*two_e_int_spin_orb(i,j,tmp_a,tmp_b))
-               !unsorted_int(k) = -dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
-               !k = k+1
-               if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
-                 nb_parameters =  nb_parameters + 1
-               endif
-            enddo
-          enddo
-        enddo
-      enddo
-      !do k = 1, n_occ**2*n_vir**2
-      !  key(k) = k
-      !enddo
-      !call dsort(sorted_t2, key, n_occ**2*n_vir**2)
-      !do k = 1, n_occ**2*n_vir**2
-      !  l = key(k)
-      !  sorted_int(k) = unsorted_int(l)
-      !enddo
-      !print*,''
-      !print*,' k    t2*int    int' 
-      !do k = 1, n_occ**2*n_vir**2
-      !  print*, k, sorted_t2(k), sorted_int(k)
-      !enddo
-      !print*,''
       not_converged = .False.
-      print*,'Result:', epsilon, energy, nb_parameters
     endif
 
     nb_iter = nb_iter + 1
@@ -217,17 +164,13 @@ program spin_orb_ccd
       print*,'######################'
       exit
     endif
-
   enddo
-
-  epsilon = epsilon * 0.75d0
-
-!enddo
 
   deallocate(t2,r,delta,u,v,v2,x1,x2,x3,x4)
 
 end
 #+END_SRC
+
 ** Routines
 #+BEGIN_SRC  f90 :comments org :tangle spin_orb_ccd.irp.f
 subroutine ccd_energy(t2,n_occ,n_vir,energy)
@@ -328,11 +271,7 @@ subroutine guess_t2(n_occ, n_vir, delta, epsilon, t2)
       do j = 1, n_occ
         do i = 1, n_occ
         
-          if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
-              t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) / delta(i,j,a,b)
-            else
-              t2(i,j,a,b) = 0d0
-          endif
+          t2(i,j,a,b) = -two_e_int_spin_orb(i,j,tmp_a,tmp_b) / delta(i,j,a,b)
           !print*,t2(i,j,a,b), dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
           !if (dabs(t2(i,j,a,b)) >1d-12) then
           !print*,index_in_space(i),index_in_space(j),index_in_space(tmp_a),index_in_space(tmp_b),-two_e_int_spin_orb(i,j,tmp_a,tmp_b),delta(i,j,a,b)
@@ -342,49 +281,6 @@ subroutine guess_t2(n_occ, n_vir, delta, epsilon, t2)
       enddo
     enddo
   enddo
-
-end
-#+END_SRC
-
-#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-function is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)
-
-  implicit none
-
-  ! in
-  integer, intent(in)          :: i,j,a,b,tmp_a,tmp_b
-  integer, intent(in)          :: n_occ, n_vir
-  double precision, intent(in) :: epsilon, delta(n_occ,n_occ,n_vir,n_vir) 
-
-  ! functions
-  logical                      :: is_selected
-  double precision             :: two_e_int_spin_orb
-
-  ! Normal CCD
-  if (sccd_method == 'none') then
-    is_selected = .True.
-  ! Selected CCD on: |<ij|ab>| > e
-  elseif (sccd_method == 'bi_int') then
-    if (dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/max_int >= epsilon) then
-      is_selected = .True.
-    else
-      is_selected = .False.
-    endif
-  ! Selected CCD on: |<ij|ab>|/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e
-  elseif (sccd_method == 'guess_mp2') then
-    if ((dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b))/max_int_over_delta >= epsilon) then
-      is_selected = .True.
-    else
-      is_selected = .False.
-    endif
-  ! Selected CCD on: |<ij|ab>|^2/(fcc_aa+fcc_bb-fcc_ii-fcc_jj) > e
-  elseif (sccd_method == 'estimated_e') then
-    if (dsqrt((two_e_int_spin_orb(i,j,tmp_a,tmp_b)**2/delta(i,j,a,b))/max_int2_over_delta) >= epsilon) then
-      is_selected = .True.
-    else
-      is_selected = .False.
-    endif
-  endif
 
 end
 #+END_SRC
@@ -417,11 +313,7 @@ subroutine update_t2(n_occ, n_vir, r, delta, u, v, epsilon, t2)
         do j = 1, n_occ
           do i = 1, n_occ
     
-            if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
-              t2(i,j,a,b) =  t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
-            else
-              t2(i,j,a,b) = 0d0
-            endif
+            t2(i,j,a,b) =  t2(i,j,a,b) - r(i,j,a,b) / delta(i,j,a,b)
 
             !if (t2(i,j,a,b) /= 0d0) then 
             !  print*, t2(i,j,a,b), two_e_int_spin_orb(i,j,tmp_a,tmp_b)
@@ -788,14 +680,9 @@ subroutine compute_r(n_occ,n_vir,t2,delta,u,v,epsilon,r)
       do j = 1, n_occ
         do i = 1, n_occ
 
-          if (is_selected(i,j,a,b,tmp_a,tmp_b, n_occ, n_vir, delta, epsilon)) then
-            r(i,j,a,b) =  two_e_int_spin_orb(i,j,tmp_a,tmp_b) &
+          r(i,j,a,b) =  two_e_int_spin_orb(i,j,tmp_a,tmp_b) &
                         + delta(i,j,a,b) * t2(i,j,a,b) &
                         + u(i,j,a,b) + v(i,j,a,b)
-          else
-            r(i,j,a,b) = 0d0
-          endif
-
           !print*,two_e_int_spin_orb(i,j,tmp_a,tmp_b)
 
         enddo
@@ -885,52 +772,6 @@ function index_in_space(i)
     index_in_space = i - mo_num 
   endif
   
-end
-#+END_SRC
-
-#+BEGIN_SRC f90 :comments org :tangle spin_orb_ccd.irp.f
-subroutine normalized_epsilon(n_occ, n_vir, delta)
-
-  implicit none
-
-  ! in
-  integer, intent(in) :: n_occ, n_vir
-  double precision, intent(in) :: delta(n_occ, n_occ, n_vir, n_vir)
-  
-  ! internal
-  integer :: i,j,a,b,tmp_a,tmp_b
-
-  ! functions
-  double precision :: two_e_int_spin_orb
-  
-  !max_int = 0d0
-  !max_int_over_delta = 0d0
-  !max_int2_over_delta = 0d0
-
-  do b = 1, n_vir
-    tmp_b = b + n_occ
-    do a = 1, n_vir
-      tmp_a = a + n_occ 
-      do j = 1, n_occ
-        do i = 1, n_occ
-
-          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b)) > max_int) then
-            max_int = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))
-          endif
-          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b) > max_int_over_delta) then
-            max_int_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))/delta(i,j,a,b)
-          endif
-          if(dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b) > max_int2_over_delta) then
-            max_int2_over_delta = dabs(two_e_int_spin_orb(i,j,tmp_a,tmp_b))**2/delta(i,j,a,b)
-          endif
-
-        enddo
-      enddo
-    enddo
-  enddo
-
-  TOUCH max_int max_int_over_delta max_int2_over_delta
-
 end
 #+END_SRC
 

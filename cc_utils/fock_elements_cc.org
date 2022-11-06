@@ -2,7 +2,7 @@
 
 ** fcc_pp
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_act_virt_orb)]
+BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_inact_virt_no_core_orb)]
 
   implicit none
 
@@ -14,8 +14,8 @@ BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_act_virt_orb)]
   integer :: p, pa
 
   fock_matrix_pp = 0d0
-  do pa = 1, dim_list_act_virt_orb
-    p = list_act_virt(pa)
+  do pa = 1, dim_list_inact_virt_no_core_orb
+    p = list_inact_virt_no_core(pa)
     fock_matrix_pp(pa) = fock_matrix_mo(p,p)
   enddo
 
@@ -23,7 +23,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_inact_orb)]
 
   implicit none
 
@@ -35,8 +35,8 @@ BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_act_orb)]
   integer :: i, ia
 
   fock_matrix_ii = 0d0
-  do ia = 1, dim_list_act_orb
-    i = list_act(ia)
+  do ia = 1, dim_list_inact_orb
+    i = list_inact(ia)
     fock_matrix_ii(ia) = fock_matrix_mo(i,i)
   enddo
 
@@ -66,7 +66,7 @@ END_PROVIDER
 
 ** Fock matrix
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_act_virt_orb, dim_list_act_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb)]
 
   implicit none
 
@@ -77,10 +77,10 @@ BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_act_virt_orb, dim_list_act_v
 
   integer :: p,q,tmp_p,tmp_q
 
-  do q = 1, dim_list_act_virt_orb
-    tmp_q = list_act_virt(q)
-    do p = 1, dim_list_act_virt_orb
-      tmp_p = list_act_virt(p)
+  do q = 1, dim_list_inact_virt_no_core_orb
+    tmp_q = list_inact_virt_no_core(q)
+    do p = 1, dim_list_inact_virt_no_core_orb
+      tmp_p = list_inact_virt_no_core(p)
       fcc_pq(p,q) = fock_matrix_mo(tmp_p,tmp_q)
     enddo
   enddo
@@ -89,7 +89,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
 
@@ -102,7 +102,7 @@ BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_act_orb)]
   integer :: i,a, tmp_a
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   do i= 1, nO
@@ -116,7 +116,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_act_orb, dim_list_virt_orb)]
+BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
 
@@ -129,7 +129,7 @@ BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_act_orb, dim_list_virt_orb)]
   integer :: i,a, tmp_a
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
     do a = 1, nV
@@ -143,7 +143,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_act_orb, dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
 
@@ -155,7 +155,7 @@ BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_act_orb, dim_list_act_orb)]
   integer :: i,j
   integer :: nO
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   
   do j= 1, nO
     do i = 1, nO
@@ -167,7 +167,7 @@ END_PROVIDER
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fcc_o, (dim_list_act_orb)]
+BEGIN_PROVIDER [double precision, fcc_o, (dim_list_inact_orb)]
 
   implicit none
 
@@ -179,7 +179,7 @@ BEGIN_PROVIDER [double precision, fcc_o, (dim_list_act_orb)]
   integer :: i
   integer :: nO
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   
   do i = 1, nO
     fcc_o(i) = fcc_oo(i,i)
@@ -201,7 +201,7 @@ BEGIN_PROVIDER [double precision, fcc_vv, (dim_list_virt_orb, dim_list_virt_orb)
   integer :: a,b,tmp_a,tmp_b
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   do b= 1, nV

@@ -28,7 +28,7 @@ program space_orb_ccd
   double precision, allocatable :: t2(:,:,:,:), r(:,:,:,:), delta(:,:,:,:)
   double precision, allocatable :: g_occ(:,:), g_vir(:,:), J1(:,:,:,:), K1(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   allocate(t2(nO,nO,nV,nV), r(nO,nO,nV,nV), delta(nO,nO,nV,nV))
@@ -149,24 +149,22 @@ subroutine space_ccd_energy(t2,e_ccd)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: e_ccd
 
   integer :: i,j,a,b,tmp_a,tmp_b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   e_ccd = 0d0
   do b = 1, nV
-    tmp_b = b + nO
     do a = 1, nV
-      tmp_a = a + nO
       do j = 1, nO
         do i = 1, nO
           !e_ccd = e_ccd + t2(i,j,a,b) * (2d0 * two_e_ints(i,j,tmp_a,tmp_b) - two_e_ints(i,j,tmp_b,tmp_a))
-          e_ccd = e_ccd + t2(i,j,a,b) * w_oovv(i,j,a,b)
+          e_ccd = e_ccd + t2(i,j,a,b) * wcc_oovv(i,j,a,b)
         enddo
       enddo
     enddo
@@ -183,23 +181,21 @@ subroutine space_ccd_delta(delta)
 
   implicit none
 
-  double precision, intent(out) :: delta(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: delta(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,a,b,tmp_a,tmp_b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   do b = 1, nV
-    tmp_b = b + nO
     do a = 1, nV
-      tmp_a = a + nO 
       do j = 1, nO
         do i = 1, nO
           
-          delta(i,j,a,b) = (fock_matrix_mo(tmp_a,tmp_a) + fock_matrix_mo(tmp_b,tmp_b)&
-                          - fock_matrix_mo(i,i) - fock_matrix_mo(j,j))
+          delta(i,j,a,b) = (fcc_vv(a,a) + fcc_vv(b,b)&
+                          - fcc_oo(i,i) - fcc_oo(j,j))
         enddo
       enddo
     enddo
@@ -214,22 +210,20 @@ subroutine space_ccd_guess_t2(delta,t2)
 
   implicit none
 
-  double precision, intent(in)  :: delta(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: delta(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,a,b,tmp_a,tmp_b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   do b = 1, nV
-    tmp_b = b + nO
     do a = 1, nV
-      tmp_a = a + nO
       do j = 1, nO
         do i = 1, nO
-          t2(i,j,a,b) = - two_e_ints(i,j,tmp_a,tmp_b)/delta(i,j,a,b)
+          t2(i,j,a,b) = - vcc_oovv(i,j,a,b)/delta(i,j,a,b)
         enddo
       enddo
     enddo
@@ -244,14 +238,14 @@ subroutine space_ccd_update_t2(delta,r,t2)
 
   implicit none
 
-  double precision, intent(in)  :: delta(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: r(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: delta(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: r(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,a,b,tmp_a,tmp_b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   do b = 1, nV
@@ -273,13 +267,13 @@ subroutine space_ccd_check_conv(r,max_elem)
 
   implicit none
 
-  double precision, intent(in)  :: r(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: r(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: max_elem
 
   integer :: i,j,a,b,tmp_a,tmp_b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   max_elem = 0d0
@@ -308,13 +302,13 @@ subroutine space_ccd_X1(t2,X1)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: X1(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: X1(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   !X1_{ij}^{ab} = \sum_{kl} v_{ij}^{kl} t2_{kl}^{ab}
@@ -337,7 +331,7 @@ subroutine space_ccd_X1(t2,X1)
   !enddo
   
   call dgemm('N','N', nO*nO, nV*nV, nO*nO,&
-             1d0, v_oooo, size(v_oooo,1) * size(v_oooo,2), &
+             1d0, vcc_oooo, size(vcc_oooo,1) * size(vcc_oooo,2), &
              t2, size(t2,1) * size(t2,2), &
              0d0, X1, size(X1,1) * size(X1,2))
   
@@ -354,13 +348,13 @@ subroutine space_ccd_X2(t2,X2)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: X2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: X2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   !X2_{ij}^{ab} = \sum_{cd} v_{cd}^{ab} t2_{ij}^{cd}
@@ -384,7 +378,7 @@ subroutine space_ccd_X2(t2,X2)
   
   call dgemm('N','N', nO*nO, nV*nV, nV*nV,&
              1d0, t2, size(t2,1) * size(t2,2), &
-             v_vvvv, size(v_vvvv,1) * size(v_vvvv,2), &
+             vcc_vvvv, size(vcc_vvvv,1) * size(vcc_vvvv,2), &
              0d0, X2, size(X2,1) * size(X2,2))
   
 end
@@ -400,15 +394,15 @@ subroutine space_ccd_X3(t2,X3)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: X3(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: X3(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
   double precision, allocatable :: accu(:,:,:,:)
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(accu(nO,nO,nO,nO))
@@ -439,7 +433,7 @@ subroutine space_ccd_X3(t2,X3)
   ! \sum_{cd} t2_{ij}^{cd} v_{cd}^{kl}
   call dgemm('N','N', nO*nO, nO*nO, nV*nV,&
              1d0, t2, size(t2,1) * size(t2,2), &
-             v_vvoo, size(v_vvoo,1) * size(v_vvoo,2), &
+             vcc_vvoo, size(vcc_vvoo,1) * size(vcc_vvoo,2), &
              0d0, accu, size(accu,1) * size(accu,2))
 
   ! \sum_{kl} accu_{ij}^{kl} t2_{kl}^{ab}
@@ -464,14 +458,14 @@ subroutine space_ccd_G1(t2,g_occ,G1)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb)
-  double precision, intent(out) :: G1(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
+  double precision, intent(out) :: G1(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_G1(:,:)
@@ -517,14 +511,14 @@ subroutine space_ccd_G2(t2,g_occ,G2)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb)
-  double precision, intent(out) :: G2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
+  double precision, intent(out) :: G2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_G2(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:) 
@@ -593,14 +587,14 @@ subroutine space_ccd_G3(t2,g_vir,G3)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(in)  :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: G3(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: G3(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_G3(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -668,14 +662,14 @@ subroutine space_ccd_G4(t2,g_vir,G4)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(in)  :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: G4(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: G4(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_G4(:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -730,14 +724,14 @@ subroutine space_ccd_J1a(t2,J1,J1a)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
-  double precision, intent(out) :: J1a(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
+  double precision, intent(out) :: J1a(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_J1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -811,14 +805,14 @@ subroutine space_ccd_J1b(t2,J1,J1b)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
-  double precision, intent(out) :: J1b(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
+  double precision, intent(out) :: J1b(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_J1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -892,14 +886,14 @@ subroutine space_ccd_K1a(t2,K1,K1a)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1a(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1a(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -973,14 +967,14 @@ subroutine space_ccd_K1b(t2,K1,K1b)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1b(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1b(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -1054,14 +1048,14 @@ subroutine space_ccd_K1c(t2,K1,K1c)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1c(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1c(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -1135,14 +1129,14 @@ subroutine space_ccd_K1d(t2,K1,K1d)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1d(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1d(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   double precision, allocatable :: tmp_K1(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
@@ -1212,13 +1206,13 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
 
   implicit none
 
-  double precision, intent(in)  :: delta(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: delta(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
   double precision, intent(in)  :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
-  double precision, intent(in)  :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(out) :: r(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
+  double precision, intent(in)  :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(out) :: r(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
   integer :: nO, nV
@@ -1228,7 +1222,7 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
   double precision, allocatable :: J1a(:,:,:,:), J1b(:,:,:,:)
   double precision, allocatable :: K1a(:,:,:,:), K1b(:,:,:,:), K1c(:,:,:,:), K1d(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(X1(nO,nO,nV,nV), X2(nO,nO,nV,nV), X3(nO,nO,nV,nV))
@@ -1256,14 +1250,12 @@ subroutine space_ccd_residue(delta,t2,g_occ,g_vir,J1,K1,r)
 
   ! Residue
   do b = 1, nV
-    tmp_b = b + nO
     do a = 1, nV
-      tmp_a = a + nO
       do j = 1, nO
         do i = 1, nO
 
           r(i,j,a,b) = r(i,j,a,b) &
-          + v_oovv(i,j,a,b)
+          + vcc_oovv(i,j,a,b)
 
           ! X1
           r(i,j,a,b) = r(i,j,a,b) + X1(i,j,a,b)
@@ -1357,15 +1349,15 @@ subroutine space_ccd_g_occ(t2,g_occ)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
 
   integer :: i,j,k,l,c,d,tmp_c,tmp_d
   integer :: nO,nV
 
   double precision, allocatable :: tmp_w(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(tmp_w(nO,nV,nV,nO))
@@ -1374,7 +1366,7 @@ subroutine space_ccd_g_occ(t2,g_occ)
     do d = 1, nV
       do c = 1, nV
         do l = 1, nO
-          tmp_w(l,c,d,k) = w_vvoo(c,d,k,l)
+          tmp_w(l,c,d,k) = wcc_vvoo(c,d,k,l)
         enddo
       enddo
     enddo
@@ -1394,7 +1386,7 @@ subroutine space_ccd_g_occ(t2,g_occ)
   !        do l = 1, nO
   !          g_occ(i,k) = g_occ(i,k) &
   !          + t2(i,l,c,d) * tmp_w(l,c,d,k)
-  !          !+ w_vvoo(c,d,k,l) * t2(i,l,c,d)
+  !          !+ wcc_vvoo(c,d,k,l) * t2(i,l,c,d)
   !          !!+ (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(i,l,c,d)
   !        enddo
   !      enddo
@@ -1429,7 +1421,7 @@ subroutine space_ccd_g_vir(t2,g_vir)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d
@@ -1437,7 +1429,7 @@ subroutine space_ccd_g_vir(t2,g_vir)
 
   double precision, allocatable :: tmp_t2(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(tmp_t2(nV,nO,nO,nV))
@@ -1466,8 +1458,8 @@ subroutine space_ccd_g_vir(t2,g_vir)
   !      do l = 1, nO
   !        do k = 1, nO
   !          g_vir(c,a) = g_vir(c,a) &
-  !          - w_vvoo(c,d,k,l) * tmp_t2(d,k,l,a)
-  !          !- w_vvoo(c,d,k,l) * t2(k,l,a,d)
+  !          - wcc_vvoo(c,d,k,l) * tmp_t2(d,k,l,a)
+  !          !- wcc_vvoo(c,d,k,l) * t2(k,l,a,d)
   !          !!- (2d0 * two_e_ints(tmp_c,tmp_d,k,l) - two_e_ints(tmp_c,tmp_d,l,k)) * t2(k,l,a,d)
   !        enddo
   !      enddo
@@ -1483,7 +1475,7 @@ subroutine space_ccd_g_vir(t2,g_vir)
   enddo
 
   call dgemm('N','N', nV, nV, nV*nO*nO, &
-             -1d0, w_vvoo, size(w_vvoo,1), &
+             -1d0, wcc_vvoo, size(wcc_vvoo,1), &
              tmp_t2, size(tmp_t2,1) * size(tmp_t2,2) * size(tmp_t2,3), &
              1d0, g_vir, size(g_vir,1))
 
@@ -1502,8 +1494,8 @@ subroutine space_ccd_J1(t2,J1)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
   integer :: nO,nV
@@ -1511,7 +1503,7 @@ subroutine space_ccd_J1(t2,J1)
   double precision, allocatable :: tmp_v(:,:,:,:), tmp_w(:,:,:,:)
   double precision, allocatable :: tmp_t2_1(:,:,:,:), tmp_t2_2(:,:,:,:), accu(:,:,:,:)
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(tmp_v(nV,nO,nV,nO), tmp_w(nV,nO,nV,nO))
@@ -1522,7 +1514,7 @@ subroutine space_ccd_J1(t2,J1)
     do d = 1, nV
       do k = 1, nO
         do c = 1, nV
-          tmp_v(c,k,d,l) = 0.5d0 * v_vvoo(c,d,k,l)
+          tmp_v(c,k,d,l) = 0.5d0 * vcc_vvoo(c,d,k,l)
         enddo
       enddo
     enddo
@@ -1542,7 +1534,7 @@ subroutine space_ccd_J1(t2,J1)
     do d = 1, nV
       do k = 1, nO
         do c = 1, nV
-          tmp_w(c,k,d,l) = 0.5d0 * w_vvoo(c,d,k,l)
+          tmp_w(c,k,d,l) = 0.5d0 * wcc_vvoo(c,d,k,l)
         enddo
       enddo
     enddo
@@ -1574,7 +1566,7 @@ subroutine space_ccd_J1(t2,J1)
   !            - tmp_v(c,k,d,l) * tmp_t2_1(d,l,i,a) &
   !            + tmp_w(c,k,d,l) * tmp_t2_2(d,l,i,a)
   !            !- 0.5d0 * v_vvoo(c,d,k,l) * t2(i,l,d,a) &
-  !            !+ 0.5d0 * w_vvoo(c,d,k,l) * t2(i,l,a,d)
+  !            !+ 0.5d0 * wcc_vvoo(c,d,k,l) * t2(i,l,a,d)
   !            
   !            
   !            !!- 0.5d0 * two_e_ints(tmp_c,tmp_d,k,l) * t2(i,l,d,a) &
@@ -1601,7 +1593,7 @@ subroutine space_ccd_J1(t2,J1)
     do a = 1, nV
       do c = 1, nV
         do i = 1, nO
-          J1(i,c,a,k) = accu(c,k,i,a) + v_ovvo(i,c,a,k)
+          J1(i,c,a,k) = accu(c,k,i,a) + vcc_ovvo(i,c,a,k)
         enddo
       enddo
     enddo
@@ -1621,15 +1613,15 @@ subroutine space_ccd_K1(t2,K1)
 
   implicit none
 
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,k,l,c,d,tmp_c,tmp_d,i,j
   integer :: nO,nV
 
   double precision, allocatable :: tmp_v(:,:,:,:), tmp_t2(:,:,:,:), accu(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   allocate(tmp_v(nV,nO,nV,nO),tmp_t2(nV,nO,nO,nV),accu(nV,nO,nO,nV))
@@ -1638,7 +1630,7 @@ subroutine space_ccd_K1(t2,K1)
     do d = 1, nV
       do k = 1, nO
         do c = 1, nV
-          tmp_v(c,k,d,l) = 0.5d0 * v_vvoo(d,c,k,l)
+          tmp_v(c,k,d,l) = 0.5d0 * vcc_vvoo(d,c,k,l)
         enddo
       enddo
     enddo
@@ -1690,7 +1682,7 @@ subroutine space_ccd_K1(t2,K1)
     do k = 1, nO
       do c = 1, nV
         do i = 1, nO
-          K1(i,c,k,a) = v_ovov(i,c,k,a) + accu(c,k,i,a)
+          K1(i,c,k,a) = vcc_ovov(i,c,k,a) + accu(c,k,i,a)
         enddo
       enddo
     enddo

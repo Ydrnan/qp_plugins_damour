@@ -28,7 +28,28 @@ subroutine ao_decomposition()
     do la = 1, ao_num
       do nu = 1, ao_num
         do mu = 1, ao_num
-          A(mu,nu,la,si) = get_ao_two_e_integral(mu,nu,la,si,ao_integrals_map)
+          !A(mu,nu,la,si) = get_ao_two_e_integral(mu,nu,la,si,ao_integrals_map)
+          A(mu,nu,la,si) = get_ao_two_e_integral(mu,la,nu,si,ao_integrals_map)
+        enddo
+      enddo
+    enddo
+  enddo
+  do si = 1, ao_num
+    do la = 1, ao_num
+      do nu = 1, ao_num
+        do mu = 1, ao_num
+          if (dabs(A(mu,nu,la,si) - A(la,si,mu,nu)) > 1d-16) then
+            call abort
+          endif
+          if (dabs(A(mu,nu,la,si) - A(nu,mu,la,si)) > 1d-16) then
+            call abort
+          endif
+          if (dabs(A(mu,nu,la,si) - A(mu,nu,si,la)) > 1d-16) then
+            call abort
+          endif
+          if (dabs(A(mu,nu,la,si) - A(nu,mu,si,la)) > 1d-16) then
+            call abort
+          endif
         enddo
       enddo
     enddo
@@ -54,8 +75,6 @@ subroutine ao_decomposition()
     print*,'Error in dpotrf'
     call abort
   endif
-
-  n_alpha = ao_num**2
 
   if (debug) then
     print*,'Ld before removing upper diag elements'
@@ -126,6 +145,9 @@ subroutine ao_decomposition()
   double precision, allocatable :: L_pq(:,:,:)
   double precision, allocatable :: L_pnu(:,:,:)
   double precision, allocatable :: A_mo(:,:,:,:)
+
+  n_alpha = ao_num**2
+
   allocate(L_pq(mo_num,mo_num,n_alpha))
   allocate(L_pnu(mo_num,ao_num,n_alpha))
   allocate(A_mo(mo_num,mo_num,mo_num,mo_num))
@@ -143,7 +165,7 @@ subroutine ao_decomposition()
   !    enddo
   !  enddo
   !enddo
- 
+
   call dgemm('T','N', mo_num, ao_num*n_alpha, ao_num, &
              1d0, mo_coef, size(mo_coef,2), Ld, size(Ld,1), &
              0d0, L_pnu, size(L_pnu,1))
@@ -182,13 +204,13 @@ subroutine ao_decomposition()
 
   call dgemm('N','T',mo_num*mo_num, mo_num*mo_num, n_alpha, &
              1d0, L_pq, size(L_pq,1) * size(L_pq,2), &
-             L_pq, size(L_pq,3), 0d0, A_mo, size(A_mo,1)*size(A_mo,2))
+             L_pq, size(L_pq,1)*size(L_pq,2), 0d0, A_mo, size(A_mo,1)*size(A_mo,2))
 
   if (debug) then
     print*,'Int in MO basis'
     do j= 1, mo_num
       do i = 1, mo_num
-        write(*,'(100F14.6)') A_mo(i,j,:,:)
+        write(*,'(100F10.6)') A_mo(i,j,:,:)
       enddo
     enddo
   endif
@@ -213,7 +235,7 @@ subroutine ao_decomposition()
     print*,'Expected result'
     do j= 1, mo_num
       do i = 1, mo_num
-        write(*,'(100F14.6)') mo_ints(i,j,:,:)
+        write(*,'(100F10.6)') mo_ints(i,j,:,:)
       enddo
     enddo
   endif
@@ -226,7 +248,7 @@ subroutine ao_decomposition()
     do r = 1, mo_num
       do p = 1, mo_num
         do q = 1, mo_num
-          if (dabs(mo_ints(p,q,r,s) - A_mo(p,q,r,s)) > 1d-12) then
+          if (dabs(mo_ints(p,q,r,s) - A_mo(p,q,r,s)) > 1d-14) then
             nb_error = nb_error + 1
             if (dabs(mo_ints(p,q,r,s) - A_mo(p,q,r,s)) > max_error) then
               max_error = dabs(mo_ints(p,q,r,s) - A_mo(p,q,r,s))

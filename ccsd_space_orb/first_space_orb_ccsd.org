@@ -25,7 +25,7 @@ program first_space_orb_ccsd
   double precision, allocatable :: g_occ(:,:), g_vir(:,:), J1(:,:,:,:), K1(:,:,:,:)
   double precision, allocatable :: A1(:,:,:,:), B1(:,:,:,:)
   
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV), delta(nO,nO,nV,nV))
@@ -45,9 +45,9 @@ program first_space_orb_ccsd
     print*, 'abort'
     call abort
   endif
-  if (n_act_orb == mo_num .or. n_act_orb + n_core_orb == mo_num) then
+  if (n_inact_orb == 0 .or. n_virt_orb == 0) then
     print*, 'Set the mo_class before the calculation'
-    print*, 'for the occupied orbitals -> actives'
+    print*, 'for the occupied orbitals -> inactives'
     print*, 'for the virtual orbitals -> virtuals'
     print*, 'abort'
     call abort
@@ -57,7 +57,6 @@ program first_space_orb_ccsd
 
   ! Delta
   do b = 1, nV
-    tmp_b = b + nO
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
@@ -72,7 +71,7 @@ program first_space_orb_ccsd
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          t2(i,j,a,b) = - v_oovv(i,j,a,b)/delta(i,j,a,b)
+          t2(i,j,a,b) = - vcc_oovv(i,j,a,b)/delta(i,j,a,b)
         enddo
       enddo
     enddo
@@ -125,14 +124,14 @@ program first_space_orb_ccsd
 
         do i = 1, nO
           do a = 1, nV
-            r1(u,beta) = r1(u,beta) + (2d0 * v_voov(a,u,i,beta) - v_ovov(u,a,i,beta)) * t1(i,a)
+            r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
           enddo
         enddo
 
         do i = 1, nO
           do a = 1, nV
             do b = 1, nV
-              r1(u,beta) = r1(u,beta) + (2d0 * v_vvov(a,b,i,beta) - v_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+              r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
             enddo
           enddo
         enddo
@@ -140,7 +139,7 @@ program first_space_orb_ccsd
         do i = 1, nO
           do j = 1, nO
             do a = 1, nV
-              r1(u,beta) = r1(u,beta) - (2d0 * v_vooo(a,u,i,j) - v_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+              r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
             enddo
           enddo
         enddo
@@ -162,7 +161,7 @@ program first_space_orb_ccsd
         do v = 1, nO
           do u = 1, nO
 
-           r2(u,v,beta,gam) = v_oovv(u,v,beta,gam)
+           r2(u,v,beta,gam) = vcc_oovv(u,v,beta,gam)
 
            do j = 1, nO
              do i = 1, nO
@@ -192,23 +191,23 @@ program first_space_orb_ccsd
 
            do a = 1, nV
              r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             + v_ovvv(u,a,beta,gam) * t1(v,a) &
-             + v_ovvv(v,a,gam,beta) * t1(u,a) ! P
+             + vcc_ovvv(u,a,beta,gam) * t1(v,a) &
+             + vcc_ovvv(v,a,gam,beta) * t1(u,a) ! P
              do i = 1, nO
                r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-               - v_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
-               - v_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
+               - vcc_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
+               - vcc_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
              enddo
            enddo
 
            do i = 1, nO
              r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             - v_oovo(u,v,beta,i) * t1(i,gam) &
-             - v_oovo(v,u,gam,i)  * t1(i,beta) ! P
+             - vcc_oovo(u,v,beta,i) * t1(i,gam) &
+             - vcc_oovo(v,u,gam,i)  * t1(i,beta) ! P
              do a = 1, nV
                r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-               - v_ovvo(u,a,beta,i) * t1(v,a) * t1(i,gam) &
-               - v_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
+               - vcc_ovvo(u,a,beta,i) * t1(v,a) * t1(i,gam) &
+               - vcc_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
              enddo
            enddo
 
@@ -300,8 +299,8 @@ program first_space_orb_ccsd
   double precision :: e_ccsdt
 
   if (elec_alpha_num + elec_beta_num > 2) then 
-    allocate(W1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
-    allocate(V1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
+    allocate(W1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
+    allocate(V1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
 
     call form_w(t2,W1)
     call form_v(t1,w1,v1)
@@ -312,10 +311,14 @@ program first_space_orb_ccsd
     print*,"E_CCSD(T):", hf_energy + energy + e_ccsdt
 
     deallocate(v1,w1)
+    print*,'1'
   endif
+  print*,'2'
 
   deallocate(t1,r1,t2,r2,delta,tau)
+  print*,'3'
   deallocate(g_occ,g_vir,J1,K1,A1,B1,H_oo,H_vv,H_vo)
+  print*,'4'
 
 end
 #+END_SRC
@@ -326,15 +329,15 @@ subroutine compute_e_ccsd(tau,t1,energy)
 
   implicit none
 
-  double precision, intent(in) :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in) :: t1(dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in) :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t1(dim_list_inact_orb, dim_list_virt_orb)
   double precision, intent(out) :: energy
 
   ! internal
   integer :: nO, nV
   integer :: i,j,a,b
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   energy = 0d0
@@ -347,7 +350,7 @@ subroutine compute_e_ccsd(tau,t1,energy)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          energy = energy + tau(i,j,a,b) * w_oovv(i,j,a,b)
+          energy = energy + tau(i,j,a,b) * wcc_oovv(i,j,a,b)
        enddo
       enddo
     enddo
@@ -361,15 +364,15 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: H_oo(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: H_oo(dim_list_inact_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,k,b,l,c,d,tmp_c,tmp_d,i,j,u
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   H_oo = 0d0
@@ -381,7 +384,7 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
       do j = 1, nO
         do a = 1, nV
           do b = 1, nV
-            H_oo(u,i) = H_oo(u,i) + (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * tau(u,j,a,b)
+            H_oo(u,i) = H_oo(u,i) + (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * tau(u,j,a,b)
           enddo
         enddo
       enddo
@@ -397,15 +400,15 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: H_vv(dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   H_vv = 0d0
@@ -417,7 +420,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
       do j = 1, nO
         do i = 1, nO
           do b = 1, nV
-            H_vv(a,beta) = H_vv(a,beta) - (2d0 * v_vvoo(a,b,i,j) - v_vvoo(a,b,j,i)) * tau(i,j,beta,b)
+            H_vv(a,beta) = H_vv(a,beta) - (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(a,b,j,i)) * tau(i,j,beta,b)
           enddo
         enddo
       enddo
@@ -433,14 +436,14 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: H_vo(dim_list_virt_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: H_vo(dim_list_virt_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   H_vo = 0d0
@@ -451,7 +454,7 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
       do j = 1, nO
         do b = 1, nV
-          H_vo(a,i) = H_vo(a,i) + (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * t1(j,b)
+          H_vo(a,i) = H_vo(a,i) + (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * t1(j,b)
         enddo
       enddo
       
@@ -466,15 +469,15 @@ subroutine compute_A1(t1,t2,tau,A1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: A1(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: A1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   A1 = 0d0
@@ -483,15 +486,15 @@ subroutine compute_A1(t1,t2,tau,A1)
     do i = 1, nO
       do v = 1, nO
         do u = 1, nO
-          A1(u,v,i,j) = v_oooo(u,v,i,j)
+          A1(u,v,i,j) = vcc_oooo(u,v,i,j)
 
           do a = 1, nV
             A1(u,v,i,j) = A1(u,v,i,j) &
-            + v_ovoo(u,a,i,j) * t1(v,a) &
-            + v_vooo(a,v,i,j) * t1(u,a)
+            + vcc_ovoo(u,a,i,j) * t1(v,a) &
+            + vcc_vooo(a,v,i,j) * t1(u,a)
             
             do b = 1, nV
-              A1(u,v,i,j) = A1(u,v,i,j) + v_vvoo(a,b,i,j) * tau(u,v,a,b)
+              A1(u,v,i,j) = A1(u,v,i,j) + vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
             enddo  
           enddo
           
@@ -508,14 +511,14 @@ subroutine compute_B1(t1,t2,B1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: B1(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   B1 = 0d0
@@ -524,12 +527,12 @@ subroutine compute_B1(t1,t2,B1)
     do beta = 1, nV
       do b = 1, nV
         do a = 1, nV
-          B1(a,b,beta,gam) = v_vvvv(a,b,beta,gam) 
+          B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
 
           do i = 1, nO
             B1(a,b,beta,gam) = B1(a,b,beta,gam) &
-            - v_vvvo(a,b,beta,i) * t1(i,gam) &
-            - v_vvov(a,b,i,gam) * t1(i,beta)
+            - vcc_vvvo(a,b,beta,i) * t1(i,gam) &
+            - vcc_vvov(a,b,i,gam) * t1(i,beta)
           enddo
           
         enddo
@@ -545,14 +548,14 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb), H_oo(dim_list_act_orb, dim_list_act_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: g_occ(dim_list_act_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb), H_oo(dim_list_inact_orb, dim_list_inact_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   g_occ = 0d0
@@ -565,7 +568,7 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
         g_occ(u,i) = g_occ(u,i) + fcc_vo(a,i) * t1(u,a)
         
         do j = 1, nO
-          g_occ(u,i) = g_occ(u,i) + (2d0 * v_ovoo(u,a,i,j) - v_ovoo(u,a,j,i)) * t1(j,a)
+          g_occ(u,i) = g_occ(u,i) + (2d0 * vcc_ovoo(u,a,i,j) - vcc_ovoo(u,a,j,i)) * t1(j,a)
         enddo
            
       enddo
@@ -580,14 +583,14 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb), H_vv(dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb), H_vv(dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   g_vir = 0d0
@@ -600,7 +603,7 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
         g_vir(a,beta) = g_vir(a,beta) - fcc_vo(a,i) * t1(i,beta)
         
         do b = 1, nV
-          g_vir(a,beta) = g_vir(a,beta) + (2d0 * v_vvvo(a,b,beta,i) - v_vvvo(b,a,beta,i)) * t1(i,b)
+          g_vir(a,beta) = g_vir(a,beta) + (2d0 * vcc_vvvo(a,b,beta,i) - vcc_vvvo(b,a,beta,i)) * t1(i,b)
         enddo
            
       enddo
@@ -615,14 +618,14 @@ subroutine compute_J1(t1,t2,J1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: J1(dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_act_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   J1 = 0d0
@@ -631,23 +634,23 @@ subroutine compute_J1(t1,t2,J1)
     do beta = 1, nV
       do a = 1, nV
         do u = 1, nO
-          J1(u,a,beta,i) = v_ovvo(u,a,beta,i)
+          J1(u,a,beta,i) = vcc_ovvo(u,a,beta,i)
 
           do j = 1, nO
             J1(u,a,beta,i) = J1(u,a,beta,i) &
-            - v_ovoo(u,a,j,i) * t1(j,beta)
+            - vcc_ovoo(u,a,j,i) * t1(j,beta)
           enddo
 
           do b = 1, nV
             J1(u,a,beta,i) = J1(u,a,beta,i) &
-            + v_vvvo(b,a,beta,i) * t1(u,b)    
+            + vcc_vvvo(b,a,beta,i) * t1(u,b)    
           enddo
 
           do j = 1, nO
             do b = 1, nV
              J1(u,a,beta,i) = J1(u,a,beta,i) &
-             - v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
-             + 0.5d0 * (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
+             - vcc_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
+             + 0.5d0 * (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * t2(u,j,beta,b)
             enddo
           enddo
           
@@ -664,14 +667,14 @@ subroutine compute_K1(t1,t2,K1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
   integer :: nO,nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   K1 = 0d0
@@ -680,22 +683,22 @@ subroutine compute_K1(t1,t2,K1)
     do i = 1, nO
       do a = 1, nV
         do u = 1, nO
-          K1(u,a,i,beta) = v_ovov(u,a,i,beta)
+          K1(u,a,i,beta) = vcc_ovov(u,a,i,beta)
 
           do j = 1, nO
             K1(u,a,i,beta) = K1(u,a,i,beta) &
-            - v_ovoo(u,a,i,j) * t1(j,beta)
+            - vcc_ovoo(u,a,i,j) * t1(j,beta)
           enddo
 
           do b = 1, nV
             K1(u,a,i,beta) = K1(u,a,i,beta) &
-            + v_vvov(b,a,i,beta) * t1(u,b)    
+            + vcc_vvov(b,a,i,beta) * t1(u,b)    
           enddo
 
           do j = 1, nO
             do b = 1, nV
              K1(u,a,i,beta) = K1(u,a,i,beta) &
-             - v_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
+             - vcc_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
             enddo
           enddo
           
@@ -712,16 +715,16 @@ subroutine space_ccsd_par_t_energy(t1,t2,W,V,energy)
 
   implicit none
 
-  double precision, intent(in) :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in) :: W(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in) :: V(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: W(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: V(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
   double precision, intent(out) :: energy
 
   integer :: i,j,k,a,b,c
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   energy = 0d0
@@ -749,13 +752,13 @@ subroutine form_w(t2,W)
 
   implicit none
 
-  double precision, intent(in) :: t2(dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: W(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: W(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
   
   integer :: i,j,k,l,a,b,c,d
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   W = 0d0
@@ -770,24 +773,24 @@ subroutine form_w(t2,W)
                 W(i,j,k,a,b,c) = W(i,j,k,a,b,c) &
                 ! chem (bd|ai)
                 ! phys <ba|di>
-                + v_vvvo(b,a,d,i) * t2(k,j,c,d) &
-                + v_vvvo(c,a,d,i) * t2(j,k,b,d) & ! bc kj
-                + v_vvvo(a,c,d,k) * t2(j,i,b,d) & ! prev ac ik
-                + v_vvvo(b,c,d,k) * t2(i,j,a,d) & ! prev ab ij
-                + v_vvvo(c,b,d,j) * t2(i,k,a,d) & ! prev bc kj
-                + v_vvvo(a,b,d,j) * t2(k,i,c,d) ! prev ac ik
+                + vcc_vvvo(b,a,d,i) * t2(k,j,c,d) &
+                + vcc_vvvo(c,a,d,i) * t2(j,k,b,d) & ! bc kj
+                + vcc_vvvo(a,c,d,k) * t2(j,i,b,d) & ! prev ac ik
+                + vcc_vvvo(b,c,d,k) * t2(i,j,a,d) & ! prev ab ij
+                + vcc_vvvo(c,b,d,j) * t2(i,k,a,d) & ! prev bc kj
+                + vcc_vvvo(a,b,d,j) * t2(k,i,c,d) ! prev ac ik
               enddo
 
               do l = 1, nO
                 W(i,j,k,a,b,c) = W(i,j,k,a,b,c) &
                 ! chem (ck|jl)
                 ! phys <cj|kl>
-                - v_vooo(c,j,k,l) * t2(i,l,a,b) &
-                - v_vooo(b,k,j,l) * t2(i,l,a,c) & ! bc kj
-                - v_vooo(b,i,j,l) * t2(k,l,c,a) & ! prev ac ik
-                - v_vooo(a,j,i,l) * t2(k,l,c,b) & ! prev ab ij
-                - v_vooo(a,k,i,l) * t2(j,l,b,c) & ! prev bc kj
-                - v_vooo(c,i,k,l) * t2(j,l,b,a) ! prev ac ik
+                - vcc_vooo(c,j,k,l) * t2(i,l,a,b) &
+                - vcc_vooo(b,k,j,l) * t2(i,l,a,c) & ! bc kj
+                - vcc_vooo(b,i,j,l) * t2(k,l,c,a) & ! prev ac ik
+                - vcc_vooo(a,j,i,l) * t2(k,l,c,b) & ! prev ab ij
+                - vcc_vooo(a,k,i,l) * t2(j,l,b,c) & ! prev bc kj
+                - vcc_vooo(c,i,k,l) * t2(j,l,b,a) ! prev ac ik
               enddo
 
             enddo
@@ -805,14 +808,14 @@ subroutine form_v(t1,w,v)
 
 implicit none
 
-  double precision, intent(in) :: t1(dim_list_act_orb, dim_list_virt_orb)
-  double precision, intent(in) :: W(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: V(dim_list_act_orb, dim_list_act_orb, dim_list_act_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(in) :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  double precision, intent(in) :: W(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  double precision, intent(out) :: V(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
 
   integer :: i,j,k,a,b,c
   integer :: nO, nV
 
-  nO = dim_list_act_orb
+  nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
   V = 0d0
@@ -823,9 +826,9 @@ implicit none
           do b = 1, nV
             do a = 1, nV
               V(i,j,k,a,b,c) = V(i,j,k,a,b,c) + W(i,j,k,a,b,c) &
-              + v_vvoo(b,c,j,k) * t1(i,a) &
-              + v_vvoo(a,c,i,k) * t1(j,b) &
-              + v_vvoo(a,b,i,j) * t1(k,c)
+              + vcc_vvoo(b,c,j,k) * t1(i,a) &
+              + vcc_vvoo(a,c,i,k) * t1(j,b) &
+              + vcc_vvoo(a,b,i,j) * t1(k,c)
             enddo
           enddo
         enddo

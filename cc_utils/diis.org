@@ -1,37 +1,43 @@
+   https://hal.archives-ouvertes.fr/hal-02492983/document
+   Maxime Chupin, Mi-Song Dupuy, Guillaume Legendre, Eric Séré. Convergence analysis of adaptive
+   DIIS algorithms witerh application to electronic ground state calculations. 
+   ESAIM: Mathematical Modelling and Numerical Analysis, EDP Sciences, 2021, 55 (6), pp.2785 - 2825. 10.1051/m2an/2021069ff.ffhal-02492983v5
+   
+   t_{k+1} = g(t_k)
+   err_k = f(t_k) = t_{k+1} - t_k
+  
+   m_k = min(m,k)
+   m maximal depth
+   t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
+   \sum_{i=0}^{m_k} c_i^k = 1
+   
+   b_{ij}^k = < err^{k-m_k+j}, err^{k-m_k+i} >
+   
+   (b   -1) ( c^k    ) = (  0 )
+   (-1   0) ( \lambda)   ( -1 ) 
+   
+   In: t_0, m
+   err_0 = g(t_0)
+   k = 0
+   m_k = 0
+   while ||err_k|| > CC
+     A.x=b
+     t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
+     err_{k+1} = f(t_{k+1})
+     m_{k+1} = min(m_k+1,m)
+     k = k +1
+   end
+
+#+begin_src f90 :comments org :tangle diis.irp.f 
 subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
 
   implicit none
 
-  ! https://hal.archives-ouvertes.fr/hal-02492983/document
-  ! Maxime Chupin, Mi-Song Dupuy, Guillaume Legendre, Eric Séré. Convergence analysis of adaptive
-  ! DIIS algorithms witerh application to electronic ground state calculations. 
-  ! ESAIM: Mathematical Modelling and Numerical Analysis, EDP Sciences, 2021, 55 (6), pp.2785 - 2825. 10.1051/m2an/2021069ff.ffhal-02492983v5
-  ! 
-  ! t_{k+1} = g(t_k)
-  ! err_k = f(t_k)
-  !
-  ! m_k = min(m,k)
-  ! m maximal depth
-  ! t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
-  ! \sum_{i=0}^{m_k} c_i^k = 1
-  ! 
-  ! b_{ij}^k = < err^{k-m_k+j}, err^{k-m_k+i} >
-  ! 
-  ! (b   -1) ( c^k    ) = (  0 )
-  ! (-1   0) ( \lambda)   ( -1 ) 
-  ! 
-  ! In: t_0, m
-  ! err_0 = g(t_0)
-  ! k = 0
-  ! m_k = 0
-  ! while ||r_k|| > CC
-  !   A.x=b
-  !   t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
-  !   err_{k+1} = f(t_{k+1})
-  !   m_{k+1} = min(m_k+1,m)
-  !   k = k +1
-  ! end
-
+  BEGIN_DOC
+  ! DIIS. Take the error vectors and the amplitudes of the previous
+  ! iterations to compute the new amplitudes
+  END_DOC
+  
   ! {err_i}_{i=1}^{m_it} -> B -> c
   ! {t_i}_{i=1}^{m_it}, c, {err_i}_{i=1}^{m_it} -> t_{m_it+1}
 
@@ -50,11 +56,12 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
   allocate(B(m_iter+1,m_iter+1), c(m_iter), zero(m_iter+1))
   allocate(ipiv(m+1))
 
-  ! B(i,j) = < err(iter-m_iter+j),err(iter-m_iter+i) > ! iter-m_iter will be zero for us
+  ! B(i,j) =  < err(iter-m_iter+j),err(iter-m_iter+i) > ! iter-m_iter will be zero for us
   B = 0d0
   do j = 1, m_iter
     do i = 1, m_iter
       do k = 1, sze
+        ! the errors of the ith iteration are in all_err(:,m+1-i)
         B(i,j) = B(i,j) + all_err(k,m+1-i) * all_err(k,m+1-j)
       enddo
     enddo
@@ -65,9 +72,10 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
   do j = 1, m_iter
     B(m_iter+1,j) = -1
   enddo
+  ! Debug
   !print*,'B'
   !do i = 1, m_iter+1
-  !  print*,B(i,:)
+  !  write(*,'(100(F10.6))') B(i,:)
   !enddo
 
   ! (0 0 .... 0 -1)
@@ -80,15 +88,17 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
     print*,'Error dgesv:', info
     call abort
   endif
+  ! c corresponds to the m_iter first solutions
   c = zero(1:m_iter)
+  ! Debug
   !print*,'c',c
   !print*,'all_t' 
   !do i = 1, m
-  !  print*,all_t(:,i)
+  !  write(*,'(100(F10.6))') all_t(:,i)
   !enddo
-  !print*,'all_r' 
+  !print*,'all_err' 
   !do i = 1, m
-  !  print*,all_err(:,i)
+  !  write(*,'(100(F10.6))') all_err(:,i)
   !enddo
 
   ! update T 
@@ -109,6 +119,8 @@ subroutine update_all_err(err,all_err,sze,m,iter)
 
   BEGIN_DOC
   ! Shift all the err vectors of the previous iterations to add the new one
+  ! The last err vector is placed in the last position and all the others are
+  ! moved toward the first one.
   END_DOC
 
   integer, intent(in)             :: m, iter, sze
@@ -123,6 +135,7 @@ subroutine update_all_err(err,all_err,sze,m,iter)
   do i = 1, m-1
     all_err(:,i) = all_err(:,i+1)
   enddo
+  ! Debug
   !print*,'shift err'
   !do i = 1, m
   !  print*,i, all_err(:,i)
@@ -131,6 +144,7 @@ subroutine update_all_err(err,all_err,sze,m,iter)
   ! New
   all_err(:,m) = err(:)
 
+  ! Debug
   !print*,'Updated err'
   !do i = 1, m
   !  print*,i, all_err(:,i)
@@ -144,6 +158,8 @@ subroutine update_all_t(t,all_t,sze,m,iter)
 
   BEGIN_DOC
   ! Shift all the t vectors of the previous iterations to add the new one
+  ! The last t vector is placed in the last position and all the others are
+  ! moved toward the first one.
   END_DOC
 
   integer, intent(in)             :: m, iter, sze
@@ -162,10 +178,13 @@ subroutine update_all_t(t,all_t,sze,m,iter)
   ! New
   all_t(:,m) = t(:)
 
+  ! Debug
   !print*,'Updated t'
   !do i = 1, m
   !  print*,i, all_t(:,i)
   !enddo
 
 end
+#+end_src
+
 

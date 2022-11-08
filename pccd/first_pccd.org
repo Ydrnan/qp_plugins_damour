@@ -25,7 +25,12 @@ bi-electronic integral.
 
 #+BEGIN_SRC f90 :comments org :tangle first_pccd.irp.f
 program first_pccd
+  
   implicit none
+
+  BEGIN_DOC
+  ! First pCCD to debug purposes only
+  END_DOC
   
   call run_first_pccd
   
@@ -37,14 +42,18 @@ subroutine run_first_pccd
   
   implicit none
 
+  BEGIN_DOC
+  ! First pCCD to debug purposes only
+  END_DOC
+
   double precision, allocatable :: t2(:,:), r2(:,:)
-  integer :: nO, nV
-  integer :: i,j,a,b,tmp_a,tmp_b
-  integer :: nb_iter
-  double precision :: energy, max_r2, ta, tb, CC
-  double precision :: get_two_e_integral
-  double precision :: accu1, accu2, accu3, accu4, accu5
-  logical          :: not_converged
+  integer                       :: nO, nV
+  integer                       :: i,j,a,b,tmp_a,tmp_b
+  integer                       :: nb_iter
+  double precision              :: energy, max_r2, ta, tb, CC
+  double precision              :: get_two_e_integral
+  double precision              :: accu1, accu2, accu3, accu4, accu5
+  logical                       :: not_converged
 
   CC = 1d-6
 
@@ -174,10 +183,10 @@ subroutine pccd_energy(nO,nV,t2,energy)
 
   implicit none
 
-  integer, intent(in) :: nO, nV
+  integer, intent(in)          :: nO, nV
   double precision, intent(in) :: t2(nO,nV)
-  double precision :: energy, get_two_e_integral
-  integer :: i,a,tmp_a,tmp_b
+  double precision             :: energy, get_two_e_integral
+  integer                      :: i,a,tmp_a,tmp_b
 
   ! Final energy
   energy = 0d0

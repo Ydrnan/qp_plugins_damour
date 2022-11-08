@@ -3,14 +3,18 @@ subroutine run_pccd
   
   implicit none
 
+  BEGIN_DOC
+  ! pCCD algorithm
+  END_DOC
+
   double precision, allocatable :: t2(:,:), r2(:,:)
   double precision, allocatable :: U1(:), U2(:), U3(:,:), U4(:,:), U5(:,:), X(:,:), t2_jacobian(:,:,:,:), inv_t2_jacobian(:,:,:,:)
-  integer :: p,q,i,j,a,b,tmp_a,tmp_b
-  integer :: nb_iter
-  double precision :: max_r2, ta, tb , energy
-  double precision :: accu1, accu2, accu3, accu4, accu5
-  logical :: not_converged
-  integer :: nO, nV
+  integer                       :: p,q,i,j,a,b,tmp_a,tmp_b
+  integer                       :: nb_iter
+  double precision              :: max_r2, ta, tb , energy
+  double precision              :: accu1, accu2, accu3, accu4, accu5
+  logical                       :: not_converged
+  integer                       :: nO, nV
 
   nO = dim_list_inact_orb
   nV = dim_list_virt_orb
@@ -73,9 +77,7 @@ subroutine run_pccd
     nb_iter = nb_iter + 1
 
     ! New energy
-    call pccd_energy(nO, nV, t2,energy)
-    e_pccd = energy
-    TOUCH e_pccd
+    call pccd_energy(nO, nV, t2, energy)
     
     ! max element in r2
     max_r2 = 0d0
@@ -87,14 +89,14 @@ subroutine run_pccd
       enddo
     enddo
     
-    print*, nb_iter, e_pccd, max_r2
+    print*, nb_iter, energy, max_r2
 
     ! Exit criterion
     if (max_r2 < 1e-6) then
        not_converged = .False.
        print*,''
        print*,'******************************'
-       print*,' E_pCCD:', e_pccd
+       print*,' E_pCCD:', energy
        print*,'******************************' 
     endif
 

@@ -7,6 +7,10 @@ subroutine guess_amplitudes_pccd(nO, nV, t2)
   
   implicit none
 
+  BEGIN_DOC
+  ! MP2 guess for pCCD
+  END_DOC
+
   ! in
   integer, intent(in)           :: nO, nV
   

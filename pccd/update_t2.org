@@ -9,6 +9,10 @@ subroutine update_amplitudes_pccd(nO, nV, r2, t2)
   
   implicit none
 
+  BEGIN_DOC
+  ! Standard update of the pCCD amplitudes
+  END_DOC
+
   ! in
   integer, intent(in)           :: nO, nV
   double precision, intent(in)  :: r2(nO, nV)
@@ -38,6 +42,10 @@ $$ t_i^a \leftarrow t_i^a - \sum_{jb} (J^{-1})_{ia,jb} r_j^b$$
 subroutine update_amplitudes_pccd_w_J(nO, nV, r2, inv_t2_jacobian, t2)
   
   implicit none
+
+  BEGIN_DOC
+  ! Update of the pCCD amplitudes with the jacobian matrix
+  END_DOC
 
   ! in
   integer, intent(in)           :: nO, nV

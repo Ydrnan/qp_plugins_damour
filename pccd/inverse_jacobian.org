@@ -2,6 +2,11 @@
 subroutine inverse_jacobian(nO, nV, t2_jacobian, Jm1)
 
   implicit none
+
+  BEGIN_DOC
+  ! Inverse of the jacobian matrix.
+  ! TODO: Replace by the resolution of the linear system
+  END_DOC
   
   ! in
   integer, intent(in)           :: nO, nV

@@ -38,6 +38,10 @@ subroutine r2_pccd(nO, nV, t2, U1, U2, U3, U4, U5, r2)
   
   implicit none
 
+  BEGIN_DOC
+  ! pCCD residual equations
+  END_DOC
+
   ! in
   integer, intent(in)           :: nO, nV
   double precision, intent(in)  :: U1(nV), U2(nO)

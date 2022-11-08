@@ -13,23 +13,20 @@ J_{ia,jb} &= [ 2(fcc_a^a - fcc_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai}] \delta_{ij} 
 \end{align*}
 
 #+BEGIN_SRC f90 :comments org :tangle jacobian.irp.f
-subroutine pccd_jacobian_v2(t2, t2_jacobian)
+subroutine pccd_jacobian_v2(nO, nV, t2, t2_jacobian)
 
   implicit none
 
   ! in
-  double precision,intent(in)   :: t2(dim_list_act_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO, nV
+  double precision,intent(in)   :: t2(nO, nV)
 
   ! out
-  double precision,intent(out)  :: t2_jacobian(dim_list_act_orb, dim_list_virt_orb, dim_list_act_orb, dim_list_virt_orb)
+  double precision,intent(out)  :: t2_jacobian(nO, nV, nO, nV)
 
   ! internal
   integer                       :: i,j,k,l
   integer                       :: a,b,c,d
-  integer                       :: nV, nO
-
-  nO = dim_list_act_orb
-  nV = dim_list_virt_orb
 
   t2_jacobian = 0d0
   
@@ -37,7 +34,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
   do a = 1, nV
     do i = 1, nO
       t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (fcc_v(a) - fcc_o(i)) &
-                  - 4d0 * two_e_ints_iaia(i,a) + 2d0 * two_e_ints_iaai(i,a)
+                  - 4d0 * vcc_iaia(i,a) + 2d0 * vcc_iaai(i,a)
     enddo
   enddo
 
@@ -45,7 +42,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
   do b = 1, nV
     do a = 1, nV
       do i = 1, nO
-         t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + two_e_ints_aabb(a,b) - two_e_ints_iiaa(i,b) * t2(i,a)
+         t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + vcc_aabb(a,b) - vcc_iiaa(i,b) * t2(i,a)
          !                                                                                      a
       enddo
     enddo
@@ -56,7 +53,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
    do i = 1, nO
      do k = 1, nO
        if (k /= i) then
-         t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - two_e_ints_iiaa(k,a) * t2(k,a)
+         t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - vcc_iiaa(k,a) * t2(k,a)
        endif
      enddo
    enddo
@@ -68,7 +65,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
       do i = 1, nO
         do k = 1, nO
           if (k /= i .and. a /= b ) then
-            t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + two_e_ints_iiaa(k,b) * t2(k,a)
+            t2_jacobian(i,a,i,b) = t2_jacobian(i,a,i,b) + vcc_iiaa(k,b) * t2(k,a)
           endif
         enddo
       enddo
@@ -79,7 +76,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
   do a = 1, nV
     do j = 1, nO
       do i = 1, nO
-        t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + two_e_ints_iijj(i,j) - two_e_ints_iiaa(j,a) * t2(i,a)
+        t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + vcc_iijj(i,j) - vcc_iiaa(j,a) * t2(i,a)
         !                                                                                    i
       enddo
     enddo
@@ -90,7 +87,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
     do i = 1, nO
       do c = 1, nV
         if (c /= a) then
-          t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - two_e_ints_iiaa(i,c) * t2(i,c)
+          t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) - vcc_iiaa(i,c) * t2(i,c)
         endif
       enddo
     enddo
@@ -102,7 +99,7 @@ subroutine pccd_jacobian_v2(t2, t2_jacobian)
       do i = 1, nO
         do c = 1, nV
           if (c /= a .and. i /= j) then
-            t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + two_e_ints_iiaa(j,c) * t2(i,c)
+            t2_jacobian(i,a,j,a) = t2_jacobian(i,a,j,a) + vcc_iiaa(j,c) * t2(i,c)
           endif
         enddo
       enddo
@@ -113,15 +110,16 @@ end
 #+END_SRC
 
 #+BEGIN_SRC f90 :comments org :tangle jacobian.irp.f
-subroutine pccd_jacobian(t2,t2_jacobian)
+subroutine pccd_jacobian(nO, nV, t2,t2_jacobian)
 
   implicit none
 
   ! in
-  double precision,intent(in)   :: t2(dim_list_act_orb,dim_list_virt_orb)
+  integer, intent(in)           :: nO, nV
+  double precision,intent(in)   :: t2(nO,nV)
 
   ! out
-  double precision,intent(out)  :: t2_jacobian(dim_list_act_orb,dim_list_virt_orb,dim_list_act_orb,dim_list_virt_orb)
+  double precision,intent(out)  :: t2_jacobian(nO,nV,nO,nV)
 
   ! internal
   integer                       :: i,j,k,l
@@ -130,10 +128,6 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   double precision,allocatable  :: yV1(:)
   double precision,allocatable  :: yO2(:,:)
   double precision,allocatable  :: yV2(:,:)
-  integer                       :: nV, nO
-
-  nO = dim_list_act_orb
-  nV = dim_list_virt_orb
   
   t2_jacobian = 0d0
 
@@ -142,8 +136,8 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   yO1 = 0d0
   do a = 1, nV
     do i = 1, nO
-      yO1(i) = yO1(i) + two_e_ints_iiaa(i,a) * t2(i,a)
-    !yO1(i) = sum( two_e_ints_iiaa(i,:) * t2(i,:) )
+      yO1(i) = yO1(i) + vcc_iiaa(i,a) * t2(i,a)
+    !yO1(i) = sum( vcc_iiaa(i,:) * t2(i,:) )
     enddo
   enddo
   !print*,'yo1', yO1(:)
@@ -153,9 +147,9 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   yV1 = 0d0
   do a = 1, nV
     do i = 1, nO
-      yV1(a) = yV1(a) + two_e_ints_iiaa(i,a) * t2(i,a)
+      yV1(a) = yV1(a) + vcc_iiaa(i,a) * t2(i,a)
     enddo
-    !yV1(a) = sum( two_e_ints_iiaa(:,a) * t2(:,a) )
+    !yV1(a) = sum( vcc_iiaa(:,a) * t2(:,a) )
   enddo
   !print*,'yv1', yv1(:)
 
@@ -165,7 +159,7 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   do j = 1, nO
     do i = 1, nO
       do b = 1, nV
-        yO2(i,j) = yO2(i,j) + two_e_ints_iiaa(j,b) * t2(i,b)
+        yO2(i,j) = yO2(i,j) + vcc_iiaa(j,b) * t2(i,b)
       enddo
     enddo
   enddo
@@ -177,7 +171,7 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
-        yV2(a,b) = yV2(a,b) + two_e_ints_iiaa(j,b) * t2(j,a)
+        yV2(a,b) = yV2(a,b) + vcc_iiaa(j,b) * t2(j,a)
       enddo
     enddo
   enddo
@@ -187,7 +181,7 @@ subroutine pccd_jacobian(t2,t2_jacobian)
   do a = 1, nV
     do i = 1, nO
       t2_jacobian(i,a,i,a) = 2d0*(fcc_v(a) - fcc_o(i)) &
-      - 4.0d0*two_e_ints_iaia(i,a) + 2.0d0*two_e_ints_iaai(i,a) + two_e_ints_aabb(a,a) + two_e_ints_iijj(i,i) &
+      - 4.0d0*vcc_iaia(i,a) + 2.0d0*vcc_iaai(i,a) + vcc_aabb(a,a) + vcc_iijj(i,i) &
       - yV1(a) - yO1(i) 
     enddo
   enddo
@@ -197,7 +191,7 @@ subroutine pccd_jacobian(t2,t2_jacobian)
     do a = 1, nV
     if( a.eq.b ) cycle
       do i = 1, nO
-        t2_jacobian(i,a,i,b) = two_e_ints_aabb(a,b) - 2.0d0 * two_e_ints_iiaa(i,b) * t2(i,a) + yV2(a,b)
+        t2_jacobian(i,a,i,b) = vcc_aabb(a,b) - 2.0d0 * vcc_iiaa(i,b) * t2(i,a) + yV2(a,b)
       enddo
     enddo
   enddo
@@ -207,7 +201,7 @@ subroutine pccd_jacobian(t2,t2_jacobian)
     do i = 1, nO
     if( i.eq.j ) cycle
       do a = 1, nV
-        t2_jacobian(i,a,j,a) = two_e_ints_iijj(i,j) - 2.0d0 * two_e_ints_iiaa(j,a) * t2(i,a) + yO2(i,j)
+        t2_jacobian(i,a,j,a) = vcc_iijj(i,j) - 2.0d0 * vcc_iiaa(j,a) * t2(i,a) + yO2(i,j)
       enddo
     enddo
   enddo

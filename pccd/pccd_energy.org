@@ -5,28 +5,25 @@ E_{\text{pCCD}} = \sum_{ia} t_i^a <aa|ii>
 \end{align*}
 
 #+BEGIN_SRC f90 :comments org :tangle pccd_energy.irp.f
-subroutine pccd_energy(t2, energy)
+subroutine pccd_energy(nO, nV, t2, energy)
 
   implicit none
 
   ! in
-  double precision, intent(in)  :: t2(dim_list_act_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: t2(nO, nV)
 
   ! out
   double precision, intent(out) :: energy
 
   ! internal
   integer                       :: i,a
-  integer                       :: nO, nV
-
-  nO = dim_list_act_orb
-  nV = dim_list_virt_orb
 
   ! Final energy
   energy = 0d0
   do a = 1, nV
     do i = 1, nO
-      energy = energy + t2(i,a) * two_e_ints_aaii(a,i)
+      energy = energy + t2(i,a) * vcc_aaii(a,i)
     enddo
   enddo 
   

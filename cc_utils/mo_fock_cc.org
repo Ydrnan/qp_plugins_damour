@@ -1,50 +1,50 @@
 * Fock matrices
 
 ** fcc_pp
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fock_matrix_pp, (dim_list_inact_virt_no_core_orb)]
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
+BEGIN_PROVIDER [double precision, fcc_pp, (dim_list_inact_virt_no_core_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_p^p
-  ! p: active or virtual MO
+  ! p: inactive or virtual MO
   END_DOC
 
   integer :: p, pa
 
-  fock_matrix_pp = 0d0
+  fcc_pp = 0d0
   do pa = 1, dim_list_inact_virt_no_core_orb
     p = list_inact_virt_no_core(pa)
-    fock_matrix_pp(pa) = fock_matrix_mo(p,p)
+    fcc_pp(pa) = fock_matrix_mo(p,p)
   enddo
 
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fock_matrix_ii, (dim_list_inact_orb)]
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
+BEGIN_PROVIDER [double precision, fcc_ii, (dim_list_inact_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_i^i 
-  ! i: active MO
+  ! i: inactive MO
   END_DOC
 
   integer :: i, ia
 
-  fock_matrix_ii = 0d0
+  fcc_ii = 0d0
   do ia = 1, dim_list_inact_orb
     i = list_inact(ia)
-    fock_matrix_ii(ia) = fock_matrix_mo(i,i)
+    fcc_ii(ia) = fock_matrix_mo(i,i)
   enddo
 
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
-BEGIN_PROVIDER [double precision, fock_matrix_aa, (dim_list_virt_orb)]
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
+BEGIN_PROVIDER [double precision, fcc_aa, (dim_list_virt_orb)]
 
   implicit none
 
@@ -55,24 +55,24 @@ BEGIN_PROVIDER [double precision, fock_matrix_aa, (dim_list_virt_orb)]
 
   integer :: a, tmp_a
 
-  fock_matrix_aa = 0d0
+  fcc_aa = 0d0
   do a = 1, dim_list_virt_orb
     tmp_a = list_virt(a)
-    fock_matrix_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
+    fcc_aa(a) = fock_matrix_mo(tmp_a,tmp_a)
   enddo
 
 END_PROVIDER
 #+END_SRC
 
 ** Fock matrix
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_p^q 
-  ! p: active or virtual spatial MO
+  ! p: inactive or virtual spatial MO
   END_DOC
 
   integer :: p,q,tmp_p,tmp_q
@@ -88,14 +88,14 @@ BEGIN_PROVIDER [double precision, fcc_pq, (dim_list_inact_virt_no_core_orb, dim_
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_a^i
-  ! i: active spatial MO
+  ! i: inactive spatial MO
   ! a: virtual spatial MO
   END_DOC
 
@@ -115,14 +115,14 @@ BEGIN_PROVIDER [double precision, fcc_vo, (dim_list_virt_orb, dim_list_inact_orb
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_i^a
-  ! i: active spatial MO
+  ! i: inactive spatial MO
   ! a: virtual spatial MO
   END_DOC
 
@@ -142,14 +142,14 @@ BEGIN_PROVIDER [double precision, fcc_ov, (dim_list_inact_orb, dim_list_virt_orb
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_i^j
-  ! i,j: active spatial MOs
+  ! i,j: inactive spatial MOs
   END_DOC
 
   integer :: i,j
@@ -166,14 +166,14 @@ BEGIN_PROVIDER [double precision, fcc_oo, (dim_list_inact_orb, dim_list_inact_or
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_o, (dim_list_inact_orb)]
 
   implicit none
 
   BEGIN_DOC
   ! my fock matrix elements fcc_i^i
-  ! i: active spatial MO
+  ! i: inactive spatial MO
   END_DOC
 
   integer :: i
@@ -188,7 +188,7 @@ BEGIN_PROVIDER [double precision, fcc_o, (dim_list_inact_orb)]
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_vv, (dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -215,7 +215,7 @@ BEGIN_PROVIDER [double precision, fcc_vv, (dim_list_virt_orb, dim_list_virt_orb)
 END_PROVIDER
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle fock_matrices.irp.f
+#+BEGIN_SRC f90 :comments org :tangle mo_fock_cc.irp.f
 BEGIN_PROVIDER [double precision, fcc_v, (dim_list_virt_orb)]
 
   implicit none

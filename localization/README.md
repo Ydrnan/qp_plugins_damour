@@ -100,7 +100,7 @@ symmetry with just a small change in the energy:
 qp set localization angle_pre_rot 1e-3
 ``` 
 
-## With or without hessian + trust region
+# With or without hessian + trust region
 With hessian +  trust region
 ```
 qp set localization localisation_use_hessian true

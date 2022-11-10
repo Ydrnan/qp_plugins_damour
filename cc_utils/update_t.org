@@ -1,0 +1,59 @@
+#+begin_src f90 :comments org :tangle update_t.irp.f
+subroutine update_t1_space(nO,nV,r1,t1)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Update the T1 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)             :: nO, nV
+  double precision, intent(in)    :: r1(nO, nV)
+
+  ! inout
+  double precision, intent(inout) :: t1(nO, nV)
+
+  ! internal
+  integer                         :: i,a
+
+  do a = 1, nV
+    do i = 1, nO
+      t1(i,a) = t1(i,a) - r1(i,a) / (fcc_vv(a,a) - fcc_oo(i,i) + cc_level_shift)
+    enddo
+  enddo
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle update_t.irp.f
+subroutine update_t2_space(nO,nV,r2,t2)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Update the T2 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)             :: nO, nV
+  double precision, intent(in)    :: r2(nO, nO, nV, nV)
+
+  ! inout
+  double precision, intent(inout) :: t2(nO, nO, nV, nV)
+
+  ! internal
+  integer                         :: i,j,a,b
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (fcc_vv(a,a) + fcc_vv(b,b) - fcc_oo(i,i) - fcc_oo(j,j) + cc_level_shift)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end  
+#+end_src

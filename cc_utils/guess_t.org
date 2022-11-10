@@ -1,0 +1,213 @@
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine guess_t1_space(nO,nV,t1)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Update the T1 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)           :: nO, nV
+
+  ! inout
+  double precision, intent(out) :: t1(nO, nV)
+
+  ! internal
+  integer                       :: i,a
+
+  if (cc_guess_t == 'none') then
+     t1 = 0d0
+  else if (cc_guess_t == 'MP') then
+    do a = 1, nV
+      do i = 1, nO
+        t1(i,a) = 0d0 !- ... / (fcc_vv(a,a) - fcc_oo(i,i) + cc_level_shift_guess)
+      enddo
+    enddo
+  else if (cc_guess_t == 'read' .and. cc_read_t1) then
+    open(unit=11, file="T1.qp")
+    do a = 1, nV
+      do i = 1, nO
+        read(11,'(F16.8)') t1(i,a)
+      enddo
+    enddo
+    close(11)
+  else
+    print*, 'Unknown cc_guess_t type: '//cc_guess_t
+    call abort
+  endif
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine guess_t2_space(nO,nV,t2)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Update the T2 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)           :: nO, nV
+
+  ! inout
+  double precision, intent(out) :: t2(nO, nO, nV, nV)
+
+  ! internal
+  integer                       :: i,j,a,b
+
+  if (cc_guess_t == 'none') then
+    t2 = 0d0
+  else if (cc_guess_t == 'MP') then
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+            t2(i,j,a,b) = - vcc_oovv(i,j,a,b) / (fcc_vv(a,a) + fcc_vv(b,b) - fcc_oo(i,i) - fcc_oo(j,j) + cc_level_shift_guess)
+          enddo
+        enddo
+      enddo
+    enddo
+  else if (cc_guess_t == 'read' .and. cc_read_t2) then
+    open(unit=11, file="T2.qp")
+    do b = 1, nV
+      do a = 1, nV
+        do i = 1, nO
+         read(11,'(F20.12)') t2(i,j,a,b)
+        enddo
+      enddo
+    enddo
+    close(11)
+  else
+    print*, 'Unknown cc_guess_t type: '//cc_guess_t
+    call abort
+  endif
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine write_t1_space(nO,nV,t1)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Write the T1 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)          :: nO, nV
+  double precision, intent(in) :: t1(nO, nV)
+
+  ! internal
+  integer                      :: i,a
+
+  if (cc_write_t1) then
+    open(unit=11, file="T1.qp")
+    do a = 1, nV
+      do i = 1, nO
+         write(11,'(F20.12)') t1(i,a)
+      enddo
+    enddo
+    close(11)
+  endif
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine write_t2_space(nO,nV,t2)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Write the T2 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)          :: nO, nV
+  double precision, intent(in) :: t2(nO, nO, nV, nV)
+
+  ! internal
+  integer                      :: i,j,a,b
+
+  if (cc_write_t2) then
+    open(unit=11, file="T2.qp")
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+             write(11,'(F20.12)') t2(i,j,a,b)
+          enddo
+        enddo
+      enddo
+    enddo
+    close(11)
+  endif
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine read_t1_space(nO,nV,t1)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Read the T1 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)           :: nO, nV
+  double precision, intent(out) :: t1(nO, nV)
+
+  ! internal
+  integer                       :: i,a
+
+  if (cc_read_t1) then
+    open(unit=11, file="T1.qp")
+    do a = 1, nV
+      do i = 1, nO
+         read(11,'(F20.12)') t1(i,a)
+      enddo
+    enddo
+    close(11)
+  endif
+  
+end  
+#+end_src
+
+#+begin_src f90 :comments org :tangle guess_t.irp.f
+subroutine read_t2_space(nO,nV,t2)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Read the T2 amplitudes for CC in spatial orbitals
+  END_DOC
+
+  ! in
+  integer, intent(in)           :: nO, nV
+  double precision, intent(out) :: t2(nO, nO, nV, nV)
+
+  ! internal
+  integer                       :: i,j,a,b
+
+  if (cc_read_t2) then
+    open(unit=11, file="T2.qp")
+    do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, nO
+             read(11,'(F20.12)') t2(i,j,a,b)
+          enddo
+        enddo
+      enddo
+    enddo
+    close(11)
+  endif
+  
+end  
+#+end_src

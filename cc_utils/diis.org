@@ -14,9 +14,11 @@
    b_{ij}^k = < err^{k-m_k+j}, err^{k-m_k+i} >
    
    (b   -1) ( c^k    ) = (  0 )
-   (-1   0) ( \lambda)   ( -1 ) 
-   
-   In: t_0, m
+   (-1   0) ( \lambda)   ( -1 )
+
+   lambda is used to put the constraint \sum_{i=0}^{m_k} c_i^k = 1
+
+   In: t_0, err_0, m
    err_0 = g(t_0)
    k = 0
    m_k = 0
@@ -85,7 +87,7 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
   ! Solve B.c = zero
   call dgesv(m_iter+1, 1, B, size(B,1), ipiv, zero, size(zero,1), info)
   if (info /= 0) then
-    print*,'Error dgesv:', info
+    print*,'DIIS error in dgesv:', info
     call abort
   endif
   ! c corresponds to the m_iter first solutions

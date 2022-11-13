@@ -188,7 +188,6 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   enddo
 
   ! r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
-  ! r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
   ! fcc_vo(a,i) * t1(i,beta) -> X1(nV,nV), O(nV*nV*nO)
   ! X1(a,beta) * t1(u,a) -> O(nO*nV*nV)
   ! fcc_vo(a,i) * t1(u,a)    -> X1(nO,nO), O(nO*nO*nV)
@@ -215,66 +214,172 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
              1d0, r1  , size(r1,1)) 
   deallocate(X_oo)
 
+  ! r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do a = 1, nV
+  !      r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
+  !    enddo
+  !  enddo
+  !enddo
+  call dgemm('N','N', nO, nV, nV, &
+             1d0, t1  , size(t1,1), &
+                  H_vv, size(H_vv,1), &
+             1d0, r1  , size(r1,1))
+
+  ! r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do i = 1, nO
+  !      r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
+  !    enddo
+  !  enddo
+  !enddo
+  call dgemm('N','N', nO, nV, nO, &
+             -1d0, H_oo, size(H_oo,1), &
+                   t1  , size(t1,1), &
+              1d0, r1, size(r1,1))
+
+  !r1(u,beta) = r1(u,beta) + H_vo(a,i) * (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
+  ! <=>
+  ! r1(u,beta) = r1(u,beta) + H_vo(a,i) * X(a,i,u,beta)
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do i = 1, nO
+  !      do a = 1, nV
+  !        r1(u,beta) = r1(u,beta) + H_vo(a,i) * &
+  !        (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: X_voov(:,:,:,:)
+  allocate(X_voov(nV, nO, nO, nV))
+
   do beta = 1, nV
     do u = 1, nO
+      do i = 1, nO
+        do a = 1, nV
+          X_voov(a,i,u,beta) = 2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  call dgemv('T', nV*nO, nO*nV, &
+             1d0, X_voov, size(X_voov,1) * size(X_voov,2), &
+                  H_vo  , 1, &
+             1d0, r1    , 1)
+  
+  deallocate(X_voov)
+
+  ! r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
+  ! <=> 
+  ! r1(u,beta) = r1(u,beta) + X(i,a,u,beta)
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do i = 1, nO
+  !      do a = 1, nV
+  !        r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: X_ovov(:,:,:,:)
+  allocate(X_ovov(nO, nV, nO, nV))
+
+  do beta = 1, nV
+    do u = 1, nO
+      do a = 1, nv
+        do i = 1, nO
+          X_ovov(i,a,u,beta) = 2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemv('T', nO*nV, nO*nV, &
+             1d0, X_ovov, size(X_ovov,1) * size(X_ovov,2), &
+                  t1     , 1, &
+             1d0, r1     , 1)
+  
+  deallocate(X_ovov)
+
+  ! r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+  ! r1(u,beta) = r1(u,beta) + W(a,b,i,beta) * T(u,a,b,i) 
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do i = 1, nO
+  !      do a = 1, nV
+  !        do b = 1, nV
+  !          r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: W_vvov(:,:,:,:), T_vvoo(:,:,:,:)
+  allocate(W_vvov(nV,nV,nO,nV), T_vvoo(nV,nV,nO,nO))
+
+  do beta = 1, nV
+    do i = 1, nO
+      do b = 1, nV
+        do a = 1, nV
+          W_vvov(a,b,i,beta) = 2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)  
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do i = 1, nO
+    do b = 1, nV
       do a = 1, nV
-        r1(u,beta) = r1(u,beta) + H_vv(a,beta) * t1(u,a)
-      enddo
-    enddo
-  enddo
-
-  do beta = 1, nV
-    do u = 1, nO
-      do i = 1, nO
-        r1(u,beta) = r1(u,beta) - H_oo(u,i) * t1(i,beta)
-      enddo
-    enddo
-  enddo
-
-  do beta = 1, nV
-    do u = 1, nO
-      do i = 1, nO
-        do a = 1, nV
-          r1(u,beta) = r1(u,beta) + H_vo(a,i) * &
-          (2d0 * t2(i,u,a,beta) - t2(u,i,a,beta) + t1(u,a) * t1(i,beta))
+        do u = 1, nO
+          T_vvoo(a,b,i,u) = tau(i,u,a,b)  
         enddo
       enddo
     enddo
   enddo
 
-  do beta = 1, nV
-    do u = 1, nO
-      do i = 1, nO
-        do a = 1, nV
-          r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
+  call dgemm('T','N',nO,nV,nO*nV*nV, &
+             1d0, T_vvoo, size(T_vvoo,1) * size(T_vvoo,2) * size(T_vvoo,3), &
+                  W_vvov, size(W_vvov,1) * size(W_vvov,2) * size(W_vvov,3), &
+             1d0, r1    , size(r1,1))
+  
+  deallocate(W_vvov,T_vvoo)
+
+  ! r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+  ! r1(u,beta) = r1(u,beta) - W(i,j,a,u) * tau(i,j,a,beta) 
+  !do beta = 1, nV
+  !  do u = 1, nO
+  !    do i = 1, nO
+  !      do j = 1, nO
+  !        do a = 1, nV
+  !          r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: W_oovo(:,:,:,:)
+  allocate(W_oovo(nO,nO,nV,nO))
+
+  do u = 1, nO
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          W_oovo(i,j,a,u) = 2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)
         enddo
       enddo
     enddo
   enddo
 
-  do beta = 1, nV
-    do u = 1, nO
-      do i = 1, nO
-        do a = 1, nV
-          do b = 1, nV
-            r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
-          enddo
-        enddo
-      enddo
-    enddo
-  enddo
-
-  do beta = 1, nV
-    do u = 1, nO
-      do i = 1, nO
-        do j = 1, nO
-          do a = 1, nV
-            r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
-          enddo
-        enddo
-      enddo
-    enddo
-  enddo
+  call dgemm('T','N', nO, nV, nO*nO*nV, &
+             -1d0, W_oovo, size(W_oovo,1) * size(W_oovo,2) * size(W_oovo,3), &
+                   tau   , size(tau,1) * size(tau,2) * size(tau,3), &
+              1d0, r1    , size(r1,1))
+  
+  deallocate(W_oovo)
 
   max_r1 = 0d0
   do a = 1, nV
@@ -404,7 +509,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   call dgemm('N','N',nV,nV,nO*nO*nV,           &
              -1d0, wcc_vvoo, size(wcc_vvoo,1), &
-                   tmp_tau , size(tmp_tau,2) * size(tmp_tau,3) * size(tmp_tau,4), &
+                   tmp_tau , size(tmp_tau,1) * size(tmp_tau,2) * size(tmp_tau,3), &
               1d0, H_vv    , size(H_vv,1))
 
   deallocate(tmp_tau)
@@ -607,7 +712,7 @@ end
 #+end_src
 
 *** Intermediates
-
+**** A1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_A1(t1,t2,tau,A1)
 
@@ -624,32 +729,87 @@ subroutine compute_A1(t1,t2,tau,A1)
   nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
-  A1 = 0d0
+  !A1 = 0d0
 
+  !do j = 1, nO
+  !  do i = 1, nO
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !        A1(u,v,i,j) = vcc_oooo(u,v,i,j)
+
+  !        do a = 1, nV
+  !          A1(u,v,i,j) = A1(u,v,i,j) &
+  !          + vcc_ovoo(u,a,i,j) * t1(v,a) &
+  !          + vcc_vooo(a,v,i,j) * t1(u,a)
+  !          
+  !          do b = 1, nV
+  !            A1(u,v,i,j) = A1(u,v,i,j) + vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
+  !          enddo  
+  !        enddo
+  !        
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  ! A1(u,v,i,j) = vcc_oooo(u,v,i,j)
   do j = 1, nO
     do i = 1, nO
       do v = 1, nO
         do u = 1, nO
           A1(u,v,i,j) = vcc_oooo(u,v,i,j)
-
-          do a = 1, nV
-            A1(u,v,i,j) = A1(u,v,i,j) &
-            + vcc_ovoo(u,a,i,j) * t1(v,a) &
-            + vcc_vooo(a,v,i,j) * t1(u,a)
-            
-            do b = 1, nV
-              A1(u,v,i,j) = A1(u,v,i,j) + vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
-            enddo  
-          enddo
-          
         enddo
       enddo
     enddo
   enddo
 
+  ! A1(u,v,i,j) += vcc_ovoo(u,a,i,j) * t1(v,a) &
+  double precision, allocatable :: X_vooo(:,:,:,:), Y_oooo(:,:,:,:)
+  allocate(X_vooo(nV,nO,nO,nO), Y_oooo(nO,nO,nO,nO))
+
+  do j = 1, nO
+    do i = 1, nO
+      do u = 1, nO
+        do a = 1, nV
+          X_vooo(a,u,i,j) = vcc_ovoo(u,a,i,j)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','N', nO, nO*nO*nO, nV, &
+             1d0, t1    , size(t1,1), &
+                  X_vooo, size(X_vooo,1), &
+             0d0, Y_oooo, size(Y_oooo,1))
+
+  do j = 1, nO
+    do i = 1, nO
+      do v = 1, nO
+        do u = 1, nO
+          A1(u,v,i,j) = A1(u,v,i,j) + Y_oooo(v,u,i,j)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  deallocate(X_vooo,Y_oooo)
+
+  ! A1(u,v,i,j) += vcc_vooo(a,v,i,j) * t1(u,a)
+  call dgemm('N','N', nO, nO*nO*nO, nV, &
+             1d0, t1      , size(t1,1), &
+                  vcc_vooo, size(vcc_vooo,1), &
+             1d0, A1      , size(A1,1))
+
+  ! A1(u,v,i,j) += vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
+  call dgemm('N','N', nO*nO, nO*nO, nV*nV, &
+             1d0, tau     , size(tau,1) * size(tau,2), &
+                  vcc_vvoo, size(vcc_vvoo,1) * size(vcc_vvoo,2), &
+             1d0, A1      , size(A1,1) * size(A1,2))
+   
 end
 #+END_SRC
 
+**** B1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_B1(t1,t2,B1)
 
@@ -665,28 +825,78 @@ subroutine compute_B1(t1,t2,B1)
   nO = dim_list_inact_orb
   nV = dim_list_virt_orb
 
-  B1 = 0d0
+  !B1 = 0d0
 
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do b = 1, nV
+  !      do a = 1, nV
+  !        B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
+
+  !        do i = 1, nO
+  !          B1(a,b,beta,gam) = B1(a,b,beta,gam) &
+  !          - vcc_vvvo(a,b,beta,i) * t1(i,gam) &
+  !          - vcc_vvov(a,b,i,gam) * t1(i,beta)
+  !        enddo
+  !        
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  ! B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
   do gam = 1, nV
     do beta = 1, nV
       do b = 1, nV
         do a = 1, nV
-          B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
-
-          do i = 1, nO
-            B1(a,b,beta,gam) = B1(a,b,beta,gam) &
-            - vcc_vvvo(a,b,beta,i) * t1(i,gam) &
-            - vcc_vvov(a,b,i,gam) * t1(i,beta)
-          enddo
-          
+          B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam)
         enddo
       enddo
     enddo
   enddo
   
+  ! B1(a,b,beta,gam) -= vcc_vvvo(a,b,beta,i) * t1(i,gam) &
+  call dgemm('N','N', nV*nV*nV, nV, nO, &
+             -1d0, vcc_vvvo, size(vcc_vvvo,1) * size(vcc_vvvo,2) * size(vcc_vvvo,3), &
+                   t1      , size(t1,1), &
+              1d0, B1      , size(B1,1) * size(B1,2) * size(B1,3))
+
+  
+  ! B1(a,b,beta,gam) -= vcc_vvov(a,b,i,gam) * t1(i,beta)
+  double precision, allocatable :: X_vvvo(:,:,:,:), Y_vvvv(:,:,:,:)
+  allocate(X_vvvo(nV,nV,nV,nO), Y_vvvv(nV,nV,nV,nV))
+
+  do i = 1, nO
+    do gam = 1, nV
+      do b = 1, nV
+        do a = 1, nV
+          X_vvvo(a,b,gam,i) = vcc_vvov(a,b,i,gam)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','N', nV*nV*nV, nV, nO, &
+             -1d0, X_vvvo, size(X_vvvo,1) * size(X_vvvo,2) * size(X_vvvo,3), &
+                   t1    , size(t1,1), &
+              0d0, Y_vvvv, size(Y_vvvv,1) * size(Y_vvvv,2) * size(Y_vvvv,3))
+
+  do gam = 1, nV
+    do beta = 1, nV
+      do b = 1, nV
+        do a = 1, nV
+          B1(a,b,beta,gam) = B1(a,b,beta,gam) + Y_vvvv(a,b,gam,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  deallocate(X_vvvo,Y_vvvv)
+  
 end
 #+END_SRC
 
+**** g_occ
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_g_occ(t1,t2,H_oo,g_occ)
 
@@ -722,6 +932,7 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
 end
 #+END_SRC
 
+**** g_vir
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_g_vir(t1,t2,H_vv,g_vir)
 
@@ -757,6 +968,7 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
 end
 #+END_SRC
 
+**** J1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_J1(t1,t2,J1)
 
@@ -806,6 +1018,7 @@ subroutine compute_J1(t1,t2,J1)
 end
 #+END_SRC
 
+**** K1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
 subroutine compute_K1(t1,t2,K1)
 

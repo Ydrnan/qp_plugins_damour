@@ -1,0 +1,28 @@
+Ref:
+George D. Purvis and Rodney J. Bartlett
+Citation: J. Chem. Phys. 76, 1910 (1982)
+http://dx.doi.org/10.1063/1.443164
+Jürgen Gauss, John F. Stanton, and Rodney J. Bartlett
+Citation: The Journal of Chemical Physics 95, 2623 (1991)
+http://dx.doi.org/10.1063/1.460915
+John F. Stanton, Jürgen Gauss, John D. Watts, and Rodney J. Bartlett
+Citation: The Journal of Chemical Physics 94, 4334 (1991)
+http://dx.doi.org/10.1063/1.460620
+
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+program first_ccsd_spin_orb
+  
+  implicit none
+
+  call run_ccsd_spin_orb
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine run_ccsd_spin_orb
+
+  implicit none
+
+end
+#+end_src

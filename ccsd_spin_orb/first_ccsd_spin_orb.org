@@ -24,5 +24,352 @@ subroutine run_ccsd_spin_orb
 
   implicit none
 
+  double precision, allocatable :: t1(:,:), t2(:,:,:,:), tau(:,:,:,:), dau(:,:,:,:)
+  double precision, allocatable :: r1(:,:), r2(:,:,:,:)
+  double precision, allocatable :: v(:,:,:,:), f(:,:)
+  double precision, allocatable :: M_vv(:,:), M_oo(:,:), M_ov(:,:)
+  double precision, allocatable :: B_oooo(:,:,:,:), B_vvvv(:,:,:,:), B_ovvo(:,:,:,:)
+  logical                       :: not_converged
+  double precision              :: max_elem, max_r1, max_r2, energy
+  integer                       :: i,j,k,l,m,n
+  integer                       :: a,b,c,d,e,f
+  integer                       :: nO, nO_s(2)
+  integer                       :: nV, nV_s(2)
+
+  na = elec_alpha_num
+  nb = elec_beta_num
+  nc = n_core_orb
+  
+  nO_m = max(na,nb) - nc
+  nO_s(1) = na - nc
+  nO_s(2) = nb - nc
+  nV_m = mo_num - min(na,nb)
+  nV_s(1) = mo_num - na
+  nV_s(2) = mo_num - nb
+
+  nO = nO_s(1) + nO_s(2)
+  nV = nV_s(1) + nV_s(2)
+
+
+  allocate(f_oo(nO, nO)
+  allocate(f_ov(nO, nV))
+  allocate(f_vo(nV, nO))
+  allocate(f_vv(nV, nV))
+  
+  allocate(v_oooo(nO,nO,nO,nO))
+  allocate(v_vooo(nV,nO,nO,nO))
+  allocate(v_ovoo(nO,nV,nO,nO))
+  allocate(v_oovo(nO,nO,nV,nO))
+  allocate(v_ooov(nO,nO,nO,nV))
+  allocate(v_vvoo(nV,nV,nO,nO))
+  allocate(v_vovo(nV,nO,nV,nO))
+  allocate(v_voov(nV,nO,nO,nV))
+  allocate(v_ovvo(nO,nV,nV,nO))
+  allocate(v_ovov(nO,nV,nO,nV))
+  allocate(v_oovv(nO,nO,nV,nV))
+  allocate(v_vvvo(nV,nV,nV,nO))
+  allocate(v_vvov(nV,nV,nO,nV))
+  allocate(v_vovv(nV,nO,nV,nV))
+  allocate(v_ovvv(nO,nV,nV,nV))
+  allocate(v_vvvv(nV,nV,nV,nV))
+
+  allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), bau(nO,nO,nV,nV))
+  allocate(r1(nO,nV), r2(nO,nO,nV,nV))
+
+  allocate(M_oo(nO,nO))
+  allocate(M_ov(nO,nV))
+  allocate(M_vv(nV,nV))
+
+  allocate(B_oooo(nO,nO,nO,nO))
+  allocate(B_ovvo(nO,nV,nV,nO))
+  allocate(B_vvvv(nV,nV,nV,nV))
+  
+  ! Init the integrals
+  call gen_v_ints(nO_m,nO_m,nO_m,nO_m, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
+  
+  call gen_v_ints(nV_m,nO_m,nO_m,nO_m, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
+  call gen_v_ints(nO_m,nV_m,nO_m,nO_m, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
+  call gen_v_ints(nO_m,nO_m,nV_m,nO_m, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
+  call gen_v_ints(nO_m,nO_m,nO_m,nV_m, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
+  
+  call gen_v_ints(nV_m,nV_m,nO_m,nO_m, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  call gen_v_ints(nV_m,nO_m,nV_m,nO_m, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
+  call gen_v_ints(nV_m,nO_m,nO_m,nV_m, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
+  call gen_v_ints(nO_m,nV_m,nV_m,nO_m, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
+  call gen_v_ints(nO_m,nV_m,nO_m,nV_m, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
+  call gen_v_ints(nO_m,nO_m,nV_m,nV_m, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
+  
+  call gen_v_ints(nV_m,nV_m,nV_m,nO_m, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
+  call gen_v_ints(nV_m,nV_m,nO_m,nV_m, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
+  call gen_v_ints(nV_m,nO_m,nV_m,nV_m, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
+  call gen_v_ints(nO_m,nV_m,nV_m,nV_m, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
+
+  call gen_v_ints(nV_m,nV_m,nV_m,nV_m, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+  
+  call gen_f(nO_m,nO_m, list_occ, list_occ, nO,nO, f_oo)
+  call gen_f(nV_m,nO_m, list_vir, list_occ, nV,nO, f_vo)
+  call gen_f(nO_m,nV_m, list_occ, list_vir, nO,nV, f_oV)
+  call gen_f(nV_m,nV_m, list_vir, list_vir, nV,nV, f_vv)
+  
+  t1 = 0d0
+  t2 = 0d0
+  tau = 0d0
+  bau = 0d0
+
+  
+end
+#+end_src
+
+* M_vv
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine compute_M_vv(nO,nV,f_vv,f_ov,t1,v_ovvv,v_oovv,bau,M_vv)
+
+  implicit none
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_vv(nV,nV), f_ov(nO,nV), t1(nO,nV)
+  double precision, intent(in)  :: v_ovvv(nO,nV,nV,nV), v_oovv(nO,nO,nV,nV), bau(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: M_vv(nV,nV)
+  
+  integer :: a,e,f
+  integer :: m,n
+
+  M_vv = 0d0
+  
+  do e = 1, nV
+    do a = 1, nV
+       
+      if (a /= e) then
+        M_vv(a,e) = M_vv(a,e) + f_vv(a,e)
+      endif
+
+      do m = 1, nO
+        M_vv(a,e) = M_vv(a,e) - 0.5d0 * f_ov(m,e) * t1(m,a)
+      enddo
+
+      do f = 1, nV
+        do m = 1, nO
+          M_vv(a,e) = M_vv(a,e) + t1(m,f) * v_ovvv(m,a,f,e)
+        enddo
+      enddo
+
+      do f = 1, nV
+        do n = 1, nO
+          do m = 1, nO
+            M_vv(a,e) = M_vv(a,e) - 0.5d0 * bau(m,n,a,f) * v_oovv(m,n,e,f)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+
+end
+#+end_src
+
+* M_oo
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine compute_M_oo(nO,nV,f_oo,f_ov,t1,v_ooov,v_oovv,bau,M_oo)
+
+  implicit none
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_oo(nO,nO), f_ov(nO,nV), t1(nO,nV)
+  double precision, intent(in)  :: v_ooov(nO,nO,nO,nV), v_oovv(nO,nO,nV,nV), bau(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: M_oo(nO,nO)
+  
+  integer :: e,f
+  integer :: m,n,i
+
+  M_oo = 0d0
+  
+  do i = 1, nO
+    do m = 1, nO
+       
+      if (m /= i) then
+        M_oo(m,i) = M_oo(m,i) + f_oo(m,i)
+      endif
+
+      do e = 1, nV
+        M_oo(m,i) = M_oo(m,i) + 0.5d0 * t1(i,e) * f_ov(m,e)
+      enddo
+
+      do e = 1, nV
+        do n = 1, nO
+          M_oo(m,i) = M_oo(m,i) + t1(n,e) * v_ooov(m,n,i,e)
+        enddo
+      enddo
+
+      do f = 1, nV
+        do e = 1, nO
+          do n = 1, nO
+            M_oo(m,i) = M_oo(m,i) + 0.5d0 * bau(i,n,e,f) * v_oovv(m,n,e,f)
+          enddo
+        enddo
+      enddo
+      
+    enddo
+  enddo
+
+end
+#+end_src
+
+* M_ov
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine compute_M_ov(nO,nV,f_ov,t1,v_oovv,M_ov)
+
+  implicit none
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_ov(nO,nV), t1(nO,nV)
+  double precision, intent(in)  :: v_oovv(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: M_ov(nO,nV)
+  
+  integer :: e,f
+  integer :: m,n
+
+  M_ov = 0d0
+  
+  do e = 1, nO
+    do m = 1, nO
+
+       M_ov(m,e) = M_ov(m,e) + f_ov(m,e)
+
+       do f = 1, nV
+         do n = 1, nO
+            M_ov(m,e) = M_ov(m,e) + t1(n,f) * v_oovv(m,n,e,f)
+         enddo
+       enddo
+       
+    enddo
+  enddo
+
+end
+#+end_src
+
+
+* List of orbitals
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine extract_orb(nO,nV,list_occ,list_vir)
+
+  implicit none
+  
+  integer, intent(in)  :: nO, nV
+  
+  integer, intent(out) :: list_occ(nO,2), list_vir(nV,2)
+
+  integer :: res(N_int,2)
+  integer :: i, si, idx_o, idx_v
+  logical :: ok
+
+  list_occ = 0
+  list_vir = 0
+
+  ! List of occ/vir alpha/beta 
+  do si = 1, 2
+    idx_o = 1
+    idx_v = 1
+    do i = n_core_orb+1, mo_num
+      call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
+      if (ok) then
+        list_occ(idx_o,si) = i
+      else
+        list_vir(idx_v,si) = i
+      endif
+    enddo
+  enddo
+  
+end
+#+end_src
+
+* Integrals
+
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine gen_f_ints(n1,n2, list1,list2, dim1,dim2, f)
+
+  implicit none
+
+  integer, intent(in)           :: list1(n1,2), list2(n2,2)
+  integer, intent(in)           :: dim1, dim2
+  double precision, intent(out) :: f(dim1, dim2)
+
+  integer                       :: i,j
+  integer                       :: si,sj
+
+  do sj = 1, 2
+    do si = 1, 2
+      s = si + sj
+      
+      do tmp_j = 1, nj
+        j = list2(tmp_j,sj)
+        do tmp_i = 1, ni   
+          i = list1(tmp_i,si)
+
+          if (s == 0 .or. s == 4) then
+             f(tmp_i,tmp_j) = fock_matrix_mo(i,j)
+          else
+             f(tmp_i,tmp_j) = 0d0
+          endif
+
+        enddo
+      enddo
+      
+    enddo
+  enddo
+
+
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
+subroutine gen_v_ints(n1,n2,n3,n4, list1,list2,list3,list4, dim1,dim2,dim3,dim4, v)
+
+  implicit none
+
+  integer, intent(in)           :: list1(n1,2), list2(n2,2), list3(n3,2), list4(n4,2)
+  integer, intent(in)           :: dim1, dim2, dim3, dim4
+  double precision, intent(out) :: v(dim1,dim2,dim3,dim4)
+
+  integer                       :: i,j,k,l
+  integer                       :: si,sj,sk,sl
+
+  do sl = 1, 2
+    do sk = 1, 2
+      do sj = 1, 2
+        do si = 1, 2
+          s = si+sj+sk+sl
+           
+          do tmp_l = 1, nl
+            l = list4(tmp_l,sl)
+            do tmp_k = 1, nk
+              k = list3(tmp_k,sk)
+              do tmp_j = 1, nj
+                j = list2(tmp_j,sj)
+                do tmp_i = 1, ni   
+                  i = list1(tmp_i,si)
+          
+                  if (s == 0 .or. s == 4) then
+                     v(tmp_i,tmp_j,tmp_k,tmp_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(i,j,l,k)
+                  elseif (si == sk .and. sj == sl) then
+                     v(tmp_i,tmp_j,tmp_k,tmp_l) = mo_two_e_integral(i,j,k,l)
+                  elseif (si == sl .and. sj == sk) then
+                     v(tmp_i,tmp_j,tmp_k,tmp_l) = - mo_two_e_integral(i,j,l,k)
+                  else
+                     v(tmp_i,tmp_j,tmp_k,tmp_l) = 0d0
+                  endif
+
+                enddo
+              enddo
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
 end
 #+end_src

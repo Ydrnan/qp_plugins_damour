@@ -55,7 +55,7 @@ subroutine run_ccsd_spin_orb
   !  do j = 1, mo_num
   !    do k = 1, mo_num
   !      do l = 1, mo_num
-  !        print*,mo_two_e_integral(i,j,k,l)
+  !        print*,i,j,k,l,mo_two_e_integral(i,j,k,l)
   !      enddo
   !    enddo
   !  enddo
@@ -134,6 +134,23 @@ subroutine run_ccsd_spin_orb
   call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
   call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+
+  print*,'v_oooo',v_oooo
+  print*,'v_vooo',v_vooo 
+  print*,'v_ovoo',v_ovoo
+  print*,'v_oovo',v_oovo
+  print*,'v_ooov',v_ooov
+  print*,'v_vvoo',v_vvoo
+  print*,'v_vovo',v_vovo
+  print*,'v_voov',v_voov
+  print*,'v_ovvo',v_ovvo
+  print*,'v_ovov',v_ovov
+  print*,'v_oovv',v_oovv
+  print*,'v_vvvo',v_vvvo
+  print*,'v_vvov',v_vvov
+  print*,'v_vovv',v_vovv
+  print*,'v_ovvv',v_ovvv
+  print*,'v_vvvv',v_vvvv 
   
   call gen_f_ints(nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
   call gen_f_ints(nV_m,nO_m, nV_S,nO_S, list_vir,list_occ, nV,nO, f_vo)
@@ -146,25 +163,24 @@ subroutine run_ccsd_spin_orb
 #+begin_src f90 :comments org :tangle first_ccsd_spin_orb.irp.f
 
   t1 = 0d0
-  print*,'v_oovv',v_oovv
   call guess_t2(nO,nV,v_oovv,f_oo,f_vv,t2)
-  print*,'t2',t2
   call update_tau(nO,nV,t1,t2,tau)
   call update_bau(nO,nV,t1,t2,bau)
 
   nb_iter = 0
   not_converged = .True.
   cc = 1d-6
-
-  print*,'EXIT'
-  call abort
   
+  max_r1 = 0d0
+  max_r2 = 0d0
+
   do while (not_converged)
 
     call compute_energy(nO,nV,t1,tau,f_ov,v_oovv,energy)
     print*,'Iter n. ', nb_iter
     print*,'Max r:  ', max_r1, max_r2
     print*,'E(CCSD):', hf_energy + energy, energy
+    print*,'t2',t2
 
     call compute_M_vv(nO,nV,f_vv,f_ov,t1,v_ovvv,v_oovv,bau,M_vv)
     call compute_M_oo(nO,nV,f_oo,f_ov,t1,v_ooov,v_oovv,bau,M_oo)
@@ -174,6 +190,7 @@ subroutine run_ccsd_spin_orb
     call compute_B_ovvo(nO,nV,t1,v_ovvo,v_ovvv,v_oovo,v_oovv,t2,B_ovvo)
     
     call compute_r1(nO,nV,t1,t2,f_ov,M_oo,M_ov,M_vv,v_ovov,v_ovvv,v_oovo,r1,max_r1)
+    print*,'r1', r1
     call compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo,B_oooo,B_ovvo,B_vvvv,r2,max_r2)
 
     call update_t1(nO,nV,r1,f_oo,f_vv,t1)
@@ -181,10 +198,14 @@ subroutine run_ccsd_spin_orb
     call update_tau(nO,nV,t1,t2,tau)
     call update_bau(nO,nV,t1,t2,bau)
 
+    nb_iter = nb_iter + 1
+
     max_r = max(max_r1,max_r2)
-    if (max_r < cc) then
+    if (max_r < cc .or. nb_iter > 5) then
       not_converged = .False.
     endif
+
+    !call abort
      
   enddo
   
@@ -263,7 +284,11 @@ subroutine guess_t2(nO,nV,v_oovv,f_oo,f_vv,t2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_vv(a,a) + f_vv(b,b) - f_oo(i,i) - f_oo(j,j))
+          if (v_oovv(i,j,a,b) == 0d0) then
+            t2(i,j,a,b) = 0d0
+          else
+            t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_vv(a,a) + f_vv(b,b) - f_oo(i,i) - f_oo(j,j))
+          endif
         enddo
       enddo
     enddo
@@ -288,7 +313,9 @@ subroutine update_t1(nO,nV,r1,f_oo,f_vv,t1)
 
   do a = 1, nV
     do i = 1, nO
-      t1(i,a) = t1(i,a) - r1(i,a) / (f_vv(a,a) - f_oo(i,i))
+      if (r1(i,a) /= 0d0) then
+        t1(i,a) = t1(i,a) - r1(i,a) / (f_vv(a,a) - f_oo(i,i))
+      endif
     enddo
   enddo
   
@@ -312,7 +339,10 @@ subroutine update_t2(nO,nV,r2,f_oo,f_vv,t2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (f_vv(a,a) + f_vv(b,b) - f_oo(i,i) - f_oo(j,j))
+          print*,i,j,a,b,r2(i,j,a,b)
+          if (r2(i,j,a,b) /= 0d0) then
+            t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (f_vv(a,a) + f_vv(b,b) - f_oo(i,i) - f_oo(j,j))
+          endif
         enddo
       enddo
     enddo
@@ -465,12 +495,12 @@ subroutine compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo
 
   double precision, intent(out) :: r2(nO,nO,nV,nV), max_r2
   
-  double precision, allocatable  :: tmp_M_vv(:,:), tmp_M_oo(:,:)
+  double precision, allocatable  :: tmp_M_vv(:,:), tmp_M_oo(:,:), X_oovv(:,:,:,:)
   
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
 
-  allocate(tmp_M_vv(nV,nV), tmp_M_oo(nO,nO))
+  allocate(tmp_M_vv(nV,nV), tmp_M_oo(nO,nO), X_oovv(nO,nO,nV,nV))
 
   ! Other intermediates
   tmp_M_vv = 0d0
@@ -478,7 +508,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo
     do b = 1, nV
       tmp_M_vv(b,e) = M_vv(b,e)
       do m = 1, nO
-         tmp_M_vv(b,e) = tmp_M_vv(b,e) - 0.5d0 * t1(b,m) * M_ov(m,e)
+         tmp_M_vv(b,e) = tmp_M_vv(b,e) - 0.5d0 * t1(m,b) * M_ov(m,e)
       enddo
     enddo
   enddo
@@ -492,15 +522,29 @@ subroutine compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo
       enddo
     enddo
   enddo
-          
-  r2 = 0d0
-  
+
+  X_oovv = 0d0
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          do e = 1, nV
+            do m = 1, nO
+              X_oovv(i,j,a,b) = X_oovv(i,j,a,b) &
+               + t2(i,m,a,e) * B_ovvo(m,b,e,j) - t1(i,e) * t1(m,a) * v_ovvo(m,b,e,j)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+            
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
 
-          r2(i,j,a,b) = r2(i,j,a,b) + v_oovv(i,j,a,b)
+          r2(i,j,a,b) = v_oovv(i,j,a,b)
 
           do e = 1, nV
             r2(i,j,a,b) = r2(i,j,a,b) + t2(i,j,a,e) * tmp_M_vv(b,e) &
@@ -524,23 +568,25 @@ subroutine compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo
             enddo
           enddo
 
-          do e = 1, nV
-            do m = 1, nO
-              r2(i,j,a,b) = r2(i,j,a,b) + t2(i,m,a,e) * B_ovvo(m,b,e,j) &
-                                        - t2(j,m,a,e) * B_ovvo(m,b,e,i) & ! -P(ij)
-                                        - t2(i,m,b,e) * B_ovvo(m,a,e,j) & ! -P(ab)
-                                        + t2(j,m,b,e) * B_ovvo(m,a,e,i)   ! +P(ij)P(ab)
-            enddo
-          enddo
+          !do e = 1, nV
+          !  do m = 1, nO
+          !    r2(i,j,a,b) = r2(i,j,a,b) + t2(i,m,a,e) * B_ovvo(m,b,e,j) &
+          !                              - t2(j,m,a,e) * B_ovvo(m,b,e,i) & ! -P(ij)
+          !                              - t2(i,m,b,e) * B_ovvo(m,a,e,j) & ! -P(ab)
+          !                              + t2(j,m,b,e) * B_ovvo(m,a,e,i)   ! +P(ij)P(ab)
+          !  enddo
+          !enddo
 
-          do e = 1, nV
-            do m = 1, nO
-              r2(i,j,a,b) = r2(i,j,a,b) - t1(i,e) * t1(m,a) * v_ovvo(m,b,e,j) &
-                                        + t1(j,e) * t1(m,a) * v_ovvo(m,b,e,i) & ! -P(ij)
-                                        + t1(i,e) * t1(m,b) * v_ovvo(m,a,e,j) & ! -P(ab)
-                                        - t1(j,e) * t1(m,b) * v_ovvo(m,a,e,i)   ! +P(ij)P(ab)
-            enddo
-          enddo
+          !do e = 1, nV
+          !  do m = 1, nO
+          !    r2(i,j,a,b) = r2(i,j,a,b) - t1(i,e) * t1(m,a) * v_ovvo(m,b,e,j) &
+          !                              + t1(j,e) * t1(m,a) * v_ovvo(m,b,e,i) & ! -P(ij)
+          !                              + t1(i,e) * t1(m,b) * v_ovvo(m,a,e,j) & ! -P(ab)
+          !                              - t1(j,e) * t1(m,b) * v_ovvo(m,a,e,i)   ! +P(ij)P(ab)
+          !  enddo
+          !enddo
+
+          r2(i,j,a,b) = r2(i,j,a,b) + X_oovv(i,j,a,b) - X_oovv(j,i,a,b) - X_oovv(i,j,b,a) + X_oovv(j,i,b,a)
 
           do e = 1, nV
             r2(i,j,a,b) = r2(i,j,a,b) + t1(i,e) * v_vvvo(a,b,e,j) &
@@ -571,7 +617,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,M_oo,M_vv,M_ov,v_oovv,v_ovvo,v_vvvo,v_ovoo
     enddo
   enddo
 
-  deallocate(tmp_M_vv,tmp_M_oo)
+  deallocate(tmp_M_vv,tmp_M_oo,X_oovv)
 
 end
 #+end_src
@@ -778,7 +824,7 @@ subroutine compute_B_vvvv(nO,nV,t1,v_vvvv,v_vovv,v_oovv,tau,B_vvvv)
 
           do m = 1, nO
             B_vvvv(a,b,e,f) = B_vvvv(a,b,e,f) - t1(m,b) * v_vovv(a,m,e,f) &
-                                              + t1(m,a) * v_vovv(a,m,e,f) ! P_ab
+                                              + t1(m,a) * v_vovv(b,m,e,f) ! P_ab
           enddo
 
           do n = 1, nO
@@ -868,11 +914,18 @@ subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
       call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
       if (ok) then
         list_occ(idx_o,si) = i
+        idx_o = idx_o + 1
       else
         list_vir(idx_v,si) = i
+        idx_v = idx_v + 1
       endif
     enddo
   enddo
+
+  !print*,'oa',list_occ(:,1)
+  !print*,'ob',list_occ(:,2)
+  !print*,'va',list_vir(:,1)
+  !print*,'vb',list_vir(:,2)
   
 end
 #+end_src
@@ -911,6 +964,7 @@ subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
   integer                       :: tmp_i,tmp_j
   integer                       :: si,sj,s
 
+
   do sj = 1, 2
     call shift_idx(sj,n2_S,j_shift)
     do si = 1, 2
@@ -925,7 +979,8 @@ subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
           i = list1(tmp_i,si)
           idx_i = tmp_i + i_shift
 
-          if (s == 0 .or. s == 4) then
+          print*,i,j,idx_i,idx_j
+          if (s == 2 .or. s == 4) then
              f(idx_i,idx_j) = fock_matrix_mo(i,j)
           else
              f(idx_i,idx_j) = 0d0
@@ -958,6 +1013,7 @@ subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   integer                       :: tmp_i,tmp_j,tmp_k,tmp_l
   integer                       :: si,sj,sk,sl,s
 
+  v = 1d0
   do sl = 1, 2
     call shift_idx(sl,n4_S,l_shift)
     do sk = 1, 2

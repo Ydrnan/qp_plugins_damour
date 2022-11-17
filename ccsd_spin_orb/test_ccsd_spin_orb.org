@@ -24,10 +24,14 @@ subroutine run
   double precision, allocatable :: cW_oooo(:,:,:,:), cW_ovvo(:,:,:,:), cW_vvvv(:,:,:,:)
   !double precision, allocatable :: oooo(:,:,:,:),ooov(:,:,:,:),oovo(:,:,:,:),oovv(:,:,:,:)
   !double precision, allocatable :: ovvo(:,:,:,:),ovvv(:,:,:,:),vovv(:,:,:,:),vvvv(:,:,:,:)
-  
+  double precision, allocatable :: all_err2(:,:), all_t2(:,:)
+  double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
+  double precision, allocatable :: all_err1(:,:), all_t1(:,:)
+  double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
+
   logical                       :: not_converged
-  integer                       :: nO,nV, nb_iter
-  double precision              :: energy, max_r, max_r1, max_r2, cc
+  integer                       :: nO,nV, nb_iter, i,j,a,b
+  double precision              :: energy, max_r, max_r1, max_r2, cc, ta, tb
 
   PROVIDE oooo ooov oovo oovv ovvo ovvv vovv vvvv
   PROVIDE delta_OV delta_oovv
@@ -46,6 +50,17 @@ subroutine run
   allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
   allocate(cW_oooo(nO,nO,nV,nV), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
 
+  if (cc_update_method == 'diis') then
+    allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
+    allocate(err2(nO,nO,nV,nV), tmp_err2(nO*nO*nV*nV), tmp_t2(nO*nO*nV*nV))
+    all_err2 = 0d0
+    all_t2   = 0d0
+    allocate(all_err1(nO*nV,cc_diis_depth), all_t1(nO*nV,cc_diis_depth))
+    allocate(err1(nO,nV), tmp_err1(nO*nV), tmp_t1(nO*nV))
+    all_err1 = 0d0
+    all_t1   = 0d0
+  endif
+
   Foo = spin_fock_matrix_mo_oo
   Fov = spin_fock_matrix_mo_ov
   Fvv = spin_fock_matrix_mo_vv
@@ -58,10 +73,11 @@ subroutine run
   r1 = 0d0
   r2 = 0d0
 
-  cc = 1d-6
+  cc = 1d-10
   nb_iter = 0
   not_converged = .True.
-  
+
+  call wall_time(ta)
   do while (not_converged)
 
     call ccsd_energy(nO,nV,t1,t2,Fov,oovv,energy)
@@ -85,20 +101,61 @@ subroutine run
     max_r2 = maxval(abs(r2(:,:,:,:)))
     max_r  = max(max_r1,max_r2)
 
-    call update_t1(nO,nV,r1,delta_ov,t1)
-    call update_t2(nO,nV,r2,delta_oovv,t2)
-    !t1(:,:)      = t1(:,:)     - r1(:,:)    /delta_OV  (:,:)
-    !t2(:,:,:,:)  = t2(:,:,:,:) - r2(:,:,:,:)/delta_oovv(:,:,:,:)
+    if (cc_update_method == 'diis') then
+
+      ! DIIS T1
+      do a = 1, nV
+        do i = 1, nO
+          err1(i,a) = - r1(i,a) / delta_ov(i,a)
+        enddo
+      enddo
+      tmp_err1 = reshape(err1,(/nO*nV/))
+      tmp_t1   = reshape(t1  ,(/nO*nV/))
+      call update_all_err(tmp_err1,all_err1,nO*nV,cc_diis_depth,nb_iter+1)
+      call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
+      call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
+      t1 = reshape(tmp_t1  ,(/nO,nV/))
+      !call update_t1(nO,nV,r1,delta_ov,t1)
+
+      ! DIIS T2
+      do b = 1, nV
+        do a = 1, nV
+          do j = 1, nO
+            do i = 1, nO
+              err2(i,j,a,b) = - r2(i,j,a,b) / delta_oovv(i,j,a,b)
+            enddo
+          enddo
+        enddo
+      enddo
+
+      tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
+      tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
+      call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      call diis_cc(err2,all_err2,tmp_t2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      t2 = reshape(tmp_t2  ,(/nO,nO,nV,nV/))
+      
+    elseif (cc_update_method == 'none') then
+       
+      call update_t1(nO,nV,r1,delta_ov,t1)
+      call update_t2(nO,nV,r2,delta_oovv,t2)
+
+    else
+      print*,'Unkonw cc_method_method: '//cc_update_method
+    endif
+    
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
 
     nb_iter = nb_iter + 1
      
-    if (max_r < cc .or. nb_iter > 100) then
+    if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
       not_converged = .False.
     endif
 
   enddo
+  call wall_time(tb)
+  print*,'Time:',tb-ta
 
   deallocate(t1,t2,tau,tau_t)
   deallocate(r1,r2)
@@ -1145,11 +1202,9 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !  do b=1,nV
   !    do e=1,nV
   !      do j=1,nO
-  !       
   !        do f=1,nV
   !          cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) + t1(j,f)*v_ovvv(m,b,e,f)
   !        end do
-  !        
   !      end do
   !    end do
   !  end do
@@ -1171,20 +1226,56 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
     end do
   end do
 
-  do j=1,nO
-    do e=1,nV
-      do b=1,nV
-        do m=1,nO
-          do f=1,nV
-            do n=1,nO
-              cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) &
-                              - ( 0.5d0*t2(j,n,f,b) + t1(j,f)*t1(n,b) )*v_oovv(m,n,e,f)
-            end do
-          end do
-        end do
-      end do
-    end do
-  end do
+  !do j=1,nO
+  !  do e=1,nV
+  !    do b=1,nV
+  !      do m=1,nO
+  !        do f=1,nV
+  !          do n=1,nO
+  !            cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) &
+  !                            - ( 0.5d0*t2(j,n,f,b) + t1(j,f)*t1(n,b) )*v_oovv(m,n,e,f)
+  !          end do
+  !        end do
+  !      end do
+  !    end do
+  !  end do
+  !end do
+  double precision, allocatable :: A_voov(:,:,:,:), B_voov(:,:,:,:), C_ovov(:,:,:,:)
+  allocate(A_voov(nV,nO,nO,nV), B_voov(nV,nO,nO,nV), C_ovov(nO,nV,nO,nV))
+
+  do b = 1, nV
+    do j = 1, nO
+      do n = 1, nO
+        do f = 1, nV
+          A_voov(f,n,j,b) = 0.5d0*t2(j,n,f,b) + t1(j,f)*t1(n,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  do e = 1, nV
+    do m = 1, nO
+      do n = 1, nO
+        do f = 1, nV
+          B_voov(f,n,m,e) = v_oovv(m,n,e,f)
+        enddo
+      enddo
+    enddo
+  enddo
+  call dgemm('T','N', nO*nV, nV*nO, nV*nO, &
+             1d0, A_voov, size(A_voov,1) * size(A_voov,2), &
+                  B_voov, size(B_voov,1) * size(B_voov,2), &
+             0d0, C_ovov, size(C_ovov,1) * size(C_ovov,2))
+
+  do j = 1, nO
+    do e = 1, nV
+      do b = 1, nV
+        do m = 1, nO
+          cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) - C_ovov(j,b,m,e)
+        enddo
+      enddo
+    enddo
+  enddo
+  deallocate(A_voov,B_voov,C_ovov)
 
 end
 #+end_src
@@ -1221,11 +1312,9 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
     do e=1,nV
       do b=1,nV
         do a=1,nV
-
           do m=1,nO
             cW_vvvv(a,b,e,f) = cW_vvvv(a,b,e,f) - t1(m,b)*v_vovv(a,m,e,f) + t1(m,a)*v_vovv(b,m,e,f)
           end do
-          
         end do
       end do
     end do

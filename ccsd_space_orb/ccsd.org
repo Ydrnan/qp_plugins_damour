@@ -23,14 +23,30 @@ program ccsd
   double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
   double precision, allocatable :: t1(:,:), r1(:,:)
   
+  double precision, allocatable :: all_err2(:,:), all_t2(:,:)
+  double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
+  double precision, allocatable :: all_err1(:,:), all_t1(:,:)
+  double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
+  
+  PROVIDE mo_two_e_integrals_in_map
+  
   nO = dim_list_inact_orb
   nV = dim_list_virt_orb
   
   allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV), delta(nO,nO,nV,nV))
   allocate(tau(nO,nO,nV,nV))
   allocate(t1(nO,nV), r1(nO,nV))
-  
-  PROVIDE mo_two_e_integrals_in_map
+
+  if (cc_update_method == 'diis') then
+    allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
+    allocate(err2(nO,nO,nV,nV), tmp_err2(nO*nO*nV*nV), tmp_t2(nO*nO*nV*nV))
+    all_err2 = 0d0
+    all_t2   = 0d0
+    allocate(all_err1(nO*nV,cc_diis_depth), all_t1(nO*nV,cc_diis_depth))
+    allocate(err1(nO,nV), tmp_err1(nO*nV), tmp_t1(nO*nV))
+    all_err1 = 0d0
+    all_t1   = 0d0
+  endif
 
   if (elec_alpha_num /= elec_beta_num) then
     print*, 'Only for closed shell systems'
@@ -63,32 +79,77 @@ program ccsd
   !! Init
   call guess_t1_space(nO,nV,t1)
   call guess_t2_space(nO,nV,t2) 
-  call update_tau_space(nO,nV,t1,t2,tau) 
-  max_r = 1d0
+  call update_tau_space(nO,nV,t1,t2,tau)
+  
   nb_iter = 0
+  not_converged = .True.
+  max_r1 = 0d0
+  max_r2 = 0d0
   
-  do while (max_r > 1d-6)
-    print*,'Iter. n.:', nb_iter
+  do while (not_converged)
   
-    ! energy
+    ! Energy
     call e_ccsd(tau,t1,energy)
-    print*, 'E(CCSD)=', hf_energy + energy
+    print*,''
+    print*,'Iter. n.:', nb_iter
+    print*,'E(CCSD)= ', hf_energy + energy, energy
+    print*,'r       :', max_r1, max_r2
 
     ! Residue
     call compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     call compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
-    
-    print*,'max r1', max_r1
-    print*,'max r2', max_r2
-
-    max_r = MAX(max_r1,max_r2)
+    max_r = max(max_r1,max_r2)
 
     ! Update
-    call update_t1_space (nO,nV,r1,t1)
-    call update_t2_space (nO,nV,r2,t2)
+    if (cc_update_method == 'diis') then
+
+      ! DIIS T1
+      !do a = 1, nV
+      !  do i = 1, nO
+      !    err1(i,a) = - r1(i,a) / (fcc_v(a) - fcc_o(i)) 
+      !  enddo
+      !enddo
+      !tmp_err1 = reshape(err1,(/nO*nV/))
+      !tmp_t1   = reshape(t1  ,(/nO*nV/))
+      !call update_all_err(tmp_err1,all_err1,nO*nV,cc_diis_depth,nb_iter+1)
+      !call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
+      !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
+      !t1 = reshape(tmp_t1  ,(/nO,nV/))
+      call update_t1_space (nO,nV,r1,t1)
+
+      ! DIIS T2
+      do b = 1, nV
+        do a = 1, nV
+          do j = 1, nO
+            do i = 1, nO
+              err2(i,j,a,b) = - r2(i,j,a,b) / (fcc_v(a) + fcc_v(b) - fcc_o(i) - fcc_o(j))
+            enddo
+          enddo
+        enddo
+      enddo
+
+      tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
+      tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
+      call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      call diis_cc(err2,all_err2,tmp_t2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      t2 = reshape(tmp_t2  ,(/nO,nO,nV,nV/))
+      
+    elseif (cc_update_method == 'none') then
+
+      call update_t1_space (nO,nV,r1,t1)
+      call update_t2_space (nO,nV,r2,t2)
+
+    endif
+    
     call update_tau_space(nO,nV,t1,t2,tau)
     
     nb_iter = nb_iter + 1
+    
+    if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
+      not_converged = .False.
+    endif
+    
   enddo
 
   call e_ccsd(tau,t1,energy)
@@ -384,7 +445,7 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   max_r1 = 0d0
   do a = 1, nV
     do i = 1, nO
-      if (max_r1 < dabs(r1(i,a))) then
+      if (dabs(r1(i,a)) > max_r1) then
         max_r1 = dabs(r1(i,a))
       endif
     enddo
@@ -698,7 +759,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          if (max_r2 < dabs(r2(i,j,a,b))) then
+          if (dabs(r2(i,j,a,b)) > max_r2) then
             max_r2 = dabs(r2(i,j,a,b))
           endif
         enddo

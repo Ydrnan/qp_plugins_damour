@@ -36,12 +36,7 @@ subroutine run
   PROVIDE oooo ooov oovo oovv ovvo ovvv vovv vvvv
   PROVIDE delta_OV delta_oovv
   
-  if (n_core_orb > 0) then
-     print*,'No frozen core only'
-     call abort
-  endif
-
-  nO = spin_occ_num
+  nO = spin_occ_nc_num
   nV = spin_vir_num
 
   allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))

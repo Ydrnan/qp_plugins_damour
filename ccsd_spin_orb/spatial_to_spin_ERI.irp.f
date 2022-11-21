@@ -1,4 +1,4 @@
-BEGIN_PROVIDER [ double precision, dbERI, (spin_mo_num,spin_mo_num,spin_mo_num,spin_mo_num) ]
+BEGIN_PROVIDER [ double precision, dbERI, (spin_mo_num_nc,spin_mo_num_nc,spin_mo_num_nc,spin_mo_num_nc) ]
  implicit none
  BEGIN_DOC
  ! Anti-symmetrized Electron repulsion integrals in spin-orbital basis
@@ -17,10 +17,10 @@ BEGIN_PROVIDER [ double precision, dbERI, (spin_mo_num,spin_mo_num,spin_mo_num,s
 
   PROVIDE mo_two_e_integrals_in_map
 
-    do s=1,spin_mo_num
-      do r=1,spin_mo_num
-        do q=1,spin_mo_num
-          do p=1,spin_mo_num
+    do s=2*n_core_orb+1,spin_mo_num
+      do r=2*n_core_orb+1,spin_mo_num
+        do q=2*n_core_orb+1,spin_mo_num
+          do p=2*n_core_orb+1,spin_mo_num
             pqrs = 0.d0
             pqsr = 0.d0
             if ( ( iand(p,1) == iand(r,1) )  .and. &
@@ -50,7 +50,7 @@ BEGIN_PROVIDER [ double precision, dbERI, (spin_mo_num,spin_mo_num,spin_mo_num,s
                       mo_two_e_integrals_in_map)
             endif
 
-            dbERI(p,q,r,s) = pqrs - pqsr
+            dbERI(p-2*n_core_orb,q-2*n_core_orb,r-2*n_core_orb,s-2*n_core_orb) = pqrs - pqsr
           enddo
         enddo
       enddo

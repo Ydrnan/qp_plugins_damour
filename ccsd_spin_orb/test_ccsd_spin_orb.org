@@ -1532,7 +1532,8 @@ subroutine extract_n_spin(n)
   implicit none
 
   integer, intent(out) :: n(4)
-  integer :: res(N_int,2), i, si
+  integer(bit_kind) :: res(N_int,2)
+  integer :: i, si
   logical :: ok
 
   n = 0
@@ -1560,8 +1561,8 @@ subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
   
   integer, intent(out) :: list_occ(nO_m,2), list_vir(nV_m,2)
 
-  integer :: res(N_int,2)
-  integer :: i, si, idx_o, idx_v
+  integer(bit_kind) :: res(N_int,2)
+  integer :: i, si, idx_o, idx_v, idx_i, idx_b
   logical :: ok
 
   list_occ = 0

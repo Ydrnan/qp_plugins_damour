@@ -1324,17 +1324,44 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
                    t1     , size(t1,1), &
              1.d0, cW_ovvo, size(cW_ovvo,1) * size(cW_ovvo,2) * size(cW_ovvo,3))
 
+  !do j=1,nO
+  !  do e=1,nV
+  !    do b=1,nV
+  !      do m=1,nO
+  !        do n=1,nO
+  !          cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) - t1(n,b)*v_oovo(m,n,e,j)
+  !        end do
+  !      end do
+  !    end do
+  !  end do
+  !end do
+  double precision, allocatable :: A_oovo(:,:,:,:), B_vovo(:,:,:,:)
+  allocate(A_oovo(nO,nO,nV,nO), B_vovo(nV,nO,nV,nO))
   do j=1,nO
     do e=1,nV
-      do b=1,nV
-        do m=1,nO
-          do n=1,nO
-            cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) - t1(n,b)*v_oovo(m,n,e,j)
-          end do
+      do m=1,nO
+        do n=1,nO
+          A_oovo(n,m,e,j) = v_oovo(m,n,e,j)
         end do
       end do
     end do
   end do
+  
+  call dgemm('T','N', nV, nO*nV*nO, nO, &
+             1d0, t1    , size(t1,1), &
+                  A_oovo, size(A_oovo,1), &
+             0d0, B_vovo, size(B_vovo,1))
+  
+  do j=1,nO
+    do e=1,nV
+      do b=1,nV
+        do m=1,nO
+          cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) - B_vovo(b,m,e,j)
+        end do
+      end do
+    end do
+  end do
+  deallocate(A_oovo,B_vovo)
 
   !do j=1,nO
   !  do e=1,nV
@@ -1418,17 +1445,43 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
 
   cW_vvvv(:,:,:,:) = v_vvvv(:,:,:,:)
 
+  !do f=1,nV
+  !  do e=1,nV
+  !    do b=1,nV
+  !      do a=1,nV
+  !        do m=1,nO
+  !          cW_vvvv(a,b,e,f) = cW_vvvv(a,b,e,f) - t1(m,b)*v_vovv(a,m,e,f) + t1(m,a)*v_vovv(b,m,e,f)
+  !        end do
+  !      end do
+  !    end do
+  !  end do
+  !end do
+  double precision, allocatable :: A_ovvv(:,:,:,:), B_vvvv(:,:,:,:)
+  allocate(A_ovvv(nO,nV,nV,nV), B_vvvv(nV,nV,nV,nV))
   do f=1,nV
     do e=1,nV
-      do b=1,nV
-        do a=1,nV
-          do m=1,nO
-            cW_vvvv(a,b,e,f) = cW_vvvv(a,b,e,f) - t1(m,b)*v_vovv(a,m,e,f) + t1(m,a)*v_vovv(b,m,e,f)
-          end do
+      do a=1,nV
+        do m=1,nO
+          A_ovvv(m,a,e,f) = v_vovv(a,m,e,f)
         end do
       end do
     end do
   end do
+
+  call dgemm('T','N', nV, nV*nV*nV, nO, &
+             1d0, t1    , size(t1,1), &
+                  A_ovvv, size(A_ovvv,1), &
+             0d0, B_vvvv, size(B_vvvv,1))
+  do f=1,nV
+    do e=1,nV
+      do b=1,nV
+        do a=1,nV
+          cW_vvvv(a,b,e,f) = cW_vvvv(a,b,e,f) - B_vvvv(b,a,e,f) + B_vvvv(a,b,e,f)
+        end do
+      end do
+    end do
+  end do
+  deallocate(A_ovvv,B_vvvv)
 
   !do a=1,nV
   !  do b=1,nV

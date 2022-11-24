@@ -18,7 +18,6 @@ subroutine run
 
   double precision, allocatable :: t1(:,:), t2(:,:,:,:), tau(:,:,:,:), tau_t(:,:,:,:)
   double precision, allocatable :: r1(:,:), r2(:,:,:,:)
-  !double precision, allocatable :: D_OV(:,:), D_oovv(:,:,:,:)
   double precision, allocatable :: cF_oo(:,:), cF_ov(:,:), cF_vv(:,:)
   double precision, allocatable :: cW_oooo(:,:,:,:), cW_ovvo(:,:,:,:), cW_vvvv(:,:,:,:)
   
@@ -40,9 +39,6 @@ subroutine run
   integer                       :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer                       :: nb_iter, i,j,a,b
   double precision              :: energy, max_r, max_r1, max_r2, cc, ta, tb
-
-  !PROVIDE oooo ooov oovo oovv ovvo ovvv vovv vvvv
-  PROVIDE delta_OV delta_oovv
 
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
@@ -69,28 +65,11 @@ subroutine run
   !print*,list_vir(:,1)
   !print*,list_vir(:,2)
 
-  allocate(f_o(nO), f_v(nV))
-  allocate(f_oo(nO, nO))
-  allocate(f_ov(nO, nV))
-  allocate(f_vv(nV, nV))
-
-  do i = 1, mo_num
-    print*,fock_matrix_mo(i,:)
-  enddo
-
-  ! Fock elements
-  call gen_f_ints(nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
-  call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
-  call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
-
-  ! Diag elements
-  do i = 1, nO
-    f_o(i) = f_oo(i,i)
-  enddo
-  do i = 1, nV
-    f_v(i) = f_vv(i,i)
-  enddo
-  
+  ! Allocation
+  allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
+  allocate(r1(nO,nV), r2(nO,nO,nV,nV))
+  allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
+  allocate(cW_oooo(nO,nO,nV,nV), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
   allocate(v_oooo(nO,nO,nO,nO))
   allocate(v_vooo(nV,nO,nO,nO))
   allocate(v_ovoo(nO,nV,nO,nO))
@@ -107,37 +86,12 @@ subroutine run
   allocate(v_vovv(nV,nO,nV,nV))
   allocate(v_ovvv(nO,nV,nV,nV))
   allocate(v_vvvv(nV,nV,nV,nV))
-
-  call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
-
-  call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
-  call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
-  call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
-  call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
-
-  call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
-  call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
-  call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
-  call gen_v_ints(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
-  call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
-  call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
-
-  call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
-  call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
-  call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
-  call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
-
-  call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
-
-  !nO = spin_occ_nc_num
-  !nV = spin_vir_num
-
-  allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
-  allocate(r1(nO,nV), r2(nO,nO,nV,nV))
-  !allocate(Foo(nO,nO), Fov(nO,nV), Fvv(nV,nV))
-  allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
-  allocate(cW_oooo(nO,nO,nV,nV), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
-
+  allocate(f_o(nO), f_v(nV))
+  allocate(f_oo(nO, nO))
+  allocate(f_ov(nO, nV))
+  allocate(f_vv(nV, nV))
+  
+  ! Allocation for the diis
   if (cc_update_method == 'diis') then
     allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
     allocate(err2(nO,nO,nV,nV), tmp_err2(nO*nO*nV*nV), tmp_t2(nO*nO*nV*nV))
@@ -149,55 +103,63 @@ subroutine run
     all_t1   = 0d0
   endif
 
-  !F_oo = spin_fock_matrix_mo_oo
-  !F_ov = spin_fock_matrix_mo_ov
-  !F_vv = spin_fock_matrix_mo_vv
+  ! Fock elements
+  call gen_f_ints(nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
+  call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
+  call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
 
-  !integer :: k,l
-  !do i = 1, size(ovov,1)
-  !do j = 1, size(ovov,2)
-  !do k = 1, size(ovov,3)
-  !do l = 1, size(ovov,4)
-  !  print*,i,j,k,l,v_ovov(i,j,k,l), ovov(i,j,k,l)
-  !enddo
-  !enddo
-  !enddo
-  !enddo
-  
-  !v_oooo = oooo
-  !v_vooo = vooo
-  !v_ovoo = ovoo
-  !v_oovo = oovo
-  !v_ooov = ooov
-  !v_vvoo = vvoo
-  !v_vovo = vovo
-  !
-  !!v_voov = voov
-  !
-  !v_ovvo = ovvo
-  !v_ovov = ovov
-  !v_oovv = oovv
-  !v_vvvo = vvvo
-  !v_vvov = vvov
-  !v_vovv = vovv
-  !v_ovvv = ovvv
-  !v_vvvv = vvvv
+  ! Diag elements
+  do i = 1, nO
+    f_o(i) = f_oo(i,i)
+  enddo
+  do i = 1, nV
+    f_v(i) = f_vv(i,i)
+  enddo
 
+  ! Bi electronic integrals from list
+  ! O^4
+  call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
+
+  ! O^3V
+  call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
+  call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
+  call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
+  call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
+
+  ! O^2v^2
+  call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
+  call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
+  call gen_v_ints(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
+  call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
+  call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
+
+  ! OV^3
+  call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
+  call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
+  call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
+  call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
+
+  ! V^4
+  call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+
+  ! Init of T
   t1 = 0d0
   call guess_t2(nO,nV,v_oovv,f_o,f_v,delta_oovv,t2)
   call compute_tau(nO,nV,t1,t2,tau)
   call compute_tau_t(nO,nV,t1,t2,tau_t)
   
-  r1 = 0d0
-  r2 = 0d0
-
+  ! Loop init
   cc = 1d-10
   nb_iter = 0
   not_converged = .True.
+  r1 = 0d0
+  r2 = 0d0
   max_r1 = 0d0
   max_r2 = 0d0
-
   call wall_time(ta)
+
+  ! Loop
   do while (not_converged)
 
     call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
@@ -206,6 +168,7 @@ subroutine run
     print*,'E(CCSD)= ', hf_energy + energy, energy
     print*,'r       :', max_r1, max_r2
 
+    ! Intermediates
     call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_oo)
     call compute_cF_ov(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_ov)
     call compute_cF_vv(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_vv)
@@ -214,31 +177,40 @@ subroutine run
     call compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_ovvo)
     call compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
 
+    ! Residuals
     call compute_r1(nO,nV,t1,t2,f_o,f_v,delta_ov,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
     call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,delta_oovv,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
 
+    ! Max elements in the residuals
     max_r1 = maxval(abs(r1(:,:)))
     max_r2 = maxval(abs(r2(:,:,:,:)))
     max_r  = max(max_r1,max_r2)
 
     ! Update
+    ! With DIIS
     if (cc_update_method == 'diis') then
 
-      ! DIIS T1
+      ! DIIS T1, it is not always good since the t1 can be small
+      ! That's why there is a call to update the t1 in the standard way
+      ! T1 error tensor
       !do a = 1, nV
       !  do i = 1, nO
       !    err1(i,a) = - r1(i,a) / delta_ov(i,a)
       !  enddo
       !enddo
+      ! Transfo errors and parameters in vectors
       !tmp_err1 = reshape(err1,(/nO*nV/))
       !tmp_t1   = reshape(t1  ,(/nO*nV/))
+      ! Add the error and parameter vectors with those of the previous iterations
       !call update_all_err(tmp_err1,all_err1,nO*nV,cc_diis_depth,nb_iter+1)
       !call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
+      ! Diis and reshape T as a tensor
       !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
       !t1 = reshape(tmp_t1  ,(/nO,nV/))
       call update_t1(nO,nV,r1,f_o,f_v,delta_ov,t1)
 
       ! DIIS T2
+      ! T2 error tensor
       do b = 1, nV
         do a = 1, nV
           do j = 1, nO
@@ -250,13 +222,17 @@ subroutine run
         enddo
       enddo
 
+      ! Transfo errors and parameters in vectors
       tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
       tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
+      ! Add the error and parameter vectors with those of the previous iterations
       call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
       call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+      ! Diis and reshape T as a tensor
       call diis_cc(err2,all_err2,tmp_t2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
       t2 = reshape(tmp_t2  ,(/nO,nO,nV,nV/))
-      
+
+    ! Standard update as T = T - Delta
     elseif (cc_update_method == 'none') then
        
       call update_t1(nO,nV,r1,f_o,f_v,delta_ov,t1)
@@ -265,12 +241,13 @@ subroutine run
     else
       print*,'Unkonw cc_method_method: '//cc_update_method
     endif
-    
+
+    ! Update T intermediates
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
 
+    ! Convergence
     nb_iter = nb_iter + 1
-     
     if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
       not_converged = .False.
     endif
@@ -279,6 +256,7 @@ subroutine run
   call wall_time(tb)
   print*,'Time:',tb-ta
 
+  ! Deallocate
   deallocate(t1,t2,tau,tau_t)
   deallocate(r1,r2)
   deallocate(cF_oo,cF_ov,cF_vv)
@@ -1720,3 +1698,4 @@ subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   
 end
 #+end_src
+

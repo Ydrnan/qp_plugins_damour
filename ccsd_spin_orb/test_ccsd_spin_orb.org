@@ -1648,7 +1648,7 @@ subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
         do tmp_i = 1, n1
           i = list1(tmp_i,si)
           idx_i = tmp_i + i_shift
-          f(idx_i,idx_j) = tmp_F(i+n_core_orb,j+n_core_orb)
+          f(idx_i,idx_j) = tmp_F(i,j)
         enddo
       enddo
 
@@ -1657,33 +1657,6 @@ subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
 
   deallocate(tmp_F)
   
-!  do sj = 1, 2
-!    call shift_idx(sj,n2_S,j_shift)
-!    do si = 1, 2
-!      call shift_idx(si,n1_S,i_shift)
-!      
-!      s = si + sj
-!      
-!      do tmp_j = 1, n2_S(sj)
-!        j = list2(tmp_j,sj)
-!        idx_j = tmp_j + j_shift
-!        do tmp_i = 1, n1_S(si)   
-!          i = list1(tmp_i,si)
-!          idx_i = tmp_i + i_shift
-!
-!          print*,i,j,idx_i,idx_j
-!          if (s == 2 .or. s == 4) then
-!             f(idx_i,idx_j) = fock_matrix_mo(i,j)
-!          else
-!             f(idx_i,idx_j) = 0d0
-!          endif
-!
-!        enddo
-!      enddo
-!      
-!    enddo
-!  enddo
-
 end
 #+end_src
 

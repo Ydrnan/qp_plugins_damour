@@ -1,35 +1,37 @@
-   https://hal.archives-ouvertes.fr/hal-02492983/document
-   Maxime Chupin, Mi-Song Dupuy, Guillaume Legendre, Eric Séré. Convergence analysis of adaptive
-   DIIS algorithms witerh application to electronic ground state calculations. 
-   ESAIM: Mathematical Modelling and Numerical Analysis, EDP Sciences, 2021, 55 (6), pp.2785 - 2825. 10.1051/m2an/2021069ff.ffhal-02492983v5
-   
-   t_{k+1} = g(t_k)
-   err_k = f(t_k) = t_{k+1} - t_k
-  
-   m_k = min(m,k)
-   m maximal depth
-   t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
-   \sum_{i=0}^{m_k} c_i^k = 1
-   
-   b_{ij}^k = < err^{k-m_k+j}, err^{k-m_k+i} >
-   
-   (b   -1) ( c^k    ) = (  0 )
-   (-1   0) ( \lambda)   ( -1 )
+* DIIS
+https://hal.archives-ouvertes.fr/hal-02492983/document
+Maxime Chupin, Mi-Song Dupuy, Guillaume Legendre, Eric Séré. Convergence analysis of adaptive
+DIIS algorithms witerh application to electronic ground state calculations. 
+ESAIM: Mathematical Modelling and Numerical Analysis, EDP Sciences, 2021, 55 (6), pp.2785 - 2825. 10.1051/m2an/2021069ff.ffhal-02492983v5
 
-   lambda is used to put the constraint \sum_{i=0}^{m_k} c_i^k = 1
+t_{k+1} = g(t_k)
+err_k = f(t_k) = t_{k+1} - t_k
 
-   In: t_0, err_0, m
-   err_0 = g(t_0)
-   k = 0
-   m_k = 0
-   while ||err_k|| > CC
-     A.x=b
-     t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
-     err_{k+1} = f(t_{k+1})
-     m_{k+1} = min(m_k+1,m)
-     k = k +1
-   end
+m_k = min(m,k)
+m maximal depth
+t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
+\sum_{i=0}^{m_k} c_i^k = 1
 
+b_{ij}^k = < err^{k-m_k+j}, err^{k-m_k+i} >
+
+(b   -1) ( c^k    ) = (  0 )
+(-1   0) ( \lambda)   ( -1 )
+
+lambda is used to put the constraint \sum_{i=0}^{m_k} c_i^k = 1
+
+In: t_0, err_0, m
+err_0 = g(t_0)
+k = 0
+m_k = 0
+while ||err_k|| > CC
+  A.x=b
+  t_{k+1} = \sum_{i=0}^{m_k} c_i^k g(t_{k-m_k+i})
+  err_{k+1} = f(t_{k+1})
+  m_{k+1} = min(m_k+1,m)
+  k = k +1
+end
+
+* Code
 #+begin_src f90 :comments org :tangle diis.irp.f 
 subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
 
@@ -114,7 +116,10 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
   deallocate(ipiv,B,c,zero)
 
 end
+#+end_src
 
+** Update all err
+#+begin_src f90 :comments org :tangle diis.irp.f
 subroutine update_all_err(err,all_err,sze,m,iter)
 
   implicit none
@@ -153,7 +158,10 @@ subroutine update_all_err(err,all_err,sze,m,iter)
   !enddo
 
 end
+#+end_src
 
+** Update all t
+#+begin_src f90 :comments org :tangle diis.irp.f
 subroutine update_all_t(t,all_t,sze,m,iter)
 
   implicit none
@@ -189,4 +197,59 @@ subroutine update_all_t(t,all_t,sze,m,iter)
 end
 #+end_src
 
+** Err
+*** Err1
+#+begin_src f90 :comments org :tangle diis.irp.f
+subroutine compute_err1(nO,nV,f_o,f_v,r1,err1)
 
+  implicit none
+
+  BEGIN_DOC
+  ! Compute the error vector for the t1
+  END_DOC
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_o(nO), f_v(nV), r1(nO,nV)
+  
+  double precision, intent(out) :: err1(nO,nV)
+
+  integer                       :: i,a
+  
+  do a = 1, nV
+    do i = 1, nO
+      err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a))
+    enddo
+  enddo
+
+end
+#+end_src
+
+*** Err2
+#+begin_src f90 :comments org :tangle diis.irp.f
+subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Compute the error vector for the t2
+  END_DOC
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_o(nO), f_v(nV), r2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: err2(nO,nO,nV,nV)
+
+  integer                       :: i,j,a,b
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO       
+          err2(i,j,a,b) = - r2(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b))
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+end_src

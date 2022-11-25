@@ -8,13 +8,13 @@ program ccsd
   ! CCSD in spin orbitals
   END_DOC
 
-  call run
+  call run_ccsd_spin_orb
   
 end
 
 ! Code
 
-subroutine run
+subroutine run_ccsd_spin_orb
 
   implicit none
 
@@ -155,7 +155,9 @@ subroutine run
 
   ! Init of T
   t1 = 0d0
-  call guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
+  call guess_t1(nO,nV,f_o,f_v,f_ov,t1)
+  call guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
+  !call guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
   call compute_tau(nO,nV,t1,t2,tau)
   call compute_tau_t(nO,nV,t1,t2,tau_t)
   
@@ -202,11 +204,7 @@ subroutine run
       ! DIIS T1, it is not always good since the t1 can be small
       ! That's why there is a call to update the t1 in the standard way
       ! T1 error tensor
-      !do a = 1, nV
-      !  do i = 1, nO
-      !    err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a))
-      !  enddo
-      !enddo
+      !call compute_err1(nO,nV,f_o,f_v,r1,err1)
       ! Transfo errors and parameters in vectors
       !tmp_err1 = reshape(err1,(/nO*nV/))
       !tmp_t1   = reshape(t1  ,(/nO*nV/))
@@ -220,16 +218,7 @@ subroutine run
 
       ! DIIS T2
       ! T2 error tensor
-      do b = 1, nV
-        do a = 1, nV
-          do j = 1, nO
-            do i = 1, nO
-              err2(i,j,a,b) = - r2(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
-            enddo
-          enddo
-        enddo
-      enddo
-
+      call compute_err2(nO,nV,f_o,f_v,r2,err2)
       ! Transfo errors and parameters in vectors
       tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
       tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
@@ -243,8 +232,8 @@ subroutine run
     ! Standard update as T = T - Delta
     elseif (cc_update_method == 'none') then
        
-      call update_t1(nO,nV,r1,f_o,f_v,t1)
-      call update_t2(nO,nV,r2,f_o,f_v,t2)
+      call update_t1(nO,nV,f_o,f_v,r1,t1)
+      call update_t2(nO,nV,f_o,f_v,r2,t2)
 
     else
       print*,'Unkonw cc_method_method: '//cc_update_method
@@ -321,31 +310,6 @@ subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
 
 end
 
-! T2
-
-subroutine guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
-
-  implicit none
-
-  integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: v_oovv(nO,nO,nV,nV), f_o(nO), f_v(nV)
-  
-  double precision, intent(out) :: t2(nO,nO,nV,nV)
-
-  integer :: i,j,a,b
-
-  do b = 1, nV
-    do a = 1, nV
-      do j = 1, nO
-        do i = 1, nO
-          t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
-        enddo
-      enddo
-    enddo
-  enddo
-
-end
-
 ! T1
 
 subroutine update_t1(nO,nV,r1,f_o,f_v,t1)
@@ -385,33 +349,6 @@ subroutine update_t2(nO,nV,r2,f_o,f_v,t2)
       do j = 1, nO
         do i = 1, nO
           t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
-        enddo
-      enddo
-    enddo
-  enddo
-
-end
-
-! Tau
-
-subroutine compute_tau(nO,nV,t1,t2,tau)
-
-  implicit none
-
-  integer,intent(in)            :: nO,nV
-  double precision,intent(in)   :: t1(nO,nV)
-  double precision,intent(in)   :: t2(nO,nO,nV,nV)
-
-  double precision,intent(out)  :: tau(nO,nO,nV,nV)
-  
-  integer                       :: i,j,k,l
-  integer                       :: a,b,c,d
-
-  do i=1,nO
-    do j=1,nO
-      do a=1,nV
-        do b=1,nV
-          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a)*t1(j,b) - t1(i,b)*t1(j,a)
         enddo
       enddo
     enddo

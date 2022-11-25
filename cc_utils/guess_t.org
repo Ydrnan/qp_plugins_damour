@@ -1,16 +1,17 @@
 * Guess
 ** T1
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine guess_t1_space(nO,nV,t1)
+subroutine guess_t1(nO,nV,f_o,f_v,f_ov,t1)
 
   implicit none
 
   BEGIN_DOC
-  ! Update the T1 amplitudes for CC in spatial orbitals
+  ! Update the T1 amplitudes for CC
   END_DOC
 
   ! in
   integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_o(nO), f_v(nV), f_ov(nO,nV)
 
   ! inout
   double precision, intent(out) :: t1(nO, nV)
@@ -25,7 +26,7 @@ subroutine guess_t1_space(nO,nV,t1)
   else if (cc_guess_t1 == 'MP') then
     do a = 1, nV
       do i = 1, nO
-        t1(i,a) = 0d0 !- ... / (fcc_vv(a,a) - fcc_oo(i,i) + cc_level_shift_guess)
+        t1(i,a) = 0d0 ! f_ov(i,a) / (f_o(i) - f_v(a) + cc_level_shift_guess)
       enddo
     enddo
   else if (cc_guess_t1 == 'read' .and. cc_read_t1) then
@@ -46,16 +47,17 @@ end
 
 ** T2
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine guess_t2_space(nO,nV,t2)
+subroutine guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
 
   implicit none
 
   BEGIN_DOC
-  ! Update the T2 amplitudes for CC in spatial orbitals
+  ! Update the T2 amplitudes for CC
   END_DOC
 
   ! in
   integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: f_o(nO), f_v(nV), v_oovv(nO, nO, nV, nV)
 
   ! inout
   double precision, intent(out) :: t2(nO, nO, nV, nV)
@@ -72,7 +74,7 @@ subroutine guess_t2_space(nO,nV,t2)
       do a = 1, nV
         do j = 1, nO
           do i = 1, nO
-            t2(i,j,a,b) = - vcc_oovv(i,j,a,b) / (fcc_vv(a,a) + fcc_vv(b,b) - fcc_oo(i,i) - fcc_oo(j,j) + cc_level_shift_guess)
+            t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b) + cc_level_shift_guess)
           enddo
         enddo
       enddo
@@ -100,12 +102,12 @@ end
 * Write
 ** T1
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine write_t1_space(nO,nV,t1)
+subroutine write_t1(nO,nV,t1)
 
   implicit none
 
   BEGIN_DOC
-  ! Write the T1 amplitudes for CC in spatial orbitals
+  ! Write the T1 amplitudes for CC
   END_DOC
 
   ! in
@@ -130,12 +132,12 @@ end
 
 ** T2
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine write_t2_space(nO,nV,t2)
+subroutine write_t2(nO,nV,t2)
 
   implicit none
 
   BEGIN_DOC
-  ! Write the T2 amplitudes for CC in spatial orbitals
+  ! Write the T2 amplitudes for CC
   END_DOC
 
   ! in
@@ -165,12 +167,12 @@ end
 * Read
 ** T1
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine read_t1_space(nO,nV,t1)
+subroutine read_t1(nO,nV,t1)
 
   implicit none
 
   BEGIN_DOC
-  ! Read the T1 amplitudes for CC in spatial orbitals
+  ! Read the T1 amplitudes for CC
   END_DOC
 
   ! in
@@ -195,12 +197,12 @@ end
 
 ** T2
 #+begin_src f90 :comments org :tangle guess_t.irp.f
-subroutine read_t2_space(nO,nV,t2)
+subroutine read_t2(nO,nV,t2)
 
   implicit none
 
   BEGIN_DOC
-  ! Read the T2 amplitudes for CC in spatial orbitals
+  ! Read the T2 amplitudes for CC
   END_DOC
 
   ! in

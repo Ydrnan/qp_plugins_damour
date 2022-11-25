@@ -76,9 +76,9 @@ program ccsd
   !  enddo
   !enddo
 
-  !! Init
-  call guess_t1_space(nO,nV,t1)
-  call guess_t2_space(nO,nV,t2) 
+  ! Init
+  call guess_t1(nO,nV,fcc_o,fcc_v,fcc_ov,t1)
+  call guess_t2(nO,nV,fcc_o,fcc_v,vcc_oovv,t2)
   call update_tau_space(nO,nV,t1,t2,tau)
   
   nb_iter = 0
@@ -106,7 +106,7 @@ program ccsd
       ! DIIS T1
       !do a = 1, nV
       !  do i = 1, nO
-      !    err1(i,a) = - r1(i,a) / (fcc_v(a) - fcc_o(i)) 
+      !    err1(i,a) = - r1(i,a) / (fcc_o(i) - fcc_v(a)) 
       !  enddo
       !enddo
       !tmp_err1 = reshape(err1,(/nO*nV/))
@@ -115,19 +115,10 @@ program ccsd
       !call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
       !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
       !t1 = reshape(tmp_t1  ,(/nO,nV/))
-      call update_t1_space (nO,nV,r1,t1)
+      call update_t1(nO,nV,fcc_o,fcc_v,r1,t1)
 
       ! DIIS T2
-      do b = 1, nV
-        do a = 1, nV
-          do j = 1, nO
-            do i = 1, nO
-              err2(i,j,a,b) = - r2(i,j,a,b) / (fcc_v(a) + fcc_v(b) - fcc_o(i) - fcc_o(j))
-            enddo
-          enddo
-        enddo
-      enddo
-
+      call compute_err2(nO,nV,f_o,f_v,r2,err2)
       tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
       tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
       call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
@@ -137,8 +128,8 @@ program ccsd
       
     elseif (cc_update_method == 'none') then
 
-      call update_t1_space (nO,nV,r1,t1)
-      call update_t2_space (nO,nV,r2,t2)
+      call update_t1(nO,nV,fcc_o,fcc_v,r1,t1)
+      call update_t2(nO,nV,fcc_o,fcc_v,r2,t2)
 
     endif
     
@@ -452,6 +443,13 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   enddo
 
   deallocate(H_oo,H_vv,H_vo)
+
+  ! Change the sign for consistency with the code in spin orbitals
+  do a = 1, nV
+    do i = 1, nO
+      r1(i,a) = -r1(i,a)
+    enddo
+  enddo
   
 end
 #+end_src
@@ -753,7 +751,18 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
       enddo
     enddo
   enddo
-
+  
+  ! Change the sign for consistency with the code in spin orbitals
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          r2(i,j,a,b) = -r2(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  
   max_r2 = 0d0
   do b = 1, nV
     do a = 1, nV

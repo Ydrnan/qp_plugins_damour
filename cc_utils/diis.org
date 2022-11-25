@@ -33,7 +33,7 @@ end
 
 * Code
 #+begin_src f90 :comments org :tangle diis.irp.f 
-subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
+subroutine diis_cc(all_err,all_t,sze,m,iter,t)
 
   implicit none
 
@@ -46,9 +46,11 @@ subroutine diis_cc(err,all_err,t,all_t,sze,m,iter)
   ! {t_i}_{i=1}^{m_it}, c, {err_i}_{i=1}^{m_it} -> t_{m_it+1}
 
   integer, intent(in)             :: m,iter,sze
-  double precision, intent(in)    :: err(sze), all_err(sze,m)
+  double precision, intent(in)    :: all_err(sze,m)
   double precision, intent(in)    :: all_t(sze,m)
+  
   double precision, intent(out)   :: t(sze)
+  
   double precision, allocatable   :: B(:,:), c(:), zero(:)
   integer                         :: m_iter
   integer                         :: i,j,k
@@ -290,7 +292,7 @@ subroutine update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all
     !call update_all_err(tmp_err1,all_err1,nO*nV,cc_diis_depth,nb_iter+1)
     !call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
     ! Diis and reshape T as a tensor
-    !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
+    !call diis_cc(all_err1,all_t1,nO*nV,cc_diis_depth,nb_iter+1,tmp_t1)
     !t1 = reshape(tmp_t1  ,(/nO,nV/))
     call update_t1(nO,nV,f_o,f_v,r1,t1)
 
@@ -304,7 +306,7 @@ subroutine update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all
     call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
     call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
     ! Diis and reshape T as a tensor
-    call diis_cc(err2,all_err2,tmp_t2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+    call diis_cc(all_err2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1,tmp_t2)
     t2 = reshape(tmp_t2  ,(/nO,nO,nV,nV/))
 
     deallocate(tmp_t1,tmp_t2,tmp_err1,tmp_err2,err1,err2)

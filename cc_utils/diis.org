@@ -266,8 +266,8 @@ subroutine update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all
   double precision, intent(in)    :: r1(nO,nV), r2(nO,nO,nV,nV)
   
   double precision, intent(inout) :: t1(nO,nV), t2(nO,nO,nV,nV)
-  double precision, intent(inout) :: all_err1(nO,nV,cc_diis_depth), all_err2(nO,nO,nV,nV,cc_diis_depth)
-  double precision, intent(inout) :: all_t1(nO,nV,cc_diis_depth), all_t2(nO,nO,nV,nV,cc_diis_depth)
+  double precision, intent(inout) :: all_err1(nO*nV, cc_diis_depth), all_err2(nO*nO*nV*nV, cc_diis_depth)
+  double precision, intent(inout) :: all_t1(nO*nV, cc_diis_depth), all_t2(nO*nO*nV*nV, cc_diis_depth)
 
   double precision, allocatable   :: err1(:,:), err2(:,:,:,:)
   double precision, allocatable   :: tmp_err1(:), tmp_err2(:)

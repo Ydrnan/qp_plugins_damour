@@ -197,6 +197,9 @@ subroutine run_ccsd_spin_orb
 
     ! Update
     call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    !call update_t1(nO,nV,f_o,f_v,r1,t1)
+    !call update_t2(nO,nV,f_o,f_v,r2,t2)
+
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
 
@@ -268,52 +271,6 @@ subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
       end do
     end do
   end do
-
-end
-
-! T1
-
-subroutine update_t1(nO,nV,r1,f_o,f_v,t1)
-
-  implicit none
-
-  integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: r1(nO,nV), f_o(nO), f_v(nV)
-  
-  double precision, intent(out) :: t1(nO,nV)
-
-  integer :: i,a
-
-  do a = 1, nV
-    do i = 1, nO
-      t1(i,a) = t1(i,a) - r1(i,a) / (f_o(i)-f_v(a))
-    enddo
-  enddo
-
-end
-
-! T2
-
-subroutine update_t2(nO,nV,r2,f_o,f_v,t2)
-
-  implicit none
-
-  integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: r2(nO,nO,nV,nV), f_o(nO),f_v(nV)
-  
-  double precision, intent(out) :: t2(nO,nO,nV,nV)
-
-  integer :: i,j,a,b
-
-  do b = 1, nV
-    do a = 1, nV
-      do j = 1, nO
-        do i = 1, nO
-          t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
-        enddo
-      enddo
-    enddo
-  enddo
 
 end
 

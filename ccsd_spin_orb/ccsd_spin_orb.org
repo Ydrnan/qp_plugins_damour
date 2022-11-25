@@ -198,9 +198,8 @@ subroutine run_ccsd_spin_orb
     max_r  = max(max_r1,max_r2)
 
     ! Update
-    call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
-    !call update_t1(nO,nV,f_o,f_v,r1,t1)
-    !call update_t2(nO,nV,f_o,f_v,r2,t2)
+    !call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    call update_t_ccsd_v2(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
 
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)

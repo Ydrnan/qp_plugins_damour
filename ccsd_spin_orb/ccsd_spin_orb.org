@@ -1,9 +1,13 @@
 * CCSD spin orb
 ** Prog
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 program ccsd
 
   implicit none
+
+  BEGIN_DOC
+  ! CCSD in spin orbitals
+  END_DOC
 
   call run
   
@@ -11,10 +15,14 @@ end
 #+end_src
 
 ** Code
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine run
 
   implicit none
+
+  BEGIN_DOC
+  ! CCSD in spin orbitals
+  END_DOC
 
   double precision, allocatable :: t1(:,:), t2(:,:,:,:), tau(:,:,:,:), tau_t(:,:,:,:)
   double precision, allocatable :: r1(:,:), r2(:,:,:,:)
@@ -40,20 +48,24 @@ subroutine run
   integer                       :: nb_iter, i,j,a,b
   double precision              :: energy, max_r, max_r1, max_r2, cc, ta, tb
 
+  ! Extract number of occ/vir alpha/beta spin orbitals
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
   nOb = n_spin(2)
   nVa = n_spin(3)
   nVb = n_spin(4)
-  
+
+  ! Total number of occ/vir spin orb
   nO = nOa + nOb
   nV = nVa + nVb
   !print*,nO,nV
 
+  ! Number of occ/vir spin orb per spin
   nO_S = (/nOa,nOb/)
   nV_S = (/nVa,nVb/)
   !print*,nO_S,nV_S
 
+  ! Maximal number of occ/vir 
   nO_m = max(nOa, nOb)
   nV_m = max(nVa, nVb)
   !print*,nO_m,nV_m
@@ -117,16 +129,16 @@ subroutine run
   enddo
 
   ! Bi electronic integrals from list
-  ! O^4
+  ! OOOO
   call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
 
-  ! O^3V
+  ! OOO V
   call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
   call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
   call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
   call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
 
-  ! O^2v^2
+  ! OO VV
   call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
   call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
   call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
@@ -134,23 +146,22 @@ subroutine run
   call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
   call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
 
-  ! OV^3
+  ! O VVV
   call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
   call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
   call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
   call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
-  ! V^4
+  ! VVVV
   call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
 
   ! Init of T
   t1 = 0d0
-  call guess_t2(nO,nV,v_oovv,f_o,f_v,delta_oovv,t2)
+  call guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
   call compute_tau(nO,nV,t1,t2,tau)
   call compute_tau_t(nO,nV,t1,t2,tau_t)
   
   ! Loop init
-  cc = 1d-10
   nb_iter = 0
   not_converged = .True.
   r1 = 0d0
@@ -178,8 +189,8 @@ subroutine run
     call compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
 
     ! Residuals
-    call compute_r1(nO,nV,t1,t2,f_o,f_v,delta_ov,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
-    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,delta_oovv,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
+    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
+    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
 
     ! Max elements in the residuals
     max_r1 = maxval(abs(r1(:,:)))
@@ -195,7 +206,7 @@ subroutine run
       ! T1 error tensor
       !do a = 1, nV
       !  do i = 1, nO
-      !    err1(i,a) = - r1(i,a) / delta_ov(i,a)
+      !    err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a))
       !  enddo
       !enddo
       ! Transfo errors and parameters in vectors
@@ -207,7 +218,7 @@ subroutine run
       ! Diis and reshape T as a tensor
       !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
       !t1 = reshape(tmp_t1  ,(/nO,nV/))
-      call update_t1(nO,nV,r1,f_o,f_v,delta_ov,t1)
+      call update_t1(nO,nV,r1,f_o,f_v,t1)
 
       ! DIIS T2
       ! T2 error tensor
@@ -215,7 +226,6 @@ subroutine run
         do a = 1, nV
           do j = 1, nO
             do i = 1, nO
-              !err2(i,j,a,b) = - r2(i,j,a,b) / delta_oovv(i,j,a,b)
               err2(i,j,a,b) = - r2(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
             enddo
           enddo
@@ -235,8 +245,8 @@ subroutine run
     ! Standard update as T = T - Delta
     elseif (cc_update_method == 'none') then
        
-      call update_t1(nO,nV,r1,f_o,f_v,delta_ov,t1)
-      call update_t2(nO,nV,r2,f_o,f_v,delta_oovv,t2)
+      call update_t1(nO,nV,r1,f_o,f_v,t1)
+      call update_t2(nO,nV,r2,f_o,f_v,t2)
 
     else
       print*,'Unkonw cc_method_method: '//cc_update_method
@@ -272,10 +282,14 @@ end
 #+end_src
 
 * Energy
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
 
   implicit none
+
+  BEGIN_DOC
+  ! CCSD energy in spin orbitals
+  END_DOC
 
   integer,intent(in)            :: nO,nV
   double precision,intent(in)   :: t1(nO,nV)
@@ -292,9 +306,7 @@ subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
 
   do i=1,nO
       do a=1,nV
-     
-      energy = energy + Fov(i,a)*t1(i,a)
-
+      energy = energy + Fov(i,a) * t1(i,a)
     end do
   end do
 
@@ -302,11 +314,9 @@ subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
     do j=1,nO
       do a=1,nV
         do b=1,nV
-     
-          energy = energy                              & 
-                 + 0.5d0*v_oovv(i,j,a,b)*t1(i,a)*t1(j,b) &
-                 + 0.25d0*v_oovv(i,j,a,b)*t2(i,j,a,b)
-
+          energy = energy                                & 
+                 + 0.5d0 * v_oovv(i,j,a,b) * t1(i,a) * t1(j,b) &
+                 + 0.25d0 * v_oovv(i,j,a,b) * t2(i,j,a,b)
         end do
       end do
     end do
@@ -318,13 +328,13 @@ end
 * T
 ** Guess
 *** T2
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
-subroutine guess_t2(nO,nV,v_oovv,f_o,f_v,d_oovv,t2)
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: v_oovv(nO,nO,nV,nV), d_oovv(nO,nO,nV,nV), f_o(nO), f_v(nV)
+  double precision, intent(in)  :: v_oovv(nO,nO,nV,nV), f_o(nO), f_v(nV)
   
   double precision, intent(out) :: t2(nO,nO,nV,nV)
 
@@ -334,7 +344,6 @@ subroutine guess_t2(nO,nV,v_oovv,f_o,f_v,d_oovv,t2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          !t2(i,j,a,b) = v_oovv(i,j,a,b) / d_oovv(i,j,a,b)
           t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
         enddo
       enddo
@@ -346,13 +355,13 @@ end
 
 ** Update
 *** T1
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
-subroutine update_t1(nO,nV,r1,f_o,f_v,d_ov,t1)
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine update_t1(nO,nV,r1,f_o,f_v,t1)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: r1(nO,nV), d_ov(nO,nV), f_o(nO), f_v(nV)
+  double precision, intent(in)  :: r1(nO,nV), f_o(nO), f_v(nV)
   
   double precision, intent(out) :: t1(nO,nV)
 
@@ -360,7 +369,6 @@ subroutine update_t1(nO,nV,r1,f_o,f_v,d_ov,t1)
 
   do a = 1, nV
     do i = 1, nO
-      !t1(i,a) = t1(i,a) - r1(i,a) / d_ov(i,a)
       t1(i,a) = t1(i,a) - r1(i,a) / (f_o(i)-f_v(a))
     enddo
   enddo
@@ -369,13 +377,13 @@ end
 #+end_src
 
 *** T2
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
-subroutine update_t2(nO,nV,r2,f_o,f_v,d_oovv,t2)
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine update_t2(nO,nV,r2,f_o,f_v,t2)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: r2(nO,nO,nV,nV), d_oovv(nO,nO,nV,nV),f_o(nO),f_v(nV)
+  double precision, intent(in)  :: r2(nO,nO,nV,nV), f_o(nO),f_v(nV)
   
   double precision, intent(out) :: t2(nO,nO,nV,nV)
 
@@ -385,7 +393,6 @@ subroutine update_t2(nO,nV,r2,f_o,f_v,d_oovv,t2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          !t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / d_oovv(i,j,a,b)
           t2(i,j,a,b) = t2(i,j,a,b) - r2(i,j,a,b) / (f_o(i)+f_o(j)-f_v(a)-f_v(b))
         enddo
       enddo
@@ -396,7 +403,7 @@ end
 #+end_src
 
 *** Tau
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_tau(nO,nV,t1,t2,tau)
 
   implicit none
@@ -414,9 +421,7 @@ subroutine compute_tau(nO,nV,t1,t2,tau)
     do j=1,nO
       do a=1,nV
         do b=1,nV
-
           tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a)*t1(j,b) - t1(i,b)*t1(j,a)
-
         enddo
       enddo
     enddo
@@ -426,7 +431,7 @@ end
 #+end_src
 
 *** Tau_t
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
 
   implicit none
@@ -444,9 +449,7 @@ subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
     do j=1,nO
       do a=1,nV
         do b=1,nV
-
           tau_t(i,j,a,b) = t2(i,j,a,b) + 0.5d0*(t1(i,a)*t1(j,b) - t1(i,b)*t1(j,a))
-
         enddo
       enddo
     enddo
@@ -457,15 +460,15 @@ end
 
 * R
 ** R1
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
-subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,D_ov,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
 
   implicit none
 
   integer,intent(in)            :: nO,nV
   double precision,intent(in)   :: t1(nO,nV)
   double precision,intent(in)   :: t2(nO,nO,nV,nV)
-  double precision,intent(in)   :: D_ov(nO,nV), f_o(nO), f_v(nV)
+  double precision,intent(in)   :: f_o(nO), f_v(nV)
   double precision,intent(in)   :: Fov(nO,nV)
   double precision,intent(in)   :: cF_oo(nO,nO)
   double precision,intent(in)   :: cF_ov(nO,nV)
@@ -589,7 +592,6 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,D_ov,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ov
 
   do a = 1, nV
     do i = 1, nO
-      !r1(i,a) = D_ov(i,a)*t1(i,a) - r1(i,a)
       r1(i,a) = (f_o(i)-f_v(a)) * t1(i,a) - r1(i,a)
     enddo
   enddo
@@ -598,8 +600,8 @@ end
 #+end_src
 
 ** R2
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
-subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,D_oovv,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
 
   implicit none
 
@@ -607,7 +609,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,D_oovv,cF_oo,cF_ov,cF_vv,cW_oooo,c
   double precision,intent(in)   :: cF_oo(nO,nO)
   double precision,intent(in)   :: cF_ov(nO,nV)
   double precision,intent(in)   :: cF_vv(nV,nV)
-  double precision,intent(in)   :: D_oovv(nO,nO,nV,nV), f_o(nO), f_v(nV)
+  double precision,intent(in)   :: f_o(nO), f_v(nV)
   double precision,intent(in)   :: cW_oooo(nO,nO,nO,nO)
   double precision,intent(in)   :: cW_vvvv(nV,nV,nV,nV)
   double precision,intent(in)   :: cW_ovvo(nO,nV,nV,nO)
@@ -999,7 +1001,6 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,D_oovv,cF_oo,cF_ov,cF_vv,cW_oooo,c
     do a=1,nV
       do j=1,nO
         do i=1,nO
-          !r2(i,j,a,b) = D_oovv(i,j,a,b)*t2(i,j,a,b) - r2(i,j,a,b)
           r2(i,j,a,b) = (f_o(i)+f_o(j)-f_v(a)-f_v(b)) * t2(i,j,a,b) - r2(i,j,a,b)
         end do
       end do
@@ -1012,7 +1013,7 @@ end
 * Intermediates
 ** cF
 *** cF_oo
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
 
   implicit none
@@ -1051,10 +1052,10 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
                     t1   , size(t1,1), &
              1d0  , cF_oo, size(cF_oo,1))
 
-  do i=1,nO
-    do m=1,nO
-      do e=1,nV
-        do n=1,nO
+  do e=1,nV
+    do n=1,nO
+      do i=1,nO
+        do m=1,nO
           cF_oo(m,i) = cF_oo(m,i) + t1(n,e)*v_ooov(m,n,i,e)
         end do
       end do
@@ -1081,7 +1082,7 @@ end
 #+end_src
 
 *** cF_ov
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
 
   implicit none
@@ -1102,7 +1103,7 @@ subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
   integer                       :: a,b,e,f
   double precision,external     :: Kronecker_Delta
 
-  cF_ov(:,:) = Fov(:,:)
+  cF_ov = Fov
 
   do e=1,nV
     do m=1,nO
@@ -1118,7 +1119,7 @@ end
 #+end_src
 
 *** cF_vv
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
 
   implicit none
@@ -1197,7 +1198,7 @@ end
 
 ** cW
 *** cW_oooo
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_oooo)
 
   implicit none
@@ -1223,7 +1224,7 @@ subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
 
   ! oooo block  
 
-  cW_oooo(:,:,:,:) = v_oooo(:,:,:,:)
+  cW_oooo = v_oooo
 
   !do j=1,nO
   !  do i=1,nO
@@ -1281,7 +1282,7 @@ end
 #+end_src
 
 *** cW_ovvo
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_ovvo)
 
   implicit none
@@ -1306,7 +1307,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   double precision,external     :: Kronecker_Delta
   ! ovvo block
 
-  cW_ovvo(:,:,:,:) = v_ovvo(:,:,:,:)
+  cW_ovvo = v_ovvo
 
   !do m=1,nO
   !  do b=1,nV
@@ -1418,7 +1419,7 @@ end
 #+end_src
 
 *** cW_vvvv
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
 
   implicit none
@@ -1443,7 +1444,7 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   double precision,external     :: Kronecker_Delta
   ! vvvv block
 
-  cW_vvvv(:,:,:,:) = v_vvvv(:,:,:,:)
+  cW_vvvv = v_vvvv
 
   !do f=1,nV
   !  do e=1,nV
@@ -1507,10 +1508,15 @@ end
 #+end_src
 
 * Utils
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+** Kronecker
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 function Kronecker_delta(i,j) result(delta)
 
   implicit none
+
+  BEGIN_DOC
+  ! If i == j return 1 else returns 0
+  END_DOC
 
   integer,intent(in)            :: i,j
 
@@ -1525,16 +1531,63 @@ function Kronecker_delta(i,j) result(delta)
 end
 #+end_src
 
-* List of orbitals
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+** F_alpha
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine get_fock_matrix_alpha(det,F)
+  
+  implicit none
+  
+  BEGIN_DOC
+  ! Returns the alpha Fock matrix in MO basis associated with the determinant given as input
+  END_DOC
+  ! in
+  integer(bit_kind), intent(in) :: det(N_int,2)
+
+  ! out
+  double precision, intent(out) :: F(mo_num,mo_num)
+
+  ! internal
+  integer :: i,j,k
+
+  F = Fock_matrix_mo_alpha
+
+end    
+#+end_src
+
+** F_beta
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+subroutine get_fock_matrix_beta(det,F)
+  
+  implicit none
+  
+  BEGIN_DOC
+  ! Returns the beta Fock matrix in MO basis associated with the determinant given as input
+  END_DOC
+  
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  
+  double precision, intent(out) :: F(mo_num,mo_num)
+
+  F = Fock_matrix_mo_beta
+
+end    
+#+end_src
+
+** n spin orb
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine extract_n_spin(n)
 
   implicit none
 
+  BEGIN_DOC
+  ! Returns the number of occupied alpha, occupied beta, virtual alpha, virtual beta spin orbitals
+  END_DOC
+
   integer, intent(out) :: n(4)
-  integer(bit_kind) :: res(N_int,2)
-  integer :: i, si
-  logical :: ok
+  
+  integer(bit_kind)    :: res(N_int,2)
+  integer              :: i, si
+  logical              :: ok
 
   n = 0
   
@@ -1552,23 +1605,33 @@ subroutine extract_n_spin(n)
 end
 #+end_src
 
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+** List spin orb
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
 
   implicit none
+
+  BEGIN_DOC
+  ! Returns the the list of occupied alpha/beta, virtual alpha/beta spin orbitals
+  END_DOC
   
   integer, intent(in)  :: nO_m, nV_m
   
   integer, intent(out) :: list_occ(nO_m,2), list_vir(nV_m,2)
-
-  integer(bit_kind) :: res(N_int,2)
-  integer :: i, si, idx_o, idx_v, idx_i, idx_b
-  logical :: ok
+  
+  integer(bit_kind)    :: res(N_int,2)
+  integer              :: i, si, idx_o, idx_v, idx_i, idx_b
+  logical              :: ok
 
   list_occ = 0
   list_vir = 0
 
-  ! List of occ/vir alpha/beta 
+  ! List of occ/vir alpha/beta
+
+  ! occ alpha -> list_occ(:,1)
+  ! occ beta -> list_occ(:,2)
+  ! vir alpha -> list_vir(:,1)
+  ! vir beta -> list_vir(:,2)
   do si = 1, 2
     idx_o = 1
     idx_v = 1
@@ -1584,20 +1647,19 @@ subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
     enddo
   enddo
 
-  !print*,'oa',list_occ(:,1)
-  !print*,'ob',list_occ(:,2)
-  !print*,'va',list_vir(:,1)
-  !print*,'vb',list_vir(:,2)
-  
 end
 #+end_src
 
 * Integrals
 ** idx shift
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine shift_idx(s,n_S,shift)
 
   implicit none
+
+  BEGIN_DOC
+  ! Shift for the partitionning alpha/beta of the spin orbitals
+  END_DOC
 
   integer, intent(in)  :: s, n_S(2)
   integer, intent(out) :: shift
@@ -1612,14 +1674,20 @@ end
 #+end_src
 
 ** F
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
 
   implicit none
 
+  BEGIN_DOC
+  ! Compute the Fock matrix corresponding to two lists of spin orbitals.
+  ! Ex: occ/occ, occ/vir,...
+  END_DOC
+
   integer, intent(in)           :: n1,n2, n1_S(2), n2_S(2)
   integer, intent(in)           :: list1(n1,2), list2(n2,2)
   integer, intent(in)           :: dim1, dim2
+  
   double precision, intent(out) :: f(dim1, dim2)
 
   double precision, allocatable :: tmp_F(:,:)
@@ -1662,10 +1730,15 @@ end
 #+end_src
 
 ** V
-#+begin_src f90 :comments org :tangle test_ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
 subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3,dim4, v)
 
   implicit none
+
+   BEGIN_DOC
+  ! Compute the bi electronic integrals corresponding to four lists of spin orbitals.
+  ! Ex: occ/occ/occ/occ, occ/vir/occ/vir, ...
+  END_DOC
 
   integer, intent(in)           :: n1,n2,n3,n4,n1_S(2),n2_S(2),n3_S(2),n4_S(2)
   integer, intent(in)           :: list1(n1,2), list2(n2,2), list3(n3,2), list4(n4,2)
@@ -1678,7 +1751,6 @@ subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   integer                       :: tmp_i,tmp_j,tmp_k,tmp_l
   integer                       :: si,sj,sk,sl,s
 
-  v = 1d0
   do sl = 1, 2
     call shift_idx(sl,n4_S,l_shift)
     do sk = 1, 2

@@ -253,3 +253,72 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
 
 end
 #+end_src
+
+* Gather call diis
+** Update t
+#+begin_src f90 :comments org :tangle diis.irp.f
+subroutine update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+
+  implicit none
+
+  integer, intent(in)             :: nO,nV,nb_iter
+  double precision, intent(in)    :: f_o(nO), f_v(nV)
+  double precision, intent(in)    :: r1(nO,nV), r2(nO,nO,nV,nV)
+  
+  double precision, intent(inout) :: t1(nO,nV), t2(nO,nO,nV,nV)
+  double precision, intent(inout) :: all_err1(nO,nV,cc_diis_depth), all_err2(nO,nO,nV,nV,cc_diis_depth)
+  double precision, intent(inout) :: all_t1(nO,nV,cc_diis_depth), all_t2(nO,nO,nV,nV,cc_diis_depth)
+
+  double precision, allocatable   :: err1(:,:), err2(:,:,:,:)
+  double precision, allocatable   :: tmp_err1(:), tmp_err2(:)
+  double precision, allocatable   :: tmp_t1(:), tmp_t2(:)
+  
+  if (cc_update_method == 'diis') then
+
+    allocate(err1(nO,nV), err2(nO,nO,nV,nV))
+    allocate(tmp_err1(nO*nV), tmp_err2(nO*nO*nV*nV))
+    allocate(tmp_t1(nO*nV), tmp_t2(nO*nO*nV*nV))
+
+    ! DIIS T1, it is not always good since the t1 can be small
+    ! That's why there is a call to update the t1 in the standard way
+    ! T1 error tensor
+    !call compute_err1(nO,nV,f_o,f_v,r1,err1)
+    ! Transfo errors and parameters in vectors
+    !tmp_err1 = reshape(err1,(/nO*nV/))
+    !tmp_t1   = reshape(t1  ,(/nO*nV/))
+    ! Add the error and parameter vectors with those of the previous iterations
+    !call update_all_err(tmp_err1,all_err1,nO*nV,cc_diis_depth,nb_iter+1)
+    !call update_all_t  (tmp_t1  ,all_t1  ,nO*nV,cc_diis_depth,nb_iter+1)
+    ! Diis and reshape T as a tensor
+    !call diis_cc(err1,all_err1,tmp_t1,all_t1,nO*nV,cc_diis_depth,nb_iter+1)
+    !t1 = reshape(tmp_t1  ,(/nO,nV/))
+    call update_t1(nO,nV,f_o,f_v,r1,t1)
+
+    ! DIIS T2
+    ! T2 error tensor
+    call compute_err2(nO,nV,f_o,f_v,r2,err2)
+    ! Transfo errors and parameters in vectors
+    tmp_err2 = reshape(err2,(/nO*nO*nV*nV/))
+    tmp_t2   = reshape(t2  ,(/nO*nO*nV*nV/))
+    ! Add the error and parameter vectors with those of the previous iterations
+    call update_all_err(tmp_err2,all_err2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+    call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+    ! Diis and reshape T as a tensor
+    call diis_cc(err2,all_err2,tmp_t2,all_t2,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+    t2 = reshape(tmp_t2  ,(/nO,nO,nV,nV/))
+
+    deallocate(tmp_t1,tmp_t2,tmp_err1,tmp_err2,err1,err2)
+
+  ! Standard update as T = T - Delta
+  elseif (cc_update_method == 'none') then
+     
+    call update_t1(nO,nV,f_o,f_v,r1,t1)
+    call update_t2(nO,nV,f_o,f_v,r2,t2)
+    
+  else
+    print*,'Unkonw cc_method_method: '//cc_update_method
+  endif
+  
+end
+ #+end_src
+ 

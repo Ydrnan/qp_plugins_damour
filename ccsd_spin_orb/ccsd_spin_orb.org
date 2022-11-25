@@ -9,14 +9,14 @@ program ccsd
   ! CCSD in spin orbitals
   END_DOC
 
-  call run_ccsd_spin_orb
+  call run_ccsd_spin_orb_sub
   
 end 
 #+end_src
 
 ** Code
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
-subroutine run_ccsd_spin_orb
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
+subroutine run_ccsd_spin_orb_sub
 
   implicit none
 
@@ -233,6 +233,9 @@ subroutine run_ccsd_spin_orb
   write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
   print*,''
 
+  call write_t1(nO,nV,t1)
+  call write_t2(nO,nV,t2)
+
   ! Deallocate
 
   if (cc_update_method == 'diis') then
@@ -253,7 +256,7 @@ end
 #+end_src
 
 * Energy
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
 
   implicit none
@@ -299,7 +302,7 @@ end
 * T
 ** Guess
 *** T2
-#+begin_src f90 :comments org :notangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 !subroutine guess_t2(nO,nV,v_oovv,f_o,f_v,t2)
 !
 !  implicit none
@@ -326,7 +329,7 @@ end
 
 ** Update
 *** T1
-#+begin_src f90 :comments org :notangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 !subroutine update_t1(nO,nV,f_o,f_v,r1,t1)
 !
 !  implicit none
@@ -348,7 +351,7 @@ end
 #+end_src
 
 *** T2
-#+begin_src f90 :comments org :notangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 !subroutine update_t2(nO,nV,f_o,f_v,r2,t2)
 !
 !  implicit none
@@ -374,7 +377,7 @@ end
 #+end_src
 
 *** Tau
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_tau(nO,nV,t1,t2,tau)
 
   implicit none
@@ -402,7 +405,7 @@ end
 #+end_src
 
 *** Tau_t
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
 
   implicit none
@@ -431,7 +434,7 @@ end
 
 * R
 ** R1
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
 
   implicit none
@@ -571,7 +574,7 @@ end
 #+end_src
 
 ** R2
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,r2)
 
   implicit none
@@ -984,7 +987,7 @@ end
 * Intermediates
 ** cF
 *** cF_oo
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
 
   implicit none
@@ -1053,7 +1056,7 @@ end
 #+end_src
 
 *** cF_ov
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
 
   implicit none
@@ -1090,7 +1093,7 @@ end
 #+end_src
 
 *** cF_vv
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
 
   implicit none
@@ -1169,7 +1172,7 @@ end
 
 ** cW
 *** cW_oooo
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_oooo)
 
   implicit none
@@ -1253,7 +1256,7 @@ end
 #+end_src
 
 *** cW_ovvo
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_ovvo)
 
   implicit none
@@ -1390,7 +1393,7 @@ end
 #+end_src
 
 *** cW_vvvv
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
 
   implicit none
@@ -1480,7 +1483,7 @@ end
 
 * Utils
 ** Kronecker
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 function Kronecker_delta(i,j) result(delta)
 
   implicit none
@@ -1503,7 +1506,7 @@ end
 #+end_src
 
 ** F_alpha
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine get_fock_matrix_alpha(det,F)
   
   implicit none
@@ -1526,7 +1529,7 @@ end
 #+end_src
 
 ** F_beta
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine get_fock_matrix_beta(det,F)
   
   implicit none
@@ -1545,7 +1548,7 @@ end
 #+end_src
 
 ** n spin orb
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine extract_n_spin(n)
 
   implicit none
@@ -1577,7 +1580,7 @@ end
 #+end_src
 
 ** List spin orb
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
 
   implicit none
@@ -1623,7 +1626,7 @@ end
 
 * Integrals
 ** idx shift
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine shift_idx(s,n_S,shift)
 
   implicit none
@@ -1645,7 +1648,7 @@ end
 #+end_src
 
 ** F
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
 
   implicit none
@@ -1701,7 +1704,7 @@ end
 #+end_src
 
 ** V
-#+begin_src f90 :comments org :tangle ccsd_spin_orb.irp.f
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
 subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3,dim4, v)
 
   implicit none

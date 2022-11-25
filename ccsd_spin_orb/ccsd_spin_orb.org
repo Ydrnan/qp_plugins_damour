@@ -168,16 +168,15 @@ subroutine run_ccsd_spin_orb
   r2 = 0d0
   max_r1 = 0d0
   max_r2 = 0d0
+  
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  write(*,'(A77)') ' |   It.  |       E(CCSD) (Ha) | Correlation (Ha) |  Conv. T1  |  Conv. T2  |'
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+
   call wall_time(ta)
 
   ! Loop
   do while (not_converged)
-
-    call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
-    print*,''
-    print*,'Iter n. :', nb_iter
-    print*,'E(CCSD)= ', hf_energy + energy, energy
-    print*,'r       :', max_r1, max_r2
 
     ! Intermediates
     call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_oo)
@@ -204,6 +203,14 @@ subroutine run_ccsd_spin_orb
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
 
+    ! Print
+    call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+    !print*,''
+    !print*,'Iter n. :', nb_iter
+    !print*,'E(CCSD)= ', hf_energy + energy, energy
+    !print*,'r       :', max_r1, max_r2
+    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', hf_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+
     ! Convergence
     nb_iter = nb_iter + 1
     if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
@@ -211,8 +218,20 @@ subroutine run_ccsd_spin_orb
     endif
 
   enddo
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
   call wall_time(tb)
-  print*,'Time:',tb-ta
+  print*,'Time: ',tb-ta, ' s'
+  print*,''
+  if (max_r < cc_thresh_conv) then
+    write(*,'(A30,I6,A11)') ' Successful convergence after ', nb_iter, ' iterations'
+  else
+    write(*,'(A26,I6,A11)') ' Failed convergence after ', nb_iter, ' iterations'
+  endif
+  print*,''
+  write(*,'(A15,F18.12,A3)') ' E(CCSD)     = ', hf_energy+energy, ' Ha'
+  write(*,'(A15,F18.12,A3)') ' Correlation = ', energy, ' Ha'
+  write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
+  print*,''
 
   ! Deallocate
 

@@ -58,7 +58,7 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
   integer, allocatable            :: ipiv(:)
   
   m_iter = min(m,iter)
-  print*,'m_iter',m_iter
+  !print*,'m_iter',m_iter
   allocate(B(m_iter+1,m_iter+1), c(m_iter), zero(m_iter+1))
   allocate(ipiv(m+1))
 

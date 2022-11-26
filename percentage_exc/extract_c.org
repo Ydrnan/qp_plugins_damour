@@ -1,0 +1,331 @@
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+program extract_c
+
+  implicit none
+
+  call run_extract_c
+  
+end
+#+end_src
+
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+subroutine run_extract_c
+
+  implicit none
+
+  double precision, allocatable :: t1(:,:), t2(:,:,:,:)
+  double precision, allocatable :: c1(:,:), c2(:,:,:,:), c3(:,:,:,:,:,:)
+  double precision, allocatable :: coef(:), tmp_coef(:), l_coef(:), abs_coef(:)
+  integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
+  integer, allocatable :: list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
+  integer                       :: i,j,k,a,b,c,tmp_i,tmp_j,tmp_k,tmp_a,tmp_b,tmp_c,s1,s2,s3
+  integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,h1,h2
+  double precision :: thresh_coef, factor, norm
+  integer(bit_kind) :: res(N_int,2)
+  integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
+  logical :: ok
+
+  call extract_n_spin(n_spin)
+  nOa = n_spin(1)
+  nOb = n_spin(2)
+  nVa = n_spin(3)
+  nVb = n_spin(4)
+
+  ! Total number of occ/vir spin orb
+  nO = nOa + nOb
+  nV = nVa + nVb
+  !print*,nO,nV
+
+  ! Number of occ/vir spin orb per spin
+  nO_S = (/nOa,nOb/)
+  nV_S = (/nVa,nVb/)
+  !print*,nO_S,nV_S
+
+  ! Maximal number of occ/vir 
+  nO_m = max(nOa, nOb)
+  nV_m = max(nVa, nVb)
+  !print*,nO_m,nV_m
+  
+  allocate(list_occ(nO_m,2), list_vir(nV_m,2))
+  allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
+  call extract_list_orb(nO_m,nV_m,list_occ,list_vir)
+
+  do i = 1, nOa
+    list_spin_occ(i,1) = i
+  enddo
+  do i = 1, nOb
+    list_spin_occ(i,2) = nOa + i
+  enddo
+  do i = 1, nVa
+    list_spin_vir(i,1) = i
+  enddo
+  do i = 1, nVb
+    list_spin_vir(i,2) = nVa + i
+  enddo
+
+  print*,list_spin_occ(:,1)
+  print*,list_spin_occ(:,2)
+  print*,list_spin_vir(:,1)
+  print*,list_spin_vir(:,2)
+  
+  allocate(t1(nO,nV), t2(nO,nO,nV,nV))
+  allocate(c1(nO,nV), c2(nO,nO,nV,nV), c3(nO,nO,nO,nV,nV,nV))
+
+  cc_read_t1 = .True.
+  cc_read_t2 = .True.
+  TOUCH cc_read_t1 cc_read_t2
+  
+  call read_t1(nO,nV,t1)
+  call read_t2(nO,nV,t2)
+  c1 = t1
+  call extract_c2(nO,nV,t1,t2,c2)
+  call extract_c3(nO,nV,t1,t2,c3)
+
+  up_bd = nO*nO*nO*nV*nV*nV
+  allocate(coef(up_bd))
+
+  thresh_coef = 1d-12
+ 
+  idx_coef = 1
+  ! c1
+  do s1 = 1, 2
+    do tmp_a = 1, nV_S(s1)
+      a = list_spin_vir(tmp_a,s1)
+      do tmp_i = 1, nO_S(s1)
+        i = list_spin_occ(tmp_i,s1)
+        if (dabs(c1(i,a)) > thresh_coef) then
+          coef(idx_coef) = dabs(c1(i,a))
+          idx_coef = idx_coef + 1
+        endif
+      enddo
+    enddo
+  enddo
+  
+  !c2
+  do s1 = 1, 2
+    do s2 = s1, 2
+      do tmp_b = 1, nV_S(s2)
+        b = list_spin_vir(tmp_b,s2)
+        do tmp_a = 1, nV_S(s1)
+          a = list_spin_vir(tmp_a,s1)
+          if (s1 == s2 .and. a <= b) cycle
+          do tmp_j = 1, nO_S(s2)
+            j = list_spin_occ(tmp_j,s2)
+            do tmp_i = 1, nO_S(s1)
+              i = list_spin_occ(tmp_i,s1)
+              if (s1 == s2 .and. i <= j) cycle
+              if (dabs(c2(i,j,a,b)) > thresh_coef) then
+                coef(idx_coef) = dabs(c2(i,j,a,b))
+                idx_coef = idx_coef + 1
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !c3
+  !do s1 = 1, 2
+  !  do s2 = s1, 2
+  !    do s3 = s2, 2
+  !      do tmp_c = 1, nV_S(s3)
+  !        c = list_spin_vir(tmp_c,s3)
+  !        do tmp_b = 1, nV_S(s2)
+  !          b = list_spin_vir(tmp_b,s2)
+  !          do tmp_a = 1, nV_S(s1)
+  !            a = list_spin_vir(tmp_a,s1)
+  !            do tmp_k = 1, nO_S(s3)
+  !              k = list_spin_occ(tmp_k,s3)
+  !              do tmp_j = 1, nO_S(s2)
+  !                j = list_spin_occ(tmp_j,s2)
+  !                do tmp_i = 1, nO_S(s1)
+  !                  i = list_spin_occ(tmp_i,s1)
+  !                  if (dabs(c3(i,j,k,a,b,c)) > thresh_coef) then
+  !                    coef(idx_coef) = dabs(c3(i,j,k,a,b,c))
+  !                    idx_coef = idx_coef + 1
+  !                  endif
+  !                enddo
+  !              enddo
+  !            enddo
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  nb_coef = idx_coef - 1
+
+  !print*,'coef',coef(1:nb_coef)
+  allocate(key(nb_coef))
+  do i = 1, nb_coef
+    key(i) = i
+  enddo
+  call dsort(coef, key, nb_coef)
+  deallocate(key)
+
+  norm = 1d0
+  do i = 1, nb_coef
+    norm = norm + coef(i)**2
+  enddo
+  norm = dsqrt(norm)
+  factor = 1d0 / norm
+
+  coef = coef * factor
+
+  do i = 1, nb_coef
+    print*,coef(i)
+  enddo
+
+  allocate(tmp_coef(nb_coef), abs_coef(nb_coef), tmp_det(N_int,2,nb_coef))
+
+  idx_coef = 1
+  ! c1
+  do s1 = 1, 2
+    do tmp_a = 1, nV_S(s1)
+      a = list_spin_vir(tmp_a,s1)
+      p1 = list_vir(tmp_a,s1)
+      do tmp_i = 1, nO_S(s1)
+        i = list_spin_occ(tmp_i,s1)
+        h1 = list_occ(tmp_i,s1)
+        if (dabs(c1(i,a)) > thresh_coef) then
+          tmp_coef(idx_coef) = c1(i,a)
+          abs_coef(idx_coef) = dabs(c1(i,a))
+          call apply_hole(psi_det(1,1,1), s1, h1, res, ok, N_int)
+          call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
+          idx_coef = idx_coef + 1
+        endif
+      enddo
+    enddo
+  enddo
+  
+  !c2
+  do s1 = 1, 2
+    do s2 = s1, 2
+      do tmp_b = 1, nV_S(s2)
+        b = list_spin_vir(tmp_b,s2)
+        p2 = list_vir(tmp_b,s1)
+        do tmp_a = 1, nV_S(s1)
+          a = list_spin_vir(tmp_a,s1)
+          p1 = list_vir(tmp_a,s1)
+          if (s1 == s2 .and. a <= b) cycle
+          do tmp_j = 1, nO_S(s2)
+            j = list_spin_occ(tmp_j,s2)
+            h2 = list_occ(tmp_j,s2)
+            do tmp_i = 1, nO_S(s1)
+              i = list_spin_occ(tmp_i,s1)
+              h1 = list_occ(tmp_i,s2)
+              if (s1 == s2 .and. i <= j) cycle
+              if (dabs(c2(i,j,a,b)) > thresh_coef) then
+                tmp_coef(idx_coef) = c2(i,j,a,b)
+                abs_coef(idx_coef) = dabs(c2(i,j,a,b))
+                call apply_hole(psi_det(1,1,1), s1, h1, res, ok, N_int)
+                call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
+                call apply_hole(tmp_det(1,1,idx_coef), s2, h2, res, ok, N_int)
+                call apply_particle(res, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
+                print*,h1,p1,h2,p2,s1,s2
+                call print_det(tmp_det(1,1,idx_coef),N_int)
+                idx_coef = idx_coef + 1
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !print*,'coef',coef(1:nb_coef)
+  allocate(key(nb_coef),l_coef(nb_coef),l_det(N_int,2,nb_coef))
+  do i = 1, nb_coef
+    key(i) = i
+  enddo
+  call dsort(-abs_coef, key, nb_coef)
+  do i = 1, nb_coef
+    l_coef(i) = tmp_coef(key(i))
+    l_det(:,:,i) = tmp_det(:,:,key(i))
+  enddo
+  deallocate(key)
+
+  norm = 1d0
+  do i = 1, nb_coef
+    norm = norm + l_coef(i)**2
+  enddo
+  norm = dsqrt(norm)
+  factor = 1d0 / norm
+
+  l_coef = l_coef * factor
+
+  !print*,'t1',t1
+  !print*,'c1',c1
+  !print*,'t2',t2
+  !print*,'c2',c2
+  !print*,'coef',coef(1:nb_coef)
+  do i = 1, nb_coef
+    print*,l_coef(i)
+    call print_det(l_det(1,1,i),N_int)
+    print*,''
+  enddo
+
+  deallocate(t1,t2,c1,c2)
+end
+#+end_src
+
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+subroutine extract_c2(nO,nV,t1,t2,c2)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  double precision, intent(out) :: c2(nO,nO,nV,nV)
+  integer                       :: i,j,a,b
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          c2(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b) - t1(i,b) * t1(j,a)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+end_src
+
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+subroutine extract_c3(nO,nV,t1,t2,c3)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  double precision, intent(out) :: c3(nO,nO,nO,nV,nV,nV)
+  integer                       :: i,j,k,a,b,c
+
+  do c = 1, nV
+    do b = 1, nV
+      do a = 1, nV
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              c3(i,j,k,a,b,c) = - ( &
+               t1(i,c) * t1(j,b) * t1(k,a) - t1(i,b) * t1(j,c) * t1(k,a) - & 
+               t1(i,c) * t1(j,a) * t1(k,b) + t1(i,a) * t1(j,c) * t1(k,b) + &
+               t1(i,b) * t1(j,a) * t1(k,c) - t1(i,a) * t1(j,b) * t1(k,c) - &
+               t1(k,c) * t2(i,j,a,b) + t1(k,b) * t2(i,j,a,c) - &
+               t1(k,a) * t2(i,j,b,c) + t1(j,c) * t2(i,k,a,b) - &
+               t1(j,b) * t2(i,k,a,c) + t1(j,a) * t2(i,k,b,c) - &
+               t1(i,c) * t2(j,k,a,b) + t1(i,b) * t2(j,k,a,c) - &
+               t1(i,a) * t2(j,k,b,c))
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+
+  
+end
+#+end_src

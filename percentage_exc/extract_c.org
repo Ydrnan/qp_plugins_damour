@@ -19,9 +19,9 @@ subroutine run_extract_c
   integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer, allocatable :: list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
   integer                       :: i,j,k,a,b,c,tmp_i,tmp_j,tmp_k,tmp_a,tmp_b,tmp_c,s1,s2,s3
-  integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,h1,h2
-  double precision :: thresh_coef, factor, norm
-  integer(bit_kind) :: res(N_int,2)
+  integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,h1,h2, degree
+  double precision :: thresh_coef, factor, norm, phase
+  integer(bit_kind) :: res(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
 
@@ -174,9 +174,9 @@ subroutine run_extract_c
 
   coef = coef * factor
 
-  do i = 1, nb_coef
-    print*,coef(i)
-  enddo
+  !do i = 1, nb_coef
+  !  print*,coef(i)
+  !enddo
 
   allocate(tmp_coef(nb_coef), abs_coef(nb_coef), tmp_det(N_int,2,nb_coef))
 
@@ -194,6 +194,9 @@ subroutine run_extract_c
           abs_coef(idx_coef) = dabs(c1(i,a))
           call apply_hole(psi_det(1,1,1), s1, h1, res, ok, N_int)
           call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
+          call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+          !print*,'phase',phase
+          tmp_coef(idx_coef) = phase * tmp_coef(idx_coef)
           idx_coef = idx_coef + 1
         endif
       enddo
@@ -224,8 +227,11 @@ subroutine run_extract_c
                 call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
                 call apply_hole(tmp_det(1,1,idx_coef), s2, h2, res, ok, N_int)
                 call apply_particle(res, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
-                print*,h1,p1,h2,p2,s1,s2
-                call print_det(tmp_det(1,1,idx_coef),N_int)
+                !print*,h1,p1,h2,p2,s1,s2
+                !call print_det(tmp_det(1,1,idx_coef),N_int)
+                call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                !print*,'phase',phase
+                tmp_coef(idx_coef) = phase * tmp_coef(idx_coef)
                 idx_coef = idx_coef + 1
               endif
             enddo
@@ -261,6 +267,11 @@ subroutine run_extract_c
   !print*,'t2',t2
   !print*,'c2',c2
   !print*,'coef',coef(1:nb_coef)
+  print*,'Ref'
+  print*, 1d0 * factor
+  call print_det(hf_bitmask,N_int)
+  print*,''
+  
   do i = 1, nb_coef
     print*,l_coef(i)
     call print_det(l_det(1,1,i),N_int)

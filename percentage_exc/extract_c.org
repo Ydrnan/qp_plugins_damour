@@ -27,6 +27,7 @@ subroutine run_extract_c
 
   extract_c3 = .True.
   extract_c4 = .True.
+  thresh_coef = 1d-6
   
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
@@ -80,11 +81,11 @@ subroutine run_extract_c
   
   call read_t1(nO,nV,t1)
   call read_t2(nO,nV,t2)
+  print*, 'T1 and T2 read from disk'
+  
   c1 = t1
   call extract_c2(nO,nV,t1,t2,c2)
   !call extract_c3(nO,nV,t1,t2,c3)
-
-  thresh_coef = 1d-12
 
   ! Count the number of coefficients s.t. |c| > thresh
   nb_coef = 1 ! Ref
@@ -102,6 +103,8 @@ subroutine run_extract_c
       enddo
     enddo
   enddo
+
+  print*,'Nb C1 computed'  
   
   !c2
   do s1 = 1, 2
@@ -127,6 +130,8 @@ subroutine run_extract_c
       enddo
     enddo
   enddo
+  
+  print*,'Nb C2 computed'  
 
   !c3
   if (extract_c3) then
@@ -166,6 +171,8 @@ subroutine run_extract_c
       enddo
     enddo
   endif
+  
+  print*,'Nb C3 computed'  
 
   !c4
   if (extract_c4) then
@@ -181,11 +188,11 @@ subroutine run_extract_c
                 do tmp_b = 1, nV_S(s2)
                   b = list_spin_vir(tmp_b,s2)
                   if (s2 == s3 .and. b <= c) cycle
-                  ! C4 for a,b,c and d fixed
-                  call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
                   do tmp_a = 1, nV_S(s1)
                     a = list_spin_vir(tmp_a,s1)
                     if (s1 == s2 .and. a <= b) cycle
+                    ! C4 for a,b,c and d fixed
+                    call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
                     do tmp_l = 1, nO_S(s4)
                       l = list_spin_occ(tmp_l,s4)
                       do tmp_k = 1, nO_S(s3)
@@ -215,6 +222,11 @@ subroutine run_extract_c
       enddo
     enddo
   endif
+  
+  print*,'Nb C4 computed'  
+
+  print*,''
+  print*,'Nb of coef', nb_coef
 
   ! Allocate and fill 
   allocate(tmp_coef(nb_coef), abs_coef(nb_coef), tmp_det(N_int,2,nb_coef))
@@ -244,6 +256,8 @@ subroutine run_extract_c
       enddo
     enddo
   enddo
+
+  print*,'C1: Done'
   
   !c2
   do s1 = 1, 2
@@ -280,6 +294,8 @@ subroutine run_extract_c
     enddo
   enddo
 
+  print*,'C2: Done'
+  
   !c3
   if (extract_c3) then
     do s1 = 1, 2
@@ -332,6 +348,8 @@ subroutine run_extract_c
       enddo
     enddo
   endif
+  
+  print*,'C3: Done'
 
   !c4
   if (extract_c4) then
@@ -399,6 +417,8 @@ subroutine run_extract_c
       enddo
     enddo
   endif
+
+  print*,'C4: Done'
   
   deallocate(t1,c1,t2,c2,c3_bc,c4_abcd)
 

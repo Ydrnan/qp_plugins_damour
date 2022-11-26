@@ -14,17 +14,19 @@ subroutine run_extract_c
   implicit none
 
   double precision, allocatable :: t1(:,:), t2(:,:,:,:)
-  double precision, allocatable :: c1(:,:), c2(:,:,:,:), c3(:,:,:,:,:,:)
-  double precision, allocatable :: coef(:), tmp_coef(:), l_coef(:), abs_coef(:)
+  double precision, allocatable :: c1(:,:), c2(:,:,:,:), c3_bc(:,:,:,:), c4_abcd(:,:,:,:)
+  double precision, allocatable :: tmp_coef(:), l_coef(:), abs_coef(:)
   integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer, allocatable :: list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
   integer                       :: i,j,k,a,b,c,tmp_i,tmp_j,tmp_k,tmp_a,tmp_b,tmp_c,s1,s2,s3
-  integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,h1,h2, degree
+  integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,p3,p4,h1,h2,h3,h4, degree
   double precision :: thresh_coef, factor, norm, phase
-  integer(bit_kind) :: res(N_int,2), exc(0:2,2,2)
+  integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
-  logical :: ok
+  logical :: ok, extract_c3, extract_c4
 
+  extract_c3 = .True.
+  
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
   nOb = n_spin(2)
@@ -69,7 +71,7 @@ subroutine run_extract_c
   print*,list_spin_vir(:,2)
   
   allocate(t1(nO,nV), t2(nO,nO,nV,nV))
-  allocate(c1(nO,nV), c2(nO,nO,nV,nV), c3(nO,nO,nO,nV,nV,nV))
+  allocate(c1(nO,nV), c2(nO,nO,nV,nV), c3_bc(nO,nO,nO,nV), c4_abcd(nO,nO,nO,nO))
 
   cc_read_t1 = .True.
   cc_read_t2 = .True.
@@ -79,14 +81,12 @@ subroutine run_extract_c
   call read_t2(nO,nV,t2)
   c1 = t1
   call extract_c2(nO,nV,t1,t2,c2)
-  call extract_c3(nO,nV,t1,t2,c3)
-
-  up_bd = nO*nO*nO*nV*nV*nV
-  allocate(coef(up_bd))
+  !call extract_c3(nO,nV,t1,t2,c3)
 
   thresh_coef = 1d-12
- 
-  idx_coef = 1
+
+  ! Count the number of coefficients s.t. |c| > thresh
+  nb_coef = 1 ! Ref
   ! c1
   do s1 = 1, 2
     do tmp_a = 1, nV_S(s1)
@@ -94,8 +94,7 @@ subroutine run_extract_c
       do tmp_i = 1, nO_S(s1)
         i = list_spin_occ(tmp_i,s1)
         if (dabs(c1(i,a)) > thresh_coef) then
-          coef(idx_coef) = dabs(c1(i,a))
-          idx_coef = idx_coef + 1
+          nb_coef = nb_coef + 1
         endif
       enddo
     enddo
@@ -115,8 +114,7 @@ subroutine run_extract_c
               i = list_spin_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
               if (dabs(c2(i,j,a,b)) > thresh_coef) then
-                coef(idx_coef) = dabs(c2(i,j,a,b))
-                idx_coef = idx_coef + 1
+                nb_coef = nb_coef + 1
               endif
             enddo
           enddo
@@ -126,61 +124,50 @@ subroutine run_extract_c
   enddo
 
   !c3
-  !do s1 = 1, 2
-  !  do s2 = s1, 2
-  !    do s3 = s2, 2
-  !      do tmp_c = 1, nV_S(s3)
-  !        c = list_spin_vir(tmp_c,s3)
-  !        do tmp_b = 1, nV_S(s2)
-  !          b = list_spin_vir(tmp_b,s2)
-  !          do tmp_a = 1, nV_S(s1)
-  !            a = list_spin_vir(tmp_a,s1)
-  !            do tmp_k = 1, nO_S(s3)
-  !              k = list_spin_occ(tmp_k,s3)
-  !              do tmp_j = 1, nO_S(s2)
-  !                j = list_spin_occ(tmp_j,s2)
-  !                do tmp_i = 1, nO_S(s1)
-  !                  i = list_spin_occ(tmp_i,s1)
-  !                  if (dabs(c3(i,j,k,a,b,c)) > thresh_coef) then
-  !                    coef(idx_coef) = dabs(c3(i,j,k,a,b,c))
-  !                    idx_coef = idx_coef + 1
-  !                  endif
-  !                enddo
-  !              enddo
-  !            enddo
-  !          enddo
-  !        enddo
-  !      enddo
-  !    enddo
-  !  enddo
-  !enddo
+  if (extract_c3) then
+    do s1 = 1, 2
+      do s2 = s1, 2
+        do s3 = s2, 2
+          do tmp_c = 1, nV_S(s3)
+            c = list_spin_vir(tmp_c,s3)
+            do tmp_b = 1, nV_S(s2)
+              b = list_spin_vir(tmp_b,s2)
+              if (s2 == s3 .and. b <= c) cycle
+              ! C3 for b and c fixed
+              call extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
+              do tmp_a = 1, nV_S(s1)
+                a = list_spin_vir(tmp_a,s1)
+                if (s1 == s2 .and. a <= b) cycle
+                do tmp_k = 1, nO_S(s3)
+                  k = list_spin_occ(tmp_k,s3)
+                  do tmp_j = 1, nO_S(s2)
+                    j = list_spin_occ(tmp_j,s2)
+                    if (s2 == s3 .and. j <= k) cycle
+                    do tmp_i = 1, nO_S(s1)
+                      i = list_spin_occ(tmp_i,s1)
+                      if (s1 == s2 .and. i <= j) cycle
+                      if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
+                        nb_coef = nb_coef + 1
+                      endif
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
 
-  nb_coef = idx_coef - 1
-
-  !print*,'coef',coef(1:nb_coef)
-  allocate(key(nb_coef))
-  do i = 1, nb_coef
-    key(i) = i
-  enddo
-  call dsort(coef, key, nb_coef)
-  deallocate(key)
-
-  norm = 1d0
-  do i = 1, nb_coef
-    norm = norm + coef(i)**2
-  enddo
-  norm = dsqrt(norm)
-  factor = 1d0 / norm
-
-  coef = coef * factor
-
-  !do i = 1, nb_coef
-  !  print*,coef(i)
-  !enddo
-
+  ! Allocate and fill 
   allocate(tmp_coef(nb_coef), abs_coef(nb_coef), tmp_det(N_int,2,nb_coef))
 
-  idx_coef = 1
+  ! Ref
+  tmp_coef(1) = 1d0
+  tmp_det(:,:,1) = hf_bitmask(:,:)
+  
+  idx_coef = 2
   ! c1
   do s1 = 1, 2
     do tmp_a = 1, nV_S(s1)
@@ -189,16 +176,15 @@ subroutine run_extract_c
       do tmp_i = 1, nO_S(s1)
         i = list_spin_occ(tmp_i,s1)
         h1 = list_occ(tmp_i,s1)
+        
         if (dabs(c1(i,a)) > thresh_coef) then
-          tmp_coef(idx_coef) = c1(i,a)
-          abs_coef(idx_coef) = dabs(c1(i,a))
-          call apply_hole(psi_det(1,1,1), s1, h1, res, ok, N_int)
-          call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
+          call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+          call apply_particle(res1, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
           call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
-          !print*,'phase',phase
-          tmp_coef(idx_coef) = phase * tmp_coef(idx_coef)
+          tmp_coef(idx_coef) = c1(i,a) * phase
           idx_coef = idx_coef + 1
         endif
+        
       enddo
     enddo
   enddo
@@ -220,20 +206,17 @@ subroutine run_extract_c
               i = list_spin_occ(tmp_i,s1)
               h1 = list_occ(tmp_i,s2)
               if (s1 == s2 .and. i <= j) cycle
+              
               if (dabs(c2(i,j,a,b)) > thresh_coef) then
-                tmp_coef(idx_coef) = c2(i,j,a,b)
-                abs_coef(idx_coef) = dabs(c2(i,j,a,b))
-                call apply_hole(psi_det(1,1,1), s1, h1, res, ok, N_int)
-                call apply_particle(res, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
-                call apply_hole(tmp_det(1,1,idx_coef), s2, h2, res, ok, N_int)
-                call apply_particle(res, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
-                !print*,h1,p1,h2,p2,s1,s2
-                !call print_det(tmp_det(1,1,idx_coef),N_int)
+                call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                call apply_hole(res1, s2, h2, res2, ok, N_int)
+                call apply_particle(res2, s1, p1, res3, ok, N_int)
+                call apply_particle(res3, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
                 call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
-                !print*,'phase',phase
-                tmp_coef(idx_coef) = phase * tmp_coef(idx_coef)
+                tmp_coef(idx_coef) = c2(i,j,a,b) * phase
                 idx_coef = idx_coef + 1
               endif
+              
             enddo
           enddo
         enddo
@@ -241,19 +224,78 @@ subroutine run_extract_c
     enddo
   enddo
 
-  !print*,'coef',coef(1:nb_coef)
-  allocate(key(nb_coef),l_coef(nb_coef),l_det(N_int,2,nb_coef))
+  !c3
+  if (extract_c3) then
+    do s1 = 1, 2
+      do s2 = s1, 2
+        do s3 = s2, 2
+          do tmp_c = 1, nV_S(s3)
+            c = list_spin_vir(tmp_c,s3)
+            p3 = list_vir(tmp_c,s3)
+            do tmp_b = 1, nV_S(s2)
+              b = list_spin_vir(tmp_b,s2)
+              p2 = list_vir(tmp_b,s2)
+              if (s2 == s3 .and. b <= c) cycle
+              ! C3 for b and c fixed
+              call extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
+              do tmp_a = 1, nV_S(s1)
+                a = list_spin_vir(tmp_a,s1)
+                p1 = list_vir(tmp_a,s1)
+                if (s1 == s2 .and. a <= b) cycle
+                do tmp_k = 1, nO_S(s3)
+                   k = list_spin_occ(tmp_k,s3)
+                   h3 = list_occ(tmp_k,s3)
+                  do tmp_j = 1, nO_S(s2)
+                    j = list_spin_occ(tmp_j,s2)
+                    h2 = list_occ(tmp_j,s2)
+                    if (s2 == s3 .and. j <= k) cycle
+                    do tmp_i = 1, nO_S(s1)
+                      i = list_spin_occ(tmp_i,s1)
+                      h1 = list_occ(tmp_i,s1)
+                      if (s1 == s2 .and. i <= j) cycle
+                      
+                      if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
+                        call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                        call apply_hole(res1, s2, h2, res2, ok, N_int)
+                        call apply_hole(res2, s3, h3, res3, ok, N_int)
+                        call apply_particle(res3, s1, p1, res4, ok, N_int)
+                        call apply_particle(res4, s2, p2, res5, ok, N_int)
+                        call apply_particle(res5, s3, p3, tmp_det(1,1,idx_coef), ok, N_int)
+                        call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                        tmp_coef(idx_coef) = c3_bc(i,j,k,a) * phase
+                        idx_coef = idx_coef + 1
+                      endif
+                      
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
+
+  
+  deallocate(t1,c1,t2,c2,c3_bc)
+
+  ! Sort the det wrt their coef
+  allocate(l_coef(nb_coef), l_det(N_int,2,nb_coef))
+  abs_coef = dabs(tmp_coef)
+  allocate(key(nb_coef))
   do i = 1, nb_coef
     key(i) = i
   enddo
   call dsort(-abs_coef, key, nb_coef)
   do i = 1, nb_coef
-    l_coef(i) = tmp_coef(key(i))
+    l_coef(i)    = tmp_coef(key(i))
     l_det(:,:,i) = tmp_det(:,:,key(i))
   enddo
-  deallocate(key)
+  deallocate(key,tmp_coef,abs_coef,tmp_det)
 
-  norm = 1d0
+  ! Normalization
+  norm = 0d0
   do i = 1, nb_coef
     norm = norm + l_coef(i)**2
   enddo
@@ -262,23 +304,25 @@ subroutine run_extract_c
 
   l_coef = l_coef * factor
 
-  !print*,'t1',t1
-  !print*,'c1',c1
-  !print*,'t2',t2
-  !print*,'c2',c2
-  !print*,'coef',coef(1:nb_coef)
-  print*,'Ref'
-  print*, 1d0 * factor
-  call print_det(hf_bitmask,N_int)
-  print*,''
-  
+  ! print
   do i = 1, nb_coef
     print*,l_coef(i)
     call print_det(l_det(1,1,i),N_int)
     print*,''
   enddo
 
-  deallocate(t1,t2,c1,c2)
+  ! Save the wave function
+  !print*,'Save the wave function...'
+  !call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
+  !call copy_H_apply_buffer_to_wf
+  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !psi_coef = l_coef
+  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !call save_wavefunction
+  !print*,'Done'
+
+  deallocate(l_coef,l_det)
+
 end
 #+end_src
 
@@ -339,4 +383,300 @@ subroutine extract_c3(nO,nV,t1,t2,c3)
 
   
 end
+#+end_src
+
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+subroutine extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
+
+  implicit none
+
+  integer, intent(in) :: nO,nV,b,c
+  double precision, intent(in) :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: c3_bc(nO,nO,nO,nV)
+
+  integer :: i,j,k,a
+
+  do a = 1, nV
+    do k = 1, nO
+      do j = 1, nO
+        do i = 1, nO             
+          c3_bc(i,j,k,a) = - t1(i, c) * t1(j, b) * t1(k, a) &
+          + t1(i, b) * t1(j, c) * t1(k, a) + t1(i, c) * t1(j, a) * t1(k, b) &
+          - t1(i, a) * t1(j, c) * t1(k, b) - t1(i, b) * t1(j, a) * t1(k, c) &
+          + t1(i, a) * t1(j, b) * t1(k, c) + t1(k, c) * t2(i, j, a, b) &
+          - t1(k, b) * t2(i, j, a, c) + t1(k, a) * t2(i, j, b, c) &
+          - t1(j, c) * t2(i, k, a, b) + t1(j, b) * t2(i, k, a, c) &
+          - t1(j, a) * t2(i, k, b, c) + t1(i, c) * t2(j, k, a, b) &
+          - t1(i, b) * t2(j, k, a, c) + t1(i, a) * t2(j, k, b, c)
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+end_src
+
+#+begin_src f90 :org comments :tangle extract_c.irp.f
+subroutine extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
+
+  implicit none
+
+  integer, intent(in) :: nO,nV,a,b,c,d
+  double precision, intent(in) :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: c4_abcd(nO,nO,nO,nO)
+
+  integer :: i,j,k,l
+
+  do l = 1, nO
+    do k = 1, nO
+      do j = 1, nO
+        do i = 1, nO             
+          c4_abcd(i,j,k,l) = &
+            t1(i, d) * t1(j, c) * t1(k, b) * t1(l, a) - & 
+            t1(i, c) * t1(j, d) * t1(k, b) * t1(l, a) - & 
+            t1(i, d) * t1(j, b) * t1(k, c) * t1(l, a) + & 
+            t1(i, b) * t1(j, d) * t1(k, c) * t1(l, a) + & 
+            t1(i, c) * t1(j, b) * t1(k, d) * t1(l, a) - & 
+            t1(i, b) * t1(j, c) * t1(k, d) * t1(l, a) - & 
+            t1(i, d) * t1(j, c) * t1(k, a) * t1(l, b) + & 
+            t1(i, c) * t1(j, d) * t1(k, a) * t1(l, b) + & 
+            t1(i, d) * t1(j, a) * t1(k, c) * t1(l, b) - & 
+            t1(i, a) * t1(j, d) * t1(k, c) * t1(l, b) - & 
+            t1(i, c) * t1(j, a) * t1(k, d) * t1(l, b) + & 
+            t1(i, a) * t1(j, c) * t1(k, d) * t1(l, b) + & 
+            t1(i, d) * t1(j, b) * t1(k, a) * t1(l, c) - & 
+            t1(i, b) * t1(j, d) * t1(k, a) * t1(l, c) - & 
+            t1(i, d) * t1(j, a) * t1(k, b) * t1(l, c) + & 
+            t1(i, a) * t1(j, d) * t1(k, b) * t1(l, c) + & 
+            t1(i, b) * t1(j, a) * t1(k, d) * t1(l, c) - & 
+            t1(i, a) * t1(j, b) * t1(k, d) * t1(l, c) - & 
+            t1(i, c) * t1(j, b) * t1(k, a) * t1(l, d) + & 
+            t1(i, b) * t1(j, c) * t1(k, a) * t1(l, d) + & 
+            t1(i, c) * t1(j, a) * t1(k, b) * t1(l, d) - & 
+            t1(i, a) * t1(j, c) * t1(k, b) * t1(l, d) - & 
+            t1(i, b) * t1(j, a) * t1(k, c) * t1(l, d) + & 
+            t1(i, a) * t1(j, b) * t1(k, c) * t1(l, d) - & 
+            t1(k, d) * t1(l, c) * t2(i, j, a, b) + & 
+            t1(k, c) * t1(l, d) * t2(i, j, a, b) + & 
+            t1(k, d) * t1(l, b) * t2(i, j, a, c) - & 
+            t1(k, b) * t1(l, d) * t2(i, j, a, c) - & 
+            t1(k, c) * t1(l, b) * t2(i, j, a, d) + & 
+            t1(k, b) * t1(l, c) * t2(i, j, a, d) - & 
+            t1(k, d) * t1(l, a) * t2(i, j, b, c) + & 
+            t1(k, a) * t1(l, d) * t2(i, j, b, c) + & 
+            t1(k, c) * t1(l, a) * t2(i, j, b, d) - & 
+            t1(k, a) * t1(l, c) * t2(i, j, b, d) - & 
+            t1(k, b) * t1(l, a) * t2(i, j, c, d) + & 
+            t1(k, a) * t1(l, b) * t2(i, j, c, d) + & 
+            t1(j, d) * t1(l, c) * t2(i, k, a, b) - & 
+            t1(j, c) * t1(l, d) * t2(i, k, a, b) - & 
+            t1(j, d) * t1(l, b) * t2(i, k, a, c) + & 
+            t1(j, b) * t1(l, d) * t2(i, k, a, c) + & 
+            t1(j, c) * t1(l, b) * t2(i, k, a, d) - & 
+            t1(j, b) * t1(l, c) * t2(i, k, a, d) + & 
+            t1(j, d) * t1(l, a) * t2(i, k, b, c) - & 
+            t1(j, a) * t1(l, d) * t2(i, k, b, c) - & 
+            t1(j, c) * t1(l, a) * t2(i, k, b, d) + & 
+            t1(j, a) * t1(l, c) * t2(i, k, b, d) + & 
+            t1(j, b) * t1(l, a) * t2(i, k, c, d) - & 
+            t1(j, a) * t1(l, b) * t2(i, k, c, d) - & 
+            t1(j, d) * t1(k, c) * t2(i, l, a, b) + & 
+            t1(j, c) * t1(k, d) * t2(i, l, a, b) + & 
+            t1(j, d) * t1(k, b) * t2(i, l, a, c) - & 
+            t1(j, b) * t1(k, d) * t2(i, l, a, c) - & 
+            t1(j, c) * t1(k, b) * t2(i, l, a, d) + & 
+            t1(j, b) * t1(k, c) * t2(i, l, a, d) - & 
+            t1(j, d) * t1(k, a) * t2(i, l, b, c) + & 
+            t1(j, a) * t1(k, d) * t2(i, l, b, c) + & 
+            t1(j, c) * t1(k, a) * t2(i, l, b, d) - & 
+            t1(j, a) * t1(k, c) * t2(i, l, b, d) - & 
+            t1(j, b) * t1(k, a) * t2(i, l, c, d) + & 
+            t1(j, a) * t1(k, b) * t2(i, l, c, d) - & 
+            t1(i, d) * t1(l, c) * t2(j, k, a, b) + & 
+            t1(i, c) * t1(l, d) * t2(j, k, a, b) + & 
+            t2(i, l, c, d) * t2(j, k, a, b) +      & 
+            t1(i, d) * t1(l, b) * t2(j, k, a, c) - & 
+            t1(i, b) * t1(l, d) * t2(j, k, a, c) - &
+            t2(i, l, b, d) * t2(j, k, a, c) -      &
+            t1(i, c) * t1(l, b) * t2(j, k, a, d) + & 
+            t1(i, b) * t1(l, c) * t2(j, k, a, d) + &
+            t2(i, l, b, c) * t2(j, k, a, d) -      &
+            t1(i, d) * t1(l, a) * t2(j, k, b, c) + & 
+            t1(i, a) * t1(l, d) * t2(j, k, b, c) + &
+            t2(i, l, a, d) * t2(j, k, b, c) +      &
+            t1(i, c) * t1(l, a) * t2(j, k, b, d) - & 
+            t1(i, a) * t1(l, c) * t2(j, k, b, d) - &
+            t2(i, l, a, c) * t2(j, k, b, d) -      &
+            t1(i, b) * t1(l, a) * t2(j, k, c, d) + & 
+            t1(i, a) * t1(l, b) * t2(j, k, c, d) + &
+            t2(i, l, a, b) * t2(j, k, c, d) +      &
+            t1(i, d) * t1(k, c) * t2(j, l, a, b) - & 
+            t1(i, c) * t1(k, d) * t2(j, l, a, b) - &
+            t2(i, k, c, d) * t2(j, l, a, b) -      &
+            t1(i, d) * t1(k, b) * t2(j, l, a, c) + & 
+            t1(i, b) * t1(k, d) * t2(j, l, a, c) + &
+            t2(i, k, b, d) * t2(j, l, a, c) +      &
+            t1(i, c) * t1(k, b) * t2(j, l, a, d) - & 
+            t1(i, b) * t1(k, c) * t2(j, l, a, d) - &
+            t2(i, k, b, c) * t2(j, l, a, d) +      &
+            t1(i, d) * t1(k, a) * t2(j, l, b, c) - & 
+            t1(i, a) * t1(k, d) * t2(j, l, b, c) - &
+            t2(i, k, a, d) * t2(j, l, b, c) -      &
+            t1(i, c) * t1(k, a) * t2(j, l, b, d) + & 
+            t1(i, a) * t1(k, c) * t2(j, l, b, d) + &
+            t2(i, k, a, c) * t2(j, l, b, d) +      &
+            t1(i, b) * t1(k, a) * t2(j, l, c, d) - & 
+            t1(i, a) * t1(k, b) * t2(j, l, c, d) - &
+            t2(i, k, a, b) * t2(j, l, c, d) -      &
+            t1(i, d) * t1(j, c) * t2(k, l, a, b) + &
+            t1(i, c) * t1(j, d) * t2(k, l, a, b) + &
+            t2(i, j, c, d) * t2(k, l, a, b) +      &
+            t1(i, d) * t1(j, b) * t2(k, l, a, c) - & 
+            t1(i, b) * t1(j, d) * t2(k, l, a, c) - &
+            t2(i, j, b, d) * t2(k, l, a, c) -      &
+            t1(i, c) * t1(j, b) * t2(k, l, a, d) + &
+            t1(i, b) * t1(j, c) * t2(k, l, a, d) + &
+            t2(i, j, b, c) * t2(k, l, a, d) -      &
+            t1(i, d) * t1(j, a) * t2(k, l, b, c) + & 
+            t1(i, a) * t1(j, d) * t2(k, l, b, c) + &
+            t2(i, j, a, d) * t2(k, l, b, c) +      &
+            t1(i, c) * t1(j, a) * t2(k, l, b, d) - &
+            t1(i, a) * t1(j, c) * t2(k, l, b, d) - &
+            t2(i, j, a, c) * t2(k, l, b, d) -      &
+            t1(i, b) * t1(j, a) * t2(k, l, c, d) + & 
+            t1(i, a) * t1(j, b) * t2(k, l, c, d) + &
+            t2(i, j, a, b) * t2(k, l, c, d)
+        enddo
+      enddo
+    enddo
+  enddo
+
+end
+#+end_src
+
+#+begin_src
+c1(i,a) = t1(i, a),
+
+c2(i,j,a,b) = -t1(i, b) * t1(j, a) + t1(i, a) * t1(j, b) + 
+  t2(i, j, a, b),
+
+c3(i,j,k,a,b,c) = -t1(i, c) * t1(j, b) * t1(k, a) + 
+  t1(i, b) * t1(j, c) * t1(k, a) + t1(i, c) * t1(j, a) * t1(k, b) - 
+  t1(i, a) * t1(j, c) * t1(k, b) - t1(i, b) * t1(j, a) * t1(k, c) + 
+  t1(i, a) * t1(j, b) * t1(k, c) + t1(k, c) * t2(i, j, a, b) - 
+  t1(k, b) * t2(i, j, a, c) + t1(k, a) * t2(i, j, b, c) - 
+  t1(j, c) * t2(i, k, a, b) + t1(j, b) * t2(i, k, a, c) - 
+  t1(j, a) * t2(i, k, b, c) + t1(i, c) * t2(j, k, a, b) - 
+  t1(i, b) * t2(j, k, a, c) + t1(i, a) * t2(j, k, b, c) + 
+  t3(i, j, k, a, b, c),
+
+c4(i,j,k,l,a,b,c,d) =
+  t1(i, d) * t1(j, c) * t1(k, b) * t1(l, a) - 
+  t1(i, c) * t1(j, d) * t1(k, b) * t1(l, a) - 
+  t1(i, d) * t1(j, b) * t1(k, c) * t1(l, a) + 
+  t1(i, b) * t1(j, d) * t1(k, c) * t1(l, a) + 
+  t1(i, c) * t1(j, b) * t1(k, d) * t1(l, a) - 
+  t1(i, b) * t1(j, c) * t1(k, d) * t1(l, a) - 
+  t1(i, d) * t1(j, c) * t1(k, a) * t1(l, b) + 
+  t1(i, c) * t1(j, d) * t1(k, a) * t1(l, b) + 
+  t1(i, d) * t1(j, a) * t1(k, c) * t1(l, b) - 
+  t1(i, a) * t1(j, d) * t1(k, c) * t1(l, b) - 
+  t1(i, c) * t1(j, a) * t1(k, d) * t1(l, b) + 
+  t1(i, a) * t1(j, c) * t1(k, d) * t1(l, b) + 
+  t1(i, d) * t1(j, b) * t1(k, a) * t1(l, c) - 
+  t1(i, b) * t1(j, d) * t1(k, a) * t1(l, c) - 
+  t1(i, d) * t1(j, a) * t1(k, b) * t1(l, c) + 
+  t1(i, a) * t1(j, d) * t1(k, b) * t1(l, c) + 
+  t1(i, b) * t1(j, a) * t1(k, d) * t1(l, c) - 
+  t1(i, a) * t1(j, b) * t1(k, d) * t1(l, c) - 
+  t1(i, c) * t1(j, b) * t1(k, a) * t1(l, d) + 
+  t1(i, b) * t1(j, c) * t1(k, a) * t1(l, d) + 
+  t1(i, c) * t1(j, a) * t1(k, b) * t1(l, d) - 
+  t1(i, a) * t1(j, c) * t1(k, b) * t1(l, d) - 
+  t1(i, b) * t1(j, a) * t1(k, c) * t1(l, d) + 
+  t1(i, a) * t1(j, b) * t1(k, c) * t1(l, d) - 
+  t1(k, d) * t1(l, c) * t2(i, j, a, b) + 
+  t1(k, c) * t1(l, d) * t2(i, j, a, b) + 
+  t1(k, d) * t1(l, b) * t2(i, j, a, c) - 
+  t1(k, b) * t1(l, d) * t2(i, j, a, c) - 
+  t1(k, c) * t1(l, b) * t2(i, j, a, d) + 
+  t1(k, b) * t1(l, c) * t2(i, j, a, d) - 
+  t1(k, d) * t1(l, a) * t2(i, j, b, c) + 
+  t1(k, a) * t1(l, d) * t2(i, j, b, c) + 
+  t1(k, c) * t1(l, a) * t2(i, j, b, d) - 
+  t1(k, a) * t1(l, c) * t2(i, j, b, d) - 
+  t1(k, b) * t1(l, a) * t2(i, j, c, d) + 
+  t1(k, a) * t1(l, b) * t2(i, j, c, d) + 
+  t1(j, d) * t1(l, c) * t2(i, k, a, b) - 
+  t1(j, c) * t1(l, d) * t2(i, k, a, b) - 
+  t1(j, d) * t1(l, b) * t2(i, k, a, c) + 
+  t1(j, b) * t1(l, d) * t2(i, k, a, c) + 
+  t1(j, c) * t1(l, b) * t2(i, k, a, d) - 
+  t1(j, b) * t1(l, c) * t2(i, k, a, d) + 
+  t1(j, d) * t1(l, a) * t2(i, k, b, c) - 
+  t1(j, a) * t1(l, d) * t2(i, k, b, c) - 
+  t1(j, c) * t1(l, a) * t2(i, k, b, d) + 
+  t1(j, a) * t1(l, c) * t2(i, k, b, d) + 
+  t1(j, b) * t1(l, a) * t2(i, k, c, d) - 
+  t1(j, a) * t1(l, b) * t2(i, k, c, d) - 
+  t1(j, d) * t1(k, c) * t2(i, l, a, b) + 
+  t1(j, c) * t1(k, d) * t2(i, l, a, b) + 
+  t1(j, d) * t1(k, b) * t2(i, l, a, c) - 
+  t1(j, b) * t1(k, d) * t2(i, l, a, c) - 
+  t1(j, c) * t1(k, b) * t2(i, l, a, d) + 
+  t1(j, b) * t1(k, c) * t2(i, l, a, d) - 
+  t1(j, d) * t1(k, a) * t2(i, l, b, c) + 
+  t1(j, a) * t1(k, d) * t2(i, l, b, c) + 
+  t1(j, c) * t1(k, a) * t2(i, l, b, d) - 
+  t1(j, a) * t1(k, c) * t2(i, l, b, d) - 
+  t1(j, b) * t1(k, a) * t2(i, l, c, d) + 
+  t1(j, a) * t1(k, b) * t2(i, l, c, d) - 
+  t1(i, d) * t1(l, c) * t2(j, k, a, b) + 
+  t1(i, c) * t1(l, d) * t2(j, k, a, b) + t2(i, l, c, d) * t2(j, k, a, b) + 
+  t1(i, d) * t1(l, b) * t2(j, k, a, c) - 
+  t1(i, b) * t1(l, d) * t2(j, k, a, c) - t2(i, l, b, d) * t2(j, k, a, c) - 
+  t1(i, c) * t1(l, b) * t2(j, k, a, d) + 
+  t1(i, b) * t1(l, c) * t2(j, k, a, d) + t2(i, l, b, c) * t2(j, k, a, d) - 
+  t1(i, d) * t1(l, a) * t2(j, k, b, c) + 
+  t1(i, a) * t1(l, d) * t2(j, k, b, c) + t2(i, l, a, d) * t2(j, k, b, c) + 
+  t1(i, c) * t1(l, a) * t2(j, k, b, d) - 
+  t1(i, a) * t1(l, c) * t2(j, k, b, d) - t2(i, l, a, c) * t2(j, k, b, d) - 
+  t1(i, b) * t1(l, a) * t2(j, k, c, d) + 
+  t1(i, a) * t1(l, b) * t2(j, k, c, d) + t2(i, l, a, b) * t2(j, k, c, d) + 
+  t1(i, d) * t1(k, c) * t2(j, l, a, b) - 
+  t1(i, c) * t1(k, d) * t2(j, l, a, b) - t2(i, k, c, d) * t2(j, l, a, b) - 
+  t1(i, d) * t1(k, b) * t2(j, l, a, c) + 
+  t1(i, b) * t1(k, d) * t2(j, l, a, c) + t2(i, k, b, d) * t2(j, l, a, c) + 
+  t1(i, c) * t1(k, b) * t2(j, l, a, d) - 
+  t1(i, b) * t1(k, c) * t2(j, l, a, d) - t2(i, k, b, c) * t2(j, l, a, d) + 
+  t1(i, d) * t1(k, a) * t2(j, l, b, c) - 
+  t1(i, a) * t1(k, d) * t2(j, l, b, c) - t2(i, k, a, d) * t2(j, l, b, c) - 
+  t1(i, c) * t1(k, a) * t2(j, l, b, d) + 
+  t1(i, a) * t1(k, c) * t2(j, l, b, d) + t2(i, k, a, c) * t2(j, l, b, d) + 
+  t1(i, b) * t1(k, a) * t2(j, l, c, d) - 
+  t1(i, a) * t1(k, b) * t2(j, l, c, d) - t2(i, k, a, b) * t2(j, l, c, d) - 
+  t1(i, d) * t1(j, c) * t2(k, l, a, b) + 
+  t1(i, c) * t1(j, d) * t2(k, l, a, b) + t2(i, j, c, d) * t2(k, l, a, b) + 
+  t1(i, d) * t1(j, b) * t2(k, l, a, c) - 
+  t1(i, b) * t1(j, d) * t2(k, l, a, c) - t2(i, j, b, d) * t2(k, l, a, c) - 
+  t1(i, c) * t1(j, b) * t2(k, l, a, d) + 
+  t1(i, b) * t1(j, c) * t2(k, l, a, d) + t2(i, j, b, c) * t2(k, l, a, d) - 
+  t1(i, d) * t1(j, a) * t2(k, l, b, c) + 
+  t1(i, a) * t1(j, d) * t2(k, l, b, c) + t2(i, j, a, d) * t2(k, l, b, c) + 
+  t1(i, c) * t1(j, a) * t2(k, l, b, d) - 
+  t1(i, a) * t1(j, c) * t2(k, l, b, d) - t2(i, j, a, c) * t2(k, l, b, d) - 
+  t1(i, b) * t1(j, a) * t2(k, l, c, d) + 
+  t1(i, a) * t1(j, b) * t2(k, l, c, d) + t2(i, j, a, b) * t2(k, l, c, d) + 
+  t1(l, d) * t3(i, j, k, a, b, c) - t1(l, c) * t3(i, j, k, a, b, d) + 
+  t1(l, b) * t3(i, j, k, a, c, d) - t1(l, a) * t3(i, j, k, b, c, d) - 
+  t1(k, d) * t3(i, j, l, a, b, c) + t1(k, c) * t3(i, j, l, a, b, d) - 
+  t1(k, b) * t3(i, j, l, a, c, d) + t1(k, a) * t3(i, j, l, b, c, d) + 
+  t1(j, d) * t3(i, k, l, a, b, c) - t1(j, c) * t3(i, k, l, a, b, d) + 
+  t1(j, b) * t3(i, k, l, a, c, d) - t1(j, a) * t3(i, k, l, b, c, d) - 
+  t1(i, d) * t3(j, k, l, a, b, c) + t1(i, c) * t3(j, k, l, a, b, d) - 
+  t1(i, b) * t3(j, k, l, a, c, d) + t1(i, a) * t3(j, k, l, b, c, d) + 
+  t4(i, j, k, l, a, b, c, d)}
+
 #+end_src

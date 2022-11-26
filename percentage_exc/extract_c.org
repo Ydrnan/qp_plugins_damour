@@ -18,14 +18,15 @@ subroutine run_extract_c
   double precision, allocatable :: tmp_coef(:), l_coef(:), abs_coef(:)
   integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer, allocatable :: list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
-  integer                       :: i,j,k,a,b,c,tmp_i,tmp_j,tmp_k,tmp_a,tmp_b,tmp_c,s1,s2,s3
+  integer                       :: i,j,k,l,a,b,c,d,tmp_i,tmp_j,tmp_k,tmp_l,tmp_a,tmp_b,tmp_c,tmp_d,s1,s2,s3,s4
   integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,p3,p4,h1,h2,h3,h4, degree
   double precision :: thresh_coef, factor, norm, phase
-  integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), exc(0:2,2,2)
+  integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), res6(N_int,2), res7(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok, extract_c3, extract_c4
 
   extract_c3 = .True.
+  extract_c4 = .True.
   
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
@@ -93,9 +94,11 @@ subroutine run_extract_c
       a = list_spin_vir(tmp_a,s1)
       do tmp_i = 1, nO_S(s1)
         i = list_spin_occ(tmp_i,s1)
+        
         if (dabs(c1(i,a)) > thresh_coef) then
           nb_coef = nb_coef + 1
         endif
+        
       enddo
     enddo
   enddo
@@ -113,9 +116,11 @@ subroutine run_extract_c
             do tmp_i = 1, nO_S(s1)
               i = list_spin_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
+              
               if (dabs(c2(i,j,a,b)) > thresh_coef) then
                 nb_coef = nb_coef + 1
               endif
+              
             enddo
           enddo
         enddo
@@ -146,9 +151,60 @@ subroutine run_extract_c
                     do tmp_i = 1, nO_S(s1)
                       i = list_spin_occ(tmp_i,s1)
                       if (s1 == s2 .and. i <= j) cycle
+                      
                       if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
                         nb_coef = nb_coef + 1
                       endif
+                      
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
+
+  !c4
+  if (extract_c4) then
+    do s1 = 1, 2
+      do s2 = s1, 2
+        do s3 = s2, 2
+          do s4 = s3, 2
+            do tmp_d = 1, nV_S(s4)
+              d = list_spin_vir(tmp_d,s4)
+              do tmp_c = 1, nV_S(s3)
+                c = list_spin_vir(tmp_c,s3)
+                if (s3 == s4 .and. c <= d) cycle
+                do tmp_b = 1, nV_S(s2)
+                  b = list_spin_vir(tmp_b,s2)
+                  if (s2 == s3 .and. b <= c) cycle
+                  ! C4 for a,b,c and d fixed
+                  call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
+                  do tmp_a = 1, nV_S(s1)
+                    a = list_spin_vir(tmp_a,s1)
+                    if (s1 == s2 .and. a <= b) cycle
+                    do tmp_l = 1, nO_S(s4)
+                      l = list_spin_occ(tmp_l,s4)
+                      do tmp_k = 1, nO_S(s3)
+                        k = list_spin_occ(tmp_k,s3)
+                        if (s3 == s4 .and. k <= l) cycle
+                        do tmp_j = 1, nO_S(s2)
+                          j = list_spin_occ(tmp_j,s2)
+                          if (s2 == s3 .and. j <= k) cycle
+                          do tmp_i = 1, nO_S(s1)
+                            i = list_spin_occ(tmp_i,s1)
+                            if (s1 == s2 .and. i <= j) cycle
+                            
+                            if (dabs(c4_abcd(i,j,k,l)) > thresh_coef) then
+                              nb_coef = nb_coef + 1
+                            endif
+                            
+                          enddo
+                        enddo
+                      enddo
                     enddo
                   enddo
                 enddo
@@ -277,8 +333,74 @@ subroutine run_extract_c
     enddo
   endif
 
+  !c4
+  if (extract_c4) then
+    do s1 = 1, 2
+      do s2 = s1, 2
+        do s3 = s2, 2
+          do s4 = s3, 2
+            do tmp_d = 1, nV_S(s4)
+              d = list_spin_vir(tmp_d,s4)
+              p4 = list_vir(tmp_d,s4)
+              do tmp_c = 1, nV_S(s3)
+                c = list_spin_vir(tmp_c,s3)
+                p3 = list_vir(tmp_c,s3)
+                if (s3 == s4 .and. c <= d) cycle
+                do tmp_b = 1, nV_S(s2)
+                  b = list_spin_vir(tmp_b,s2)
+                  p2 = list_vir(tmp_b,s2)
+                  if (s2 == s3 .and. b <= c) cycle
+                  do tmp_a = 1, nV_S(s1)
+                    a = list_spin_vir(tmp_a,s1)
+                    p1 = list_vir(tmp_a,s1)
+                    if (s1 == s2 .and. a <= b) cycle
+                    ! C4 for a,b,c and d fixed
+                    call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
+                    do tmp_l = 1, nO_S(s4)
+                      l = list_spin_occ(tmp_l,s4)
+                      h4 = list_occ(tmp_l,s4)
+                      do tmp_k = 1, nO_S(s3)
+                         k = list_spin_occ(tmp_k,s3)
+                         h3 = list_occ(tmp_k,s3)
+                         if (s3 == s4 .and. k <= l) cycle
+                        do tmp_j = 1, nO_S(s2)
+                          j = list_spin_occ(tmp_j,s2)
+                          h2 = list_occ(tmp_j,s2)
+                          if (s2 == s3 .and. j <= k) cycle
+                          do tmp_i = 1, nO_S(s1)
+                            i = list_spin_occ(tmp_i,s1)
+                            h1 = list_occ(tmp_i,s1)
+                            if (s1 == s2 .and. i <= j) cycle
+                            
+                            if (dabs(c4_abcd(i,j,k,l)) > thresh_coef) then
+                              call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                              call apply_hole(res1, s2, h2, res2, ok, N_int)
+                              call apply_hole(res2, s3, h3, res3, ok, N_int)
+                              call apply_hole(res3, s4, h4, res4, ok, N_int)
+                              call apply_particle(res4, s1, p1, res5, ok, N_int)
+                              call apply_particle(res5, s2, p2, res6, ok, N_int)
+                              call apply_particle(res6, s3, p3, res7, ok, N_int)
+                              call apply_particle(res7, s4, p4, tmp_det(1,1,idx_coef), ok, N_int)
+                              call get_excitation(hf_bitmask,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                              tmp_coef(idx_coef) = c4_abcd(i,j,k,l) * phase
+                              idx_coef = idx_coef + 1
+                            endif
+                            
+                          enddo
+                        enddo
+                      enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
   
-  deallocate(t1,c1,t2,c2,c3_bc)
+  deallocate(t1,c1,t2,c2,c3_bc,c4_abcd)
 
   ! Sort the det wrt their coef
   allocate(l_coef(nb_coef), l_det(N_int,2,nb_coef))
@@ -305,6 +427,7 @@ subroutine run_extract_c
   l_coef = l_coef * factor
 
   ! print
+  print*,'N_det', nb_coef
   do i = 1, nb_coef
     print*,l_coef(i)
     call print_det(l_det(1,1,i),N_int)

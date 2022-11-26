@@ -11,6 +11,30 @@ cd qp_plugins_damour/percent_exc
 ninja
 ```
 
+# Extraction of the CI coefficients from CC amplitudes  
+Run a cc calculation and write the T1 and T2 amplitudes disk
+```
+qp set cc_utils cc_write_t1 true   
+qp set cc_utils cc_write_t2 true
+qp run ccsd_spin_orb
+```
+Then the CI coefficients can be extracted
+```
+qp run extract_c
+```
+The C3 and C4 coefficients can be also extracted as product of t1 and t2  
+by setting
+```
+qp set percentage_exc extract_c3 true  
+qp set percentage_exc extract_c4 true
+```
+But the their number can rapidly blow up. In addition, the number  
+of CI coefficients can be limited by playing on the threshold   
+of the selection
+```
+qp set percentage_exc thresh_extract_c 1e-4 # !!!In intermediate normalization!!!
+```
+
 # Percentage of excitations
 Format exponential:  
 ```

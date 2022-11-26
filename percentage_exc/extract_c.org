@@ -23,11 +23,9 @@ subroutine run_extract_c
   double precision :: thresh_coef, factor, norm, phase
   integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), res6(N_int,2), res7(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
-  logical :: ok, extract_c3, extract_c4
+  logical :: ok
 
-  extract_c3 = .True.
-  extract_c4 = .True.
-  thresh_coef = 1d-6
+  thresh_coef = thresh_extract_c
   
   call extract_n_spin(n_spin)
   nOa = n_spin(1)
@@ -455,14 +453,17 @@ subroutine run_extract_c
   enddo
 
   ! Save the wave function
-  !print*,'Save the wave function...'
-  !call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
-  !call copy_H_apply_buffer_to_wf
-  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !psi_coef = l_coef
-  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !call save_wavefunction
-  !print*,'Done'
+  print*,'Save the wave function...'
+  ! Just to have a large enough psi_det vector...
+  call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
+  call copy_H_apply_buffer_to_wf
+  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  ! New wave function
+  psi_det = l_det
+  psi_coef(:,1) = l_coef
+  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  call save_wavefunction
+  print*,'Done'
 
   deallocate(l_coef,l_det)
 

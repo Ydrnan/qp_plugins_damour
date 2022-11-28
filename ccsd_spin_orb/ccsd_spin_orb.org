@@ -118,6 +118,36 @@ subroutine run_ccsd_spin_orb_sub
   call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
   call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
 
+  !print*,'oo'
+  !do i = 1, nO
+  !  print*,f_oo(i,:)
+  !enddo
+  !!print*,''
+  !!print*,'ov'
+  !!do i = 1, nO
+  !!  print*,f_ov(i,:)
+  !!enddo
+  !!print*,''
+  !!print*,'vv'
+  !!do i = 1, nV
+  !!  print*,f_vv(i,:)
+  !!enddo
+
+  !print*,''
+  !print*,'Debug alpha'
+  !do i = 1, mo_num
+  !  print*,fock_matrix_mo_alpha(i,:)
+  !enddo
+
+  !print*,''
+  !print*,'Debug beta'
+  !do i = 1, mo_num
+  !  print*,fock_matrix_mo_beta(i,:)
+  !enddo
+  !
+  !print*,'STOP'
+  !call abort
+  
   ! Diag elements
   do i = 1, nO
     f_o(i) = f_oo(i,i)
@@ -1678,17 +1708,17 @@ subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
       s = si + sj
 
       if (s == 2) then
-        call get_fock_matrix_alpha(psi_det(:,:,1),tmp_F)
+        call get_fock_matrix_alpha(psi_det(1,1,1),tmp_F)
       elseif (s == 4) then
-        call get_fock_matrix_beta (psi_det(:,:,1),tmp_F)
+        call get_fock_matrix_beta (psi_det(1,1,1),tmp_F)
       else
         tmp_F = 0d0
       endif
       
-      do tmp_j = 1, n2
+      do tmp_j = 1, n2_S(sj)
         j = list2(tmp_j,sj)
         idx_j = tmp_j + j_shift
-        do tmp_i = 1, n1
+        do tmp_i = 1, n1_S(si)
           i = list1(tmp_i,si)
           idx_i = tmp_i + i_shift
           f(idx_i,idx_j) = tmp_F(i,j)

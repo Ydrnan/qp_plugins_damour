@@ -17,7 +17,7 @@ program ccsd
   integer :: nO, nV
   integer :: nb_iter
   double precision :: get_two_e_integral
-  double precision :: energy, max_elem, max_r, max_r1, max_r2
+  double precision :: energy, max_elem, max_r, max_r1, max_r2,ta,tb
   logical :: not_converged
 
   double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
@@ -83,36 +83,59 @@ program ccsd
   not_converged = .True.
   max_r1 = 0d0
   max_r2 = 0d0
+
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  write(*,'(A77)') ' |   It.  |       E(CCSD) (Ha) | Correlation (Ha) |  Conv. T1  |  Conv. T2  |'
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  call wall_time(ta)
   
   do while (not_converged)
   
-    ! Energy
-    call e_ccsd(tau,t1,energy)
-    print*,''
-    print*,'Iter. n.:', nb_iter
-    print*,'E(CCSD)= ', hf_energy + energy, energy
-    print*,'r       :', max_r1, max_r2
-
     ! Residue
     call compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     call compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
     max_r = max(max_r1,max_r2)
 
     ! Update
-    call update_t_ccsd(nO,nV,nb_iter,fcc_o,fcc_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    !call update_t_ccsd(nO,nV,nb_iter,fcc_o,fcc_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    call update_t_ccsd_v2(nO,nV,nb_iter,fcc_o,fcc_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
     call update_tau_space(nO,nV,t1,t2,tau)
-    
+
+    ! Energy
+    call e_ccsd(tau,t1,energy)
+    !print*,''
+    !print*,'Iter. n.:', nb_iter
+    !print*,'E(CCSD)= ', hf_energy + energy, energy
+    !print*,'r       :', max_r1, max_r2
+    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', hf_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+
     nb_iter = nb_iter + 1
-    
     if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
       not_converged = .False.
     endif
     
   enddo
-
-  call e_ccsd(tau,t1,energy)
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  call wall_time(tb)
+  print*,'Time: ',tb-ta, ' s'
   print*,''
-  print*,'E(CCSD)=', hf_energy + energy, energy
+  if (max_r < cc_thresh_conv) then
+    write(*,'(A30,I6,A11)') ' Successful convergence after ', nb_iter, ' iterations'
+  else
+    write(*,'(A26,I6,A11)') ' Failed convergence after ', nb_iter, ' iterations'
+  endif
+  print*,''
+  write(*,'(A15,F18.12,A3)') ' E(CCSD)     = ', hf_energy+energy, ' Ha'
+  write(*,'(A15,F18.12,A3)') ' Correlation = ', energy, ' Ha'
+  write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
+  print*,''
+
+  call write_t1(nO,nV,t1)
+  call write_t2(nO,nV,t2)
+  
+  !call e_ccsd(tau,t1,energy)
+  !print*,''
+  !print*,'E(CCSD)=', hf_energy + energy, energy
 
   !! CCSD(T)
   !double precision, allocatable :: W1(:,:,:,:,:,:)

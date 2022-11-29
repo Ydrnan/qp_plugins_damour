@@ -118,36 +118,6 @@ subroutine run_ccsd_spin_orb_sub
   call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
   call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
 
-  !print*,'oo'
-  !do i = 1, nO
-  !  print*,f_oo(i,:)
-  !enddo
-  !!print*,''
-  !!print*,'ov'
-  !!do i = 1, nO
-  !!  print*,f_ov(i,:)
-  !!enddo
-  !!print*,''
-  !!print*,'vv'
-  !!do i = 1, nV
-  !!  print*,f_vv(i,:)
-  !!enddo
-
-  !print*,''
-  !print*,'Debug alpha'
-  !do i = 1, mo_num
-  !  print*,fock_matrix_mo_alpha(i,:)
-  !enddo
-
-  !print*,''
-  !print*,'Debug beta'
-  !do i = 1, mo_num
-  !  print*,fock_matrix_mo_beta(i,:)
-  !enddo
-  !
-  !print*,'STOP'
-  !call abort
-  
   ! Diag elements
   do i = 1, nO
     f_o(i) = f_oo(i,i)

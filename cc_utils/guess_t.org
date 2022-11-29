@@ -26,7 +26,7 @@ subroutine guess_t1(nO,nV,f_o,f_v,f_ov,t1)
   else if (cc_guess_t1 == 'MP') then
     do a = 1, nV
       do i = 1, nO
-        t1(i,a) = 0d0 ! f_ov(i,a) / (f_o(i) - f_v(a) + cc_level_shift_guess)
+        t1(i,a) = f_ov(i,a) / (f_o(i) - f_v(a) - cc_level_shift_guess)
       enddo
     enddo
   else if (cc_guess_t1 == 'read' .and. cc_read_t1) then
@@ -74,7 +74,7 @@ subroutine guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
       do a = 1, nV
         do j = 1, nO
           do i = 1, nO
-            t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b) + cc_level_shift_guess)
+            t2(i,j,a,b) = v_oovv(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b) - cc_level_shift_guess)
           enddo
         enddo
       enddo

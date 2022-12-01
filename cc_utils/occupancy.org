@@ -40,6 +40,8 @@ subroutine extract_n_spin(det,n)
     enddo
   enddo
 
+  print*,n(1),n(2),n(3),n(4)
+
 end  
 #+end_src
 
@@ -128,7 +130,7 @@ subroutine extract_list_orb_space(det,nO,nV,list_occ,list_vir)
 
   ! occ alpha -> list_occ(:,1)
   ! vir alpha -> list_vir(:,1)
-  
+
   ! tmp idx
   idx_o = 1
   idx_v = 1
@@ -139,7 +141,7 @@ subroutine extract_list_orb_space(det,nO,nV,list_occ,list_vir)
     if (is_core(i)) cycle
     ! in del ?
     if (is_del(i)) cycle
-          
+
     if (ok) then
       ! particle
       list_occ(idx_o) = i
@@ -153,8 +155,6 @@ subroutine extract_list_orb_space(det,nO,nV,list_occ,list_vir)
 
 end
 #+end_src
-
-
 
 ** is_core
 #+begin_src f90 :comments org :tangle occupancy.irp.f
@@ -232,7 +232,7 @@ end
   call extract_n_spin(psi_det(1,1,1),n_spin)
 
   cc_nO = n_spin(1)
-  cc_nV = n_spin(2)
+  cc_nV = n_spin(3)
 
 END_PROVIDER
 #+end_src

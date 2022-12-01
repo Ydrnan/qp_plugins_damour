@@ -44,7 +44,7 @@ subroutine run_ccsd_space_orb
   PROVIDE mo_two_e_integrals_in_map
 
   det = psi_det(:,:,1)
-  
+
   ! Extract number of occ/vir alpha/beta spin orbitals
   call extract_n_spin(det,n_spin)
   nOa = n_spin(1)
@@ -99,15 +99,15 @@ subroutine run_ccsd_space_orb
   !  do a = 1, nV
   !    do j = 1, nO
   !      do i = 1, nO
-  !        delta(i,j,a,b) = fcc_v(a) + fcc_v(b) - fcc_o(i) - fcc_o(j)
+  !        delta(i,j,a,b) = cc_space_f_v(a) + cc_space_f_v(b) - cc_space_f_o(i) - cc_space_f_o(j)
   !      enddo
   !    enddo
   !  enddo
   !enddo
 
   ! Init
-  call guess_t1(nO,nV,fcc_o,fcc_v,fcc_ov,t1)
-  call guess_t2(nO,nV,fcc_o,fcc_v,vcc_oovv,t2)
+  call guess_t1(nO,nV,cc_space_f_o,cc_space_f_v,cc_space_f_ov,t1)
+  call guess_t2(nO,nV,cc_space_f_o,cc_space_f_v,cc_space_v_oovv,t2)
   call update_tau_space(nO,nV,t1,t2,tau)
   
   nb_iter = 0
@@ -128,8 +128,8 @@ subroutine run_ccsd_space_orb
     max_r = max(max_r1,max_r2)
 
     ! Update
-    !call update_t_ccsd(nO,nV,nb_iter,fcc_o,fcc_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
-    call update_t_ccsd_v2(nO,nV,nb_iter,fcc_o,fcc_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    !call update_t_ccsd(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    call update_t_ccsd_v2(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
     call update_tau_space(nO,nV,t1,t2,tau)
 
     ! Energy
@@ -215,7 +215,7 @@ subroutine e_ccsd(nO,nV,tau,t1,energy)
   energy = 0d0
   do i = 1, nO
     do a = 1, nV
-      energy = energy + 2d0 * fcc_vo(a,i) * t1(i,a)
+      energy = energy + 2d0 * cc_space_f_vo(a,i) * t1(i,a)
     enddo
   enddo
   do b = 1, nV
@@ -258,20 +258,20 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
 
   do beta = 1, nV
     do u = 1, nO
-      r1(u,beta) = fcc_ov(u,beta)
+      r1(u,beta) = cc_space_f_ov(u,beta)
     enddo
   enddo
 
-  ! r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
-  ! fcc_vo(a,i) * t1(i,beta) -> X1(nV,nV), O(nV*nV*nO)
+  ! r1(u,beta) = r1(u,beta) - 2d0 * cc_space_f_vo(a,i) * t1(i,beta) * t1(u,a)
+  ! cc_space_f_vo(a,i) * t1(i,beta) -> X1(nV,nV), O(nV*nV*nO)
   ! X1(a,beta) * t1(u,a) -> O(nO*nV*nV)
-  ! fcc_vo(a,i) * t1(u,a)    -> X1(nO,nO), O(nO*nO*nV)
+  ! cc_space_f_vo(a,i) * t1(u,a)    -> X1(nO,nO), O(nO*nO*nV)
   ! X1(i,u) * t1(i,beta) -> O(nO*nO*nV)  
   !do beta = 1, nV
   !  do u = 1, nO
   !    do i = 1, nO
   !      do a = 1, nV
-  !        r1(u,beta) = r1(u,beta) - 2d0 * fcc_vo(a,i) * t1(i,beta) * t1(u,a)
+  !        r1(u,beta) = r1(u,beta) - 2d0 * cc_space_f_vo(a,i) * t1(i,beta) * t1(u,a)
   !      enddo
   !    enddo
   !  enddo
@@ -280,7 +280,7 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   allocate(X_oo(nO,nO))
   call dgemm('N','N', nO, nO, nV, &
              -2d0, t1    , size(t1,1), &
-                   fcc_vo, size(fcc_vo,1), &
+                   cc_space_f_vo, size(cc_space_f_vo,1), &
               0d0, X_oo  , size(X_oo,1))
 
   call dgemm('T','N', nO, nV, nO, &
@@ -348,14 +348,14 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   
   deallocate(X_voov)
 
-  ! r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
+  ! r1(u,beta) = r1(u,beta) + (2d0 * cc_space_v_voov(a,u,i,beta) - cc_space_v_ovov(u,a,i,beta)) * t1(i,a)
   ! <=> 
   ! r1(u,beta) = r1(u,beta) + X(i,a,u,beta)
   !do beta = 1, nV
   !  do u = 1, nO
   !    do i = 1, nO
   !      do a = 1, nV
-  !        r1(u,beta) = r1(u,beta) + (2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)) * t1(i,a)
+  !        r1(u,beta) = r1(u,beta) + (2d0 * cc_space_v_voov(a,u,i,beta) - cc_space_v_ovov(u,a,i,beta)) * t1(i,a)
   !      enddo
   !    enddo
   !  enddo
@@ -367,7 +367,7 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     do u = 1, nO
       do a = 1, nv
         do i = 1, nO
-          X_ovov(i,a,u,beta) = 2d0 * vcc_voov(a,u,i,beta) - vcc_ovov(u,a,i,beta)
+          X_ovov(i,a,u,beta) = 2d0 * cc_space_v_voov(a,u,i,beta) - cc_space_v_ovov(u,a,i,beta)
         enddo
       enddo
     enddo
@@ -380,14 +380,14 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   
   deallocate(X_ovov)
 
-  ! r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+  ! r1(u,beta) = r1(u,beta) + (2d0 * cc_space_v_vvov(a,b,i,beta) - cc_space_v_vvov(b,a,i,beta)) * tau(i,u,a,b)  
   ! r1(u,beta) = r1(u,beta) + W(a,b,i,beta) * T(u,a,b,i) 
   !do beta = 1, nV
   !  do u = 1, nO
   !    do i = 1, nO
   !      do a = 1, nV
   !        do b = 1, nV
-  !          r1(u,beta) = r1(u,beta) + (2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)) * tau(i,u,a,b)  
+  !          r1(u,beta) = r1(u,beta) + (2d0 * cc_space_v_vvov(a,b,i,beta) - cc_space_v_vvov(b,a,i,beta)) * tau(i,u,a,b)  
   !        enddo
   !      enddo
   !    enddo
@@ -400,7 +400,7 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     do i = 1, nO
       do b = 1, nV
         do a = 1, nV
-          W_vvov(a,b,i,beta) = 2d0 * vcc_vvov(a,b,i,beta) - vcc_vvov(b,a,i,beta)  
+          W_vvov(a,b,i,beta) = 2d0 * cc_space_v_vvov(a,b,i,beta) - cc_space_v_vvov(b,a,i,beta)  
         enddo
       enddo
     enddo
@@ -423,14 +423,14 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
   
   deallocate(W_vvov,T_vvoo)
 
-  ! r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+  ! r1(u,beta) = r1(u,beta) - (2d0 * cc_space_v_vooo(a,u,i,j) - cc_space_v_vooo(a,u,j,i)) * tau(i,j,a,beta) 
   ! r1(u,beta) = r1(u,beta) - W(i,j,a,u) * tau(i,j,a,beta) 
   !do beta = 1, nV
   !  do u = 1, nO
   !    do i = 1, nO
   !      do j = 1, nO
   !        do a = 1, nV
-  !          r1(u,beta) = r1(u,beta) - (2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)) * tau(i,j,a,beta) 
+  !          r1(u,beta) = r1(u,beta) - (2d0 * cc_space_v_vooo(a,u,i,j) - cc_space_v_vooo(a,u,j,i)) * tau(i,j,a,beta) 
   !        enddo
   !      enddo
   !    enddo
@@ -443,7 +443,7 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          W_oovo(i,j,a,u) = 2d0 * vcc_vooo(a,u,i,j) - vcc_vooo(a,u,j,i)
+          W_oovo(i,j,a,u) = 2d0 * cc_space_v_vooo(a,u,i,j) - cc_space_v_vooo(a,u,j,i)
         enddo
       enddo
     enddo
@@ -499,12 +499,12 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
 
   !do i = 1, nO
   !  do u = 1, nO
-  !    H_oo(u,i) = fcc_oo(u,i)
+  !    H_oo(u,i) = cc_space_f_oo(u,i)
 
   !    do j = 1, nO
   !      do a = 1, nV
   !        do b = 1, nV
-  !          !H_oo(u,i) = H_oo(u,i) + (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * tau(u,j,a,b)
+  !          !H_oo(u,i) = H_oo(u,i) + (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * tau(u,j,a,b)
   !          !H_oo(u,i) = H_oo(u,i) + wcc_vvoo(a,b,i,j) * tau(u,j,a,b)
   !          H_oo(u,i) = H_oo(u,i) + wcc_oovv(i,j,a,b) * tau(u,j,a,b)
   !        enddo
@@ -514,10 +514,10 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
   !  enddo
   !enddo
 
-  ! H_oo(u,i) = fcc_oo(u,i)
+  ! H_oo(u,i) = cc_space_f_oo(u,i)
   do i = 1, nO
     do u = 1, nO
-      H_oo(u,i) = fcc_oo(u,i)
+      H_oo(u,i) = cc_space_f_oo(u,i)
     enddo
   enddo
 
@@ -552,12 +552,12 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   !do beta = 1, nV
   !  do a = 1, nV
-  !    H_vv(a,beta) = fcc_vv(a,beta)
+  !    H_vv(a,beta) = cc_space_f_vv(a,beta)
 
   !    do j = 1, nO
   !      do i = 1, nO
   !        do b = 1, nV
-  !          !H_vv(a,beta) = H_vv(a,beta) - (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(a,b,j,i)) * tau(i,j,beta,b)
+  !          !H_vv(a,beta) = H_vv(a,beta) - (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(a,b,j,i)) * tau(i,j,beta,b)
   !          H_vv(a,beta) = H_vv(a,beta) - wcc_vvoo(a,b,i,j) * tau(i,j,beta,b)
   !        enddo
   !      enddo
@@ -570,10 +570,10 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
 
   allocate(tmp_tau(nV,nO,nO,nV))
 
-  ! H_vv(a,beta) = fcc_vv(a,beta)
+  ! H_vv(a,beta) = cc_space_f_vv(a,beta)
   do beta = 1, nV
     do a = 1, nV
-      H_vv(a,beta) = fcc_vv(a,beta)
+      H_vv(a,beta) = cc_space_f_vv(a,beta)
     enddo
   enddo
 
@@ -619,11 +619,11 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
   !do i = 1, nO
   !  do a = 1, nV
-  !    H_vo(a,i) = fcc_vo(a,i)
+  !    H_vo(a,i) = cc_space_f_vo(a,i)
 
   !    do j = 1, nO
   !      do b = 1, nV
-  !        !H_vo(a,i) = H_vo(a,i) + (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * t1(j,b)
+  !        !H_vo(a,i) = H_vo(a,i) + (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t1(j,b)
   !        H_vo(a,i) = H_vo(a,i) + wcc_vvoo(a,b,i,j) * t1(j,b)
   !      enddo
   !    enddo
@@ -637,7 +637,7 @@ subroutine compute_H_vo(t1,t2,H_vo)
 
   do i = 1, nO
     do a = 1, nV
-      H_vo(a,i) = fcc_vo(a,i)
+      H_vo(a,i) = cc_space_f_vo(a,i)
     enddo
   enddo
 
@@ -706,7 +706,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
       do v = 1, nO
         do u = 1, nO
 
-         r2(u,v,beta,gam) = vcc_oovv(u,v,beta,gam)
+         r2(u,v,beta,gam) = cc_space_v_oovv(u,v,beta,gam)
 
          do j = 1, nO
            do i = 1, nO
@@ -736,23 +736,23 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
 
          do a = 1, nV
            r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-           + vcc_ovvv(u,a,beta,gam) * t1(v,a) &
-           + vcc_ovvv(v,a,gam,beta) * t1(u,a) ! P
+           + cc_space_v_ovvv(u,a,beta,gam) * t1(v,a) &
+           + cc_space_v_ovvv(v,a,gam,beta) * t1(u,a) ! P
            do i = 1, nO
              r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             - vcc_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
-             - vcc_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
+             - cc_space_v_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
+             - cc_space_v_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
            enddo
          enddo
 
          do i = 1, nO
            r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-           - vcc_oovo(u,v,beta,i) * t1(i,gam) &
-           - vcc_oovo(v,u,gam,i)  * t1(i,beta) ! P
+           - cc_space_v_oovo(u,v,beta,i) * t1(i,gam) &
+           - cc_space_v_oovo(v,u,gam,i)  * t1(i,beta) ! P
            do a = 1, nV
              r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             - vcc_ovvo(u,a,beta,i) * t1(v,a) * t1(i,gam) &
-             - vcc_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
+             - cc_space_v_ovvo(u,a,beta,i) * t1(v,a) * t1(i,gam) &
+             - cc_space_v_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
            enddo
          enddo
 
@@ -828,15 +828,15 @@ subroutine compute_A1(t1,t2,tau,A1)
   !  do i = 1, nO
   !    do v = 1, nO
   !      do u = 1, nO
-  !        A1(u,v,i,j) = vcc_oooo(u,v,i,j)
+  !        A1(u,v,i,j) = cc_space_v_oooo(u,v,i,j)
 
   !        do a = 1, nV
   !          A1(u,v,i,j) = A1(u,v,i,j) &
-  !          + vcc_ovoo(u,a,i,j) * t1(v,a) &
-  !          + vcc_vooo(a,v,i,j) * t1(u,a)
+  !          + cc_space_v_ovoo(u,a,i,j) * t1(v,a) &
+  !          + cc_space_v_vooo(a,v,i,j) * t1(u,a)
   !          
   !          do b = 1, nV
-  !            A1(u,v,i,j) = A1(u,v,i,j) + vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
+  !            A1(u,v,i,j) = A1(u,v,i,j) + cc_space_v_vvoo(a,b,i,j) * tau(u,v,a,b)
   !          enddo  
   !        enddo
   !        
@@ -845,18 +845,18 @@ subroutine compute_A1(t1,t2,tau,A1)
   !  enddo
   !enddo
 
-  ! A1(u,v,i,j) = vcc_oooo(u,v,i,j)
+  ! A1(u,v,i,j) = cc_space_v_oooo(u,v,i,j)
   do j = 1, nO
     do i = 1, nO
       do v = 1, nO
         do u = 1, nO
-          A1(u,v,i,j) = vcc_oooo(u,v,i,j)
+          A1(u,v,i,j) = cc_space_v_oooo(u,v,i,j)
         enddo
       enddo
     enddo
   enddo
 
-  ! A1(u,v,i,j) += vcc_ovoo(u,a,i,j) * t1(v,a) &
+  ! A1(u,v,i,j) += cc_space_v_ovoo(u,a,i,j) * t1(v,a) &
   double precision, allocatable :: X_vooo(:,:,:,:), Y_oooo(:,:,:,:)
   allocate(X_vooo(nV,nO,nO,nO), Y_oooo(nO,nO,nO,nO))
 
@@ -864,7 +864,7 @@ subroutine compute_A1(t1,t2,tau,A1)
     do i = 1, nO
       do u = 1, nO
         do a = 1, nV
-          X_vooo(a,u,i,j) = vcc_ovoo(u,a,i,j)
+          X_vooo(a,u,i,j) = cc_space_v_ovoo(u,a,i,j)
         enddo
       enddo
     enddo
@@ -887,16 +887,16 @@ subroutine compute_A1(t1,t2,tau,A1)
   
   deallocate(X_vooo,Y_oooo)
 
-  ! A1(u,v,i,j) += vcc_vooo(a,v,i,j) * t1(u,a)
+  ! A1(u,v,i,j) += cc_space_v_vooo(a,v,i,j) * t1(u,a)
   call dgemm('N','N', nO, nO*nO*nO, nV, &
              1d0, t1      , size(t1,1), &
-                  vcc_vooo, size(vcc_vooo,1), &
+                  cc_space_v_vooo, size(cc_space_v_vooo,1), &
              1d0, A1      , size(A1,1))
 
-  ! A1(u,v,i,j) += vcc_vvoo(a,b,i,j) * tau(u,v,a,b)
+  ! A1(u,v,i,j) += cc_space_v_vvoo(a,b,i,j) * tau(u,v,a,b)
   call dgemm('N','N', nO*nO, nO*nO, nV*nV, &
              1d0, tau     , size(tau,1) * size(tau,2), &
-                  vcc_vvoo, size(vcc_vvoo,1) * size(vcc_vvoo,2), &
+                  cc_space_v_vvoo, size(cc_space_v_vvoo,1) * size(cc_space_v_vvoo,2), &
              1d0, A1      , size(A1,1) * size(A1,2))
    
 end
@@ -924,12 +924,12 @@ subroutine compute_B1(t1,t2,B1)
   !  do beta = 1, nV
   !    do b = 1, nV
   !      do a = 1, nV
-  !        B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
+  !        B1(a,b,beta,gam) = cc_space_v_vvvv(a,b,beta,gam) 
 
   !        do i = 1, nO
   !          B1(a,b,beta,gam) = B1(a,b,beta,gam) &
-  !          - vcc_vvvo(a,b,beta,i) * t1(i,gam) &
-  !          - vcc_vvov(a,b,i,gam) * t1(i,beta)
+  !          - cc_space_v_vvvo(a,b,beta,i) * t1(i,gam) &
+  !          - cc_space_v_vvov(a,b,i,gam) * t1(i,beta)
   !        enddo
   !        
   !      enddo
@@ -937,25 +937,25 @@ subroutine compute_B1(t1,t2,B1)
   !  enddo
   !enddo
 
-  ! B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam) 
+  ! B1(a,b,beta,gam) = cc_space_v_vvvv(a,b,beta,gam) 
   do gam = 1, nV
     do beta = 1, nV
       do b = 1, nV
         do a = 1, nV
-          B1(a,b,beta,gam) = vcc_vvvv(a,b,beta,gam)
+          B1(a,b,beta,gam) = cc_space_v_vvvv(a,b,beta,gam)
         enddo
       enddo
     enddo
   enddo
   
-  ! B1(a,b,beta,gam) -= vcc_vvvo(a,b,beta,i) * t1(i,gam) &
+  ! B1(a,b,beta,gam) -= cc_space_v_vvvo(a,b,beta,i) * t1(i,gam) &
   call dgemm('N','N', nV*nV*nV, nV, nO, &
-             -1d0, vcc_vvvo, size(vcc_vvvo,1) * size(vcc_vvvo,2) * size(vcc_vvvo,3), &
+             -1d0, cc_space_v_vvvo, size(cc_space_v_vvvo,1) * size(cc_space_v_vvvo,2) * size(cc_space_v_vvvo,3), &
                    t1      , size(t1,1), &
               1d0, B1      , size(B1,1) * size(B1,2) * size(B1,3))
 
   
-  ! B1(a,b,beta,gam) -= vcc_vvov(a,b,i,gam) * t1(i,beta)
+  ! B1(a,b,beta,gam) -= cc_space_v_vvov(a,b,i,gam) * t1(i,beta)
   double precision, allocatable :: X_vvvo(:,:,:,:), Y_vvvv(:,:,:,:)
   allocate(X_vvvo(nV,nV,nV,nO), Y_vvvv(nV,nV,nV,nV))
 
@@ -963,7 +963,7 @@ subroutine compute_B1(t1,t2,B1)
     do gam = 1, nV
       do b = 1, nV
         do a = 1, nV
-          X_vvvo(a,b,gam,i) = vcc_vvov(a,b,i,gam)
+          X_vvvo(a,b,gam,i) = cc_space_v_vvov(a,b,i,gam)
         enddo
       enddo
     enddo
@@ -1012,10 +1012,10 @@ subroutine compute_g_occ(t1,t2,H_oo,g_occ)
       g_occ(u,i) = H_oo(u,i)
       
       do a = 1, nV
-        g_occ(u,i) = g_occ(u,i) + fcc_vo(a,i) * t1(u,a)
+        g_occ(u,i) = g_occ(u,i) + cc_space_f_vo(a,i) * t1(u,a)
         
         do j = 1, nO
-          g_occ(u,i) = g_occ(u,i) + (2d0 * vcc_ovoo(u,a,i,j) - vcc_ovoo(u,a,j,i)) * t1(j,a)
+          g_occ(u,i) = g_occ(u,i) + (2d0 * cc_space_v_ovoo(u,a,i,j) - cc_space_v_ovoo(u,a,j,i)) * t1(j,a)
         enddo
            
       enddo
@@ -1048,10 +1048,10 @@ subroutine compute_g_vir(t1,t2,H_vv,g_vir)
       g_vir(a,beta) = H_vv(a,beta)
       
       do i = 1, nO
-        g_vir(a,beta) = g_vir(a,beta) - fcc_vo(a,i) * t1(i,beta)
+        g_vir(a,beta) = g_vir(a,beta) - cc_space_f_vo(a,i) * t1(i,beta)
         
         do b = 1, nV
-          g_vir(a,beta) = g_vir(a,beta) + (2d0 * vcc_vvvo(a,b,beta,i) - vcc_vvvo(b,a,beta,i)) * t1(i,b)
+          g_vir(a,beta) = g_vir(a,beta) + (2d0 * cc_space_v_vvvo(a,b,beta,i) - cc_space_v_vvvo(b,a,beta,i)) * t1(i,b)
         enddo
            
       enddo
@@ -1083,23 +1083,23 @@ subroutine compute_J1(t1,t2,J1)
     do beta = 1, nV
       do a = 1, nV
         do u = 1, nO
-          J1(u,a,beta,i) = vcc_ovvo(u,a,beta,i)
+          J1(u,a,beta,i) = cc_space_v_ovvo(u,a,beta,i)
 
           do j = 1, nO
             J1(u,a,beta,i) = J1(u,a,beta,i) &
-            - vcc_ovoo(u,a,j,i) * t1(j,beta)
+            - cc_space_v_ovoo(u,a,j,i) * t1(j,beta)
           enddo
 
           do b = 1, nV
             J1(u,a,beta,i) = J1(u,a,beta,i) &
-            + vcc_vvvo(b,a,beta,i) * t1(u,b)    
+            + cc_space_v_vvvo(b,a,beta,i) * t1(u,b)    
           enddo
 
           do j = 1, nO
             do b = 1, nV
              J1(u,a,beta,i) = J1(u,a,beta,i) &
-             - vcc_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
-             + 0.5d0 * (2d0 * vcc_vvoo(a,b,i,j) - vcc_vvoo(b,a,i,j)) * t2(u,j,beta,b)
+             - cc_space_v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
+             + 0.5d0 * (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
             enddo
           enddo
           
@@ -1133,22 +1133,22 @@ subroutine compute_K1(t1,t2,K1)
     do i = 1, nO
       do a = 1, nV
         do u = 1, nO
-          K1(u,a,i,beta) = vcc_ovov(u,a,i,beta)
+          K1(u,a,i,beta) = cc_space_v_ovov(u,a,i,beta)
 
           do j = 1, nO
             K1(u,a,i,beta) = K1(u,a,i,beta) &
-            - vcc_ovoo(u,a,i,j) * t1(j,beta)
+            - cc_space_v_ovoo(u,a,i,j) * t1(j,beta)
           enddo
 
           do b = 1, nV
             K1(u,a,i,beta) = K1(u,a,i,beta) &
-            + vcc_vvov(b,a,i,beta) * t1(u,b)    
+            + cc_space_v_vvov(b,a,i,beta) * t1(u,b)    
           enddo
 
           do j = 1, nO
             do b = 1, nV
              K1(u,a,i,beta) = K1(u,a,i,beta) &
-             - vcc_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
+             - cc_space_v_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
             enddo
           enddo
           

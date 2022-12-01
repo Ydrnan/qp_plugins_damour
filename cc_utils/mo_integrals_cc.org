@@ -287,7 +287,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_o, (cc_nO)]
   integer :: i
 
   do i = 1, cc_nO
-    cc_space_f_o = cc_space_f_oo(i,i)
+    cc_space_f_o(i) = cc_space_f_oo(i,i)
   enddo
 
 END_PROVIDER
@@ -302,7 +302,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_v, (cc_nV)]
   integer :: i
 
   do i = 1, cc_nV
-    cc_space_f_v = cc_space_f_vv(i,i)
+    cc_space_f_v(i) = cc_space_f_vv(i,i)
   enddo
 
 END_PROVIDER

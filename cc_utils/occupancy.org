@@ -213,3 +213,42 @@ function is_del(i)
 
 end
 #+end_src
+
+* Providers
+** N orb
+#+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
+ BEGIN_PROVIDER [integer, cc_nO]
+&BEGIN_PROVIDER [integer, cc_nV]
+
+  implicit none
+
+  BEGIN_DOC
+  ! Number of occupied and virtual orbitals without core and deleted ones
+  END_DOC
+
+  integer :: n_spin(4)
+
+  ! Extract number of occ/vir alpha/beta spin orbitals
+  call extract_n_spin(psi_det(1,1,1),n_spin)
+
+  cc_nO = n_spin(1)
+  cc_nV = n_spin(2)
+
+END_PROVIDER
+#+end_src
+
+** List orb
+#+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
+ BEGIN_PROVIDER [integer, cc_list_occ, (cc_nO)]
+&BEGIN_PROVIDER [integer, cc_list_vir, (cc_nV)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! List of occupied and virtual orbitals without core and deleted ones
+  END_DOC
+
+  call extract_list_orb_space(psi_det(1,1,1),cc_nO,cc_nV,cc_list_occ,cc_list_vir)
+
+END_PROVIDER
+#+end_src

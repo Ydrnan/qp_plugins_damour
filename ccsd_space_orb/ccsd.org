@@ -14,7 +14,6 @@ program ccsd
 
   integer :: i,j,k,l,a,b,c,d,tmp_a,tmp_b,tmp_c,tmp_d
   integer :: u,v,gam,beta,tmp_gam,tmp_beta
-  integer :: nO, nV
   integer :: nb_iter
   double precision :: get_two_e_integral
   double precision :: energy, max_elem, max_r, max_r1, max_r2,ta,tb
@@ -27,11 +26,33 @@ program ccsd
   double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
   double precision, allocatable :: all_err1(:,:), all_t1(:,:)
   double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
+  integer, allocatable          :: list_occ(:), list_vir(:)
+  integer(bit_kind)             :: det(N_int,2)
+  integer                       :: nO, nV, nOa, nOb, nVa, nVb, n_spin(4)
+  
   
   PROVIDE mo_two_e_integrals_in_map
+
+  det = psi_det(:,:,1)
+
+  ! Extract number of occ/vir alpha/beta spin orbitals
+  call extract_n_spin(det,n_spin)
+  nOa = n_spin(1)
+  nOb = n_spin(2)
+  nVa = n_spin(3)
+  nVb = n_spin(4)
+
+  if (nOa /= nOb .or. nVa /= nVb) then
+    print*, 'nO_alpha /= nO_beta or nV_alpha /= nV_beta, abort'
+    call abort
+  endif
   
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
+  ! Number of occ/vir spatial orb
+  nO = nOa
+  nV = nVa
+  
+  allocate(list_occ(nO),list_vir(nV))
+  call extract_list_orb_space(det,nO,nV,list_occ,list_vir)
   
   allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV), delta(nO,nO,nV,nV))
   allocate(tau(nO,nO,nV,nV))
@@ -102,7 +123,7 @@ program ccsd
     call update_tau_space(nO,nV,t1,t2,tau)
 
     ! Energy
-    call e_ccsd(tau,t1,energy)
+    call e_ccsd(nO,nV,tau,t1,energy)
     !print*,''
     !print*,'Iter. n.:', nb_iter
     !print*,'E(CCSD)= ', hf_energy + energy, energy
@@ -169,21 +190,18 @@ end
 
 * Energy
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine e_ccsd(tau,t1,energy)
+subroutine e_ccsd(nO,nV,tau,t1,energy)
 
   implicit none
 
-  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: tau(nO,nO,nV,nV)
+  double precision, intent(in)  :: t1(nO,nV)
   double precision, intent(out) :: energy
 
   ! internal
-  integer :: nO, nV
   integer :: i,j,a,b
 
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
-  
   energy = 0d0
   do i = 1, nO
     do a = 1, nV

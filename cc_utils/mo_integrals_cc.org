@@ -1,5 +1,262 @@
 * mo two e integrals
+** Space
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_f_space(n1,n2,list1,list2,f)
 
+  implicit none
+
+  integer, intent(in)           :: n1,n2
+  integer, intent(in)           :: list1(n1),list2(n2)
+  double precision, intent(out) :: f(n1,n2)
+
+  integer                       :: i1,i2,idx1,idx2
+  
+  do i2 = 1, n2
+    idx2 = list2(i2)
+    do i1 = 1, n1
+      idx1 = list1(i1)
+      f(i1,i2) = fock_matrix_mo(idx1,idx2)
+    enddo
+  enddo
+  
+end
+#+end_src
+
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_v_space(n1,n2,n3,n4,list1,list2,list3,list4,v)
+
+  implicit none
+
+  integer, intent(in)           :: n1,n2,n3,n4
+  integer, intent(in)           :: list1(n1),list2(n2),list3(n3),list4(n4)
+  double precision, intent(out) :: v(n1,n2,n3,n4)
+
+  integer                       :: i1,i2,i3,i4,idx1,idx2,idx3,idx4
+  double precision              :: get_two_e_integral
+  
+  PROVIDE mo_two_e_integrals_in_map
+  
+  do i4 = 1, n4
+    idx4 = list4(i4)
+    do i3 = 1, n3
+      idx3 = list3(i3)
+      do i2 = 1, n2
+        idx2 = list2(i2)
+        do i1 = 1, n1
+          idx1 = list1(i1)
+          v(i1,i2,i3,i4) = get_two_e_integral(idx1,idx2,idx3,idx4,mo_integrals_map)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+end_src
+
+** Spin
+*** Shift
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine shift_idx_spin(s,n_S,shift)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Shift for the partitionning alpha/beta of the spin orbitals
+  ! n_S(1): number of spin alpha in the correspondong list
+  ! n_S(2): number of spin beta in the correspondong list
+  END_DOC
+
+  integer, intent(in)  :: s, n_S(2)
+  integer, intent(out) :: shift
+
+  if (s == 1) then
+    shift = 0
+  else
+    shift = n_S(1)
+  endif
+  
+end
+#+end_src
+
+*** F
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_f_spin(det, n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Compute the Fock matrix corresponding to two lists of spin orbitals.
+  ! Ex: occ/occ, occ/vir,...
+  END_DOC
+  
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  integer, intent(in)           :: n1,n2, n1_S(2), n2_S(2)
+  integer, intent(in)           :: list1(n1,2), list2(n2,2)
+  integer, intent(in)           :: dim1, dim2
+  
+  double precision, intent(out) :: f(dim1, dim2)
+
+  double precision, allocatable :: tmp_F(:,:)
+  integer                       :: i,j, idx_i,idx_j,i_shift,j_shift
+  integer                       :: tmp_i,tmp_j
+  integer                       :: si,sj,s
+
+  allocate(tmp_F(mo_num,mo_num))
+
+  do sj = 1, 2
+    call shift_idx_spin(sj,n2_S,j_shift)
+    do si = 1, 2
+      call shift_idx_spin(si,n1_S,i_shift)
+      s = si + sj
+
+      if (s == 2 .or. s == 4) then
+        call get_fock_matrix_spin(det,sj,tmp_F)
+      else
+        tmp_F = 0d0
+      endif
+      
+      do tmp_j = 1, n2_S(sj)
+        j = list2(tmp_j,sj)
+        idx_j = tmp_j + j_shift
+        do tmp_i = 1, n1_S(si)
+          i = list1(tmp_i,si)
+          idx_i = tmp_i + i_shift
+          f(idx_i,idx_j) = tmp_F(i,j)
+        enddo
+      enddo
+
+    enddo
+  enddo
+
+  deallocate(tmp_F)
+  
+end
+#+end_src
+
+*** Get F
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine get_fock_matrix_spin(det,s,f)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Fock matrix alpha or beta of an arbitrary det
+  END_DOC
+  
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  integer, intent(in)           :: s
+  
+  double precision, intent(out) :: f(mo_num,mo_num)
+  
+  integer                       :: p,q,i,s1,s2
+  integer(bit_kind)             :: res(N_int,2)
+  logical                       :: ok
+  double precision              :: mo_two_e_integral
+
+  if (s == 1) then
+    s1 = 1
+    s2 = 2
+  else
+    s1 = 2
+    s2 = 1
+  endif
+  
+  f = 0d0
+  
+  do q = 1, mo_num
+    do p = 1, mo_num
+      f(p,q) = mo_one_e_integrals(p,q)
+      do i = 1, mo_num
+        call apply_hole(det, s1, i, res, ok, N_int)
+        if (ok) then
+          f(p,q) = f(p,q) + mo_two_e_integral(p,i,q,i) - mo_two_e_integral(p,i,i,q)
+        endif
+      enddo
+      do i = 1, mo_num
+        call apply_hole(det, s2, i, res, ok, N_int)
+        if (ok) then
+          f(p,q) = f(p,q) + mo_two_e_integral(p,i,q,i)
+        endif
+      enddo
+    enddo
+  enddo
+    
+end
+#+end_src
+
+*** V
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3,dim4, v)
+
+  implicit none
+
+   BEGIN_DOC
+  ! Compute the bi electronic integrals corresponding to four lists of spin orbitals.
+  ! Ex: occ/occ/occ/occ, occ/vir/occ/vir, ...
+  END_DOC
+
+  integer, intent(in)           :: n1,n2,n3,n4,n1_S(2),n2_S(2),n3_S(2),n4_S(2)
+  integer, intent(in)           :: list1(n1,2), list2(n2,2), list3(n3,2), list4(n4,2)
+  integer, intent(in)           :: dim1, dim2, dim3, dim4
+  double precision, intent(out) :: v(dim1,dim2,dim3,dim4)
+
+  double precision              :: mo_two_e_integral
+  integer                       :: i,j,k,l,idx_i,idx_j,idx_k,idx_l
+  integer                       :: i_shift,j_shift,k_shift,l_shift
+  integer                       :: tmp_i,tmp_j,tmp_k,tmp_l
+  integer                       :: si,sj,sk,sl,s
+
+  do sl = 1, 2
+    call shift_idx_spin(sl,n4_S,l_shift)
+    do sk = 1, 2
+      call shift_idx_spin(sk,n3_S,k_shift)
+      do sj = 1, 2
+        call shift_idx_spin(sj,n2_S,j_shift)
+        do si = 1, 2
+          call shift_idx_spin(si,n1_S,i_shift)
+    
+          s = si+sj+sk+sl
+           
+          do tmp_l = 1, n4_S(sl)
+            l = list4(tmp_l,sl)
+            idx_l = tmp_l + l_shift
+            do tmp_k = 1, n3_S(sk)
+              k = list3(tmp_k,sk)
+              idx_k = tmp_k + k_shift
+              do tmp_j = 1, n2_S(sj)
+                j = list2(tmp_j,sj)
+                idx_j = tmp_j + j_shift
+                do tmp_i = 1, n1_S(si)  
+                  i = list1(tmp_i,si)
+                  idx_i = tmp_i + i_shift
+
+                  ! <aa||aa> or <bb||bb>
+                  if (s == 4 .or. s == 8) then
+                     v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(i,j,l,k)
+                  ! <ab||ab> or <ba||ba>
+                  elseif (si == sk .and. sj == sl) then
+                     v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l)
+                  ! <ab||ba> or <ba||ab>
+                  elseif (si == sl .and. sj == sk) then
+                     v(idx_i,idx_j,idx_k,idx_l) = - mo_two_e_integral(i,j,l,k)
+                  else
+                     v(idx_i,idx_j,idx_k,idx_l) = 0d0
+                  endif
+
+                enddo
+              enddo
+            enddo
+          enddo
+          
+        enddo
+      enddo
+    enddo
+  enddo
+  
+end
+#+end_src
+
+* Old
 ** vcc
 #+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc, (dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb)]
@@ -10,29 +267,57 @@ BEGIN_PROVIDER [double precision, vcc, (dim_list_inact_virt_no_core_orb, dim_lis
   ! my <pq|rs> integrals for inactive + virtual orbitals
   END_DOC
 
-  integer :: p,q,r,s
+  integer :: p,q,r,s,i
   integer :: pa, qa, ra, sa
+  integer :: n(2), shift(2), n_max
+  integer :: idx_p, idx_q, idx_r, idx_s, pc,qc,rc,sc
+  integer, allocatable :: list_orb(:,:)
 
   ! function
   double precision :: get_two_e_integral
 
   PROVIDE mo_two_e_integrals_in_map
+
+  n = (/n_inact_orb,n_virt_orb/)
+  shift = (/0,n_inact_orb/)
+  n_max = max(n_inact_orb,n_virt_orb)
+  allocate(list_orb(n_max,2))
   
-  do sa = 1, dim_list_inact_virt_no_core_orb
-    s = list_inact_virt_no_core(sa)
-    do ra = 1, dim_list_inact_virt_no_core_orb
-      r = list_inact_virt_no_core(ra) 
-      do qa = 1, dim_list_inact_virt_no_core_orb
-        q = list_inact_virt_no_core(qa)
-        do pa = 1, dim_list_inact_virt_no_core_orb
-          p = list_inact_virt_no_core(pa)
-           
-          vcc(pa,qa,ra,sa) = get_two_e_integral(p,q,r,s,mo_integrals_map)
-          
+  do i = 1, n(1)
+    list_orb(i,1) = list_inact(i)
+  enddo
+  do i = 1, n(2)
+    list_orb(i,2) = list_virt(i)
+  enddo
+  do sc = 1, 2
+    do rc = 1, 2
+      do qc = 1, 2
+        do pc = 1, 2
+          do sa = 1, n(sc)
+            s = list_orb(sa,sc)
+            idx_s = sa + shift(sc)
+            do ra = 1, n(rc)
+              r = list_orb(ra,rc)
+              idx_r = ra + shift(rc)
+              do qa = 1, n(qc)
+                q = list_orb(qa,qc)
+                idx_q = qa + shift(qc)
+                do pa = 1, n(pc)
+                  p = list_orb(pa,pc)
+                  idx_p = pa + shift(pc)
+                   
+                  vcc(idx_p,idx_q,idx_r,idx_s) = get_two_e_integral(p,q,r,s,mo_integrals_map)
+                  
+                enddo
+              enddo
+            enddo
+          enddo
         enddo
       enddo
     enddo
   enddo
+
+  deallocate(list_orb)
 
 END_PROVIDER
 #+END_SRC

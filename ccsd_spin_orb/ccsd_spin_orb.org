@@ -47,9 +47,12 @@ subroutine run_ccsd_spin_orb_sub
   integer                       :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer                       :: nb_iter, i,j,a,b
   double precision              :: energy, max_r, max_r1, max_r2, cc, ta, tb
+  integer(bit_kind)             :: det(N_int,2)
 
+  det = psi_det(:,:,1)
+  
   ! Extract number of occ/vir alpha/beta spin orbitals
-  call extract_n_spin(n_spin)
+  call extract_n_spin(det,n_spin)
   nOa = n_spin(1)
   nOb = n_spin(2)
   nVa = n_spin(3)
@@ -71,7 +74,7 @@ subroutine run_ccsd_spin_orb_sub
   !print*,nO_m,nV_m
   
   allocate(list_occ(nO_m,2), list_vir(NV_m,2))
-  call extract_list_orb(nO_m,nV_m,list_occ,list_vir)
+  call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
   !print*,list_occ(:,1)
   !print*,list_occ(:,2)
   !print*,list_vir(:,1)
@@ -114,9 +117,12 @@ subroutine run_ccsd_spin_orb_sub
   endif
 
   ! Fock elements
-  call gen_f_ints(nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
-  call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
-  call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
+  !call gen_f_ints(nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
+  !call gen_f_ints(nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
+  !call gen_f_ints(nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
+  call gen_f_spin(det, nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
+  call gen_f_spin(det, nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
+  call gen_f_spin(det, nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
 
   ! Diag elements
   do i = 1, nO
@@ -128,30 +134,46 @@ subroutine run_ccsd_spin_orb_sub
 
   ! Bi electronic integrals from list
   ! OOOO
-  call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
+  !call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
+  call gen_v_spin(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
 
   ! OOO V
-  call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
-  call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
-  call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
-  call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
+  !call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
+  !call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
+  !call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
+  !call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
+  call gen_v_spin(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
+  call gen_v_spin(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
+  call gen_v_spin(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
+  call gen_v_spin(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
 
   ! OO VV
-  call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
-  call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
-  call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
-  call gen_v_ints(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
-  call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
-  call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
+  !call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  !call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
+  !call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
+  !call gen_v_ints(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
+  !call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
+  !call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
+  call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  call gen_v_spin(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
+  call gen_v_spin(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
+  call gen_v_spin(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
+  call gen_v_spin(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
+  call gen_v_spin(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
 
   ! O VVV
-  call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
-  call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
-  call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
-  call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
+  !call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
+  !call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
+  !call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
+  !call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
+  call gen_v_spin(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
+  call gen_v_spin(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
+  call gen_v_spin(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
+  call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
   ! VVVV
-  call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+  !call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+  call gen_v_spin(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
 
   ! Init of T
   t1 = 0d0
@@ -1549,84 +1571,84 @@ end
 
 ** n spin orb
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine extract_n_spin(n)
-
-  implicit none
-
-  BEGIN_DOC
-  ! Returns the number of occupied alpha, occupied beta, virtual alpha, virtual beta spin orbitals
-  END_DOC
-
-  integer, intent(out) :: n(4)
-  
-  integer(bit_kind)    :: res(N_int,2)
-  integer              :: i, si
-  logical              :: ok
-
-  n = 0
-  
-  do si = 1, 2
-    do i = n_core_orb+1, mo_num
-      call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
-      if (ok) then
-        n(si) = n(si) + 1
-      else
-        n(si+2) = n(si+2) + 1
-      endif
-    enddo
-  enddo
-
-end
+!subroutine extract_n_spin(n)
+!
+!  implicit none
+!
+!  BEGIN_DOC
+!  ! Returns the number of occupied alpha, occupied beta, virtual alpha, virtual beta spin orbitals
+!  END_DOC
+!
+!  integer, intent(out) :: n(4)
+!  
+!  integer(bit_kind)    :: res(N_int,2)
+!  integer              :: i, si
+!  logical              :: ok
+!
+!  n = 0
+!  
+!  do si = 1, 2
+!    do i = n_core_orb+1, mo_num
+!      call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
+!      if (ok) then
+!        n(si) = n(si) + 1
+!      else
+!        n(si+2) = n(si+2) + 1
+!      endif
+!    enddo
+!  enddo
+!
+!end
 #+end_src
 
 ** List spin orb
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
-
-  implicit none
-
-  BEGIN_DOC
-  ! Returns the the list of occupied alpha/beta, virtual alpha/beta spin orbitals
-  END_DOC
-  
-  integer, intent(in)  :: nO_m, nV_m
-  
-  integer, intent(out) :: list_occ(nO_m,2), list_vir(nV_m,2)
-  
-  integer(bit_kind)    :: res(N_int,2)
-  integer              :: i, si, idx_o, idx_v, idx_i, idx_b
-  logical              :: ok
-
-  list_occ = 0
-  list_vir = 0
-
-  ! List of occ/vir alpha/beta
-
-  ! occ alpha -> list_occ(:,1)
-  ! occ beta -> list_occ(:,2)
-  ! vir alpha -> list_vir(:,1)
-  ! vir beta -> list_vir(:,2)
-  do si = 1, 2
-    idx_o = 1
-    idx_v = 1
-    do i = n_core_orb+1, mo_num
-      call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
-      if (ok) then
-        list_occ(idx_o,si) = i
-        idx_o = idx_o + 1
-      else
-        list_vir(idx_v,si) = i
-        idx_v = idx_v + 1
-      endif
-    enddo
-  enddo
-
-end
+!subroutine extract_list_orb(nO_m,nV_m,list_occ,list_vir)
+!
+!  implicit none
+!
+!  BEGIN_DOC
+!  ! Returns the the list of occupied alpha/beta, virtual alpha/beta spin orbitals
+!  END_DOC
+!  
+!  integer, intent(in)  :: nO_m, nV_m
+!  
+!  integer, intent(out) :: list_occ(nO_m,2), list_vir(nV_m,2)
+!  
+!  integer(bit_kind)    :: res(N_int,2)
+!  integer              :: i, si, idx_o, idx_v, idx_i, idx_b
+!  logical              :: ok
+!
+!  list_occ = 0
+!  list_vir = 0
+!
+!  ! List of occ/vir alpha/beta
+!
+!  ! occ alpha -> list_occ(:,1)
+!  ! occ beta -> list_occ(:,2)
+!  ! vir alpha -> list_vir(:,1)
+!  ! vir beta -> list_vir(:,2)
+!  do si = 1, 2
+!    idx_o = 1
+!    idx_v = 1
+!    do i = n_core_orb+1, mo_num
+!      call apply_hole(psi_det(:,:,1), si, i, res, ok, N_int)
+!      if (ok) then
+!        list_occ(idx_o,si) = i
+!        idx_o = idx_o + 1
+!      else
+!        list_vir(idx_v,si) = i
+!        idx_v = idx_v + 1
+!      endif
+!    enddo
+!  enddo
+!
+!end
 #+end_src
 
 * Integrals
 ** idx shift
-#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 subroutine shift_idx(s,n_S,shift)
 
   implicit none
@@ -1648,7 +1670,7 @@ end
 #+end_src
 
 ** F
-#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 subroutine gen_f_ints(n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
 
   implicit none
@@ -1704,7 +1726,7 @@ end
 #+end_src
 
 ** V
-#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
+#+begin_src f90 :comments org :notangle ccsd_spin_orb_sub.irp.f
 subroutine gen_v_ints(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3,dim4, v)
 
   implicit none

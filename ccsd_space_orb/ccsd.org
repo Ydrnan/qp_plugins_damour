@@ -12,6 +12,8 @@ program ccsd
 
   implicit none
 
+  read_wf = .True.
+
   call run_ccsd_space_orb
   
 end
@@ -26,7 +28,7 @@ subroutine run_ccsd_space_orb
   integer :: u,v,gam,beta,tmp_gam,tmp_beta
   integer :: nb_iter
   double precision :: get_two_e_integral
-  double precision :: energy, max_elem, max_r, max_r1, max_r2,ta,tb
+  double precision :: uncorr_energy,energy, max_elem, max_r, max_r1, max_r2,ta,tb
   logical :: not_converged
 
   double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
@@ -39,7 +41,6 @@ subroutine run_ccsd_space_orb
   integer, allocatable          :: list_occ(:), list_vir(:)
   integer(bit_kind)             :: det(N_int,2)
   integer                       :: nO, nV, nOa, nOb, nVa, nVb, n_spin(4)
-  
   
   PROVIDE mo_two_e_integrals_in_map
 
@@ -63,6 +64,8 @@ subroutine run_ccsd_space_orb
   
   allocate(list_occ(nO),list_vir(nV))
   call extract_list_orb_space(det,nO,nV,list_occ,list_vir)
+  print*,'occ',list_occ
+  print*,'vir',list_vir
   
   allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV), delta(nO,nO,nV,nV))
   allocate(tau(nO,nO,nV,nV))
@@ -85,7 +88,6 @@ subroutine run_ccsd_space_orb
     call abort
   endif
 
-  print*,'hf_energy', hf_energy
 
   ! Delta
   !do b = 1, nV
@@ -102,6 +104,11 @@ subroutine run_ccsd_space_orb
   call guess_t1(nO,nV,cc_space_f_o,cc_space_f_v,cc_space_f_ov,t1)
   call guess_t2(nO,nV,cc_space_f_o,cc_space_f_v,cc_space_v_oovv,t2)
   call update_tau_space(nO,nV,t1,t2,tau)
+  !print*,'hf_energy', hf_energy
+  call det_energy(det,uncorr_energy)
+  print*,'Det energy', uncorr_energy
+  call e_ccsd(nO,nV,tau,t1,energy)
+  print*,'Guess energy', uncorr_energy+energy, energy
   
   nb_iter = 0
   not_converged = .True.
@@ -131,7 +138,7 @@ subroutine run_ccsd_space_orb
     !print*,'Iter. n.:', nb_iter
     !print*,'E(CCSD)= ', hf_energy + energy, energy
     !print*,'r       :', max_r1, max_r2
-    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', hf_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
 
     nb_iter = nb_iter + 1
     if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
@@ -149,7 +156,7 @@ subroutine run_ccsd_space_orb
     write(*,'(A26,I6,A11)') ' Failed convergence after ', nb_iter, ' iterations'
   endif
   print*,''
-  write(*,'(A15,F18.12,A3)') ' E(CCSD)     = ', hf_energy+energy, ' Ha'
+  write(*,'(A15,F18.12,A3)') ' E(CCSD)     = ', uncorr_energy+energy, ' Ha'
   write(*,'(A15,F18.12,A3)') ' Correlation = ', energy, ' Ha'
   write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
   print*,''

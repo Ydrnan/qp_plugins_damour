@@ -2,23 +2,31 @@
 ** Space
 *** F
 #+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
-subroutine gen_f_space(n1,n2,list1,list2,f)
+subroutine gen_f_space(det,n1,n2,list1,list2,f)
 
   implicit none
 
   integer, intent(in)           :: n1,n2
   integer, intent(in)           :: list1(n1),list2(n2)
+  integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(out) :: f(n1,n2)
 
+  double precision, allocatable :: tmp_F(:,:)
   integer                       :: i1,i2,idx1,idx2
+
+  allocate(tmp_F(mo_num,mo_num))
+  
+  call get_fock_matrix_spin(det,1,tmp_F)
   
   do i2 = 1, n2
     idx2 = list2(i2)
     do i1 = 1, n1
       idx1 = list1(i1)
-      f(i1,i2) = fock_matrix_mo(idx1,idx2)
+      f(i1,i2) = tmp_F(idx1,idx2)
     enddo
   enddo
+
+  deallocate(tmp_F)
   
 end
 #+end_src
@@ -298,7 +306,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_oo, (cc_nO, cc_nO)]
 
   implicit none
 
-  call gen_f_space(cc_nO,cc_nO, cc_list_occ,cc_list_occ, cc_space_f_oo)
+  call gen_f_space(psi_det(1,1,1), cc_nO,cc_nO, cc_list_occ,cc_list_occ, cc_space_f_oo)
 
 END_PROVIDER
 #+end_src
@@ -309,7 +317,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_ov, (cc_nO, cc_nV)]
 
   implicit none
 
-  call gen_f_space(cc_nO,cc_nV, cc_list_occ,cc_list_vir, cc_space_f_ov)
+  call gen_f_space(psi_det(1,1,1), cc_nO,cc_nV, cc_list_occ,cc_list_vir, cc_space_f_ov)
 
 END_PROVIDER
 #+end_src
@@ -320,7 +328,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_vo, (cc_nV, cc_nO)]
 
   implicit none
 
-  call gen_f_space(cc_nV,cc_nO, cc_list_vir,cc_list_occ, cc_space_f_vo)
+  call gen_f_space(psi_det(1,1,1), cc_nV,cc_nO, cc_list_vir,cc_list_occ, cc_space_f_vo)
 
 END_PROVIDER
 #+end_src
@@ -331,7 +339,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_vv, (cc_nV, cc_nV)]
 
   implicit none
 
-  call gen_f_space(cc_nV,cc_nV, cc_list_vir,cc_list_vir, cc_space_f_vv)
+  call gen_f_space(psi_det(1,1,1), cc_nV,cc_nV, cc_list_vir,cc_list_vir, cc_space_f_vv)
 
 END_PROVIDER
 #+end_src
@@ -571,7 +579,7 @@ end
 
 * Old
 ** vcc
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc, (dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb)]
 
   implicit none
@@ -636,7 +644,7 @@ END_PROVIDER
 #+END_SRC
 
 ** ppqq
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ppqq, (dim_list_inact_virt_no_core_orb, dim_list_inact_virt_no_core_orb)]
 
   implicit none
@@ -659,7 +667,7 @@ END_PROVIDER
 #+END_SRC
 
 ** aaii
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_aaii, (dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
@@ -685,7 +693,7 @@ END_PROVIDER
 #+END_SRC
 
 ** iiaa
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_iiaa, (dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -711,7 +719,7 @@ END_PROVIDER
 #+END_SRC
 
 ** iijj
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_iijj, (dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -735,7 +743,7 @@ END_PROVIDER
 #+END_SRC
 
 ** aabb
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_aabb, (dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -760,7 +768,7 @@ END_PROVIDER
 #+END_SRC
 
 ** iaia
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_iaia, (dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -786,7 +794,7 @@ END_PROVIDER
 #+END_SRC
 
 ** iaai
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_iaai, (dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -812,7 +820,7 @@ END_PROVIDER
 #+END_SRC
 
 ** aiia
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_aiia, (dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
@@ -840,7 +848,7 @@ END_PROVIDER
 ** integrals
 
 *** vcc_oooo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_oooo, (dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -869,7 +877,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_oovv
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_oovv, (dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -902,7 +910,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vvoo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vvoo, (dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -935,7 +943,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_ovvo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ovvo, (dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
@@ -968,7 +976,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_ovov
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ovov, (dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1001,7 +1009,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vvvv
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vvvv, (dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1036,7 +1044,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vooo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vooo, (dim_list_virt_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -1068,7 +1076,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_ovoo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ovoo, (dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -1100,7 +1108,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_oovo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_oovo, (dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
@@ -1132,7 +1140,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_ooov
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ooov, (dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1164,7 +1172,7 @@ END_PROVIDER
 #+END_SRC
 
 *** wcc_oovv 
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, wcc_oovv, (dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1197,7 +1205,7 @@ END_PROVIDER
 #+END_SRC
 
 *** wcc_vvoo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, wcc_vvoo, (dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_inact_orb)]
 
   implicit none
@@ -1230,7 +1238,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_ovvv
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_ovvv, (dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1264,7 +1272,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vovv
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vovv, (dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1298,7 +1306,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vvov
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vvov, (dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none
@@ -1332,7 +1340,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vvvo
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_vvvo, (dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)]
 
   implicit none
@@ -1366,7 +1374,7 @@ END_PROVIDER
 #+END_SRC
 
 *** vcc_vvov
-#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+#+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f
 BEGIN_PROVIDER [double precision, vcc_voov, (dim_list_virt_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb)]
 
   implicit none

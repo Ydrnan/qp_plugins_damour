@@ -75,7 +75,7 @@ subroutine extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
   ! occ beta -> list_occ(:,2)
   ! vir alpha -> list_vir(:,1)
   ! vir beta -> list_vir(:,2)
-  
+
   ! Loop over the spin 
   do si = 1, 2
     ! tmp idx

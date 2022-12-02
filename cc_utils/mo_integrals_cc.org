@@ -233,6 +233,64 @@ BEGIN_PROVIDER [double precision, cc_space_v_vvvv, (cc_nV, cc_nV, cc_nV, cc_nV)]
 END_PROVIDER
 #+end_src
 
+*** W
+**** oovv
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_w_oovv, (cc_nO, cc_nO, cc_nV, cc_nV)]
+
+  implicit none
+
+  double precision, allocatable :: tmp_v(:,:,:,:)
+  integer :: i,j,a,b
+
+  allocate(tmp_v(cc_nO,cc_nO,cc_nV,cc_nV))
+  
+  call gen_v_space(cc_nO,cc_nO,cc_nV,cc_nV, cc_list_occ,cc_list_occ,cc_list_vir,cc_list_vir, tmp_v)
+
+  do b = 1, cc_nV
+    do a = 1, cc_nV
+      do j = 1, cc_nO
+        do i = 1, cc_nO
+          cc_space_w_oovv(i,j,a,b) = 2d0 * tmp_v(i,j,a,b) - tmp_v(j,i,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(tmp_v)
+
+END_PROVIDER
+#+end_src
+
+**** vvoo
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_w_vvoo, (cc_nV, cc_nV, cc_nO, cc_nO)]
+
+  implicit none
+
+  double precision, allocatable :: tmp_v(:,:,:,:)
+  integer :: i,j,a,b
+
+  allocate(tmp_v(cc_nV,cc_nV,cc_nO,cc_nO))
+  
+  call gen_v_space(cc_nV,cc_nV,cc_nO,cc_nO, cc_list_vir,cc_list_vir,cc_list_occ,cc_list_occ, tmp_v)
+  
+  do j = 1, cc_nO
+    do i = 1, cc_nO
+      do b = 1, cc_nV
+        do a = 1, cc_nV
+          cc_space_w_vvoo(a,b,i,j) = 2d0 * tmp_v(a,b,i,j) - tmp_v(b,a,i,j)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(tmp_v)
+
+END_PROVIDER
+#+end_src
+
+
 *** F
 **** F_oo
 #+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f

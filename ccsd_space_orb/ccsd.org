@@ -80,14 +80,7 @@ subroutine run_ccsd_space_orb
   if (elec_alpha_num /= elec_beta_num) then
     print*, 'Only for closed shell systems'
     print*, 'elec_alpha_num=',elec_alpha_num
-    print*, 'elec_beta_num=',elec_beta_num
-    print*, 'abort'
-    call abort
-  endif
-  if (n_inact_orb == 0 .or. n_virt_orb == 0) then
-    print*, 'Set the mo_class before the calculation'
-    print*, 'for the occupied orbitals -> inactives'
-    print*, 'for the virtual orbitals -> virtuals'
+    print*, 'elec_beta_num =',elec_beta_num
     print*, 'abort'
     call abort
   endif
@@ -174,8 +167,8 @@ subroutine run_ccsd_space_orb
   !double precision :: e_ccsdt
 
   !if (elec_alpha_num + elec_beta_num > 2) then 
-  !  allocate(W1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
-  !  allocate(V1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb))
+  !  allocate(W1(nO, nO, nO, nV, nV, nV))
+  !  allocate(V1(nO, nO, nO, nV, nV, nV))
 
   !  call form_w(t2,W1)
   !  call form_v(t1,w1,v1)
@@ -222,7 +215,7 @@ subroutine e_ccsd(nO,nV,tau,t1,energy)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-          energy = energy + tau(i,j,a,b) * wcc_oovv(i,j,a,b)
+          energy = energy + tau(i,j,a,b) * cc_space_w_oovv(i,j,a,b)
        enddo
       enddo
     enddo
@@ -252,9 +245,9 @@ subroutine compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
 
   allocate(H_oo(nO,nO), H_vv(nV,nV), H_vo(nV,nO))
   
-  call compute_H_oo(t1,t2,tau,H_oo)
-  call compute_H_vv(t1,t2,tau,H_vv)
-  call compute_H_vo(t1,t2,H_vo)
+  call compute_H_oo(nO,nV,t1,t2,tau,H_oo)
+  call compute_H_vv(nO,nV,t1,t2,tau,H_vv)
+  call compute_H_vo(nO,nV,t1,t2,H_vo)
 
   do beta = 1, nV
     do u = 1, nO
@@ -480,20 +473,17 @@ end
 *** Intermediates
 **** H_oo
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_H_oo(t1,t2,tau,H_oo)
+subroutine compute_H_oo(nO,nV,t1,t2,tau,H_oo)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: H_oo(dim_list_inact_orb, dim_list_inact_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: tau(nO, nO, nV, nV)
+  double precision, intent(out) :: H_oo(nO, nO)
 
   integer :: a,tmp_a,k,b,l,c,d,tmp_c,tmp_d,i,j,u
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   !H_oo = 0d0
 
@@ -505,8 +495,8 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
   !      do a = 1, nV
   !        do b = 1, nV
   !          !H_oo(u,i) = H_oo(u,i) + (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * tau(u,j,a,b)
-  !          !H_oo(u,i) = H_oo(u,i) + wcc_vvoo(a,b,i,j) * tau(u,j,a,b)
-  !          H_oo(u,i) = H_oo(u,i) + wcc_oovv(i,j,a,b) * tau(u,j,a,b)
+  !          !H_oo(u,i) = H_oo(u,i) + cc_space_w_vvoo(a,b,i,j) * tau(u,j,a,b)
+  !          H_oo(u,i) = H_oo(u,i) + cc_space_w_oovv(i,j,a,b) * tau(u,j,a,b)
   !        enddo
   !      enddo
   !    enddo
@@ -521,11 +511,11 @@ subroutine compute_H_oo(t1,t2,tau,H_oo)
     enddo
   enddo
 
-  ! H_oo(u,i) += wcc_oovv(i,j,a,b) * tau(u,j,a,b)
-  ! H_oo(u,i) += tau(u,j,a,b) * wcc_oovv(i,j,a,b)
+  ! H_oo(u,i) += cc_space_w_oovv(i,j,a,b) * tau(u,j,a,b)
+  ! H_oo(u,i) += tau(u,j,a,b) * cc_space_w_oovv(i,j,a,b)
   call dgemm('N','T', nO, nO, nO*nV*nV,       &
              1d0, tau     , size(tau,1),      &
-                  wcc_oovv, size(wcc_oovv,1), &
+                  cc_space_w_oovv, size(cc_space_w_oovv,1), &
              1d0, H_oo    , size(H_oo,1))     
   
 end
@@ -533,20 +523,17 @@ end
 
 **** H_vv
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_H_vv(t1,t2,tau,H_vv)
+subroutine compute_H_vv(nO,nV,t1,t2,tau,H_vv)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: H_vv(dim_list_virt_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: tau(nO, nO, nV, nV)
+  double precision, intent(out) :: H_vv(nV, nV)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   !H_vv = 0d0
 
@@ -558,7 +545,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
   !      do i = 1, nO
   !        do b = 1, nV
   !          !H_vv(a,beta) = H_vv(a,beta) - (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(a,b,j,i)) * tau(i,j,beta,b)
-  !          H_vv(a,beta) = H_vv(a,beta) - wcc_vvoo(a,b,i,j) * tau(i,j,beta,b)
+  !          H_vv(a,beta) = H_vv(a,beta) - cc_space_w_vvoo(a,b,i,j) * tau(i,j,beta,b)
   !        enddo
   !      enddo
   !    enddo
@@ -577,8 +564,8 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
     enddo
   enddo
 
-  ! H_vv(a,beta) = H_vv(a,beta) - wcc_vvoo(a,b,i,j) * tau(i,j,beta,b)
-  ! H_vv(a,beta) = H_vv(a,beta) - wcc_vvoo(a,b,i,j) * tmp_tau(b,i,j,beta)
+  ! H_vv(a,beta) = H_vv(a,beta) - cc_space_w_vvoo(a,b,i,j) * tau(i,j,beta,b)
+  ! H_vv(a,beta) = H_vv(a,beta) - cc_space_w_vvoo(a,b,i,j) * tmp_tau(b,i,j,beta)
   do beta = 1, nV
     do j = 1, nO
       do i = 1, nO
@@ -590,7 +577,7 @@ subroutine compute_H_vv(t1,t2,tau,H_vv)
   enddo
 
   call dgemm('N','N',nV,nV,nO*nO*nV,           &
-             -1d0, wcc_vvoo, size(wcc_vvoo,1), &
+             -1d0, cc_space_w_vvoo, size(cc_space_w_vvoo,1), &
                    tmp_tau , size(tmp_tau,1) * size(tmp_tau,2) * size(tmp_tau,3), &
               1d0, H_vv    , size(H_vv,1))
 
@@ -601,19 +588,16 @@ end
 
 **** H_vo
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_H_vo(t1,t2,H_vo)
+subroutine compute_H_vo(nO,nV,t1,t2,H_vo)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: H_vo(dim_list_virt_orb, dim_list_inact_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: H_vo(nV, nO)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u, beta
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   !H_vo = 0d0
 
@@ -624,7 +608,7 @@ subroutine compute_H_vo(t1,t2,H_vo)
   !    do j = 1, nO
   !      do b = 1, nV
   !        !H_vo(a,i) = H_vo(a,i) + (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t1(j,b)
-  !        H_vo(a,i) = H_vo(a,i) + wcc_vvoo(a,b,i,j) * t1(j,b)
+  !        H_vo(a,i) = H_vo(a,i) + cc_space_w_vvoo(a,b,i,j) * t1(j,b)
   !      enddo
   !    enddo
   !    
@@ -641,14 +625,14 @@ subroutine compute_H_vo(t1,t2,H_vo)
     enddo
   enddo
 
-  ! H_vo(a,i) = H_vo(a,i) + wcc_vvoo(a,b,i,j) * t1(j,b)
+  ! H_vo(a,i) = H_vo(a,i) + cc_space_w_vvoo(a,b,i,j) * t1(j,b)
   ! H_vo(a,i) = H_vo(a,i) + w(a,i,j,b) * t1(j,b)
   
   do b = 1, nV
     do j = 1, nO
       do i = 1, nO
         do a = 1, nV
-          w(a,i,j,b) = wcc_vvoo(a,b,i,j)
+          w(a,i,j,b) = cc_space_w_vvoo(a,b,i,j)
         enddo
       enddo
     enddo
@@ -689,15 +673,15 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
   allocate(A1(nO,nO,nO,nO), B1(nV,nV,nV,nV))
   allocate(H_oo(nO,nO), H_vv(nV,nV), H_vo(nV,nO))
   
-  call compute_H_oo(t1,t2,tau,H_oo)
-  call compute_H_vv(t1,t2,tau,H_vv)
-  call compute_H_vo(t1,t2,H_vo)
-  call compute_g_occ(t1,t2,H_oo,g_occ)
-  call compute_g_vir(t1,t2,H_vv,g_vir)
-  call compute_A1(t1,t2,tau,A1)
-  call compute_B1(t1,t2,B1)
-  call compute_J1(t1,t2,J1)
-  call compute_K1(t1,t2,K1)
+  call compute_H_oo(nO,nV,t1,t2,tau,H_oo)
+  call compute_H_vv(nO,nV,t1,t2,tau,H_vv)
+  call compute_H_vo(nO,nV,t1,t2,H_vo)
+  call compute_g_occ(nO,nV,t1,t2,H_oo,g_occ)
+  call compute_g_vir(nO,nV,t1,t2,H_vv,g_vir)
+  call compute_A1(nO,nV,t1,t2,tau,A1)
+  call compute_B1(nO,nV,t1,t2,B1)
+  call compute_J1(nO,nV,t1,t2,J1)
+  call compute_K1(nO,nV,t1,t2,K1)
 
   ! Residual
   r2 = 0d0
@@ -807,20 +791,17 @@ end
 *** Intermediates
 **** A1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_A1(t1,t2,tau,A1)
+subroutine compute_A1(nO,nV,t1,t2,tau,A1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: tau(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: A1(dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb, dim_list_inact_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: tau(nO, nO, nV, nV)
+  double precision, intent(out) :: A1(nO, nO, nO, nO)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   !A1 = 0d0
 
@@ -904,19 +885,16 @@ end
 
 **** B1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_B1(t1,t2,B1)
+subroutine compute_B1(nO,nV,t1,t2,B1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: B1(dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: B1(nV, nV, nV, nV)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   !B1 = 0d0
 
@@ -991,19 +969,16 @@ end
 
 **** g_occ
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_g_occ(t1,t2,H_oo,g_occ)
+subroutine compute_g_occ(nO,nV,t1,t2,H_oo,g_occ)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb), H_oo(dim_list_inact_orb, dim_list_inact_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: g_occ(dim_list_inact_orb, dim_list_inact_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV), H_oo(nO, nO)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: g_occ(nO, nO)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   g_occ = 0d0
 
@@ -1027,19 +1002,16 @@ end
 
 **** g_vir
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_g_vir(t1,t2,H_vv,g_vir)
+subroutine compute_g_vir(nO,nV,t1,t2,H_vv,g_vir)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb), H_vv(dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: g_vir(dim_list_virt_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV), H_vv(nV, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: g_vir(nV, nV)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   g_vir = 0d0
 
@@ -1063,19 +1035,16 @@ end
 
 **** J1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_J1(t1,t2,J1)
+subroutine compute_J1(nO,nV,t1,t2,J1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: J1(dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb, dim_list_inact_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: J1(nO, nV, nV, nO)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   J1 = 0d0
 
@@ -1113,19 +1082,16 @@ end
 
 **** K1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_K1(t1,t2,K1)
+subroutine compute_K1(nO,nV,t1,t2,K1)
 
   implicit none
 
-  double precision, intent(in)  :: t1(dim_list_inact_orb, dim_list_virt_orb)
-  double precision, intent(in)  :: t2(dim_list_inact_orb, dim_list_inact_orb, dim_list_virt_orb, dim_list_virt_orb)
-  double precision, intent(out) :: K1(dim_list_inact_orb, dim_list_virt_orb, dim_list_inact_orb, dim_list_virt_orb)
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO, nV)
+  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(out) :: K1(nO, nV, nO, nV)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
-  integer :: nO,nV
-
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
 
   K1 = 0d0
 

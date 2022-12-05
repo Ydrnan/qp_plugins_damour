@@ -88,7 +88,6 @@ subroutine run_ccsd_space_orb
     call abort
   endif
 
-
   ! Delta
   !do b = 1, nV
   !  do a = 1, nV
@@ -121,12 +120,12 @@ subroutine run_ccsd_space_orb
   call wall_time(ta)
   
   do while (not_converged)
-  
+    
     ! Residue
     call compute_r1(nO,nV,t1,t2,tau,r1,max_r1)
     call compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
     max_r = max(max_r1,max_r2)
-
+    
     ! Update
     !call update_t_ccsd(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
     call update_t_ccsd_v2(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)

@@ -1,0 +1,134 @@
+* CCSD(T) spin orb
+
+Ref:
+John D. Watts, Jürgen Gauss, and Rodney J. Bartlett
+J. Chem. Phys. 98, 8718 (1993)
+http://dx.doi.org/10.1063/1.464480
+
+#+begin_src f90 :comments org :tangle ccsd_t_sub.irp.f
+subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
+
+  implicit none
+
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  double precision, intent(in)  :: f_o(nO), f_v(nV), f_ov(nO,nV)
+  double precision, intent(in)  :: v_ooov(nO,nO,nO,nV)
+  double precision, intent(in)  :: v_vvoo(nV,nV,nO,nO), v_vvvo(nV,nV,nV,nO)
+  double precision, intent(out) :: energy
+
+  double precision, allocatable :: t3(:,:,:,:,:,:), s(:,:)
+  double precision              :: e_t, e_st, e_dt, delta_abc, delta
+  integer                       :: i,j,k,l,m,a,b,c,d,e
+
+  allocate(t3(nO,nO,nO,nV,nV,nV), s(nO,nV))
+
+  ! T3
+  do c = 1, nV
+    do b = 1, nV
+      do a = 1, nV
+        delta_abc = f_v(a) + f_v(b) + f_v(c)
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              delta = f_o(i) + f_o(j) + f_o(k) - delta_abc
+              do e = 1, nV
+                t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+                  + t2(j,k,a,e) * v_vvvo(b,c,e,i) &
+                  - t2(i,k,a,e) * v_vvvo(b,c,e,j) & ! - P(ij)
+                  - t2(j,i,a,e) * v_vvvo(b,c,e,k) & ! - P(ik)
+                  - t2(j,k,b,e) * v_vvvo(a,c,e,i) & ! - P(ab)
+                  - t2(j,k,c,e) * v_vvvo(b,a,e,i) & ! - P(ac)
+                  + t2(i,k,b,e) * v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
+                  + t2(i,k,c,e) * v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
+                  + t2(j,i,b,e) * v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
+                  + t2(j,i,c,e) * v_vvvo(b,a,e,k)  ! + P(ik) P(ac)
+              enddo
+              do m = 1, nO
+                t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+                  + t2(m,i,b,c) * v_ooov(j,k,m,a) &
+                  - t2(m,j,b,c) * v_ooov(i,k,m,a) & ! - P(ij)
+                  - t2(m,k,b,c) * v_ooov(j,i,m,a) & ! - P(ik)
+                  - t2(m,i,a,c) * v_ooov(j,k,m,b) & ! - P(ab)
+                  - t2(m,i,b,a) * v_ooov(j,k,m,c) & ! - P(ac)
+                  + t2(m,j,a,c) * v_ooov(i,k,m,b) & ! + P(ij) P(ab)
+                  + t2(m,j,b,a) * v_ooov(i,k,m,c) & ! + P(ij) P(ac)
+                  + t2(m,k,a,c) * v_ooov(j,i,m,b) & ! + P(ik) P(ab)
+                  + t2(m,k,b,a) * v_ooov(j,i,m,c)  ! + P(ik) P(ac)
+              enddo
+              t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) * (1d0 / delta)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+  
+
+  ! E_T
+  e_t = 0d0
+  do c = 1, nV
+    do b = 1, nV
+      do a = 1, nV
+        delta_abc = f_v(a) + f_v(b) + f_v(c)
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              delta = f_o(i) + f_o(j) + f_o(k) - delta_abc
+              e_t = e_t + t3(i,j,k,a,b,c) * delta * t3(i,j,k,a,b,c)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+  e_t = e_t / 36d0
+
+  ! E_ST
+  s = 0d0
+  do c = 1, nV
+    do b = 1, nV
+      do a = 1, nV
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              s(i,a) = s(i,a) + v_vvoo(b,c,j,k) * t3(i,j,k,a,b,c)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+
+  e_st = 0d0
+  do a = 1, nV
+    do i = 1, nO
+      e_st = e_st + s(i,a) * t1(i,a)
+    enddo
+  enddo
+  e_st = e_st * 0.25d0
+
+  ! E_DT
+  e_dt = 0d0
+  do c = 1, nV
+    do b = 1, nV
+      do a = 1, nV
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              e_dt = e_dt + t2(i,j,a,b) * f_ov(k,c) * t3(i,j,k,a,b,c)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+  e_dt = e_dt * 0.25d0
+
+  ! (T)
+  energy = e_t + e_st + e_dt
+
+  deallocate(t3,s)
+  
+end
+#+end_src

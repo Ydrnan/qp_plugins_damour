@@ -265,8 +265,15 @@ subroutine run_ccsd_spin_orb_sub
   call write_t1(nO,nV,t1)
   call write_t2(nO,nV,t2)
 
+  if (cc_par_t) then
+    double precision :: t_corr
+    call compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
+    write(*,'(A15,F18.12,A3)') ' E(CCSD(T))  = ', uncorr_energy + energy + t_corr, ' Ha'
+    write(*,'(A15,F18.12,A3)') ' E(T)        = ', t_corr, ' Ha'
+    write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + t_corr, ' Ha'
+  endif
+  
   ! Deallocate
-
   if (cc_update_method == 'diis') then
     deallocate(all_err1,all_err2,all_t1,all_t2)
   endif

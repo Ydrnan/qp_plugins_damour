@@ -50,7 +50,7 @@ subroutine run_extract_c
   
   allocate(list_occ(nO_m,2), list_vir(nV_m,2))
   allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
-  call extract_list_orb(nO_m,nV_m,list_occ,list_vir)
+  call extract_list_orb_spin(nO_m,nV_m,list_occ,list_vir)
 
   do i = 1, nOa
     list_spin_occ(i,1) = i

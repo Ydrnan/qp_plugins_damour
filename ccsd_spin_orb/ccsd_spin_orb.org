@@ -86,7 +86,7 @@ subroutine run_ccsd_spin_orb_sub
   allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
   allocate(r1(nO,nV), r2(nO,nO,nV,nV))
   allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
-  allocate(cW_oooo(nO,nO,nV,nV), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
+  allocate(cW_oooo(nO,nO,nO,nO), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
   allocate(v_oooo(nO,nO,nO,nO))
   allocate(v_vooo(nV,nO,nO,nO))
   allocate(v_ovoo(nO,nV,nO,nO))
@@ -226,8 +226,16 @@ subroutine run_ccsd_spin_orb_sub
     max_r  = max(max_r1,max_r2)
 
     ! Update
-    !call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
-    call update_t_ccsd_v2(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    if (cc_update_method == 'diis') then
+      !call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+      call update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    ! Standard update as T = T - Delta
+    elseif (cc_update_method == 'none') then
+      call update_t1(nO,nV,f_o,f_v,r1,t1)
+      call update_t2(nO,nV,f_o,f_v,r2,t2)
+    else
+      print*,'Unkonw cc_method_method: '//cc_update_method
+    endif
 
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
@@ -267,6 +275,7 @@ subroutine run_ccsd_spin_orb_sub
 
   if (cc_par_t) then
     double precision :: t_corr
+    print*, nO,nV
     call compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
     write(*,'(A15,F18.12,A3)') ' E(CCSD(T))  = ', uncorr_energy + energy + t_corr, ' Ha'
     write(*,'(A15,F18.12,A3)') ' E(T)        = ', t_corr, ' Ha'

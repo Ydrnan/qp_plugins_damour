@@ -33,7 +33,7 @@ $$\sum_{jb} v_{bb}^{jj} t_j^a t_i^b=\sum_j X_i^j t_j^a = U_{5_i}^a$$
 with $fcc_q^p$ an element of the Fock operator and $v_{rs}^{pq}$ is a
 bi-electronic integral.
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine r2_pccd(nO, nV, t2, U1, U2, U3, U4, U5, r2)
   
   implicit none
@@ -59,11 +59,11 @@ subroutine r2_pccd(nO, nV, t2, U1, U2, U3, U4, U5, r2)
   r2 = 0d0
   do a = 1, nV
      do i = 1, nO
-        r2(i,a) = vcc_iiaa(i,a) &
+        r2(i,a) = cc_space_v_iiaa(i,a) &
           + 2d0 *(fcc_v(a) - fcc_o(i) - U1(a) - U2(i)) * t2(i,a) &
-          - 2d0*(2d0 * vcc_iaia(i,a) &
-          - vcc_aiia(a,i) &
-          - vcc_aaii(a,i) * t2(i,a)) * t2(i,a) &
+          - 2d0*(2d0 * cc_space_v_iaia(i,a) &
+          - cc_space_v_aiia(a,i) &
+          - cc_space_v_aaii(a,i) * t2(i,a)) * t2(i,a) &
           + U3(i,a) + U4(i,a) + U5(i,a)
      enddo
    enddo
@@ -72,7 +72,7 @@ end
 #+END_SRC
 
 * Intermediates
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine U1_pccd(nO, nV, t2, U1)
   
   implicit none
@@ -91,7 +91,7 @@ subroutine U1_pccd(nO, nV, t2, U1)
   U1 = 0d0
   do a = 1, nV
     do j = 1, nO
-      U1(a) = U1(a) + t2(j,a) * vcc_aaii(a,j)
+      U1(a) = U1(a) + t2(j,a) * cc_space_v_aaii(a,j)
     enddo
   enddo
 
@@ -100,7 +100,7 @@ subroutine U1_pccd(nO, nV, t2, U1)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine U2_pccd(nO, nV, t2, U2)
   
   implicit none
@@ -119,14 +119,14 @@ subroutine U2_pccd(nO, nV, t2, U2)
   U2 = 0d0
   do i = 1, nO
     do b = 1, nV
-      U2(i) = U2(i) + t2(i,b) * vcc_aaii(b,i)
+      U2(i) = U2(i) + t2(i,b) * cc_space_v_aaii(b,i)
     enddo
   enddo
 
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine U3_pccd(nO, nV, t2, U3)
   
   implicit none
@@ -146,20 +146,20 @@ subroutine U3_pccd(nO, nV, t2, U3)
   !do a = 1, nV
   !  do i = 1, nO
   !    do b = 1, nV
-  !       U3(i,a) = U3(i,a) + t2(i,b) * vcc_aabb(b,a)
+  !       U3(i,a) = U3(i,a) + t2(i,b) * cc_space_v_aabb(b,a)
   !    enddo
   !  enddo
   !enddo
 
   call dgemm('N','N', nO, nV, nV, &
              1d0, t2, size(t2,1), &
-                  vcc_aabb, size(vcc_aabb,1), &
+                  cc_space_v_aabb, size(cc_space_v_aabb,1), &
              0d0, U3, size(U3,1))
   
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine U4_pccd(nO, nV, t2, U4)
   
   implicit none
@@ -181,20 +181,20 @@ subroutine U4_pccd(nO, nV, t2, U4)
   !do a = 1, nV
   !  do i = 1, nO
   !    do j = 1, nO
-  !      U4(i,a) = U4(i,a) + t2(j,a) * vcc_iijj(i,j)
+  !      U4(i,a) = U4(i,a) + t2(j,a) * cc_space_v_iijj(i,j)
   !    enddo
   !  enddo
   !enddo
 
   call dgemm('N','N', nO, nV, nO, &
-             1d0, vcc_iijj, size(vcc_iijj,1), &
+             1d0, cc_space_v_iijj, size(cc_space_v_iijj,1), &
                   t2, size(t2,1), &
              0d0, U4, size(U4,1))
 
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine U5_pccd(nO, nV, t2, X, U5)
   
   implicit none
@@ -227,7 +227,7 @@ subroutine U5_pccd(nO, nV, t2, X, U5)
 end  
 #+END_SRC
 
-#+BEGIN_SRC f90 :comments org :tangle r2.irp.f
+#+BEGIN_SRC f90 :comments org :tangle residue.irp.f
 subroutine X_pccd(nO, nV, t2,X)
   
   implicit none
@@ -247,13 +247,13 @@ subroutine X_pccd(nO, nV, t2,X)
   !do i = 1, nO
   !  do j = 1, nO
   !    do b = 1, nV
-  !      X(i,j) = X(i,j) + t2(i,b) * vcc_aaii(b,j)
+  !      X(i,j) = X(i,j) + t2(i,b) * cc_space_v_aaii(b,j)
   !    enddo
   !  enddo
   !enddo
 
   call dgemm('N','N', nO, nO, nV, &
-             1d0, t2, size(t2,1), vcc_aaii, size(vcc_aaii,1), &
+             1d0, t2, size(t2,1), cc_space_v_aaii, size(cc_space_v_aaii,1), &
              0d0, X, size(X,1))
 
 end  

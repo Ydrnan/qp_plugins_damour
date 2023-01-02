@@ -16,13 +16,8 @@ subroutine run_pccd
   logical                       :: not_converged
   integer                       :: nO, nV
 
-  nO = dim_list_inact_orb
-  nV = dim_list_virt_orb
-  
-  if (n_inact_orb == 0 .or. n_virt_orb == 0) then
-     print*,'Set the mo classes before, abort'
-     call abort
-  endif
+  nO = cc_nO
+  nV = cc_nV
   
   print*,''
   print*,'---run_pccd---'

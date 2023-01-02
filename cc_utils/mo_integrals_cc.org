@@ -241,6 +241,207 @@ BEGIN_PROVIDER [double precision, cc_space_v_vvvv, (cc_nV, cc_nV, cc_nV, cc_nV)]
 END_PROVIDER
 #+end_src
 
+**** ppqq
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_ppqq, (cc_n_mo, cc_n_mo)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <pp|qq> integrals for general MOs (excepted core and deleted ones)
+  END_DOC
+
+  integer                       :: p,q
+  double precision, allocatable :: tmp_v(:,:,:,:)
+
+  allocate(tmp_v(cc_n_mo,cc_n_mo,cc_n_mo,cc_n_mo))
+
+  call gen_v_space(cc_n_mo,cc_n_mo,cc_n_mo,cc_n_mo, cc_list_gen,cc_list_gen,cc_list_gen,cc_list_gen, tmp_v)
+  
+  do q = 1, cc_n_mo
+    do p = 1, cc_n_mo
+      cc_space_v_ppqq(p,q) = tmp_v(p,p,q,q)
+    enddo
+  enddo
+
+  deallocate(tmp_v)
+
+END_PROVIDER
+#+END_SRC
+
+**** aaii
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_aaii, (cc_nV,cc_nO)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <aa|ii> integrals
+  ! a: virtual MO
+  ! i: occupied MO
+  END_DOC
+
+  integer :: a,i
+
+  do i = 1, cc_nO
+    do a = 1, cc_nV
+      cc_space_v_aaii(a,i) = cc_space_v_vvoo(a,a,i,i)
+    enddo
+  enddo
+
+  FREE cc_space_v_vvoo
+
+END_PROVIDER
+#+END_SRC
+
+**** iiaa
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_iiaa, (cc_nO,cc_nV)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <ii|aa> integrals
+  ! a: virtual MO
+  ! i: occupied MO
+  END_DOC
+
+  integer :: a,i
+
+  do a = 1, cc_nV
+    do i = 1, cc_nO
+      cc_space_v_iiaa(i,a) = cc_space_v_oovv(i,i,a,a)
+    enddo
+  enddo
+
+  FREE cc_space_v_oovv
+
+END_PROVIDER
+#+END_SRC
+
+**** iijj
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_iijj, (cc_nO,cc_nO)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <ii|jj> integrals
+  ! i,j: occupied MO
+  END_DOC
+
+  integer :: i,j
+
+  do j = 1, cc_nO
+    do i = 1, cc_nO
+      cc_space_v_iijj(i,j) = cc_space_v_oooo(i,i,j,j)
+    enddo
+  enddo
+
+  FREE cc_space_v_oooo
+
+END_PROVIDER
+#+END_SRC
+
+**** aabb
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_aabb, (cc_nV,cc_nV)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <aa|bb> integrals
+  ! a,b: virtual MO
+  END_DOC
+
+  integer :: a,b
+
+  do b = 1, cc_nV
+    do a = 1, cc_nV
+      cc_space_v_aabb(a,b) = cc_space_v_vvvv(a,a,b,b)
+    enddo
+  enddo
+
+  FREE cc_space_v_vvvv
+  
+END_PROVIDER
+#+END_SRC
+
+**** iaia
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_iaia, (cc_nO,cc_nV)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <ia|ia> integrals
+  ! a: virtual MO
+  ! i: occupied MO
+  END_DOC
+
+  integer :: a,i
+
+  do a = 1, cc_nV
+    do i = 1, cc_nO
+      cc_space_v_iaia(i,a) = cc_space_v_ovov(i,a,i,a)
+    enddo
+  enddo
+
+  FREE cc_space_v_ovov
+
+END_PROVIDER
+#+END_SRC
+
+**** iaai
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_iaai, (cc_nO,cc_nV)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <ia|ai> integrals
+  ! a: virtual MO
+  ! i: inactive MO
+  END_DOC
+
+  integer :: a,i
+
+  do a = 1, cc_nV
+    do i = 1, cc_nO
+      cc_space_v_iaai(i,a) = cc_space_v_ovvo(i,a,a,i)
+    enddo
+  enddo
+
+  FREE cc_space_v_ovvo
+
+END_PROVIDER
+#+END_SRC
+
+**** aiia
+#+BEGIN_SRC f90 :comments org :tangle mo_integrals_cc.irp.f
+BEGIN_PROVIDER [double precision, cc_space_v_aiia, (cc_nV,cc_nO)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! <ai|ia> integrals
+  ! a: virtual MO
+  ! i: inactive MO
+  END_DOC
+
+  integer :: a,i
+
+  do i = 1, cc_nO
+    do a = 1, cc_nV
+      cc_space_v_aiia(a,i) = cc_space_v_voov(a,i,i,a)
+    enddo
+  enddo
+
+  FREE cc_space_v_voov
+
+END_PROVIDER
+#+END_SRC
+
 *** W
 **** oovv
 #+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
@@ -297,7 +498,6 @@ BEGIN_PROVIDER [double precision, cc_space_w_vvoo, (cc_nV, cc_nV, cc_nO, cc_nO)]
 
 END_PROVIDER
 #+end_src
-
 
 *** F
 **** F_oo

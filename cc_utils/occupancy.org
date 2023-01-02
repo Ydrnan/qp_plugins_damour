@@ -122,6 +122,11 @@ subroutine extract_list_orb_space(det,nO,nV,list_occ,list_vir)
   integer(bit_kind)             :: res(N_int,2)
   integer                       :: i, si, idx_o, idx_v, idx_i, idx_b
   logical                       :: ok, is_core, is_del
+  
+  if (elec_alpha_num /= elec_beta_num) then
+    print*,'Error elec_alpha_num /= elec_beta_num, impossible to create cc_list_occ and cc_list_vir, abort'
+    call abort
+  endif
 
   list_occ = 0
   list_vir = 0
@@ -218,12 +223,28 @@ end
 ** N orb
 #+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
  BEGIN_PROVIDER [integer, cc_nO]
+&BEGIN_PROVIDER [integer, cc_nOa]
+&BEGIN_PROVIDER [integer, cc_nOb]
+&BEGIN_PROVIDER [integer, cc_nOab]
 &BEGIN_PROVIDER [integer, cc_nV]
+&BEGIN_PROVIDER [integer, cc_nVa]
+&BEGIN_PROVIDER [integer, cc_nVb]
+&BEGIN_PROVIDER [integer, cc_nVab]
+&BEGIN_PROVIDER [integer, cc_n_mo]
 
   implicit none
 
   BEGIN_DOC
-  ! Number of occupied and virtual orbitals without core and deleted ones
+  ! Number of orbitals without core and deleted ones of the first det in psi_det
+  ! a: alpha, b: beta
+  ! nO: max(a,b) occupied 
+  ! nOa: nb a occupied 
+  ! nOb: nb b occupied 
+  ! nOab: nb a+b occupied 
+  ! nV: max(a,b) virtual 
+  ! nVa: nb a virtual 
+  ! nVb: nb b virtual 
+  ! nVab: nb a+b virtual 
   END_DOC
 
   integer :: n_spin(4)
@@ -231,13 +252,48 @@ end
   ! Extract number of occ/vir alpha/beta spin orbitals
   call extract_n_spin(psi_det(1,1,1),n_spin)
 
-  cc_nO = n_spin(1)
-  cc_nV = n_spin(3)
+  cc_nO   = max(n_spin(1), n_spin(2))
+  cc_nOa  = n_spin(1)
+  cc_nOb  = n_spin(2)
+  cc_nOab = n_spin(1) + n_spin(2)
+  cc_nV   = max(n_spin(3), n_spin(4))
+  cc_nVa  = n_spin(3)
+  cc_nVb  = n_spin(4)
+  cc_nVab = n_spin(3) + n_spin(4)
+  cc_n_mo = n_spin(1) + n_spin(3)
 
 END_PROVIDER
 #+end_src
 
 ** List orb
+
+*** General
+#+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
+ BEGIN_PROVIDER [integer, cc_list_gen, (cc_n_mo)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! List of general orbitals without core and deleted ones
+  END_DOC
+
+  integer :: i,j
+  logical :: is_core, is_del
+  
+  j = 1
+  do i = 1, mo_num
+    ! in core ?
+    if (is_core(i)) cycle
+    ! in del ?
+    if (is_del(i)) cycle
+    cc_list_gen(j) = i
+    j = j+1
+  enddo
+
+END_PROVIDER
+#+end_src
+
+*** Space
 #+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
  BEGIN_PROVIDER [integer, cc_list_occ, (cc_nO)]
 &BEGIN_PROVIDER [integer, cc_list_vir, (cc_nV)]
@@ -245,10 +301,26 @@ END_PROVIDER
   implicit none
 
   BEGIN_DOC
-  ! List of occupied and virtual orbitals without core and deleted ones
+  ! List of occupied and virtual spatial orbitals without core and deleted ones
   END_DOC
 
   call extract_list_orb_space(psi_det(1,1,1),cc_nO,cc_nV,cc_list_occ,cc_list_vir)
+
+END_PROVIDER
+#+end_src
+
+*** Spin
+#+BEGIN_SRC f90 :comments org :tangle occupancy.irp.f
+ BEGIN_PROVIDER [integer, cc_list_occ_spin, (cc_nO,2)]
+&BEGIN_PROVIDER [integer, cc_list_vir_spin, (cc_nV,2)]
+
+  implicit none
+
+  BEGIN_DOC
+  ! List of occupied and virtual spin orbitals without core and deleted ones
+  END_DOC
+
+  call extract_list_orb_spin(psi_det(1,1,1),cc_nO,cc_nV,cc_list_occ_spin,cc_list_vir_spin)
 
 END_PROVIDER
 #+end_src

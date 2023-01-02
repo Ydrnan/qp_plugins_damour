@@ -27,7 +27,7 @@ subroutine pccd_energy(nO, nV, t2, energy)
   energy = 0d0
   do a = 1, nV
     do i = 1, nO
-      energy = energy + t2(i,a) * vcc_aaii(a,i)
+      energy = energy + t2(i,a) * cc_space_v_aaii(a,i)
     enddo
   enddo 
   

@@ -352,7 +352,7 @@ subroutine update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err
   allocate(tmp_err1(nO*nV), tmp_err2(nO*nO*nV*nV))
   allocate(tmp_t1(nO*nV), tmp_t2(nO*nO*nV*nV))
 
-  ! Compuet the errors and reshape them as vector
+  ! Compute the errors and reshape them as vector
   call compute_err1(nO,nV,f_o,f_v,r1,err1)
   call compute_err2(nO,nV,f_o,f_v,r2,err2)
   tmp_err1 = reshape(err1,(/nO*nV/))

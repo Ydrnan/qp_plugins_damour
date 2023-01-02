@@ -23,6 +23,8 @@ subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
 
   allocate(t3(nO,nO,nO,nV,nV,nV), s(nO,nV))
 
+  t3 = 0d0
+  
   ! T3
   do c = 1, nV
     do b = 1, nV
@@ -42,7 +44,7 @@ subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
                   + t2(i,k,b,e) * v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
                   + t2(i,k,c,e) * v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
                   + t2(j,i,b,e) * v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
-                  + t2(j,i,c,e) * v_vvvo(b,a,e,k)  ! + P(ik) P(ac)
+                  + t2(j,i,c,e) * v_vvvo(b,a,e,k)   ! + P(ik) P(ac)
               enddo
               do m = 1, nO
                 t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
@@ -54,9 +56,9 @@ subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
                   + t2(m,j,a,c) * v_ooov(i,k,m,b) & ! + P(ij) P(ab)
                   + t2(m,j,b,a) * v_ooov(i,k,m,c) & ! + P(ij) P(ac)
                   + t2(m,k,a,c) * v_ooov(j,i,m,b) & ! + P(ik) P(ab)
-                  + t2(m,k,b,a) * v_ooov(j,i,m,c)  ! + P(ik) P(ac)
+                  + t2(m,k,b,a) * v_ooov(j,i,m,c)   ! + P(ik) P(ac)
               enddo
-              t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) * (1d0 / delta)
+                t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) * (1d0 / delta)
             enddo
           enddo
         enddo
@@ -126,6 +128,7 @@ subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
   e_dt = e_dt * 0.25d0
 
   ! (T)
+  print*,e_t,e_st,e_dt
   energy = e_t + e_st + e_dt
 
   deallocate(t3,s)

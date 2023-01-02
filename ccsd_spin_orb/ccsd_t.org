@@ -128,7 +128,7 @@ subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
   e_dt = e_dt * 0.25d0
 
   ! (T)
-  print*,e_t,e_st,e_dt
+  !print*,e_t,e_st,e_dt
   energy = e_t + e_st + e_dt
 
   deallocate(t3,s)

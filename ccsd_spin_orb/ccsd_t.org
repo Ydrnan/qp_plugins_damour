@@ -150,7 +150,7 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   double precision, intent(out) :: energy
 
   double precision, allocatable :: t3_bc(:,:,:,:), s(:,:), e_t(:), e_dt(:)
-  double precision              :: e_st, delta_abc, delta
+  double precision              :: e_st, delta_abc, delta, ta, tb
   integer                       :: i,j,k,l,m,a,b,c,d,e
 
   allocate(t3_bc(nO,nO,nO,nV), s(nO,nV), e_t(nV), e_dt(nV))
@@ -161,6 +161,7 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   e_st = 0d0
   e_dt = 0d0
 
+  call wall_time(ta)
   do c = 1, nV
     do b = 1, nV
 
@@ -275,6 +276,8 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
       !$OMP END DO
       !$OMP END PARALLEL
     enddo
+    call wall_time(tb)
+    write(*,'(A1,F6.2,A5,F10.2,A2)') ' ', dble(c)/dble(nV)*100d0, '% in ', tb-ta, ' s'
   enddo
 
   do a = 2, nV

@@ -35,7 +35,7 @@ subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
   do a = 1, nVa
     if (a == n) cycle
     ab = a + nVa
-    bM(a,m) = - t2(nb,m,ab,n)
+    bM1(a,m) = - t2(nb,m,ab,n)
   enddo
 
   ! M_i^a
@@ -45,7 +45,7 @@ subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
     do i = 1, nOa
       if (i == m) cycle
       ib = i + nOa
-      bM(i,a) = t2(ib,m,mb,n) * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)
+      bM1(i,a) = t2(ib,m,mb,n) * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)
     enddo
   enddo
   
@@ -229,7 +229,7 @@ subroutine compute_bM2(nO,nV,det,t1,t2,bM2)
                            + t1(nb,ab) * t1(ib,mb) * t2(m,j,n,b) &
                            + t2(nb,ib,mb,ab) * t1(j,n) * t1(m,b) &
                            - t2(m,ib,n,ab) * t2(j,nb,m,mb) &
-                           - t2(j,nb,n,ab) * t2(mi,b,mb) &
+                           - t2(j,nb,n,ab) * t2(m,ib,b,mb) &
                            - t1(j,n) * t1(nb,ab) * t2(m,ib,b,mb) &
                            - t2(j,nb,n,ab) * t1(m,b) * t1(ib,mb) &
                            - tau(ib,j,mb,n) * tau(nb,m,ab,b)
@@ -312,7 +312,7 @@ subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
 
   integer, intent(out)          :: m,mb,n,nb
 
-  integer                       :: i,ib,j,jb,n,nb,m,mb,a,ab,b,bb
+  integer                       :: i
   integer                       :: idx_o, idx_v, s
   integer(bit_kind)             :: res(N_int,2)
   integer                       :: list_o(4)

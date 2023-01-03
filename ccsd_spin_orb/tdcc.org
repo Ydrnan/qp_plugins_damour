@@ -1,0 +1,363 @@
+* TDCC
+
+** bM1
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: bM1(nO,nV)
+
+  integer                       :: i,ib,n,nb,m,mb,a,ab
+  integer                       :: nOa, nVa
+
+  nOa = nO/2
+  nVa = nV/2
+
+  ! List of open spin orbitals
+  call extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
+  
+  ! Init
+  bM1 = 0d0
+  
+  ! M_i^n
+  do i = 1, nOa
+    if (i == m) cycle
+    ib = i + nOa
+    bM1(i,n) = t2(ib,m,mb,n)
+  enddo
+
+  ! M_m^a
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    bM(a,m) = - t2(nb,m,ab,n)
+  enddo
+
+  ! M_i^a
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    do i = 1, nOa
+      if (i == m) cycle
+      ib = i + nOa
+      bM(i,a) = t2(ib,m,mb,n) * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)
+    enddo
+  enddo
+  
+end
+#+end_src
+
+** bM2
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine compute_bM2(nO,nV,det,t1,t2,bM2)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: bM2(nO,nO,nV,nV)
+
+  integer                       :: i,ib,j,jb,n,nb,m,mb,a,ab,b,bb
+  integer                       :: nOa, nVa
+  double precision, allocatable :: t1p(:,:), tau(:,:,:,:)
+
+  allocate(t1p(nO,nV),tau(nO,nO,nV,nV))
+  
+  nOa = nO/2
+  nVa = nV/2
+
+  ! t1'(i,a)
+  do a = 1, nVa
+    ab = a + nVa
+    do i = 1, nOa
+      ib = i + nOa
+      t1p(i,a) = t1(i,a) - t1(ib,ab)
+    enddo
+  enddo
+
+  ! t1'(ib,ab)
+  do a = 1, nVa
+    ab = a + nVa
+    do i = 1, nOa
+      ib = i + nOa
+      t1p(ib,ab) = t1(ib,ab) - t1(i,a)
+    enddo
+  enddo
+
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  ! List of open spin orbitals
+  call extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
+  
+  ! Init
+  bM2 = 0d0
+
+  ! M_ij^na
+  do a = 1, nVa
+    if (a == n) cycle
+    do j = 1, nOa
+      if (j == m) cycle
+      do i = 1, nOa
+        if (i == m) cycle
+        bM2(i,j,n,a) = - t2(ib,m,mb,n) * t1p(j,a)  &
+                       + t2(jb,m,mb,n) * t1p(i,a)  &
+                       - t2(ib,m,ab,n) * t1(jb,mb) &
+                       + t2(jb,m,ab,n) * t1(ib,mb)
+      enddo
+    enddo
+  enddo
+
+  ! M(i,jb,n,ab)
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    do j = 1, nOa
+      if (j == m) cycle
+      jb = j + nOa
+      do i = 1, nOa
+        if (i == m) cycle
+        ib = i + nOa
+        bM2(i,jb,n,ab) = - t2(ib,m,mb,n)  * t1p(jb,ab) &
+                         - t2(m,ib,a,mb)  * t1(j,n)    &
+                         - t2(m,j,a,n)    * t1(ib,mb)  &
+                         - tau(ib,j,mb,n) * t1(m,a)
+      enddo
+    enddo
+  enddo
+
+  ! M(m,i,a,b)
+  do b = 1, nVa
+    if (b == n) cycle
+    bb = b + nVa
+    do a = 1, nVa
+      if (a == n) cycle
+      ab = a + nVa
+      do i = 1, nOa
+        if (i == m) cycle
+        ib = i + nOa
+        bM2(m,i,a,b) =   t2(nb,m,mb,n) * t1p(i,b)  & 
+                       - t2(nb,m,bb,n) * t1p(i,a)  &
+                       + t2(m,ib,n,ab) * t1(nb,bb) &
+                       - t2(m,ib,n,bb) * t1(nb,ab)
+      enddo
+    enddo
+  enddo
+
+  ! M(m,ib,a,bb)
+  do b = 1, nVa
+    if (b == n) cycle
+    bb = b + nVa
+    do a = 1, nVa
+      if (a == n) cycle
+      ab = a + nVa
+      do i = 1, nOa
+        if (i == m) cycle
+        ib = i + nOa
+        bM2(m,ib,a,bb) =   t2(nb,m,ab,n)  * t1p(ib,bb) &
+                         + t2(i,nb,n,ab)  * t1(m,b)    &
+                         + t2(i,m,n,b)    * t1(nb,ab)  &
+                         + tau(m,nb,b,ab) * t1(i,n)
+      enddo
+    enddo
+  enddo
+
+  ! M(i,j,a,b)
+  do b = 1, nVa
+    if (b == n) cycle
+    bb = b + nVa
+    do a = 1, nVa
+      if (a == n) cycle
+      ab = a + nVa
+      do j = 1, nOa
+        if (j == m) cycle
+        jb = j + nOa
+        do i = 1, nOa
+          if (i == m) cycle
+          ib = i + nOa
+          bM2(i,j,a,b) = - (t2(ib,m,mb,n)  * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)) * t1p(j,b) &
+                         + (t2(jb,m,mb,n)  * t1(nb,ab) + t2(nb,m,ab,n) * t1(jb,mb)) * t1p(i,b) & ! - P(ij)
+                         + (t2(ib,m,mb,n)  * t1(nb,bb) + t2(nb,m,bb,n) * t1(ib,mb)) * t1p(j,a) & ! - P(ab)
+                         - (t2(jb,m,mb,n)  * t1(nb,bb) + t2(nb,m,bb,n) * t1(jb,mb)) * t1p(i,a) & ! + P(ij) P(ab)
+                         - t2(m,jb,n,mb)   * t2(nb,ib,ab,bb) &
+                         + t2(m,ib,n,mb)   * t2(nb,jb,ab,bb) &
+                         - t2(m,nb,n,bb)   * t2(ib,jb,mb,ab) &
+                         + t2(m,nb,n,ab)   * t2(ib,jb,mb,bb) &
+                         - tau(nb,ib,mb,b) * t2(m,jb,n,bb)   &
+                         + tau(nb,jb,mb,b) * t2(m,ib,n,bb)   & ! P(ij)
+                         + tau(nb,ib,mb,a) * t2(m,jb,n,ab)   & ! P(ab)
+                         - tau(nb,jb,mb,a) * t2(m,ib,n,ab)     ! P(ij) P(ab)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! M(i,jb,a,bb)
+  do b = 1, nVa
+    if (b == n) cycle
+    bb = b + nVa
+    do a = 1, nVa
+      if (a == n) cycle
+      ab = a + nVa
+      do j = 1, nOa
+        if (j == m) cycle
+        jb = j + nOa
+        do i = 1, nOa
+          if (i == m) cycle
+          ib = i + nOa
+          bM2(i,jb,a,bb) = - (t2(ib,m,mb,n) * t1(ab,nb) + t2(nb,m,ab,n) * t1(mb,ib)) * t1p(jb,bb) & ! Typo in the paper on the last term
+                           - (t2(j,nb,n,mb) * t1(m,a)   + t2(nb,m,mb,a) * t1(i,n))   * t1p(jb,bb) &
+                           + t2(j,nb,n,mb)   * t2(m,ib,b,ab) &
+                           + t2(m,ib,n,mb)   * t2(jb,n,b,ab) &
+                           + t2(m,nb,b,mb)   * t2(j,ib,n,ab) &
+                           + t2(m,nb,n,ab)   * t2(j,ib,b,mb) &
+                           + t2(ib,nb,mb,ab) * t2(m,j,n,b)   &
+                           + t1(nb,ab) * t1(ib,mb) * t2(m,j,n,b) &
+                           + t2(nb,ib,mb,ab) * t1(j,n) * t1(m,b) &
+                           - t2(m,ib,n,ab) * t2(j,nb,m,mb) &
+                           - t2(j,nb,n,ab) * t2(mi,b,mb) &
+                           - t1(j,n) * t1(nb,ab) * t2(m,ib,b,mb) &
+                           - t2(j,nb,n,ab) * t1(m,b) * t1(ib,mb) &
+                           - tau(ib,j,mb,n) * tau(nb,m,ab,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! M(m,nb,n,ab)
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    bM2(m,nb,n,ab) = -t1(m,a)  
+  enddo
+
+  ! M(m,ib,n,mb)
+  do i = 1, nOa
+    if (i == m) cycle
+    ib = i + nOa
+    bM2(m,ib,n,mb) = t1(i,n)
+  enddo
+
+  ! M(m,nb,a,bb)
+  do b = 1, nVa
+    if (b == n) cycle
+    bb = b + nVa
+    do a = 1, nVa
+      if (a == n) cycle
+      ab = a + nVa
+      bM2(m,nb,a,bb) = - tau(m,nb,b,ab)
+    enddo
+  enddo
+
+  ! M(i,m,a,n)
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    do i = 1, nOa
+      if (i == m) cycle
+      ib = i + nOa
+      bM2(i,m,a,n) = - t2(ib,m,ab,n)
+    enddo
+  enddo
+
+  ! M(m,ib,n,ab)
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    do i = 1, nOa
+      if (i == m) cycle
+      ib = i + nOa
+      bM2(m,ib,n,ab) = tau(i,m,n,a)
+    enddo
+  enddo
+
+  ! M(m,ib,a,mb)
+  do a = 1, nVa
+    if (a == n) cycle
+    ab = a + nVa
+    do i = 1, nOa
+      if (i == m) cycle
+      ib = i + nOa
+      bM2(m,ib,a,mb) = tau(i,nb,n,ab)
+    enddo
+  enddo
+  
+  deallocate(t1p,tau)
+  
+end
+#+end_src
+
+** Extract open orb spin
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  integer(bit_kind), intent(in) :: det(N_int,2)
+
+  integer, intent(out)          :: m,mb,n,nb
+
+  integer                       :: i,ib,j,jb,n,nb,m,mb,a,ab,b,bb
+  integer                       :: idx_o, idx_v, s
+  integer(bit_kind)             :: res(N_int,2)
+  integer                       :: list_o(4)
+  logical                       :: is_pa, is_pb
+
+  ! List of open orbitals
+  idx_o = 1
+  idx_v = 1
+  do s = 1, 2
+    do i = 1, mo_num
+      call apply_hole(det, 1, i, res, is_pa, N_int)
+      call apply_hole(det, 2, i, res, is_pb, N_int)
+
+      if ((s == 1 .and. is_pa) .or. (s == 2 .and. is_pb)) then
+        idx_o = idx_o + 1
+      elseif ((s == 1 .and. .not. is_pa) .or. (s == 2 .and. .not. is_pb)) then
+        idx_v = idx_v + 1
+      endif
+      
+      if     (s == 1  .and.     is_pa     .and.  .not. is_pb) then
+        list_o(1) = idx_o-1
+      elseif (s == 1  .and.  .not. is_pa  .and.    is_pb    ) then
+        list_o(2) = idx_v-1 
+      elseif (s == 2  .and.  .not. is_pa  .and.    is_pb    ) then
+        list_o(3) = idx_o-1
+      elseif (s == 2  .and.     is_pa     .and.  .not. is_pb) then
+        list_o(4) = idx_v-1
+      endif
+    enddo
+  enddo
+
+  ! Ref:
+  !   a     n     m     i
+  !   |    -|->   |    -|->
+  !   |     |   <-|-  <-|-
+  m  = list_o(1)
+  mb = list_o(2)
+  n  = list_o(3)
+  nb = list_o(4)
+
+  ! Reminder: -The index of i_beta (ib) is i_alpha (i) + number of occupied alpha (nOa)
+  !           -The index of a_beta (ab) is a_alpha (a) + number of virtual alpha (nVa)
+  !           -Cycle when i == m and a == n to avoid considering an
+  ! open MO as a core or virtual one
+  
+end
+#+end_src
+  

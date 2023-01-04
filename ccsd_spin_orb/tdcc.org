@@ -1,4 +1,10 @@
 * TDCC
+Ref
+Analytic energy gradients for the twodeterminant coupled cluster method with
+application to singlet excited states of butadiene and ozone
+Péter G. Szalay and Rodney J. Bartlett
+The Journal of Chemical Physics 101, 4936 (1994)
+http://dx.doi.org/10.1063/1.467416
 
 ** bM1
 #+begin_src f90 :comments org :tangle tdcc.irp.f

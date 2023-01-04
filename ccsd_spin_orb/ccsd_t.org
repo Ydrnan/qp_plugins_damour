@@ -162,17 +162,28 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   e_dt = 0d0
 
   call wall_time(ta)
+  !$OMP PARALLEL &
+  !$OMP PRIVATE(i,j,k,m,a,b,c,e) &
+  !$OMP SHARED(ta,tb,t3_bc,s,e_t,e_st,e_dt,t2,v_vvvo,v_ooov, &
+  !$            v_vvoo,f_o,f_v,f_ov,delta,delta_abc,nO,nV) &
+  !$OMP DEFAULT(NONE)
+      
   do c = 1, nV
     do b = 1, nV
 
       ! T3(:,:,:,:,b,c)
-      t3_bc = 0d0 ! Init
-      
-      !$OMP PARALLEL &
-      !$OMP PRIVATE(i,j,k,m,a,e) &
-      !$OMP SHARED(t3_bc,b,c,s,e_t,e_st,e_dt,t2,v_vvvo,v_ooov, &
-      !$            v_vvoo,f_o,f_v,f_ov,delta,delta_abc,nO,nV) &
-      !$OMP DEFAULT(NONE)
+      ! Init
+      !$OMP DO
+      do a = 1, nV
+        do k = 1, nO
+          do j = 1, nO
+            do i = 1, nO
+              t3_bc(i,j,k,a) = 0d0
+            enddo
+          enddo
+        enddo
+      enddo
+      !$OMP END DO
       
       !$OMP DO
       do a = 1, nV
@@ -274,11 +285,13 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
         enddo
       enddo
       !$OMP END DO
-      !$OMP END PARALLEL
     enddo
+    !$OMP MASTER
     call wall_time(tb)
     write(*,'(A1,F6.2,A5,F10.2,A2)') ' ', dble(c)/dble(nV)*100d0, '% in ', tb-ta, ' s'
+    !$OMP END MASTER
   enddo
+  !$OMP END PARALLEL
 
   do a = 2, nV
     e_t(1) = e_t(1) + e_t(a)

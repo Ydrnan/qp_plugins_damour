@@ -6,6 +6,7 @@ Péter G. Szalay and Rodney J. Bartlett
 The Journal of Chemical Physics 101, 4936 (1994)
 http://dx.doi.org/10.1063/1.467416
 
+* M
 ** bM1
 #+begin_src f90 :comments org :tangle tdcc.irp.f
 subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
@@ -367,3 +368,128 @@ subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
 end
 #+end_src
   
+
+
+* Spin-flipped T
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
+
+  implicit none
+  
+  integer, intent(in)  :: nO,nV
+  integer, intent(out) :: sp_idx_o(nO), sp_idx_v(nV)
+
+  integer              :: i,a
+  integer              :: nOa,nVa
+
+  if (elec_alpha_num /= elec_beta_num) then
+    print*,'elec_alpha_num /= elec_beta_num, abort'
+    call abort
+  endif
+
+  nOa = nO / 2
+  nVa = nV / 2
+
+  ! T1
+  !              a
+  !       1 ... nVa ... nV
+  !    1         |
+  !    :   aa    |   ab 
+  !    :         |
+  ! i nOa -------|---------
+  !    :         |
+  !    :   ba    |   bb
+  !   nO         |
+  
+  ! List of indexes to loop on the beta before the alpha, i.e.,
+  ! to reverse the spin
+  do i = 1, nO
+    if (i <= nOa) then
+      sp_idx_o(i) = i + nOa
+    else
+      sp_idx_o(i) = i - nOa
+    endif
+  enddo
+
+  do a = 1, nV
+    if (a <= nVa) then
+      sp_idx_v(a) = a + nVa
+    else
+      sp_idx_v(a) = a - nVa
+    endif
+  enddo
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine spin_flip_t1(nO,nV,t1,t1_sp)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t1(nO,nV)
+  
+  double precision, intent(out) :: t1_sp(nO,nV)
+
+  integer                       :: i,a,tmp_i,tmp_a
+  integer                       :: nOa, nVa
+  integer, allocatable          :: sp_idx_o(:), sp_idx_v(:)
+
+  allocate(sp_idx_o(nO), sp_idx_v(nV))
+
+  ! Indexes to reverse the spin
+  call gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
+
+  ! Spin-flipped amplitudes
+  do tmp_a = 1, nV
+    a = sp_idx_v(tmp_a)
+    do tmp_i = 1, nO
+      i = sp_idx_o(tmp_i)
+      t1_sp(tmp_i,tmp_a) = t1(i,a)
+    enddo
+  enddo
+
+  deallocate(sp_idx_o,sp_idx_v)
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine spin_flip_t2(nO,nV,t2,t2_sp)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  double precision, intent(in)  :: t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: t2_sp(nO,nO,nV,nV)
+
+  integer                       :: i,j,a,b,tmp_i,tmp_j,tmp_a,tmp_b
+  integer                       :: nOa, nVa
+  integer, allocatable          :: sp_idx_o(:), sp_idx_v(:)
+
+  allocate(sp_idx_o(nO), sp_idx_v(nV))
+
+  ! Indexes to reverse the spin
+  call gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
+
+  ! Spin-flipped amplitudes
+  do tmp_b = 1, nV
+    b = sp_idx_v(tmp_b)
+    do tmp_a = 1, nV
+      a = sp_idx_v(tmp_a)
+      do tmp_j = 1, nO
+        j = sp_idx_o(tmp_j)
+        do tmp_i = 1, nO
+          i = sp_idx_o(tmp_i)
+          t2_sp(tmp_i,tmp_j,tmp_a,tmp_b) = t2(i,j,a,b)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(sp_idx_o,sp_idx_v)
+  
+end
+#+end_src

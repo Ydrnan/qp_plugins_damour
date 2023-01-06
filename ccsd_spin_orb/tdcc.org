@@ -119,8 +119,10 @@ subroutine compute_bM2(nO,nV,det,t1,t2,bM2)
     if (a == n) cycle
     do j = 1, nOa
       if (j == m) cycle
+      jb = j + nOa
       do i = 1, nOa
         if (i == m) cycle
+        ib = i + nOa
         bM2(i,j,n,a) = - t2(ib,m,mb,n) * t1p(j,a)  &
                        + t2(jb,m,mb,n) * t1p(i,a)  &
                        - t2(ib,m,ab,n) * t1(jb,mb) &

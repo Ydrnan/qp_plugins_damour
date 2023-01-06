@@ -165,7 +165,7 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   !$OMP PARALLEL &
   !$OMP PRIVATE(i,j,k,m,a,b,c,e) &
   !$OMP SHARED(ta,tb,t3_bc,s,e_t,e_st,e_dt,t2,v_vvvo,v_ooov, &
-  !$            v_vvoo,f_o,f_v,f_ov,delta,delta_abc,nO,nV) &
+  !$OMP         v_vvoo,f_o,f_v,f_ov,delta,delta_abc,nO,nV) &
   !$OMP DEFAULT(NONE)
       
   do c = 1, nV

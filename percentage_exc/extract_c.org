@@ -456,44 +456,20 @@ subroutine run_extract_c
   !  print*,''
   !enddo
 
+  call overlap_wf(nb_coef,l_det,l_coef)
+
   ! Save the wave function
   print*,'Save the wave function...'
-  N_states = 1
-  TOUCH N_states
   ! Save a one det wf
-  call save_wavefunction_general(1,N_states,l_det,1,l_coef)
-  !! Just to have a large enough psi_det vector...
+  call save_det_cc(1, N_states, l_det, l_coef)
+  ! Just to have a large enough psi_det vector...
   if (nb_coef > N_det) then
     call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
     call copy_H_apply_buffer_to_wf
     SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
   endif
   ! Save the wave function
-  call save_wavefunction_general(nb_coef,N_states,l_det,size(l_coef,1),l_coef)
-  
-  !N_states = 1
-  !TOUCH N_states
-  !!call save_det(nb_coef, N_states, l_det, l_coef)
-  !call save_det(1, N_states, l_det, l_coef)
-  !!print*,'N_det',N_det
-  !!N_det = nb_coef
-  !!SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !!! Just to have a large enough psi_det vector...
-  !if (nb_coef > N_det) then
-  !  call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
-  !  call copy_H_apply_buffer_to_wf
-  !  SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !endif
-  !! New wave function
-  !psi_coef = 0d0
-  !do i = 1, nb_coef
-  !  psi_det(:,:,i) = l_det(:,:,i)
-  !  psi_coef(i,1) = l_coef(i)
-  !enddo
-  !call save_det(nb_coef, N_states, l_det, l_coef)
-  !!print*,'N_det',N_det
-  !!SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !!call save_wavefunction
+  call save_det_cc(nb_coef, N_states, l_det, l_coef)
   print*,'Done'
 
   deallocate(l_coef,l_det)
@@ -857,40 +833,74 @@ c4(i,j,k,l,a,b,c,d) =
 #+end_src
 
 #+begin_src f90 :comments org :tangle extract_c.irp.f
-subroutine save_det(new_ndet, Nstates, list_det_sorted, list_coef_sorted)
+subroutine save_det_cc(new_ndet, Nstates, list_det_sorted, list_coef_sorted)
 
   implicit none
 
- integer, intent(in) :: new_ndet, Nstates
- integer(bit_kind), intent(in) :: list_det_sorted(new_ndet)
- double precision, intent(in) :: list_coef_sorted(new_ndet)
- integer(bit_kind), allocatable :: psi_det_tmp(:,:,:)
- double precision, allocatable :: psi_coef_tmp(:,:)
+  BEGIN_DOC
+  ! Save the cc wf by putting the computed ci coefficients in the first state
+  ! and 0 in the other states
+  END_DOC
+  
+  integer, intent(in) :: new_ndet, Nstates
+  integer(bit_kind), intent(in) :: list_det_sorted(new_ndet)
+  double precision, intent(in) :: list_coef_sorted(new_ndet)
+  
+  integer(bit_kind), allocatable :: psi_det_tmp(:,:,:)
+  double precision, allocatable :: psi_coef_tmp(:,:)
+  integer :: i,j
+  double precision :: accu(Nstates)
+  
+  allocate(psi_det_tmp(N_int,2,new_ndet),psi_coef_tmp(new_ndet, Nstates))
  
- allocate(psi_det_tmp(N_int,2,new_ndet),psi_coef_tmp(new_ndet, Nstates))
-
- integer :: i,j
- double precision :: accu(Nstates)
- accu = 0.d0
- do i = 1, new_ndet
-   psi_coef_tmp(i,1) = list_coef_sorted(i)
-   accu(1) += psi_coef_tmp(i,1) **2
-   do j = 2, N_states
-     psi_coef_tmp(i,j) = 0d0
-     accu(j) += psi_coef_tmp(i,j) **2
-  enddo
- enddo
- accu(1) = 1d0/sqrt(accu(1))
- do j = 2, Nstates
-  accu(j) = 1.d0
- enddo
- do j = 1, Nstates
+  accu = 0.d0
   do i = 1, new_ndet
-   psi_coef_tmp(i,j) = psi_coef_tmp(i,j) * accu(j)
+    psi_coef_tmp(i,1) = list_coef_sorted(i)
+    accu(1) += psi_coef_tmp(i,1) **2
+    do j = 2, N_states
+      psi_coef_tmp(i,j) = 0d0
+      accu(j) += psi_coef_tmp(i,j) **2
+   enddo
   enddo
- enddo
+  accu(1) = 1d0/sqrt(accu(1))
+  do j = 2, Nstates
+   accu(j) = 1.d0
+  enddo
+  do j = 1, Nstates
+   do i = 1, new_ndet
+    psi_coef_tmp(i,j) = psi_coef_tmp(i,j) * accu(j)
+   enddo
+  enddo
+ 
+  call save_wavefunction_general(new_ndet,Nstates,list_det_sorted,size(psi_coef_tmp,1),psi_coef_tmp)
+  
+end
+#+end_src
 
- call save_wavefunction_general(new_ndet,Nstates,list_det_sorted,size(psi_coef_tmp,1),psi_coef_tmp)
+#+begin_src f90 :comments org :tangle extract_c.irp.f
+subroutine overlap_wf(Ndet, list_det, list_coef)
+
+  implicit none
+
+  integer, intent(in)           :: Ndet
+  integer(bit_kind), intent(in) :: list_det(N_int,2,Ndet)
+  double precision, intent(in)  :: list_coef(Ndet)
+
+  double precision              :: accu
+  integer                       :: i,j,s,degree
+
+  do s = 1, N_states
+    accu = 0d0
+    do i = 1, size(psi_coef,1)
+      do j = 1, Ndet
+       call get_excitation_degree(psi_det(1,1,i),list_det(1,1,j),degree,N_int)
+       if (degree == 0) then
+         accu = accu + psi_coef(i,s) * list_coef(j)
+       endif
+      enddo
+    enddo
+    write(*,'(A19,I2,A3,F12.6)') 'Overlap with state ', s,' = ', dabs(accu)
+  enddo 
   
 end
 #+end_src

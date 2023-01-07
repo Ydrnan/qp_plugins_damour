@@ -458,19 +458,42 @@ subroutine run_extract_c
 
   ! Save the wave function
   print*,'Save the wave function...'
-  !call save_wavefunction_general(nb_coef,1,l_det,size(l_coef,1),l_coef)
   N_states = 1
   TOUCH N_states
-  call save_det(nb_coef, N_states, l_det, l_coef)
+  ! Save a one det wf
+  call save_wavefunction_general(1,N_states,l_det,1,l_coef)
   !! Just to have a large enough psi_det vector...
-  !call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
-  !call copy_H_apply_buffer_to_wf
-  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  if (nb_coef > N_det) then
+    call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
+    call copy_H_apply_buffer_to_wf
+    SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  endif
+  ! Save the wave function
+  call save_wavefunction_general(nb_coef,N_states,l_det,size(l_coef,1),l_coef)
+  
+  !N_states = 1
+  !TOUCH N_states
+  !!call save_det(nb_coef, N_states, l_det, l_coef)
+  !call save_det(1, N_states, l_det, l_coef)
+  !!print*,'N_det',N_det
+  !!N_det = nb_coef
+  !!SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !!! Just to have a large enough psi_det vector...
+  !if (nb_coef > N_det) then
+  !  call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
+  !  call copy_H_apply_buffer_to_wf
+  !  SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !endif
   !! New wave function
-  !psi_det = l_det
-  !psi_coef(:,1) = l_coef
-  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  !call save_wavefunction
+  !psi_coef = 0d0
+  !do i = 1, nb_coef
+  !  psi_det(:,:,i) = l_det(:,:,i)
+  !  psi_coef(i,1) = l_coef(i)
+  !enddo
+  !call save_det(nb_coef, N_states, l_det, l_coef)
+  !!print*,'N_det',N_det
+  !!SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !!call save_wavefunction
   print*,'Done'
 
   deallocate(l_coef,l_det)

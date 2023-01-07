@@ -3,6 +3,9 @@ program extract_c
 
   implicit none
 
+  read_wf = .True.
+  TOUCH read_wf
+
   call run_extract_c
   
 end
@@ -16,8 +19,8 @@ subroutine run_extract_c
   double precision, allocatable :: t1(:,:), t2(:,:,:,:)
   double precision, allocatable :: c1(:,:), c2(:,:,:,:), c3_bc(:,:,:,:), c4_abcd(:,:,:,:)
   double precision, allocatable :: tmp_coef(:), l_coef(:), abs_coef(:)
-  integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
-  integer, allocatable :: list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
+  integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2)
+  integer, allocatable :: n_spin(:),list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
   integer                       :: i,j,k,l,a,b,c,d,tmp_i,tmp_j,tmp_k,tmp_l,tmp_a,tmp_b,tmp_c,tmp_d,s1,s2,s3,s4
   integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,p3,p4,h1,h2,h3,h4, degree
   double precision :: thresh_coef, factor, norm, phase
@@ -26,12 +29,14 @@ subroutine run_extract_c
   logical :: ok
 
   thresh_coef = thresh_extract_c
-  
-  call extract_n_spin(n_spin)
+
+  allocate(n_spin(4))
+  call extract_n_spin(psi_det(1,1,1),n_spin)
   nOa = n_spin(1)
   nOb = n_spin(2)
   nVa = n_spin(3)
   nVb = n_spin(4)
+  deallocate(n_spin)
 
   ! Total number of occ/vir spin orb
   nO = nOa + nOb
@@ -46,11 +51,10 @@ subroutine run_extract_c
   ! Maximal number of occ/vir 
   nO_m = max(nOa, nOb)
   nV_m = max(nVa, nVb)
-  !print*,nO_m,nV_m
   
   allocate(list_occ(nO_m,2), list_vir(nV_m,2))
   allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
-  call extract_list_orb_spin(nO_m,nV_m,list_occ,list_vir)
+  call extract_list_orb_spin(psi_det(1,1,1),nO_m,nV_m,list_occ,list_vir)
 
   do i = 1, nOa
     list_spin_occ(i,1) = i
@@ -446,23 +450,27 @@ subroutine run_extract_c
 
   ! print
   print*,'N_det', nb_coef
-  do i = 1, nb_coef
-    print*,l_coef(i)
-    call print_det(l_det(1,1,i),N_int)
-    print*,''
-  enddo
+  !do i = 1, nb_coef
+  !  print*,l_coef(i)
+  !  call print_det(l_det(1,1,i),N_int)
+  !  print*,''
+  !enddo
 
   ! Save the wave function
   print*,'Save the wave function...'
-  ! Just to have a large enough psi_det vector...
-  call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
-  call copy_H_apply_buffer_to_wf
-  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  ! New wave function
-  psi_det = l_det
-  psi_coef(:,1) = l_coef
-  SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
-  call save_wavefunction
+  !call save_wavefunction_general(nb_coef,1,l_det,size(l_coef,1),l_coef)
+  N_states = 1
+  TOUCH N_states
+  call save_det(nb_coef, N_states, l_det, l_coef)
+  !! Just to have a large enough psi_det vector...
+  !call fill_H_apply_buffer_no_selection(nb_coef,l_det,N_int,0)
+  !call copy_H_apply_buffer_to_wf
+  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !! New wave function
+  !psi_det = l_det
+  !psi_coef(:,1) = l_coef
+  !SOFT_TOUCH psi_det psi_coef N_det N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  !call save_wavefunction
   print*,'Done'
 
   deallocate(l_coef,l_det)
@@ -823,4 +831,43 @@ c4(i,j,k,l,a,b,c,d) =
   t1(i, b) * t3(j, k, l, a, c, d) + t1(i, a) * t3(j, k, l, b, c, d) + 
   t4(i, j, k, l, a, b, c, d)}
 
+#+end_src
+
+#+begin_src f90 :comments org :tangle extract_c.irp.f
+subroutine save_det(new_ndet, Nstates, list_det_sorted, list_coef_sorted)
+
+  implicit none
+
+ integer, intent(in) :: new_ndet, Nstates
+ integer(bit_kind), intent(in) :: list_det_sorted(new_ndet)
+ double precision, intent(in) :: list_coef_sorted(new_ndet)
+ integer(bit_kind), allocatable :: psi_det_tmp(:,:,:)
+ double precision, allocatable :: psi_coef_tmp(:,:)
+ 
+ allocate(psi_det_tmp(N_int,2,new_ndet),psi_coef_tmp(new_ndet, Nstates))
+
+ integer :: i,j
+ double precision :: accu(Nstates)
+ accu = 0.d0
+ do i = 1, new_ndet
+   psi_coef_tmp(i,1) = list_coef_sorted(i)
+   accu(1) += psi_coef_tmp(i,1) **2
+   do j = 2, N_states
+     psi_coef_tmp(i,j) = 0d0
+     accu(j) += psi_coef_tmp(i,j) **2
+  enddo
+ enddo
+ accu(1) = 1d0/sqrt(accu(1))
+ do j = 2, Nstates
+  accu(j) = 1.d0
+ enddo
+ do j = 1, Nstates
+  do i = 1, new_ndet
+   psi_coef_tmp(i,j) = psi_coef_tmp(i,j) * accu(j)
+  enddo
+ enddo
+
+ call save_wavefunction_general(new_ndet,Nstates,list_det_sorted,size(psi_coef_tmp,1),psi_coef_tmp)
+  
+end
 #+end_src

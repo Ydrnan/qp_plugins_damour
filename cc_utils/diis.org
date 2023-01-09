@@ -56,6 +56,7 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
   integer                         :: i,j,k
   integer                         :: info
   integer, allocatable            :: ipiv(:)
+  double precision                :: accu
   
   m_iter = min(m,iter)
   !print*,'m_iter',m_iter
@@ -64,14 +65,26 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
 
   ! B(i,j) =  < err(iter-m_iter+j),err(iter-m_iter+i) > ! iter-m_iter will be zero for us
   B = 0d0
+  !$OMP PARALLEL &
+  !$OMP SHARED(B,m,m_iter,sze,all_err) &
+  !$OMP PRIVATE(i,j,k,accu) &
+  !$OMP DEFAULT(NONE)
   do j = 1, m_iter
     do i = 1, m_iter
+      accu = 0d0
+      !$OMP DO
       do k = 1, sze
         ! the errors of the ith iteration are in all_err(:,m+1-i)
-        B(i,j) = B(i,j) + all_err(k,m+1-i) * all_err(k,m+1-j)
+        accu = accu + all_err(k,m+1-i) * all_err(k,m+1-j)
       enddo
+      !$OMP END DO
+      !$OMP ATOMIC
+      B(i,j) = B(i,j) + accu
+      !$OMP END ATOMIC
     enddo
   enddo
+  !$OMP END PARALLEL
+  
   do i = 1, m_iter
     B(i,m_iter+1) = -1
   enddo
@@ -107,11 +120,23 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
   !  write(*,'(100(F10.6))') all_err(:,i)
   !enddo
 
-  ! update T 
-  t(:) = 0d0
-  do i = 1, m_iter
-    t(:) = t(:) + c(i) * (all_t(:,m+1-i) + all_err(:,m+1-i))
+  ! update T
+  !$OMP PARALLEL &
+  !$OMP SHARED(t,c,m,all_err,all_t) &
+  !$OMP PRIVATE(i,j,accu)
+  !$OMP DO
+  do i = 1, sze
+    t(i) = 0d0
   enddo
+  !$OMP END DO
+  do i = 1, m_iter
+    !$OMP DO
+    do j = 1, sze
+      t(j) = t(j) + c(i) * (all_t(j,m+1-i) + all_err(j,m+1-i))
+    enddo
+    !$OMP END DO
+  enddo
+  !$OMP END PARALLEL
 
   !print*,'new t',t
 
@@ -141,9 +166,17 @@ subroutine update_all_err(err,all_err,sze,m,iter)
   m_iter = min(m,iter)
 
   ! Shift
+  !$OMP PARALLEL &
+  !$OMP SHARED(m,all_err,err) &
+  !$OMP PRIVATE(i,j)
   do i = 1, m-1
-    all_err(:,i) = all_err(:,i+1)
+    !$OMP DO
+    do j = 1, sze
+      all_err(j,i) = all_err(j,i+1)
+    enddo
+    !$OMP END DO
   enddo
+  
   ! Debug
   !print*,'shift err'
   !do i = 1, m
@@ -151,7 +184,12 @@ subroutine update_all_err(err,all_err,sze,m,iter)
   !enddo
 
   ! New
-  all_err(:,m) = err(:)
+  !$OMP DO
+  do i = 1, sze
+    all_err(i,m) = err(i)
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   ! Debug
   !print*,'Updated err'
@@ -183,12 +221,24 @@ subroutine update_all_t(t,all_t,sze,m,iter)
   m_iter = min(m,iter)
 
   ! Shift
+  !$OMP PARALLEL &
+  !$OMP SHARED(m,all_t,t) &
+  !$OMP PRIVATE(i,j)
   do i = 1, m-1
-    all_t(:,i) = all_t(:,i+1)
+    !$OMP DO
+    do j = 1, sze
+      all_t(j,i) = all_t(j,i+1)
+    enddo
+    !$OMP END DO
   enddo
 
   ! New
-  all_t(:,m) = t(:)
+  !$OMP DO
+  do i = 1, sze
+    all_t(:,m) = t(:)
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   ! Debug
   !print*,'Updated t'

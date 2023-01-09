@@ -267,11 +267,17 @@ subroutine compute_err1(nO,nV,f_o,f_v,r1,err1)
 
   integer                       :: i,a
   
+  !$OMP PARALLEL &
+  !$OMP SHARED(err1,r1,f_o,f_v) &
+  !$OMP PRIVATE(i,a)
+  !$OMP DO
   do a = 1, nV
     do i = 1, nO
       err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a))
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
 end
 #+end_src
@@ -293,6 +299,10 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
 
   integer                       :: i,j,a,b
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(err2,r2,f_o,f_v) &
+  !$OMP PRIVATE(i,j,a,b)
+  !$OMP DO
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -302,6 +312,8 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
       enddo
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
 end
 #+end_src
@@ -417,33 +429,56 @@ subroutine update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err
   call update_all_t  (tmp_t2  ,all_t2  ,nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
 
   ! Gather the different parameters and errors
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,all_err,all_err1,all_err2,cc_diis_depth,&
+  !$OMP all_t,all_t1,all_t2) &
+  !$OMP PRIVATE(i,j) &
+  !$OMP DEFAULT(NONE)
   do j = 1, cc_diis_depth
+    !$OMP DO
     do i = 1, nO*nV
       all_err(i,j) = all_err1(i,j)
     enddo
+    !$OMP END DO NOWAIT
+    !$OMP DO
     do i = 1, nO*nO*nV*nV
       all_err(i+nO*nV,j) = all_err2(i,j)
     enddo
+    !$OMP END DO NOWAIT
   enddo
   do j = 1, cc_diis_depth
+    !$OMP DO
     do i = 1, nO*nV
       all_t(i,j) = all_t1(i,j)
     enddo
+    !$OMP END DO NOWAIT
+    !$OMP DO
     do i = 1, nO*nO*nV*nV
       all_t(i+nO*nV,j) = all_t2(i,j)
     enddo
+    !$OMP END DO
   enddo
+  !$OMP END PARALLEL
   
   ! Diis
   call diis_cc(all_err,all_t,nO*nV+nO*nO*nV*nV,cc_diis_depth,nb_iter+1,tmp_t)
 
   ! Split the resulting vector
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,tmp_t,tmp_t1,tmp_t2) &
+  !$OMP PRIVATE(i) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
   do i = 1, nO*nV
     tmp_t1(i) = tmp_t(i)
   enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO
   do i = 1, nO*nO*nV*nV
     tmp_t2(i) = tmp_t(i+nO*nV) 
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   ! Reshape as tensors
   t1 = reshape(tmp_t1 ,(/nO,nV/))

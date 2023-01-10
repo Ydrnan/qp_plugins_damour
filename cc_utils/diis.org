@@ -77,10 +77,10 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
         ! the errors of the ith iteration are in all_err(:,m+1-i)
         accu = accu + all_err(k,m+1-i) * all_err(k,m+1-j)
       enddo
-      !$OMP END DO
-      !$OMP ATOMIC
+      !$OMP END DO NOWAIT
+      !$OMP CRITICAL
       B(i,j) = B(i,j) + accu
-      !$OMP END ATOMIC
+      !$OMP END CRITICAL
     enddo
   enddo
   !$OMP END PARALLEL
@@ -122,8 +122,9 @@ subroutine diis_cc(all_err,all_t,sze,m,iter,t)
 
   ! update T
   !$OMP PARALLEL &
-  !$OMP SHARED(t,c,m,all_err,all_t) &
-  !$OMP PRIVATE(i,j,accu)
+  !$OMP SHARED(t,c,m,all_err,all_t,sze,m_iter) &
+  !$OMP PRIVATE(i,j,accu) &
+  !$OMP DEFAULT(NONE)
   !$OMP DO
   do i = 1, sze
     t(i) = 0d0
@@ -167,14 +168,15 @@ subroutine update_all_err(err,all_err,sze,m,iter)
 
   ! Shift
   !$OMP PARALLEL &
-  !$OMP SHARED(m,all_err,err) &
-  !$OMP PRIVATE(i,j)
+  !$OMP SHARED(m,all_err,err,sze) &
+  !$OMP PRIVATE(i,j) &
+  !$OMP DEFAULT(NONE)
   do i = 1, m-1
     !$OMP DO
     do j = 1, sze
       all_err(j,i) = all_err(j,i+1)
     enddo
-    !$OMP END DO
+    !$OMP END DO NOWAIT
   enddo
   
   ! Debug
@@ -222,20 +224,21 @@ subroutine update_all_t(t,all_t,sze,m,iter)
 
   ! Shift
   !$OMP PARALLEL &
-  !$OMP SHARED(m,all_t,t) &
-  !$OMP PRIVATE(i,j)
+  !$OMP SHARED(m,all_t,t,sze) &
+  !$OMP PRIVATE(i,j) &
+  !$OMP DEFAULT(NONE)
   do i = 1, m-1
     !$OMP DO
     do j = 1, sze
       all_t(j,i) = all_t(j,i+1)
     enddo
-    !$OMP END DO
+    !$OMP END DO NOWAIT
   enddo
 
   ! New
   !$OMP DO
   do i = 1, sze
-    all_t(:,m) = t(:)
+    all_t(i,m) = t(i)
   enddo
   !$OMP END DO
   !$OMP END PARALLEL
@@ -268,8 +271,9 @@ subroutine compute_err1(nO,nV,f_o,f_v,r1,err1)
   integer                       :: i,a
   
   !$OMP PARALLEL &
-  !$OMP SHARED(err1,r1,f_o,f_v) &
-  !$OMP PRIVATE(i,a)
+  !$OMP SHARED(err1,r1,f_o,f_v,nO,nV) &
+  !$OMP PRIVATE(i,a) &
+  !$OMP DEFAULT(NONE)
   !$OMP DO
   do a = 1, nV
     do i = 1, nO
@@ -300,8 +304,9 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
   integer                       :: i,j,a,b
 
   !$OMP PARALLEL &
-  !$OMP SHARED(err2,r2,f_o,f_v) &
-  !$OMP PRIVATE(i,j,a,b)
+  !$OMP SHARED(err2,r2,f_o,f_v,nO,nV) &
+  !$OMP PRIVATE(i,j,a,b) &
+  !$OMP DEFAULT(NONE)
   !$OMP DO
   do b = 1, nV
     do a = 1, nV

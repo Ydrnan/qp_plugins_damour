@@ -1,0 +1,15 @@
+* Security
+#+BEGIN_SRC f90 :comments org :tangle security_mo_class.irp.f
+subroutine security_closed_shell
+
+  implicit none
+
+  if (elec_alpha_num /= elec_beta_num) then
+    print*,'elec_alpha_num /= elec_beta_num, not possible for closed shell CC'
+    print*,''
+    print*,'abort'
+    call abort
+  endif
+  
+end
+#+END_SRC

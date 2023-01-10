@@ -770,17 +770,17 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   !$OMP i,j,k,l,idx_i,idx_j,idx_k,idx_l,&
   !$OMP tmp_i,tmp_j,tmp_k,tmp_l)&
   !$OMP DEFAULT(NONE)
-  !!$OMP DO
-  !do l = 1, size(v,4)
-  !  do k = 1, size(v,3)
-  !    do j = 1, size(v,2)
-  !      do i = 1, size(v,1)
-  !        v(i,j,k,l) = 0d0
-  !      enddo
-  !    enddo
-  !  enddo
-  !enddo
-  !!$OMP END DO
+  !$OMP DO
+  do l = 1, size(v,4)
+    do k = 1, size(v,3)
+      do j = 1, size(v,2)
+        do i = 1, size(v,1)
+          v(i,j,k,l) = 0d0
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO
   do sl = 1, 2
     call shift_idx_spin(sl,n4_S,l_shift)
     do sk = 1, 2
@@ -791,38 +791,76 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
           call shift_idx_spin(si,n1_S,i_shift)
     
           s = si+sj+sk+sl
-          !$OMP DO 
-          do tmp_l = 1, n4_S(sl)
-            l = list4(tmp_l,sl)
-            idx_l = tmp_l + l_shift
-            do tmp_k = 1, n3_S(sk)
-              k = list3(tmp_k,sk)
-              idx_k = tmp_k + k_shift
-              do tmp_j = 1, n2_S(sj)
-                j = list2(tmp_j,sj)
-                idx_j = tmp_j + j_shift
-                do tmp_i = 1, n1_S(si)  
-                  i = list1(tmp_i,si)
-                  idx_i = tmp_i + i_shift
+          ! <aa||aa> or <bb||bb>
+          if (s == 4 .or. s == 8) then
+            !$OMP DO 
+            do tmp_l = 1, n4_S(sl)
+              l = list4(tmp_l,sl)
+              idx_l = tmp_l + l_shift
+              do tmp_k = 1, n3_S(sk)
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                do tmp_j = 1, n2_S(sj)
+                  j = list2(tmp_j,sj)
+                  idx_j = tmp_j + j_shift
+                  do tmp_i = 1, n1_S(si)  
+                    i = list1(tmp_i,si)
+                    idx_i = tmp_i + i_shift
 
-                  ! <aa||aa> or <bb||bb>
-                  if (s == 4 .or. s == 8) then
-                     v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(i,j,l,k)
-                  ! <ab||ab> or <ba||ba>
-                  elseif (si == sk .and. sj == sl) then
-                     v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l)
-                  ! <ab||ba> or <ba||ab>
-                  elseif (si == sl .and. sj == sk) then
-                     v(idx_i,idx_j,idx_k,idx_l) = - mo_two_e_integral(i,j,l,k)
-                  else
-                     v(idx_i,idx_j,idx_k,idx_l) = 0d0
-                  endif
-
+                       v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(j,i,k,l)
+                  enddo
                 enddo
               enddo
             enddo
-          enddo
-          !$OMP END DO
+            !$OMP END DO
+            
+          ! <ab||ab> or <ba||ba>
+          elseif (si == sk .and. sj == sl) then
+            !$OMP DO 
+            do tmp_l = 1, n4_S(sl)
+              l = list4(tmp_l,sl)
+              idx_l = tmp_l + l_shift
+              do tmp_k = 1, n3_S(sk)
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                do tmp_j = 1, n2_S(sj)
+                  j = list2(tmp_j,sj)
+                  idx_j = tmp_j + j_shift
+                  do tmp_i = 1, n1_S(si)  
+                    i = list1(tmp_i,si)
+                    idx_i = tmp_i + i_shift
+                       v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+            !$OMP END DO
+            
+          ! <ab||ba> or <ba||ab>
+          elseif (si == sl .and. sj == sk) then
+            !$OMP DO 
+            do tmp_l = 1, n4_S(sl)
+              l = list4(tmp_l,sl)
+              idx_l = tmp_l + l_shift
+              do tmp_k = 1, n3_S(sk)
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                do tmp_j = 1, n2_S(sj)
+                  j = list2(tmp_j,sj)
+                  idx_j = tmp_j + j_shift
+                  do tmp_i = 1, n1_S(si)  
+                    i = list1(tmp_i,si)
+                    idx_i = tmp_i + i_shift
+                       v(idx_i,idx_j,idx_k,idx_l) = - mo_two_e_integral(j,i,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+            !$OMP END DO
+          !else
+          !   v(idx_i,idx_j,idx_k,idx_l) = 0d0
+          endif
+
           
         enddo
       enddo

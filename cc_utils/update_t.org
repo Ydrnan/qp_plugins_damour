@@ -19,11 +19,18 @@ subroutine update_t1(nO,nV,f_o,f_v,r1,t1)
   ! internal
   integer                         :: i,a
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,t1,r1,cc_level_shift,f_o,f_v) &
+  !$OMP PRIVATE(i,a) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
   do a = 1, nV
     do i = 1, nO
       t1(i,a) = t1(i,a) - r1(i,a) / (f_o(i) - f_v(a) - cc_level_shift)
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
   
 end  
 #+end_src
@@ -48,6 +55,11 @@ subroutine update_t2(nO,nV,f_o,f_v,r2,t2)
   ! internal
   integer                         :: i,j,a,b
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,t2,r2,cc_level_shift,f_o,f_v) &
+  !$OMP PRIVATE(i,j,a,b) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -57,6 +69,8 @@ subroutine update_t2(nO,nV,f_o,f_v,r2,t2)
       enddo
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
   
 end  
 #+end_src
@@ -77,15 +91,22 @@ subroutine update_tau_space(nO,nV,t1,t2,tau)
   ! internal
   integer                       :: i,j,a,b
   
-   do b = 1, nV
-      do a = 1, nV
-        do j = 1, nO
-          do i = 1, nO
-            tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
-          enddo
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,tau,t2,t1) &
+  !$OMP PRIVATE(i,j,a,b) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
         enddo
       enddo
     enddo
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
     
 end
 #+end_src

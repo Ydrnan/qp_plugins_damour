@@ -651,13 +651,7 @@ subroutine gen_f_spin(det, n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
   integer                       :: si,sj,s
 
   allocate(tmp_F(mo_num,mo_num))
-
-  !$OMP PARALLEL &
-  !$OMP SHARED(mo_num,n1_S,n2_S,f,tmp_F,det, &
-  !$OMP list1,list2) &
-  !$OMP PRIVATE(i_shift,j_shift,s,si,sj,&
-  !$OMP i,j,tmp_i,tmp_j,idx_i,idx_j)&
-  !$OMP DEFAULT(NONE)
+  
   do sj = 1, 2
     call shift_idx_spin(sj,n2_S,j_shift)
     do si = 1, 2
@@ -667,16 +661,13 @@ subroutine gen_f_spin(det, n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
       if (s == 2 .or. s == 4) then
         call get_fock_matrix_spin(det,sj,tmp_F)
       else
-        !$OMP DO
         do j = 1, mo_num
           do i = 1, mo_num
             tmp_F(i,j) = 0d0
           enddo
         enddo
-        !$OMP END DO
       endif
-      
-      !$OMP DO
+
       do tmp_j = 1, n2_S(sj)
         j = list2(tmp_j,sj)
         idx_j = tmp_j + j_shift
@@ -686,12 +677,10 @@ subroutine gen_f_spin(det, n1,n2, n1_S,n2_S, list1,list2, dim1,dim2, f)
           f(idx_i,idx_j) = tmp_F(i,j)
         enddo
       enddo
-      !$OMP END DO
 
     enddo
   enddo
-  !$OMP END PARALLEL
-
+  
   deallocate(tmp_F)
   
 end
@@ -781,6 +770,17 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   !$OMP i,j,k,l,idx_i,idx_j,idx_k,idx_l,&
   !$OMP tmp_i,tmp_j,tmp_k,tmp_l)&
   !$OMP DEFAULT(NONE)
+  !!$OMP DO
+  !do l = 1, size(v,4)
+  !  do k = 1, size(v,3)
+  !    do j = 1, size(v,2)
+  !      do i = 1, size(v,1)
+  !        v(i,j,k,l) = 0d0
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  !!$OMP END DO
   do sl = 1, 2
     call shift_idx_spin(sl,n4_S,l_shift)
     do sk = 1, 2

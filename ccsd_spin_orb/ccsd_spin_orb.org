@@ -88,13 +88,13 @@ subroutine run_ccsd_spin_orb_sub
   allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
   allocate(cW_oooo(nO,nO,nO,nO), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
   allocate(v_oooo(nO,nO,nO,nO))
-  allocate(v_vooo(nV,nO,nO,nO))
+  !allocate(v_vooo(nV,nO,nO,nO))
   allocate(v_ovoo(nO,nV,nO,nO))
   allocate(v_oovo(nO,nO,nV,nO))
   allocate(v_ooov(nO,nO,nO,nV))
   allocate(v_vvoo(nV,nV,nO,nO))
-  allocate(v_vovo(nV,nO,nV,nO))
-  allocate(v_voov(nV,nO,nO,nV))
+  !allocate(v_vovo(nV,nO,nV,nO))
+  !allocate(v_voov(nV,nO,nO,nV))
   allocate(v_ovvo(nO,nV,nV,nO))
   allocate(v_ovov(nO,nV,nO,nV))
   allocate(v_oovv(nO,nO,nV,nV))
@@ -139,45 +139,29 @@ subroutine run_ccsd_spin_orb_sub
 
   ! Bi electronic integrals from list
   ! OOOO
-  !call gen_v_ints(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
   call gen_v_spin(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
 
   ! OOO V
-  !call gen_v_ints(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
-  !call gen_v_ints(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
-  !call gen_v_ints(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
-  !call gen_v_ints(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
-  call gen_v_spin(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
+  !call gen_v_spin(nV_m,nO_m,nO_m,nO_m, nV_S,nO_S,nO_S,nO_S, list_vir,list_occ,list_occ,list_occ, nV,nO,nO,nO, v_vooo)
   call gen_v_spin(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
   call gen_v_spin(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
   call gen_v_spin(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
 
   ! OO VV
-  !call gen_v_ints(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
-  !call gen_v_ints(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
-  !call gen_v_ints(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
-  !call gen_v_ints(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
-  !call gen_v_ints(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
-  !call gen_v_ints(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
   call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
-  call gen_v_spin(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
-  call gen_v_spin(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
+  !call gen_v_spin(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
+  !call gen_v_spin(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
   call gen_v_spin(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
   call gen_v_spin(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
   call gen_v_spin(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
 
   ! O VVV
-  !call gen_v_ints(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
-  !call gen_v_ints(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
-  !call gen_v_ints(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
-  !call gen_v_ints(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
   call gen_v_spin(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
   call gen_v_spin(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
   call gen_v_spin(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
   call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
   ! VVVV
-  !call gen_v_ints(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
   call gen_v_spin(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
 
   ! Init of T
@@ -304,8 +288,8 @@ subroutine run_ccsd_spin_orb_sub
   deallocate(cW_oooo,cW_ovvo,cW_vvvv)
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
   deallocate(v_oooo)
-  deallocate(v_vooo,v_ovoo,v_oovo,v_ooov)
-  deallocate(v_vvoo,v_vovo,v_voov,v_ovvo,v_ovov,v_oovv)
+  deallocate(v_ovoo,v_oovo,v_ooov)
+  deallocate(v_vvoo,v_ovvo,v_ovov,v_oovv)
   deallocate(v_ovvv,v_vovv,v_vvov,v_vvvo)
   deallocate(v_vvvv)
   

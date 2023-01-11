@@ -452,7 +452,7 @@ subroutine compute_tau(nO,nV,t1,t2,tau)
   !$OMP SHARED(tau,t1,t2,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO
+  !$OMP DO collapse(4)
   do i=1,nO
     do j=1,nO
       do a=1,nV
@@ -487,7 +487,7 @@ subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
   !$OMP SHARED(tau_t,t1,t2,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO
+  !$OMP DO collapse(4)
   do i=1,nO
     do j=1,nO
       do a=1,nV

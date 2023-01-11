@@ -1450,11 +1450,11 @@ subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision,external     :: Kronecker_Delta
+  double precision, allocatable :: X_oooo(:,:,:,:)
 
   ! oooo block  
 
-  cW_oooo = v_oooo
+  !cW_oooo = v_oooo
 
   !do j=1,nO
   !  do i=1,nO
@@ -1469,21 +1469,28 @@ subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !    end do
   !  end do
   !end do
-  double precision, allocatable :: X_oooo(:,:,:,:)
   allocate(X_oooo(nO,nO,nO,nO))
+  
   call dgemm('N','T', nO*nO*nO, nO, nV, &
              1d0, v_ooov, size(v_ooov,1) * size(v_ooov,2) * size(v_ooov,3), &
                   t1    , size(t1,1), &
              0d0, X_oooo, size(X_oooo,1) * size(X_oooo,1) * size(X_oooo,3))
+  !$OMP PARALLEL &
+  !$OMP SHARED(cW_oooo,v_oooo,X_oooo,nO,nV) &
+  !$OMP PRIVATE(i,j,m,n) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(4)
   do j=1,nO
     do i=1,nO
       do n=1,nO
         do m=1,nO
-          cW_oooo(m,n,i,j) = cW_oooo(m,n,i,j) + X_oooo(m,n,i,j) - X_oooo(m,n,j,i)
+          cW_oooo(m,n,i,j) = v_oooo(m,n,i,j) + X_oooo(m,n,i,j) - X_oooo(m,n,j,i)
         end do
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
   
   deallocate(X_oooo)
   
@@ -1534,10 +1541,25 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision,external     :: Kronecker_Delta
-  ! ovvo block
+  double precision, allocatable :: A_oovo(:,:,:,:), B_vovo(:,:,:,:)
+  double precision, allocatable :: A_voov(:,:,:,:), B_voov(:,:,:,:), C_ovov(:,:,:,:)
 
-  cW_ovvo = v_ovvo
+  !$OMP PARALLEL &
+  !$OMP SHARED(cW_ovvo,v_ovvo,nO,nV) &
+  !$OMP PRIVATE(i,j,a,b) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(4)
+  do j = 1, nO
+    do b = 1, nV
+      do a = 1, nV
+        do i = 1, nO
+          cW_ovvo(i,a,b,j) = v_ovvo(i,a,b,j)
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   !do m=1,nO
   !  do b=1,nV
@@ -1566,8 +1588,15 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !    end do
   !  end do
   !end do
-  double precision, allocatable :: A_oovo(:,:,:,:), B_vovo(:,:,:,:)
+  
   allocate(A_oovo(nO,nO,nV,nO), B_vovo(nV,nO,nV,nO))
+  
+  !$OMP PARALLEL &
+  !$OMP SHARED(A_oovo,v_oovo,nO,nV) &
+  !$OMP PRIVATE(j,e,m,n) &
+  !$OMP DEFAULT(NONE)
+  
+  !$OMP DO collapse(4)
   do j=1,nO
     do e=1,nV
       do m=1,nO
@@ -1577,12 +1606,20 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
   
   call dgemm('T','N', nV, nO*nV*nO, nO, &
              1d0, t1    , size(t1,1), &
                   A_oovo, size(A_oovo,1), &
              0d0, B_vovo, size(B_vovo,1))
   
+  !$OMP PARALLEL &
+  !$OMP SHARED(cW_ovvo,B_vovo,nO,nV) &
+  !$OMP PRIVATE(j,e,m,b) &
+  !$OMP DEFAULT(NONE)
+  
+  !$OMP DO collapse(4)
   do j=1,nO
     do e=1,nV
       do b=1,nV
@@ -1592,6 +1629,8 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
   deallocate(A_oovo,B_vovo)
 
   !do j=1,nO
@@ -1608,9 +1647,14 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !    end do
   !  end do
   !end do
-  double precision, allocatable :: A_voov(:,:,:,:), B_voov(:,:,:,:), C_ovov(:,:,:,:)
   allocate(A_voov(nV,nO,nO,nV), B_voov(nV,nO,nO,nV), C_ovov(nO,nV,nO,nV))
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,A_voov,B_voov,v_oovv,t2,t1) &
+  !$OMP PRIVATE(f,n,m,e,j,b) &
+  !$OMP DEFAULT(NONE)
+  
+  !$OMP DO collapse(4)
   do b = 1, nV
     do j = 1, nO
       do n = 1, nO
@@ -1620,6 +1664,8 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       enddo
     enddo
   enddo
+  !$OMP END DO
+  !$OMP DO collapse(4)
   do e = 1, nV
     do m = 1, nO
       do n = 1, nO
@@ -1629,11 +1675,22 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       enddo
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
+  
   call dgemm('T','N', nO*nV, nV*nO, nV*nO, &
              1d0, A_voov, size(A_voov,1) * size(A_voov,2), &
                   B_voov, size(B_voov,1) * size(B_voov,2), &
              0d0, C_ovov, size(C_ovov,1) * size(C_ovov,2))
+  
+  deallocate(A_voov,B_voov)
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(cW_ovvo,C_ovov,nO,nV) &
+  !$OMP PRIVATE(j,e,m,b) &
+  !$OMP DEFAULT(NONE)
+  
+  !$OMP DO collapse(4)
   do j = 1, nO
     do e = 1, nV
       do b = 1, nV
@@ -1643,7 +1700,10 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       enddo
     enddo
   enddo
-  deallocate(A_voov,B_voov,C_ovov)
+  !$OMP END DO
+  !$OMP END PARALLEL
+  
+  deallocate(C_ovov)
 
 end
 #+end_src
@@ -1670,11 +1730,27 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   double precision,intent(out)  :: cW_vvvv(nV,nV,nV,nV)
 
   integer                       :: i,j,m,n
-  integer                       :: a,b,e,f
-  double precision,external     :: Kronecker_Delta
-  ! vvvv block
+  integer                       :: a,b,c,d,e,f
+  double precision, allocatable :: A_ovvv(:,:,:,:), B_vvvv(:,:,:,:)
 
-  cW_vvvv = v_vvvv
+  allocate(A_ovvv(nO,nV,nV,nV), B_vvvv(nV,nV,nV,nV))
+
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,cW_vvvv,A_ovvv,v_vovv,v_vvvv) &
+  !$OMP PRIVATE(a,b,c,d,e,f,m) &
+  !$OMP DEFAULT(NONE)
+
+  !$OMP DO collapse(4)
+  do d = 1, nV
+    do c = 1, nV
+      do b = 1, nV
+        do a = 1, nV
+          cW_vvvv(a,b,c,d) = v_vvvv(a,b,c,d)
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO NOWAIT
 
   !do f=1,nV
   !  do e=1,nV
@@ -1687,8 +1763,7 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !    end do
   !  end do
   !end do
-  double precision, allocatable :: A_ovvv(:,:,:,:), B_vvvv(:,:,:,:)
-  allocate(A_ovvv(nO,nV,nV,nV), B_vvvv(nV,nV,nV,nV))
+  !$OMP DO collapse(4)
   do f=1,nV
     do e=1,nV
       do a=1,nV
@@ -1698,11 +1773,20 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   call dgemm('T','N', nV, nV*nV*nV, nO, &
              1d0, t1    , size(t1,1), &
                   A_ovvv, size(A_ovvv,1), &
              0d0, B_vvvv, size(B_vvvv,1))
+
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,cW_vvvv,B_vvvv) &
+  !$OMP PRIVATE(a,b,c,d,e,f,m) &
+  !$OMP DEFAULT(NONE)
+
+  !$OMP DO collapse(4)
   do f=1,nV
     do e=1,nV
       do b=1,nV
@@ -1712,6 +1796,9 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
+  
   deallocate(A_ovvv,B_vvvv)
 
   !do a=1,nV

@@ -1232,11 +1232,34 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
   integer                       :: a,b,e,f
   double precision,external     :: Kronecker_Delta
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(cF_oo,Foo,t1,v_ooov,nO,nV) &
+  !$OMP PRIVATE(i,m,n,e) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(2)
   do i=1,nO
     do m=1,nO
-      cF_oo(m,i) = (1d0 - Kronecker_delta(m,i))*Foo(m,i) 
+      !cF_oo(m,i) = (1d0 - Kronecker_delta(m,i))*Foo(m,i)
+      if (m /= i) then
+        cF_oo(m,i) = Foo(m,i)
+      else
+        cF_oo(m,i) = 0d0
+      endif
     end do
   end do
+  !$OMP END DO
+  do e=1,nV
+    do n=1,nO
+      !$OMP DO collapse(2)
+      do i=1,nO
+        do m=1,nO
+          cF_oo(m,i) = cF_oo(m,i) + t1(n,e)*v_ooov(m,n,i,e)
+        end do
+      end do
+      !$OMP END DO
+    end do
+  end do
+  !$OMP END PARALLEL
 
   !do i=1,nO
   !  do m=1,nO
@@ -1249,16 +1272,6 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
              0.5d0, Fov  , size(Fov,1), &
                     t1   , size(t1,1), &
              1d0  , cF_oo, size(cF_oo,1))
-
-  do e=1,nV
-    do n=1,nO
-      do i=1,nO
-        do m=1,nO
-          cF_oo(m,i) = cF_oo(m,i) + t1(n,e)*v_ooov(m,n,i,e)
-        end do
-      end do
-    end do
-  end do
 
   !do i=1,nO
   !  do m=1,nO
@@ -1301,10 +1314,17 @@ subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
   integer                       :: a,b,e,f
   double precision,external     :: Kronecker_Delta
 
-  cF_ov = Fov
+  !$OMP PARALLEL &
+  !$OMP SHARED(cF_ov,Fov,t1,v_oovv,nO,nV) &
+  !$OMP PRIVATE(i,a,m,n,e,f) &
+  !$OMP DEFAULT(NONE)
+  
+  !cF_ov = Fov
 
+  !$OMP DO collapse(2)
   do e=1,nV
     do m=1,nO
+      cF_ov(m,e) = Fov(m,e)
       do f=1,nV
         do n=1,nO
           cF_ov(m,e) = cF_ov(m,e) + t1(n,f)*v_oovv(m,n,e,f)
@@ -1312,6 +1332,8 @@ subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
       end do
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
   
 end
 #+end_src
@@ -1337,13 +1359,23 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
   double precision,external     :: Kronecker_Delta
-  ! Virtual-virtual block
 
+  !$OMP PARALLEL &
+  !$OMP SHARED(cF_vv,Fvv,nO,nV) &
+  !$OMP PRIVATE(e,a) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(2)
   do e=1,nV
     do a=1,nV
-      cF_vv(a,e) = (1d0 - Kronecker_delta(a,e))*Fvv(a,e) 
+      if (a /= e) then
+        cF_vv(a,e) = Fvv(a,e)
+      else
+        cF_vv(a,e) = 0d0
+      endif
     end do
   end do
+  !$OMP END DO
+  !$OMP END PARALLEL
  
   !do e=1,nV
   !  do a=1,nV

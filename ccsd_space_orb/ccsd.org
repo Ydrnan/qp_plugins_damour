@@ -34,10 +34,10 @@ subroutine run_ccsd_space_orb
   double precision, allocatable :: t2(:,:,:,:), r2(:,:,:,:), delta(:,:,:,:), tau(:,:,:,:)
   double precision, allocatable :: t1(:,:), r1(:,:)
   
-  double precision, allocatable :: all_err2(:,:), all_t2(:,:)
-  double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
-  double precision, allocatable :: all_err1(:,:), all_t1(:,:)
-  double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
+  double precision, allocatable :: all_err(:,:), all_t(:,:)
+  !double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
+  !double precision, allocatable :: all_err1(:,:), all_t1(:,:)
+  !double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
   integer, allocatable          :: list_occ(:), list_vir(:)
   integer(bit_kind)             :: det(N_int,2)
   integer                       :: nO, nV, nOa, nOb, nVa, nVb, n_spin(4)
@@ -72,12 +72,15 @@ subroutine run_ccsd_space_orb
   allocate(t1(nO,nV), r1(nO,nV))
 
   if (cc_update_method == 'diis') then
-    allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
-    all_err2 = 0d0
-    all_t2   = 0d0
-    allocate(all_err1(nO*nV,cc_diis_depth), all_t1(nO*nV,cc_diis_depth))
-    all_err1 = 0d0
-    all_t1   = 0d0
+    !allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
+    !all_err2 = 0d0
+    !all_t2   = 0d0
+    !allocate(all_err1(nO*nV,cc_diis_depth), all_t1(nO*nV,cc_diis_depth))
+    !all_err1 = 0d0
+    !all_t1   = 0d0
+    allocate(all_err(nO*nV+nO*nO*nV*nV,cc_diis_depth), all_t(nO*nV+nO*nO*nV*nV,cc_diis_depth))
+    all_err = 0d0
+    all_t   = 0d0
   endif
 
   if (elec_alpha_num /= elec_beta_num) then
@@ -129,7 +132,9 @@ subroutine run_ccsd_space_orb
     ! Update
     !call update_t_ccsd(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
     !call update_t_ccsd_v2(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
-    call update_t_ccsd_diis(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    !call update_t_ccsd_diis(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+    call update_t_ccsd_diis_v3(nO,nV,nb_iter,cc_space_f_o,cc_space_f_v,r1,r2,t1,t2,all_err,all_t)
+
     call update_tau_space(nO,nV,t1,t2,tau)
 
     ! Energy
@@ -190,7 +195,8 @@ subroutine run_ccsd_space_orb
 
   ! Deallocation
   if (cc_update_method == 'diis') then
-    deallocate(all_err1,all_err2,all_t1,all_t2)
+    !deallocate(all_err1,all_err2,all_t1,all_t2)
+    deallocate(all_err,all_t)
   endif
 
   deallocate(t1,r1,t2,r2,delta,tau)

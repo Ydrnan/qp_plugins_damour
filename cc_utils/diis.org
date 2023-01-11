@@ -176,7 +176,7 @@ subroutine update_all_err(err,all_err,sze,m,iter)
     do j = 1, sze
       all_err(j,i) = all_err(j,i+1)
     enddo
-    !$OMP END DO NOWAIT
+    !$OMP END DO
   enddo
   
   ! Debug
@@ -232,7 +232,7 @@ subroutine update_all_t(t,all_t,sze,m,iter)
     do j = 1, sze
       all_t(j,i) = all_t(j,i+1)
     enddo
-    !$OMP END DO NOWAIT
+    !$OMP END DO
   enddo
 
   ! New
@@ -307,7 +307,7 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
   !$OMP SHARED(err2,r2,f_o,f_v,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO
+  !$OMP DO collapse(4)
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -439,30 +439,34 @@ subroutine update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err
   !$OMP all_t,all_t1,all_t2) &
   !$OMP PRIVATE(i,j) &
   !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
-    !$OMP DO
     do i = 1, nO*nV
       all_err(i,j) = all_err1(i,j)
     enddo
-    !$OMP END DO NOWAIT
-    !$OMP DO
+  enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO collapse(2)
+  do j = 1, cc_diis_depth
     do i = 1, nO*nO*nV*nV
       all_err(i+nO*nV,j) = all_err2(i,j)
     enddo
-    !$OMP END DO NOWAIT
   enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
-    !$OMP DO
     do i = 1, nO*nV
       all_t(i,j) = all_t1(i,j)
     enddo
-    !$OMP END DO NOWAIT
-    !$OMP DO
+  enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO collapse(2)
+  do j = 1, cc_diis_depth
     do i = 1, nO*nO*nV*nV
       all_t(i+nO*nV,j) = all_t2(i,j)
     enddo
-    !$OMP END DO
   enddo
+  !$OMP END DO
   !$OMP END PARALLEL
   
   ! Diis
@@ -491,6 +495,79 @@ subroutine update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err
 
   ! Deallocate
   deallocate(tmp_t1,tmp_t2,tmp_err1,tmp_err2,err1,err2,all_t,all_err)
+
+end
+ #+end_src
+ 
+
+** Update t v3
+#+begin_src f90 :comments org :tangle diis.irp.f
+subroutine update_t_ccsd_diis_v3(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err,all_t)
+
+  implicit none
+
+  integer, intent(in)             :: nO,nV,nb_iter
+  double precision, intent(in)    :: f_o(nO), f_v(nV)
+  double precision, intent(in)    :: r1(nO,nV), r2(nO,nO,nV,nV)
+  
+  double precision, intent(inout) :: t1(nO*nV), t2(nO*nO*nV*nV)
+  double precision, intent(inout) :: all_err(nO*nV+nO*nO*nV*nV, cc_diis_depth)
+  double precision, intent(inout) :: all_t(nO*nV+nO*nO*nV*nV, cc_diis_depth)
+
+  double precision, allocatable   :: tmp(:)
+
+  integer                         :: i,j
+  
+  ! Allocate
+  allocate(tmp(nO*nV+nO*nO*nV*nV))
+
+  ! Compute the errors
+  call compute_err1(nO,nV,f_o,f_v,r1,tmp(1:nO*nV))
+  call compute_err2(nO,nV,f_o,f_v,r2,tmp(nO*nV+1:nO*nV+nO*nO*nV*nV))
+  
+  ! Update the errors and parameters for the diis
+  call update_all_err(tmp,all_err,nO*nV+nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,tmp,t1,t2) &
+  !$OMP PRIVATE(i) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
+  do i = 1, nO*nV
+    tmp(i) = t1(i)
+  enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO
+  do i = 1, nO*nO*nV*nV
+    tmp(i+nO*nV) = t2(i)
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
+   
+  call update_all_t(tmp,all_t,nO*nV+nO*nO*nV*nV,cc_diis_depth,nb_iter+1)
+
+  ! Diis
+  call diis_cc(all_err,all_t,nO*nV+nO*nO*nV*nV,cc_diis_depth,nb_iter+1,tmp)
+
+  ! Split the resulting vector
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,tmp,t1,t2) &
+  !$OMP PRIVATE(i) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO
+  do i = 1, nO*nV
+    t1(i) = tmp(i)
+  enddo
+  !$OMP END DO NOWAIT
+  !$OMP DO
+  do i = 1, nO*nO*nV*nV
+    t2(i) = tmp(i+nO*nV) 
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
+
+  ! Deallocate
+  deallocate(tmp)
 
 end
  #+end_src

@@ -92,14 +92,14 @@ subroutine run_ccsd_spin_orb_sub
   allocate(v_ovoo(nO,nV,nO,nO))
   allocate(v_oovo(nO,nO,nV,nO))
   allocate(v_ooov(nO,nO,nO,nV))
-  allocate(v_vvoo(nV,nV,nO,nO))
+  !allocate(v_vvoo(nV,nV,nO,nO))
   !allocate(v_vovo(nV,nO,nV,nO))
   !allocate(v_voov(nV,nO,nO,nV))
   allocate(v_ovvo(nO,nV,nV,nO))
   allocate(v_ovov(nO,nV,nO,nV))
   allocate(v_oovv(nO,nO,nV,nV))
   allocate(v_vvvo(nV,nV,nV,nO))
-  allocate(v_vvov(nV,nV,nO,nV))
+  !allocate(v_vvov(nV,nV,nO,nV))
   allocate(v_vovv(nV,nO,nV,nV))
   allocate(v_ovvv(nO,nV,nV,nV))
   allocate(v_vvvv(nV,nV,nV,nV))
@@ -148,7 +148,7 @@ subroutine run_ccsd_spin_orb_sub
   call gen_v_spin(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
 
   ! OO VV
-  call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  !call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
   !call gen_v_spin(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
   !call gen_v_spin(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
   call gen_v_spin(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
@@ -157,7 +157,7 @@ subroutine run_ccsd_spin_orb_sub
 
   ! O VVV
   call gen_v_spin(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
-  call gen_v_spin(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
+  !call gen_v_spin(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
   call gen_v_spin(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
   call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
@@ -195,13 +195,13 @@ subroutine run_ccsd_spin_orb_sub
   do while (not_converged)
 
     ! Intermediates
-    call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_oo)
-    call compute_cF_ov(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_ov)
-    call compute_cF_vv(nO,nV,t1,tau_t,F_oo,F_ov,F_vv,v_ooov,v_oovv,v_ovvv,cF_vv)
+    call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,v_ooov,v_oovv,cF_oo)
+    call compute_cF_ov(nO,nV,t1,F_ov,v_oovv,cF_ov)
+    call compute_cF_vv(nO,nV,t1,tau_t,F_ov,F_vv,v_oovv,v_ovvv,cF_vv)
     
-    call compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_oooo)
-    call compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_ovvo)
-    call compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
+    call compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovv,cW_oooo)
+    call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
+    call compute_cW_vvvv(nO,nV,t1,t2,tau,v_vvvv,v_vovv,v_oovv,cW_vvvv)
 
     ! Residuals
     call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
@@ -289,8 +289,8 @@ subroutine run_ccsd_spin_orb_sub
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
   deallocate(v_oooo)
   deallocate(v_ovoo,v_oovo,v_ooov)
-  deallocate(v_vvoo,v_ovvo,v_ovov,v_oovv)
-  deallocate(v_ovvv,v_vovv,v_vvov,v_vvvo)
+  deallocate(v_ovvo,v_ovov,v_oovv)
+  deallocate(v_ovvv,v_vovv,v_vvvo)
   deallocate(v_vvvv)
   
 end
@@ -1196,7 +1196,7 @@ end
 ** cF
 *** cF_oo
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
+subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,v_ooov,v_oovv,cF_oo)
 
   implicit none
 
@@ -1205,10 +1205,8 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
   double precision,intent(in)   :: tau_t(nO,nO,nV,nV)
   double precision,intent(in)   :: Foo(nO,nO)
   double precision,intent(in)   :: Fov(nO,nV)
-  double precision,intent(in)   :: Fvv(nV,nV)
   double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
   double precision,intent(out)  :: cF_oo(nO,nO)
 
@@ -1220,18 +1218,25 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
   !$OMP SHARED(cF_oo,Foo,t1,v_ooov,nO,nV) &
   !$OMP PRIVATE(i,m,n,e) &
   !$OMP DEFAULT(NONE)
+  
+  !do i=1,nO
+  !  do m=1,nO
+  !    cF_oo(m,i) = (1d0 - Kronecker_delta(m,i))*Foo(m,i)
+  !  end do
+  !end do
   !$OMP DO collapse(1)
   do i=1,nO
     do m=1,nO
-      !cF_oo(m,i) = (1d0 - Kronecker_delta(m,i))*Foo(m,i)
-      if (m /= i) then
         cF_oo(m,i) = Foo(m,i)
-      else
-        cF_oo(m,i) = 0d0
-      endif
     end do
   end do
   !$OMP END DO
+  !$OMP DO
+  do i = 1, nO
+    cF_oo(i,i) = 0d0
+  end do
+  !$OMP END DO
+  
   do e=1,nV
     do n=1,nO
       !$OMP DO collapse(1)
@@ -1278,25 +1283,18 @@ end
 
 *** cF_ov
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
+subroutine compute_cF_ov(nO,nV,t1,Fov,v_oovv,cF_ov)
 
   implicit none
 
   integer,intent(in)            :: nO,nV
   double precision,intent(in)   :: t1(nO,nV)
-  double precision,intent(in)   :: tau_t(nO,nO,nV,nV)
-  double precision,intent(in)   :: Foo(nO,nO)
-  double precision,intent(in)   :: Fov(nO,nV)
-  double precision,intent(in)   :: Fvv(nV,nV)
-  double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
-  double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
+  double precision,intent(in)   :: Fov(nO,nV),v_oovv(nO,nO,nV,nV)
 
   double precision,intent(out)  :: cF_ov(nO,nV)
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision,external     :: Kronecker_Delta
 
   !$OMP PARALLEL &
   !$OMP SHARED(cF_ov,Fov,t1,v_oovv,nO,nV) &
@@ -1324,17 +1322,15 @@ end
 
 *** cF_vv
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
+subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
 
   implicit none
 
   integer,intent(in)            :: nO,nV
   double precision,intent(in)   :: t1(nO,nV)
   double precision,intent(in)   :: tau_t(nO,nO,nV,nV)
-  double precision,intent(in)   :: Foo(nO,nO)
   double precision,intent(in)   :: Fov(nO,nV)
   double precision,intent(in)   :: Fvv(nV,nV)
-  double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
   double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
@@ -1342,7 +1338,6 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision,external     :: Kronecker_Delta
 
   !$OMP PARALLEL &
   !$OMP SHARED(cF_vv,Fvv,nO,nV) &
@@ -1351,13 +1346,14 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
   !$OMP DO collapse(1)
   do e=1,nV
     do a=1,nV
-      if (a /= e) then
-        cF_vv(a,e) = Fvv(a,e)
-      else
-        cF_vv(a,e) = 0d0
-      endif
+      cF_vv(a,e) = Fvv(a,e)
     end do
   end do
+  !$OMP END DO
+  !$OMP DO
+  do e = 1, nV
+    cF_vv(e,e) = 0d0
+  enddo
   !$OMP END DO
   !$OMP END PARALLEL
  
@@ -1413,7 +1409,7 @@ end
 ** cW
 *** cW_oooo
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_oooo)
+subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovv,cW_oooo)
 
   implicit none
 
@@ -1423,12 +1419,7 @@ subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   double precision,intent(in)   :: tau(nO,nO,nV,nV)
   double precision,intent(in)   :: v_oooo(nO,nO,nO,nO)
   double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
-  double precision,intent(in)   :: v_oovo(nO,nO,nV,nO)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_ovvo(nO,nV,nV,nO)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
-  double precision,intent(in)   :: v_vovv(nV,nO,nV,nV)
-  double precision,intent(in)   :: v_vvvv(nV,nV,nV,nV)
 
   double precision,intent(out)  :: cW_oooo(nO,nO,nO,nO)
 
@@ -1504,7 +1495,7 @@ end
 
 *** cW_ovvo
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_ovvo)
+subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
 
   implicit none
 
@@ -1512,14 +1503,10 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   double precision,intent(in)   :: t1(nO,nV)
   double precision,intent(in)   :: t2(nO,nO,nV,nV)
   double precision,intent(in)   :: tau(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_oooo(nO,nO,nO,nO)
-  double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
   double precision,intent(in)   :: v_oovo(nO,nO,nV,nO)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
   double precision,intent(in)   :: v_ovvo(nO,nV,nV,nO)
   double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
-  double precision,intent(in)   :: v_vovv(nV,nO,nV,nV)
-  double precision,intent(in)   :: v_vvvv(nV,nV,nV,nV)
 
   double precision,intent(out)  :: cW_ovvo(nO,nV,nV,nO)
 
@@ -1694,20 +1681,15 @@ end
 
 *** cW_vvvv
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_ovvv,v_vovv,v_vvvv,cW_vvvv)
-
+subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_vvvv,v_vovv,v_oovv,cW_vvvv)
+ 
   implicit none
 
   integer,intent(in)            :: nO,nV
   double precision,intent(in)   :: t1(nO,nV)
   double precision,intent(in)   :: t2(nO,nO,nV,nV)
   double precision,intent(in)   :: tau(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_oooo(nO,nO,nO,nO)
-  double precision,intent(in)   :: v_ooov(nO,nO,nO,nV)
-  double precision,intent(in)   :: v_oovo(nO,nO,nV,nO)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_ovvo(nO,nV,nV,nO)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
   double precision,intent(in)   :: v_vovv(nV,nO,nV,nV)
   double precision,intent(in)   :: v_vvvv(nV,nV,nV,nV)
 

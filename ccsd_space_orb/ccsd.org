@@ -701,8 +701,10 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
   call compute_g_vir(nO,nV,t1,t2,H_vv,g_vir)
   call compute_A1(nO,nV,t1,t2,tau,A1)
   call compute_B1(nO,nV,t1,t2,B1)
-  call compute_J1(nO,nV,t1,t2,J1)
-  call compute_K1(nO,nV,t1,t2,K1)
+  call compute_J1(nO,nV,t1,t2,cc_space_v_ovvo,cc_space_v_ovoo, &
+       cc_space_v_vvvo,cc_space_v_vvoo,J1)
+  call compute_K1(nO,nV,t1,t2,cc_space_v_ovoo,cc_space_v_vvoo, &
+       cc_space_v_ovov,cc_space_v_vvov,K1)
 
   ! Residual
   r2 = 0d0
@@ -1056,93 +1058,282 @@ end
 
 **** J1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_J1(nO,nV,t1,t2,J1)
+subroutine compute_J1(nO,nV,t1,t2,v_ovvo,v_ovoo,v_vvvo,v_vvoo,J1)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
   double precision, intent(in)  :: t1(nO, nV)
   double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: v_ovvo(nO,nV,nV,nO), v_ovoo(nO,nV,nO,nO)
+  double precision, intent(in)  :: v_vvvo(nV,nV,nV,nO), v_vvoo(nV,nV,nO,nO)
   double precision, intent(out) :: J1(nO, nV, nV, nO)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
 
-  J1 = 0d0
+  !J1 = 0d0
+
+  !do i = 1, nO
+  !  do beta = 1, nV
+  !    do a = 1, nV
+  !      do u = 1, nO
+  !       J1(u,a,beta,i) = cc_space_v_ovvo(u,a,beta,i)
+
+  !        do j = 1, nO
+  !          J1(u,a,beta,i) = J1(u,a,beta,i) &
+  !          - cc_space_v_ovoo(u,a,j,i) * t1(j,beta)
+  !        enddo
+
+  !        do b = 1, nV
+  !          J1(u,a,beta,i) = J1(u,a,beta,i) &
+  !          + cc_space_v_vvvo(b,a,beta,i) * t1(u,b)    
+  !        enddo
+
+  !        do j = 1, nO
+  !          do b = 1, nV
+  !           J1(u,a,beta,i) = J1(u,a,beta,i) &
+  !           - cc_space_v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
+  !           + 0.5d0 * (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
+  !          enddo
+  !        enddo
+  !        
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
 
   do i = 1, nO
     do beta = 1, nV
       do a = 1, nV
         do u = 1, nO
-          J1(u,a,beta,i) = cc_space_v_ovvo(u,a,beta,i)
-
-          do j = 1, nO
-            J1(u,a,beta,i) = J1(u,a,beta,i) &
-            - cc_space_v_ovoo(u,a,j,i) * t1(j,beta)
-          enddo
-
-          do b = 1, nV
-            J1(u,a,beta,i) = J1(u,a,beta,i) &
-            + cc_space_v_vvvo(b,a,beta,i) * t1(u,b)    
-          enddo
-
-          do j = 1, nO
-            do b = 1, nV
-             J1(u,a,beta,i) = J1(u,a,beta,i) &
-             - cc_space_v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
-             + 0.5d0 * (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
-            enddo
-          enddo
-          
+          J1(u,a,beta,i) = v_ovvo(u,a,beta,i)
         enddo
       enddo
     enddo
   enddo
+
+  double precision, allocatable :: X_ovoo(:,:,:,:), Y_ovov(:,:,:,:)
+  allocate(X_ovoo(nO,nV,nO,nO),Y_ovov(nO,nV,nO,nV))
+  do j = 1, nO
+    do i = 1, nO
+      do a = 1, nV
+        do u = 1, nO
+          X_ovoo(u,a,i,j) = v_ovoo(u,a,j,i)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  call dgemm('N','N',nO*nV*nO,nV,nO, &
+            -1d0, X_ovoo, size(X_ovoo,1) * size(X_ovoo,2) * size(X_ovoo,3), &
+                  t1    , size(t1,1), &
+             0d0, Y_ovov, size(Y_ovov,1) * size(Y_ovov,2) * size(Y_ovov,3))
+
+  do i = 1, nO
+    do beta = 1, nV
+      do a = 1, nV
+        do u = 1, nO
+          J1(u,a,beta,i) = J1(u,a,beta,i) + Y_ovov(u,a,i,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+  deallocate(X_ovoo)
+
+  ! v_vvvo(b,a,beta,i) * t1(u,b)
+  call dgemm('N','N',nO,nV*nV*nO,nV, &
+             1d0, t1    , size(t1,1), &
+                  v_vvvo, size(v_vvvo,1), &
+             1d0, J1    , size(J1,1))
+
+  !- cc_space_v_vvoo(a,b,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)) &
+  double precision, allocatable :: X_voov(:,:,:,:), Z_ovvo(:,:,:,:)
+  allocate(X_voov(nV,nO,nO,nV), Z_ovvo(nO,nV,nV,nO))
+  do b = 1, nV
+    do j = 1, nO
+      do beta = 1, nV
+        do u = 1, nO
+          Y_ovov(u,beta,j,b) = 0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do b = 1, nV
+    do j = 1, nO
+      do i = 1, nO
+        do a = 1, nV
+          X_voov(a,i,j,b) = v_vvoo(a,b,i,j)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','T',nO*nV,nV*nO,nO*nV, &
+             -1d0, Y_ovov, size(Y_ovov,1) * size(Y_ovov,2), &
+                   X_voov, size(X_voov,1) * size(X_voov,2), &
+              0d0, Z_ovvo, size(Z_ovvo,1) * size(Z_ovvo,2))
+  deallocate(X_voov)
+
+  do i = 1, nO
+    do beta = 1, nV
+      do a = 1, nV
+        do u = 1, nO
+          J1(u,a,beta,i) = J1(u,a,beta,i) + Z_ovvo(u,beta,a,i)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  !+ 0.5d0 * (2d0 * cc_space_v_vvoo(a,b,i,j) - cc_space_v_vvoo(b,a,i,j)) * t2(u,j,beta,b)
+  double precision, allocatable :: X_ovvo(:,:,:,:), Y_vovo(:,:,:,:)
+  allocate(X_ovvo(nO,nV,nV,nO),Y_vovo(nV,nO,nV,nO))
+  do j = 1, nO
+    do b = 1, nV
+      do i = 1, nO
+        do a = 1, nV
+          Y_vovo(a,i,b,j) = 0.5d0 * (2d0 * v_vvoo(a,b,i,j) - v_vvoo(b,a,i,j))
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  do j = 1, nO
+    do b = 1, nV
+      do beta = 1, nV
+        do u = 1, nO
+          Z_ovvo(u,beta,b,j) = t2(u,j,beta,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  call dgemm('N','T',nO*nV,nV*nO,nV*nO, &
+             1d0, Z_ovvo, size(Z_ovvo,1) * size(Z_ovvo,2), &
+                  Y_vovo, size(Y_vovo,1) * size(Y_vovo,2), &
+             0d0, X_ovvo, size(X_ovvo,1) * size(X_ovvo,2))
+
+  do i = 1, nO
+    do beta = 1, nV
+      do a = 1, nV
+        do u = 1, nO
+          J1(u,a,beta,i) = J1(u,a,beta,i) + X_ovvo(u,beta,a,i)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(X_ovvo,Z_ovvo,Y_ovov)  
   
 end
 #+END_SRC
 
 **** K1
 #+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
-subroutine compute_K1(nO,nV,t1,t2,K1)
+subroutine compute_K1(nO,nV,t1,t2,v_ovoo,v_vvoo,v_ovov,v_vvov,K1)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
   double precision, intent(in)  :: t1(nO, nV)
   double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: v_vvoo(nV,nV,nO,nO), v_ovov(nO,nV,nO,nV)
+  double precision, intent(in)  :: v_vvov(nV,nV,nO,nV), v_ovoo(nO,nV,nO,nO)
   double precision, intent(out) :: K1(nO, nV, nO, nV)
+
+  double precision, allocatable :: X(:,:,:,:), Y(:,:,:,:), Z(:,:,:,:)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
 
-  K1 = 0d0
+  !K1 = 0d0
+
+  !do beta = 1, nV
+  !  do i = 1, nO
+  !    do a = 1, nV
+  !      do u = 1, nO
+  !        K1(u,a,i,beta) = cc_space_v_ovov(u,a,i,beta)
+
+  !        do j = 1, nO
+  !          K1(u,a,i,beta) = K1(u,a,i,beta) &
+  !          - cc_space_v_ovoo(u,a,i,j) * t1(j,beta)
+  !        enddo
+
+  !        do b = 1, nV
+  !          K1(u,a,i,beta) = K1(u,a,i,beta) &
+  !          + cc_space_v_vvov(b,a,i,beta) * t1(u,b)    
+  !        enddo
+
+  !        do j = 1, nO
+  !          do b = 1, nV
+  !           K1(u,a,i,beta) = K1(u,a,i,beta) &
+  !           - cc_space_v_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
+  !          enddo
+  !        enddo
+  !        
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
 
   do beta = 1, nV
     do i = 1, nO
       do a = 1, nV
         do u = 1, nO
-          K1(u,a,i,beta) = cc_space_v_ovov(u,a,i,beta)
-
-          do j = 1, nO
-            K1(u,a,i,beta) = K1(u,a,i,beta) &
-            - cc_space_v_ovoo(u,a,i,j) * t1(j,beta)
-          enddo
-
-          do b = 1, nV
-            K1(u,a,i,beta) = K1(u,a,i,beta) &
-            + cc_space_v_vvov(b,a,i,beta) * t1(u,b)    
-          enddo
-
-          do j = 1, nO
-            do b = 1, nV
-             K1(u,a,i,beta) = K1(u,a,i,beta) &
-             - cc_space_v_vvoo(b,a,i,j) * (0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta))
-            enddo
-          enddo
-          
+          K1(u,a,i,beta) = v_ovov(u,a,i,beta)
         enddo
       enddo
     enddo
   enddo
+
+  call dgemm('N','N',nO*nV*nO,nV,nO, &
+            -1d0, v_ovoo, size(v_ovoo,1) * size(v_ovoo,2) * size(v_ovoo,3), &
+                  t1    , size(t1,1), &
+            1d0, K1    , size(K1,1) * size(K1,2) * size(K1,3))
+
+  call dgemm('N','N',nO,nV*nO*nV,nV, &
+             1d0, t1    , size(t1,1), &
+                  v_vvov, size(v_vvov,1), &
+             1d0, K1    , size(K1,1))
+
+  ! Y(u,beta,b,j) * X(b,j,a,i) = Z(u,beta,a,i)
+  allocate(X(nV,nO,nV,nO),Y(nO,nV,nV,nO),Z(nO,nV,nV,nO))
+
+  do i = 1, nO
+    do a = 1, nV
+      do j = 1, nO
+        do b = 1, nV
+          X(b,j,a,i) = - v_vvoo(b,a,i,j)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  do j = 1, nO
+    do b = 1, nV
+      do beta = 1, nV
+        do u = 1, nO
+          Y(u,beta,b,j) = 0.5d0 * t2(u,j,b,beta) + t1(u,b) * t1(j,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','N',nV*nO,nO*nV,nV*nO, &
+             1d0, Y, size(Y,1) * size(Y,2), &
+                  X, size(X,1) * size(X,2), &
+             0d0, Z, size(Z,1) * size(Z,2))
+
+   do beta = 1, nV
+    do i = 1, nO
+      do a = 1, nV
+        do u = 1, nO
+          K1(u,a,i,beta) = K1(u,a,i,beta) + Z(u,beta,a,i)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(X,Y)
   
 end
 #+END_SRC

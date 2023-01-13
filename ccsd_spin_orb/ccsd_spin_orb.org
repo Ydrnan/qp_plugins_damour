@@ -436,7 +436,7 @@ subroutine compute_tau(nO,nV,t1,t2,tau)
   !$OMP SHARED(tau,t1,t2,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do i=1,nO
     do j=1,nO
       do a=1,nV
@@ -471,7 +471,7 @@ subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
   !$OMP SHARED(tau_t,t1,t2,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do i=1,nO
     do j=1,nO
       do a=1,nV
@@ -520,7 +520,7 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   !$OMP PRIVATE(i,j,a,b,e,f,m,n) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do a=1,nV
     do i=1,nO
       r1(i,a) = Fov(i,a)
@@ -583,7 +583,7 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   !  end do
   !end do
 
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do f = 1, nV
     do e = 1, nV
        do m = 1, nO
@@ -622,7 +622,7 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   !  end do
   !end do
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do a = 1, nV
     do e = 1, nV
       do m = 1, nO
@@ -644,7 +644,7 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   !$OMP SHARED(r1,t1,X_oovv,f_o,f_v,nO,nV) &
   !$OMP PRIVATE(i,j,a,b,e,f,m,n) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do a = 1, nV
     do i = 1, nO
       r1(i,a) = (f_o(i)-f_v(a)) * t1(i,a) - r1(i,a)
@@ -727,7 +727,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -774,7 +774,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -809,7 +809,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do i=1,nO
@@ -832,7 +832,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -874,7 +874,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,m,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b = 1, nV
     do a = 1, nV
       do i = 1, nO
@@ -897,7 +897,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -980,7 +980,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do a = 1, nV
     do i = 1, nO
       do e = 1, nV
@@ -991,7 +991,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
     end do
   end do
   !$OMP END DO NOWAIT
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j = 1, nO
     do b = 1, nV
       do e = 1, nV
@@ -1014,7 +1014,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -1036,7 +1036,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do m = 1, nO
     do j = 1, nO
       do b = 1, nV
@@ -1064,7 +1064,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -1100,7 +1100,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do e = 1, nV
     do j = 1, nO
       do b = 1, nV
@@ -1123,7 +1123,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -1163,7 +1163,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !$OMP PRIVATE(i,j,a,b,e,m) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -1174,7 +1174,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
     end do
   end do
   !$OMP END DO
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b=1,nV
     do a=1,nV
       do j=1,nO
@@ -1220,7 +1220,7 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
   !$OMP SHARED(cF_oo,Foo,t1,v_ooov,nO,nV) &
   !$OMP PRIVATE(i,m,n,e) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do i=1,nO
     do m=1,nO
       !cF_oo(m,i) = (1d0 - Kronecker_delta(m,i))*Foo(m,i)
@@ -1234,7 +1234,7 @@ subroutine compute_cF_oo(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_oo)
   !$OMP END DO
   do e=1,nV
     do n=1,nO
-      !$OMP DO collapse(2)
+      !$OMP DO collapse(1)
       do i=1,nO
         do m=1,nO
           cF_oo(m,i) = cF_oo(m,i) + t1(n,e)*v_ooov(m,n,i,e)
@@ -1305,7 +1305,7 @@ subroutine compute_cF_ov(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_ov)
   
   !cF_ov = Fov
 
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do e=1,nV
     do m=1,nO
       cF_ov(m,e) = Fov(m,e)
@@ -1348,7 +1348,7 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Foo,Fov,Fvv,v_ooov,v_oovv,v_ovvv,cF_vv)
   !$OMP SHARED(cF_vv,Fvv,nO,nV) &
   !$OMP PRIVATE(e,a) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do e=1,nV
     do a=1,nV
       if (a /= e) then
@@ -1463,7 +1463,7 @@ subroutine compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP SHARED(cW_oooo,v_oooo,X_oooo,nO,nV) &
   !$OMP PRIVATE(i,j,m,n) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j=1,nO
     do i=1,nO
       do n=1,nO
@@ -1532,7 +1532,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP SHARED(cW_ovvo,v_ovvo,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j = 1, nO
     do b = 1, nV
       do a = 1, nV
@@ -1580,7 +1580,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(j,e,m,n) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j=1,nO
     do e=1,nV
       do m=1,nO
@@ -1603,7 +1603,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(j,e,m,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j=1,nO
     do e=1,nV
       do b=1,nV
@@ -1638,7 +1638,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(f,n,m,e,j,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b = 1, nV
     do j = 1, nO
       do n = 1, nO
@@ -1649,7 +1649,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
     enddo
   enddo
   !$OMP END DO
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do e = 1, nV
     do m = 1, nO
       do n = 1, nO
@@ -1674,7 +1674,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(j,e,m,b) &
   !$OMP DEFAULT(NONE)
   
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do j = 1, nO
     do e = 1, nV
       do b = 1, nV
@@ -1724,7 +1724,7 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(a,b,c,d,e,f,m) &
   !$OMP DEFAULT(NONE)
 
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do d = 1, nV
     do c = 1, nV
       do b = 1, nV
@@ -1747,7 +1747,7 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !    end do
   !  end do
   !end do
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do f=1,nV
     do e=1,nV
       do a=1,nV
@@ -1770,7 +1770,7 @@ subroutine compute_cW_vvvv(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovo,v_oovv,v_ovvo,v_
   !$OMP PRIVATE(a,b,c,d,e,f,m) &
   !$OMP DEFAULT(NONE)
 
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do f=1,nV
     do e=1,nV
       do b=1,nV

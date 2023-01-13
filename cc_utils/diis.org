@@ -307,7 +307,7 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
   !$OMP SHARED(err2,r2,f_o,f_v,nO,nV) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do b = 1, nV
     do a = 1, nV
       do j = 1, nO
@@ -439,34 +439,34 @@ subroutine update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err
   !$OMP all_t,all_t1,all_t2) &
   !$OMP PRIVATE(i,j) &
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
+    !$OMP DO 
     do i = 1, nO*nV
       all_err(i,j) = all_err1(i,j)
     enddo
+    !$OMP END DO NOWAIT
   enddo
-  !$OMP END DO NOWAIT
-  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
+    !$OMP DO
     do i = 1, nO*nO*nV*nV
       all_err(i+nO*nV,j) = all_err2(i,j)
     enddo
+    !$OMP END DO NOWAIT
   enddo
-  !$OMP END DO NOWAIT
-  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
+    !$OMP DO 
     do i = 1, nO*nV
       all_t(i,j) = all_t1(i,j)
     enddo
+    !$OMP END DO NOWAIT
   enddo
-  !$OMP END DO NOWAIT
-  !$OMP DO collapse(2)
   do j = 1, cc_diis_depth
+    !$OMP DO 
     do i = 1, nO*nO*nV*nV
       all_t(i+nO*nV,j) = all_t2(i,j)
     enddo
+    !$OMP END DO
   enddo
-  !$OMP END DO
   !$OMP END PARALLEL
   
   ! Diis

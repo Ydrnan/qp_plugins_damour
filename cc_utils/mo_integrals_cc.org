@@ -22,7 +22,7 @@ subroutine gen_f_space(det,n1,n2,list1,list2,f)
   !$OMP SHARED(tmp_F,f,n1,n2,list1,list2) &
   !$OMP PRIVATE(idx1,idx2,i1,i2)&
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do i2 = 1, n2
     do i1 = 1, n1
       idx2 = list2(i2)
@@ -57,7 +57,7 @@ subroutine gen_v_space(n1,n2,n3,n4,list1,list2,list3,list4,v)
   !$OMP SHARED(n1,n2,n3,n4,list1,list2,list3,list4,v,mo_integrals_map) &
   !$OMP PRIVATE(i1,i2,i3,i4,idx1,idx2,idx3,idx4)&
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do i4 = 1, n4
     do i3 = 1, n3
       do i2 = 1, n2
@@ -718,7 +718,7 @@ subroutine get_fock_matrix_spin(det,s,f)
   !$OMP SHARED(f,mo_num,s1,s2,N_int,det,mo_one_e_integrals) &
   !$OMP PRIVATE(p,q,ok,i,res)&
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(2)
+  !$OMP DO collapse(1)
   do q = 1, mo_num
     do p = 1, mo_num
       f(p,q) = mo_one_e_integrals(p,q)
@@ -770,7 +770,7 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
   !$OMP i,j,k,l,idx_i,idx_j,idx_k,idx_l,&
   !$OMP tmp_i,tmp_j,tmp_k,tmp_l)&
   !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(4)
+  !$OMP DO collapse(3)
   do l = 1, size(v,4)
     do k = 1, size(v,3)
       do j = 1, size(v,2)
@@ -793,7 +793,7 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
           s = si+sj+sk+sl
           ! <aa||aa> or <bb||bb>
           if (s == 4 .or. s == 8) then
-            !$OMP DO collapse(4)
+            !$OMP DO collapse(3)
             do tmp_l = 1, n4_S(sl)
               do tmp_k = 1, n3_S(sk)
                 do tmp_j = 1, n2_S(sj)
@@ -815,7 +815,7 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
             
           ! <ab||ab> or <ba||ba>
           elseif (si == sk .and. sj == sl) then
-            !$OMP DO collapse(4)
+            !$OMP DO collapse(3)
             do tmp_l = 1, n4_S(sl)
               do tmp_k = 1, n3_S(sk)
                 do tmp_j = 1, n2_S(sj)
@@ -837,7 +837,7 @@ subroutine gen_v_spin(n1,n2,n3,n4, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4,
             
           ! <ab||ba> or <ba||ab>
           elseif (si == sl .and. sj == sk) then
-            !$OMP DO collapse(4)
+            !$OMP DO collapse(3)
             do tmp_l = 1, n4_S(sl)
               do tmp_k = 1, n3_S(sk)
                 do tmp_j = 1, n2_S(sj)

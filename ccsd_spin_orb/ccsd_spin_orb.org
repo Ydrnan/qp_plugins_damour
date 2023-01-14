@@ -99,7 +99,7 @@ subroutine run_ccsd_spin_orb_sub
   allocate(v_ovoo(nO,nV,nO,nO))
   allocate(v_oovo(nO,nO,nV,nO))
   allocate(v_ooov(nO,nO,nO,nV))
-  !allocate(v_vvoo(nV,nV,nO,nO))
+  allocate(v_vvoo(nV,nV,nO,nO))
   !allocate(v_vovo(nV,nO,nV,nO))
   !allocate(v_voov(nV,nO,nO,nV))
   allocate(v_ovvo(nO,nV,nV,nO))
@@ -109,7 +109,7 @@ subroutine run_ccsd_spin_orb_sub
   !allocate(v_vvov(nV,nV,nO,nV))
   allocate(v_vovv(nV,nO,nV,nV))
   allocate(v_ovvv(nO,nV,nV,nV))
-  allocate(v_vvvv(nV,nV,nV,nV))
+  !allocate(v_vvvv(nV,nV,nV,nV))
   allocate(f_o(nO), f_v(nV))
   allocate(f_oo(nO, nO))
   allocate(f_ov(nO, nV))
@@ -155,7 +155,7 @@ subroutine run_ccsd_spin_orb_sub
   call gen_v_spin(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
 
   ! OO VV
-  !call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
   !call gen_v_spin(nV_m,nO_m,nV_m,nO_m, nV_S,nO_S,nV_S,nO_S, list_vir,list_occ,list_vir,list_occ, nV,nO,nV,nO, v_vovo)
   !call gen_v_spin(nV_m,nO_m,nO_m,nV_m, nV_S,nO_S,nO_S,nV_S, list_vir,list_occ,list_occ,list_vir, nV,nO,nO,nV, v_voov)
   call gen_v_spin(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
@@ -169,7 +169,7 @@ subroutine run_ccsd_spin_orb_sub
   call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
   ! VVVV
-  call gen_v_spin(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+  !call gen_v_spin(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
 
   ! Init of T
   t1 = 0d0
@@ -208,7 +208,7 @@ subroutine run_ccsd_spin_orb_sub
     
     call compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovv,cW_oooo)
     call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
-    call compute_cW_vvvv(nO,nV,t1,t2,tau,v_vvvv,v_vovv,v_oovv,cW_vvvv)
+    !call compute_cW_vvvv(nO,nV,t1,t2,tau,v_vvvv,v_vovv,v_oovv,cW_vvvv)
 
     ! Residuals
     call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
@@ -296,9 +296,9 @@ subroutine run_ccsd_spin_orb_sub
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
   deallocate(v_oooo)
   deallocate(v_ovoo,v_oovo,v_ooov)
-  deallocate(v_ovvo,v_ovov,v_oovv)
+  deallocate(v_ovvo,v_ovov,v_oovv,v_vvoo)
   deallocate(v_ovvv,v_vovv,v_vvvo)
-  deallocate(v_vvvv)
+  !deallocate(v_vvvv)
   
 end
 #+end_src

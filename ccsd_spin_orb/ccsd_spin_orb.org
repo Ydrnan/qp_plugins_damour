@@ -953,11 +953,11 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !    end do
   !  end do
   !end do
-  call dgemm('N','T', nO*nO, nV*nV, nV*nV, &
-             0.5d0, tau    , size(tau,1) * size(tau,2), &
-                    cW_vvvv, size(cW_vvvv,1) * size(cW_vvvv,2), &
-             1d0  , r2     , size(r2,1) * size(r2,2))
-  !call use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
+  !call dgemm('N','T', nO*nO, nV*nV, nV*nV, &
+  !           0.5d0, tau    , size(tau,1) * size(tau,2), &
+  !                  cW_vvvv, size(cW_vvvv,1) * size(cW_vvvv,2), &
+  !           1d0  , r2     , size(r2,1) * size(r2,2))
+  call use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
   
   !do b=1,nV
   !  do a=1,nV
@@ -1502,7 +1502,7 @@ subroutine use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
     !$OMP END DO
     !$OMP END PARALLEL
 
-    call gen_v_spin_3idx(cc_nVab,cc_nVab,cc_nVab,cc_nVab, f, cc_nV_S,cc_nV_S,cc_nV_S,cc_nV_S, &
+    call gen_v_spin_3idx(cc_nV_m,cc_nV_m,cc_nV_m,cc_nV_m, f, cc_nV_S,cc_nV_S,cc_nV_S,cc_nV_S, &
          cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin, &
          nV,nV,nV, v_vvvf)
     

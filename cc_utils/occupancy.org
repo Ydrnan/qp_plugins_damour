@@ -40,7 +40,7 @@ subroutine extract_n_spin(det,n)
     enddo
   enddo
 
-  print*,n(1),n(2),n(3),n(4)
+  !print*,n(1),n(2),n(3),n(4)
 
 end  
 #+end_src

@@ -937,11 +937,7 @@ subroutine gen_v_spin_3idx(n1,n2,n3,n4, idx_l, n1_S,n2_S,n3_S,n4_S, list1,list2,
 
   PROVIDE cc_space_v
 
-  if (idx_l <= cc_nOa) then
-    sl = 1
-  elseif (idx_l <= cc_nOab) then
-    sl = 2
-  elseif (idx_l <= cc_nOab + cc_nVa) then
+  if (idx_l <= n4_S(1)) then
     sl = 1
   else
     sl = 2

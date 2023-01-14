@@ -1662,7 +1662,8 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
   double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
   double precision,intent(out)  :: cF_vv(nV,nV)
-
+  
+  double precision, allocatable :: v_ovfv(:,:,:)
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
 
@@ -1705,12 +1706,29 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
   !    end do
   !  end do
   !end do
+  allocate(v_ovfv(nO,nV,nV))
   do f = 1, nV
+    !$OMP PARALLEL &
+    !$OMP SHARED(nO,nV,v_ovvv,v_ovfv,f) &
+    !$OMP PRIVATE(m,a,e) &
+    !$OMP DEFAULT(NONE)
+    !$OMP DO collapse(2)
+    do e = 1, nV
+      do a = 1, nV
+        do m = 1, nO
+          v_ovfv(m,a,e) = v_ovvv(m,a,f,e)
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
     call dgemv('T', nO, nV*nV, &
-               1d0, v_ovvv(:,:,f,:), size(v_ovvv,1), &
-                    t1(:,f), 1, &
+               !1d0, v_ovvv(:,:,f,:), size(v_ovvv,1), &
+               1d0, v_ovfv, size(v_ovfv,1), &
+                    t1(1,f), 1, &
                1d0, cF_vv, 1)
   enddo
+  deallocate(v_ovfv)
 
   !do e=1,nV
   !  do a=1,nV

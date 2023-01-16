@@ -5,6 +5,7 @@ John D. Watts, Jürgen Gauss, and Rodney J. Bartlett
 J. Chem. Phys. 98, 8718 (1993)
 http://dx.doi.org/10.1063/1.464480
 
+** v1
 #+begin_src f90 :comments org :tangle ccsd_t_sub.irp.f
 subroutine compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy)
 
@@ -149,12 +150,14 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   double precision, intent(in)  :: v_vvoo(nV,nV,nO,nO), v_vvvo(nV,nV,nV,nO)
   double precision, intent(out) :: energy
 
-  double precision, allocatable :: t3_bc(:,:,:,:), s(:,:), e_t(:), e_dt(:)
+  double precision, allocatable :: t3_bc(:,:,:,:), s(:,:), e_t(:), e_dt(:), A_ovvv(:,:,:,:)
   double precision              :: e_st, delta_abc, delta, ta, tb
   integer                       :: i,j,k,l,m,a,b,c,d,e
 
   allocate(t3_bc(nO,nO,nO,nV), s(nO,nV), e_t(nV), e_dt(nV))
+  allocate(A_ovvv(nO,nV,nV,nV))
 
+  
   ! Init 
   s = 0d0
   e_t = 0d0
@@ -164,10 +167,22 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
   call wall_time(ta)
   !$OMP PARALLEL &
   !$OMP PRIVATE(i,j,k,m,a,b,c,e) &
-  !$OMP SHARED(ta,tb,t3_bc,s,e_t,e_st,e_dt,t2,v_vvvo,v_ooov, &
+  !$OMP SHARED(A_ovvv,ta,tb,t3_bc,s,e_t,e_st,e_dt,t2,v_vvvo,v_ooov, &
   !$OMP         v_vvoo,f_o,f_v,f_ov,delta,delta_abc,nO,nV) &
   !$OMP DEFAULT(NONE)
-      
+
+  !$OMP DO
+  do c = 1, nV
+    do b = 1, nV
+      do e = 1, nV
+        do i = 1, nO
+          A_ovvv(i,e,b,c) = v_vvvo(b,c,e,i)
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO
+
   do c = 1, nV
     do b = 1, nV
 
@@ -191,16 +206,16 @@ subroutine compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,energy
           do k = 1, nO
             do j = 1, nO
               do i = 1, nO
-                t3_bc(i,j,k,a) = t3_bc(i,j,k,a) &
-                   + t2(j,k,a,e) * v_vvvo(b,c,e,i) &
-                   - t2(i,k,a,e) * v_vvvo(b,c,e,j) & ! - P(ij)
-                   - t2(j,i,a,e) * v_vvvo(b,c,e,k) & ! - P(ik)
-                   - t2(j,k,b,e) * v_vvvo(a,c,e,i) & ! - P(ab)
-                   - t2(j,k,c,e) * v_vvvo(b,a,e,i) & ! - P(ac)
-                   + t2(i,k,b,e) * v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
-                   + t2(i,k,c,e) * v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
-                   + t2(j,i,b,e) * v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
-                   + t2(j,i,c,e) * v_vvvo(b,a,e,k)   ! + P(ik) P(ac)
+               t3_bc(i,j,k,a) = t3_bc(i,j,k,a) &
+                   + t2(j,k,a,e) * A_ovvv(i,e,b,c) &!v_vvvo(b,c,e,i) &
+                   - t2(i,k,a,e) * A_ovvv(j,e,b,c) &!v_vvvo(b,c,e,j) & ! - P(ij)
+                   - t2(j,i,a,e) * A_ovvv(k,e,b,c) &!v_vvvo(b,c,e,k) & ! - P(ik)
+                   - t2(j,k,b,e) * A_ovvv(i,e,a,c) &!v_vvvo(a,c,e,i) & ! - P(ab)
+                   - t2(j,k,c,e) * A_ovvv(i,e,b,a) &!v_vvvo(b,a,e,i) & ! - P(ac)
+                   + t2(i,k,b,e) * A_ovvv(j,e,a,c) &!v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
+                   + t2(i,k,c,e) * A_ovvv(j,e,b,a) &!v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
+                   + t2(j,i,b,e) * A_ovvv(k,e,a,c) &!v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
+                   + t2(j,i,c,e) * A_ovvv(k,e,b,a)  !v_vvvo(b,a,e,k)   ! + P(ik) P(ac)
               enddo
             enddo
           enddo

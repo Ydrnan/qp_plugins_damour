@@ -1043,6 +1043,266 @@ subroutine gen_v_spin_3idx(n1,n2,n3,n4, idx_l, n1_S,n2_S,n3_S,n4_S, list1,list2,
 end
 #+end_src
 
+*** V_3idx_ij_l
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_v_spin_3idx_ij_l(n1,n2,n3,n4, idx_k, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3, v_k)
+
+  implicit none
+
+   BEGIN_DOC
+  ! Compute the bi electronic integrals corresponding to four lists of spin orbitals.
+  ! Ex: occ/occ/occ/occ, occ/vir/occ/vir, ...
+  END_DOC
+
+  integer, intent(in)           :: n1,n2,n3,n4,idx_k,n1_S(2),n2_S(2),n3_S(2),n4_S(2)
+  integer, intent(in)           :: list1(n1,2), list2(n2,2), list3(n3,2), list4(n4,2)
+  integer, intent(in)           :: dim1, dim2, dim3
+  double precision, intent(out) :: v_k(dim1,dim2,dim3)
+
+  double precision              :: mo_two_e_integral
+  integer                       :: i,j,k,l,idx_i,idx_j,idx_l
+  integer                       :: i_shift,j_shift,k_shift,l_shift
+  integer                       :: tmp_i,tmp_j,tmp_k,tmp_l
+  integer                       :: si,sj,sk,sl,s
+
+  PROVIDE cc_space_v
+
+  if (idx_k <= n3_S(1)) then
+    sk = 1
+  else
+    sk = 2
+  endif
+  call shift_idx_spin(sk,n3_S,k_shift)
+  tmp_k = idx_k - k_shift
+  k = list3(tmp_k,sk)
+  
+  !$OMP PARALLEL &
+  !$OMP SHARED(k,sk,idx_k,cc_space_v,n1_S,n2_S,n3_S,n4_S,list1,list2,list3,list4,v_k) &
+  !$OMP PRIVATE(s,si,sj,sl,i_shift,j_shift,l_shift, &
+  !$OMP i,j,l,idx_i,idx_j,idx_l,&
+  !$OMP tmp_i,tmp_j,tmp_l)&
+  !$OMP DEFAULT(NONE)
+  
+  do sl = 1, 2
+    call shift_idx_spin(sl,n4_S,l_shift)
+    do sj = 1, 2
+      call shift_idx_spin(sj,n2_S,j_shift)
+      do si = 1, 2
+        call shift_idx_spin(si,n1_S,i_shift)
+  
+        s = si+sj+sk+sl
+        ! <aa||aa> or <bb||bb>
+        if (s == 4 .or. s == 8) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_j = 1, n2_S(sj)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                j = list2(tmp_j,sj)
+                idx_j = tmp_j + j_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(j,i,k,l)
+                   v_k(idx_i,idx_j,idx_l) = cc_space_v(i,j,k,l) - cc_space_v(j,i,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+          
+        ! <ab||ab> or <ba||ba>
+        elseif (si == sk .and. sj == sl) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_j = 1, n2_S(sj)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                j = list2(tmp_j,sj)
+                idx_j = tmp_j + j_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l)
+                   v_k(idx_i,idx_j,idx_l) = cc_space_v(i,j,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+          
+        ! <ab||ba> or <ba||ab>
+        elseif (si == sl .and. sj == sk) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_j = 1, n2_S(sj)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                j = list2(tmp_j,sj)
+                idx_j = tmp_j + j_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = - mo_two_e_integral(j,i,k,l)
+                   v_k(idx_i,idx_j,idx_l) = - cc_space_v(j,i,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+        else
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_j = 1, n2_S(sj)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                j = list2(tmp_j,sj)
+                idx_j = tmp_j + j_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   v_k(idx_i,idx_j,idx_l) = 0d0
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+        endif
+        
+      enddo
+    enddo
+  enddo
+  !$OMP END PARALLEL
+  
+end
+#+end_src
+
+*** V_3idx_i_kl
+#+begin_src f90 :comments org :tangle mo_integrals_cc.irp.f
+subroutine gen_v_spin_3idx_i_kl(n1,n2,n3,n4, idx_j, n1_S,n2_S,n3_S,n4_S, list1,list2,list3,list4, dim1,dim2,dim3, v_j)
+
+  implicit none
+
+   BEGIN_DOC
+  ! Compute the bi electronic integrals corresponding to four lists of spin orbitals.
+  ! Ex: occ/occ/occ/occ, occ/vir/occ/vir, ...
+  END_DOC
+
+  integer, intent(in)           :: n1,n2,n3,n4,idx_j,n1_S(2),n2_S(2),n3_S(2),n4_S(2)
+  integer, intent(in)           :: list1(n1,2), list2(n2,2), list3(n3,2), list4(n4,2)
+  integer, intent(in)           :: dim1, dim2, dim3
+  double precision, intent(out) :: v_j(dim1,dim2,dim3)
+
+  double precision              :: mo_two_e_integral
+  integer                       :: i,j,k,l,idx_i,idx_k,idx_l
+  integer                       :: i_shift,j_shift,k_shift,l_shift
+  integer                       :: tmp_i,tmp_j,tmp_k,tmp_l
+  integer                       :: si,sj,sk,sl,s
+
+  PROVIDE cc_space_v
+
+  if (idx_j <= n2_S(1)) then
+    sj = 1
+  else
+    sj = 2
+  endif
+  call shift_idx_spin(sj,n2_S,j_shift)
+  tmp_j = idx_j - j_shift
+  j = list2(tmp_j,sj)
+  
+  !$OMP PARALLEL &
+  !$OMP SHARED(j,sj,idx_j,cc_space_v,n1_S,n2_S,n3_S,n4_S,list1,list2,list3,list4,v_j) &
+  !$OMP PRIVATE(s,si,sk,sl,i_shift,l_shift,k_shift, &
+  !$OMP i,k,l,idx_i,idx_k,idx_l,&
+  !$OMP tmp_i,tmp_k,tmp_l)&
+  !$OMP DEFAULT(NONE)
+  
+  do sl = 1, 2
+    call shift_idx_spin(sl,n4_S,l_shift)
+    do sk = 1, 2
+      call shift_idx_spin(sk,n3_S,k_shift)
+      do si = 1, 2
+        call shift_idx_spin(si,n1_S,i_shift)
+  
+        s = si+sj+sk+sl
+        ! <aa||aa> or <bb||bb>
+        if (s == 4 .or. s == 8) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_k = 1, n3_S(sk)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l) - mo_two_e_integral(j,i,k,l)
+                   v_j(idx_i,idx_k,idx_l) = cc_space_v(i,j,k,l) - cc_space_v(j,i,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+          
+        ! <ab||ab> or <ba||ba>
+        elseif (si == sk .and. sj == sl) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_k = 1, n3_S(sk)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = mo_two_e_integral(i,j,k,l)
+                   v_j(idx_i,idx_k,idx_l) = cc_space_v(i,j,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+          
+        ! <ab||ba> or <ba||ab>
+        elseif (si == sl .and. sj == sk) then
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_k = 1, n3_S(sk)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   !v(idx_i,idx_j,idx_k,idx_l) = - mo_two_e_integral(j,i,k,l)
+                   v_j(idx_i,idx_k,idx_l) = - cc_space_v(j,i,k,l)
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+        else
+          !$OMP DO collapse(2)
+          do tmp_l = 1, n4_S(sl)
+            do tmp_k = 1, n3_S(sk)
+              do tmp_i = 1, n1_S(si)  
+                l = list4(tmp_l,sl)
+                idx_l = tmp_l + l_shift
+                k = list3(tmp_k,sk)
+                idx_k = tmp_k + k_shift
+                i = list1(tmp_i,si)
+                idx_i = tmp_i + i_shift
+                   v_j(idx_i,idx_k,idx_l) = 0d0
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+        endif
+        
+      enddo
+    enddo
+  enddo
+  !$OMP END PARALLEL
+  
+end
+#+end_src
+
 * Old
 ** vcc
 #+BEGIN_SRC f90 :comments org :notangle mo_integrals_cc.irp.f

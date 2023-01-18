@@ -55,7 +55,7 @@ subroutine run_ccsd_spin_orb_sub
   integer, allocatable          :: list_occ(:,:), list_vir(:,:)
   integer                       :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
   integer                       :: nb_iter, i,j,a,b
-  double precision              :: uncorr_energy, energy, max_r, max_r1, max_r2, cc, ta, tb
+  double precision              :: uncorr_energy, energy, max_r, max_r1, max_r2, cc, ta, tb,ti,tf,tbi,tfi
   integer(bit_kind)             :: det(N_int,2)
 
   det = psi_det(:,:,1)
@@ -93,7 +93,7 @@ subroutine run_ccsd_spin_orb_sub
   allocate(t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
   allocate(r1(nO,nV), r2(nO,nO,nV,nV))
   allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
-  allocate(cW_oooo(nO,nO,nO,nO), cW_ovvo(nO,nV,nV,nO), cW_vvvv(nV,nV,nV,nV))
+  allocate(cW_oooo(nO,nO,nO,nO), cW_ovvo(nO,nV,nV,nO))!, cW_vvvv(nV,nV,nV,nV))
   allocate(v_oooo(nO,nO,nO,nO))
   !allocate(v_vooo(nV,nO,nO,nO))
   allocate(v_ovoo(nO,nV,nO,nO))
@@ -107,8 +107,8 @@ subroutine run_ccsd_spin_orb_sub
   allocate(v_oovv(nO,nO,nV,nV))
   allocate(v_vvvo(nV,nV,nV,nO))
   !allocate(v_vvov(nV,nV,nO,nV))
-  allocate(v_vovv(nV,nO,nV,nV))
-  allocate(v_ovvv(nO,nV,nV,nV))
+  !allocate(v_vovv(nV,nO,nV,nV))
+  !allocate(v_ovvv(nO,nV,nV,nV))
   !allocate(v_vvvv(nV,nV,nV,nV))
   allocate(f_o(nO), f_v(nV))
   allocate(f_oo(nO, nO))
@@ -145,6 +145,7 @@ subroutine run_ccsd_spin_orb_sub
   enddo
 
   ! Bi electronic integrals from list
+  call wall_time(ti)
   ! OOOO
   call gen_v_spin(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
 
@@ -163,13 +164,17 @@ subroutine run_ccsd_spin_orb_sub
   call gen_v_spin(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
 
   ! O VVV
-  call gen_v_spin(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
+  !call gen_v_spin(nV_m,nV_m,nV_m,nO_m, nV_S,nV_S,nV_S,nO_S, list_vir,list_vir,list_vir,list_occ, nV,nV,nV,nO, v_vvvo)
   !call gen_v_spin(nV_m,nV_m,nO_m,nV_m, nV_S,nV_S,nO_S,nV_S, list_vir,list_vir,list_occ,list_vir, nV,nV,nO,nV, v_vvov)
-  call gen_v_spin(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
-  call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
+  !call gen_v_spin(nV_m,nO_m,nV_m,nV_m, nV_S,nO_S,nV_S,nV_S, list_vir,list_occ,list_vir,list_vir, nV,nO,nV,nV, v_vovv)
+  !call gen_v_spin(nO_m,nV_m,nV_m,nV_m, nO_S,nV_S,nV_S,nV_S, list_occ,list_vir,list_vir,list_vir, nO,nV,nV,nV, v_ovvv)
 
   ! VVVV
   !call gen_v_spin(nV_m,nV_m,nV_m,nV_m, nV_S,nV_S,nV_S,nV_S, list_vir,list_vir,list_vir,list_vir, nV,nV,nV,nV, v_vvvv)
+  call wall_time(tf)
+  if (cc_dev) then
+    print*,'Load bi elec int:',tf-ti,'s'
+  endif
 
   ! Init of T
   t1 = 0d0
@@ -202,23 +207,45 @@ subroutine run_ccsd_spin_orb_sub
   do while (not_converged)
 
     ! Intermediates
+    call wall_time(tbi)
+    call wall_time(ti)
     call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,v_ooov,v_oovv,cF_oo)
     call compute_cF_ov(nO,nV,t1,F_ov,v_oovv,cF_ov)
-    call compute_cF_vv(nO,nV,t1,tau_t,F_ov,F_vv,v_oovv,v_ovvv,cF_vv)
+    call compute_cF_vv(nO,nV,t1,tau_t,F_ov,F_vv,v_oovv,cF_vv)
+    call wall_time(tf)
+    if (cc_dev) then
+      print*,'Compute cFs:',tf-ti,'s'
+    endif
     
+    call wall_time(ti)
     call compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovv,cW_oooo)
-    call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
+    call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_oovo,v_oovv,cW_ovvo)
     !call compute_cW_vvvv(nO,nV,t1,t2,tau,v_vvvv,v_vovv,v_oovv,cW_vvvv)
+    call wall_time(tf)
+    if (cc_dev) then
+      print*,'Compute cFs:',tf-ti,'s'
+    endif
 
     ! Residuals
-    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
-    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,v_vovv,r2)
+    call wall_time(ti)
+    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
+    call wall_time(tf)
+    if (cc_dev) then
+      print*,'Compute r1:',tf-ti,'s'
+    endif
+    call wall_time(ti)
+    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
+    call wall_time(tf)
+    if (cc_dev) then
+      print*,'Compute r2:',tf-ti,'s'
+    endif
 
     ! Max elements in the residuals
     max_r1 = maxval(abs(r1(:,:)))
     max_r2 = maxval(abs(r2(:,:,:,:)))
     max_r  = max(max_r1,max_r2)
 
+    call wall_time(ti)
     ! Update
     if (cc_update_method == 'diis') then
       !call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
@@ -235,14 +262,23 @@ subroutine run_ccsd_spin_orb_sub
 
     call compute_tau(nO,nV,t1,t2,tau)
     call compute_tau_t(nO,nV,t1,t2,tau_t)
+    call wall_time(tf)
+    if (cc_dev) then
+      print*,'Update:',tf-ti,'s'
+    endif
 
     ! Print
     call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+    call wall_time(tfi)
     !print*,''
     !print*,'Iter n. :', nb_iter
     !print*,'E(CCSD)= ', hf_energy + energy, energy
     !print*,'r       :', max_r1, max_r2
-    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', &
+         uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+    if (cc_dev) then
+      print*,'Total:',tfi-tbi,'s'
+    endif
 
     ! Convergence
     nb_iter = nb_iter + 1
@@ -274,7 +310,9 @@ subroutine run_ccsd_spin_orb_sub
     print*,'CCSD(T) calculation...'
     call wall_time(ta)
     !call compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
-    call compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
+    !call compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
+    print*,'Working on it...'
+    call abort
     call wall_time(tb)
     print*,'Done'
     print*,'Time: ',tb-ta, ' s'
@@ -292,12 +330,12 @@ subroutine run_ccsd_spin_orb_sub
   deallocate(t1,t2,tau,tau_t)
   deallocate(r1,r2)
   deallocate(cF_oo,cF_ov,cF_vv)
-  deallocate(cW_oooo,cW_ovvo,cW_vvvv)
+  deallocate(cW_oooo,cW_ovvo)!,cW_vvvv)
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
   deallocate(v_oooo)
   deallocate(v_ovoo,v_oovo,v_ooov)
   deallocate(v_ovvo,v_ovov,v_oovv,v_vvoo)
-  deallocate(v_ovvv,v_vovv,v_vvvo)
+  !deallocate(v_ovvv,v_vvvo,v_vovv)
   !deallocate(v_vvvv)
   
 end
@@ -497,7 +535,7 @@ end
 * R
 ** R1
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_ovvv,r1)
+subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
 
   implicit none
 
@@ -511,19 +549,19 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   double precision,intent(in)   :: cF_vv(nV,nV)
   double precision,intent(in)   :: v_oovo(nO,nO,nV,nO)
   double precision,intent(in)   :: v_ovov(nO,nV,nO,nV)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
+  !double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
   double precision,intent(out)  :: r1(nO,nV)
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision, allocatable :: X_vovv(:,:,:,:)
+  !double precision, allocatable :: X_vovv(:,:,:,:)
   double precision, allocatable :: X_oovv(:,:,:,:)
   double precision              :: accu
 
   !$OMP PARALLEL &
-  !$OMP SHARED(r1,t1,t2,Fov,cF_vv,cF_oo,cF_ov,X_vovv,X_oovv, &
-  !$OMP f_o,f_v,v_ovov,v_ovvv,v_oovo,nO,nV) &
+  !$OMP SHARED(r1,t1,t2,Fov,cF_vv,cF_ov, &
+  !$OMP v_ovov,nO,nV) &
   !$OMP PRIVATE(i,j,a,b,e,f,m,n) &
   !$OMP DEFAULT(NONE)
   
@@ -570,14 +608,6 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
                    t1   , size(t1,1), &
               1d0, r1   , size(r1,1))
 
-
-  allocate(X_vovv(nV,nO,nV,nV))
-  
-  !$OMP PARALLEL &
-  !$OMP SHARED(r1,t1,t2,X_vovv,v_ovvv,nO,nV) &
-  !$OMP PRIVATE(i,j,a,b,e,f,m,n) &
-  !$OMP DEFAULT(NONE)
-  
   !do a=1,nV
   !  do i=1,nO
   !    do f=1,nV
@@ -590,25 +620,47 @@ subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,v_
   !  end do
   !end do
 
-  !$OMP DO collapse(3)
+  !allocate(X_vovv(nV,nO,nV,nV))
+  double precision, allocatable :: v_ovvf(:,:,:), X_vovf(:,:,:)
+  allocate(v_ovvf(nO,nV,nV),X_vovf(nV,nO,nV))
+
   do f = 1, nV
-    do e = 1, nV
-       do m = 1, nO
-         do a = 1, nV
-           X_vovv(a,m,e,f) = v_ovvv(m,a,e,f)
+    call gen_v_spin_3idx(cc_nO_m,cc_nV_m,cc_nV_m,cc_nV_m, f, cc_nO_S,cc_nV_S,cc_nV_S,cc_nV_S, &
+           cc_list_occ_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin, &
+           nO,nV,nV, v_ovvf)
+    !$OMP PARALLEL &
+    !$OMP SHARED(r1,t1,t2,X_vovf,v_ovvf,nO,nV) &
+    !$OMP PRIVATE(i,j,a,b,e,f,m,n) &
+    !$OMP DEFAULT(NONE)
+    
+
+    !$OMP DO collapse(3)
+    !do f = 1, nV
+      do e = 1, nV
+         do m = 1, nO
+           do a = 1, nV
+             !X_vovv(a,m,e,f) = v_ovvv(m,a,e,f)
+             X_vovf(a,m,e) = v_ovvf(m,a,e)
+          enddo
         enddo
       enddo
-    enddo
-  enddo
-  !$OMP END DO
-  !$OMP END PARALLEL
-  
-  call dgemm('N','T', nO, nV, nO*nV*nV, &
-             -0.5d0, t2    , size(t2,1), &
-                     X_vovv, size(X_vovv,1), &
+    !enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+      
+    call dgemm('N','T', nO, nV, nO*nV, &
+             -0.5d0, t2(1,1,1,f), size(t2,1), &
+                     X_vovf, size(X_vovf,1), &
               1d0  , r1    , size(r1,1))
+  enddo
   
-  deallocate(X_vovv)
+  !call dgemm('N','T', nO, nV, nO*nV*nV, &
+  !           -0.5d0, t2    , size(t2,1), &
+  !                   X_vovv, size(X_vovv,1), &
+  !            1d0  , r1    , size(r1,1))
+  
+  deallocate(X_vovf)
+  !deallocate(X_vovv)
   allocate(X_oovv(nO,nO,nV,nV))
   
   !$OMP PARALLEL &
@@ -667,7 +719,7 @@ end
 
 ** R2
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,cW_ovvo,v_ovoo,v_oovv,v_ovvo,v_vvvo,v_vovv,r2)
+subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
 
   implicit none
 
@@ -677,7 +729,7 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   double precision,intent(in)   :: cF_vv(nV,nV)
   double precision,intent(in)   :: f_o(nO), f_v(nV)
   double precision,intent(in)   :: cW_oooo(nO,nO,nO,nO)
-  double precision,intent(in)   :: cW_vvvv(nV,nV,nV,nV)
+  !double precision,intent(in)   :: cW_vvvv(nV,nV,nV,nV)
   double precision,intent(in)   :: cW_ovvo(nO,nV,nV,nO)
   double precision,intent(in)   :: t1(nO,nV)
   double precision,intent(in)   :: t2(nO,nO,nV,nV)
@@ -685,19 +737,20 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   double precision,intent(in)   :: v_ovoo(nO,nV,nO,nO)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
   double precision,intent(in)   :: v_ovvo(nO,nV,nV,nO)
-  double precision,intent(in)   :: v_vvvo(nV,nV,nV,nO), v_vovv(nV,nO,nV,nV)
+  !double precision,intent(in)   :: v_vvvo(nV,nV,nV,nO)!, v_vovv(nV,nO,nV,nV)
 
   double precision,intent(out)  :: r2(nO,nO,nV,nV)
 
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
-  double precision, allocatable :: X_vvov(:,:,:,:), X_vvoo(:,:,:,:)
-  double precision, allocatable :: A_vvov(:,:,:,:)
+  double precision, allocatable :: X_vvoo(:,:,:,:)
+  !double precision, allocatable :: A_vvov(:,:,:,:)
   double precision, allocatable :: X_oovv(:,:,:,:), Y_oovv(:,:,:,:)
   double precision, allocatable :: A_vvoo(:,:,:,:), B_ovoo(:,:,:,:), C_ovov(:,:,:,:)
   double precision, allocatable :: A_ovov(:,:,:,:), B_ovvo(:,:,:,:), X_ovvo(:,:,:,:)
   double precision, allocatable :: A_vv(:,:)
   double precision, allocatable :: A_oo(:,:), B_oovv(:,:,:,:)
+  double precision, allocatable :: A_vbov(:,:,:), X_vboo(:,:,:), v_vbvo(:,:,:)
 
   !do b=1,nV
   !  do a=1,nV
@@ -957,7 +1010,13 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !           0.5d0, tau    , size(tau,1) * size(tau,2), &
   !                  cW_vvvv, size(cW_vvvv,1) * size(cW_vvvv,2), &
   !           1d0  , r2     , size(r2,1) * size(r2,2))
-  call use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
+  double precision :: ti,tf
+  call wall_time(ti)
+  call use_cW_vvvf(nO,nV,t1,t2,tau,v_oovv,r2)
+  call wall_time(tf)
+  if (cc_dev) then
+    print*,'cW_vvvv:',tf-ti,'s'
+  endif
   
   !do b=1,nV
   !  do a=1,nV
@@ -1101,50 +1160,65 @@ subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_vvvv,
   !    end do
   !  end do
   !end do
-  allocate(A_vvov(nV,nV,nO,nV), X_vvoo(nV,nV,nO,nO))
-  
-  !$OMP PARALLEL &
-  !$OMP SHARED(A_vvov,v_vvvo,nO,nV) &
-  !$OMP PRIVATE(i,j,a,b,e,m) &
-  !$OMP DEFAULT(NONE)
-  
-  !$OMP DO collapse(3)
-  do e = 1, nV
-    do j = 1, nO
-      do b = 1, nV
-        do a = 1, nV
-          A_vvov(a,b,j,e) = v_vvvo(a,b,e,j)
-        enddo
-      enddo
-    enddo
-  enddo
-  !$OMP END DO
-  !$OMP END PARALLEL
-
-  call dgemm('N','T', nV*nV*nO, nO, nV, &
-             1d0, A_vvov, size(A_vvov,1) * size(A_vvov,2) * size(A_vvov,3), &
-                  t1    , size(t1,1), &
-             0d0, X_vvoo, size(X_vvoo,1) * size(X_vvoo,2) * size(X_vvoo,3))
-  
-  !$OMP PARALLEL &
-  !$OMP SHARED(r2,X_vvoo,nO,nV) &
-  !$OMP PRIVATE(i,j,a,b,e,m) &
-  !$OMP DEFAULT(NONE)
-  
-  !$OMP DO collapse(3)
+  !allocate(A_vvov(nV,nV,nO,nV), X_vvoo(nV,nV,nO,nO))
+  allocate(A_vbov(nV,nO,nV), X_vboo(nV,nO,nO), v_vbvo(nV,nV,nO))
   do b = 1, nV
-    do a = 1, nV
+
+    call gen_v_spin_3idx_i_kl(cc_nV_m,cc_nV_m,cc_nV_m,cc_nO_m, b, cc_nV_S,cc_nV_S,cc_nV_S,cc_nO_S, &
+         cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_occ_spin, &
+         nV,nV,nO, v_vbvo)
+    
+    !$OMP PARALLEL &
+    !$OMP SHARED(b,A_vbov,v_vbvo,nO,nV) &
+    !$OMP PRIVATE(i,j,a,e,m) &
+    !$OMP DEFAULT(NONE)
+    
+    !$OMP DO collapse(2)
+    do e = 1, nV
       do j = 1, nO
-        do i = 1, NO
-           r2(i,j,a,b ) = r2(i,j,a,b) + X_vvoo(a,b,j,i) - X_vvoo(a,b,i,j)
-        enddo
+        !do b = 1, nV
+          do a = 1, nV
+            !A_vvov(a,b,j,e) = v_vvvo(a,b,e,j)
+            A_vbov(a,j,e) = v_vbvo(a,e,j)
+          enddo
+        !enddo
       enddo
     enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+
+    call dgemm('N','T', nV*nO, nO, nV, &
+               1d0, A_vbov, size(A_vbov,1) * size(A_vbov,2), &
+                    t1    , size(t1,1), &
+               0d0, X_vboo, size(X_vboo,1) * size(X_vboo,2))
+    !call dgemm('N','T', nV*nV*nO, nO, nV, &
+    !           1d0, A_vvov, size(A_vvov,1) * size(A_vvov,2) * size(A_vvov,3), &
+    !                t1    , size(t1,1), &
+    !           0d0, X_vvoo, size(X_vvoo,1) * size(X_vvoo,2) * size(X_vvoo,3))
+    
+    !$OMP PARALLEL &
+    !$OMP SHARED(b,r2,X_vboo,nO,nV) &
+    !$OMP PRIVATE(i,j,a,e,m) &
+    !$OMP DEFAULT(NONE)
+    
+    !$OMP DO collapse(2)
+    !do b = 1, nV
+      do a = 1, nV
+        do j = 1, nO
+          do i = 1, NO
+             !r2(i,j,a,b ) = r2(i,j,a,b) + X_vvoo(a,b,j,i) - X_vvoo(a,b,i,j)
+             r2(i,j,a,b) = r2(i,j,a,b) + X_vboo(a,j,i) - X_vboo(a,i,j)
+          enddo
+        enddo
+      enddo
+    !enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
   enddo
-  !$OMP END DO
-  !$OMP END PARALLEL
   
-  deallocate(A_vvov)!,X_vvoo)
+  !deallocate(A_vvov)!,X_vvoo)
+  deallocate(A_vbov, X_vboo, v_vbvo)
+  allocate(X_vvoo(nV,nV,nO,nO))
 
   !do b=1,nV
   !  do a=1,nV
@@ -1450,22 +1524,47 @@ subroutine use_cF_ov(nO,nV,t1,t2,F_ov,v_oovv,r1,r2)
 end
 #+end_src
 
+** Use cF_vv
+#+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
+subroutine use_cF_vv(nO,nV,t1,t2,r1,r2)
+
+  implicit none
+
+  integer, intent(in)             :: nO,nV
+  double precision, intent(in)    :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(inout) :: r1(nO,nV), r2(nO,nO,nV,nV)
+
+  double precision, allocatable   :: cF_vv(:,:)
+  integer                         :: i,j,a,b,e,m
+
+  allocate(cF_vv(nV,nV))
+  
+  !call compute_cF_vv(nO,nV,t1,tau_t,F_ov,F_vv,v_oovv,v_ovvv,cF_vv)
+
+  deallocate(cF_vv)
+  
+end
+#+end_src
+
 ** Use cW_vvvd
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
+subroutine use_cW_vvvf(nO,nV,t1,t2,tau,v_oovv,r2)
 
   implicit none
 
   integer, intent(in)             :: nO,nV
   double precision, intent(in)    :: t1(nO,nV), t2(nO,nO,nV,nV), tau(nO,nO,nV,nV)
-  double precision, intent(in)    :: v_vovv(nV,nO,nV,nV), v_oovv(nO,nO,nV,nV)
+  double precision, intent(in)    :: v_oovv(nO,nO,nV,nV)
+  !double precision, intent(in)    :: v_vovv(nV,nO,nV,nV)
   
   double precision, intent(inout) :: r2(nO,nO,nV,nV)
 
-  double precision, allocatable   :: cW_vvvf(:,:,:), v_vvvf(:,:,:), tau_f(:,:,:)
+  double precision, allocatable   :: cW_vvvf(:,:,:), v_vvvf(:,:,:), tau_f(:,:,:), v_vovf(:,:,:)
   integer                         :: i,j,e,f
+  double precision                :: ti,tf
 
-  allocate(cW_vvvf(nV,nV,nV),v_vvvf(nV,nV,nV),tau_f(nO,nO,nV))
+  allocate(cW_vvvf(nV,nV,nV),v_vvvf(nV,nV,nV),tau_f(nO,nO,nV),v_vovf(nV,nO,nV))
 
   !PROVIDE cc_nVab
   
@@ -1486,11 +1585,12 @@ subroutine use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
   !end do
   
   do f = 1, nV
+    call wall_time(ti)
     !$OMP PARALLEL &
     !$OMP SHARED(tau,tau_f,f,nO,nV) &
     !$OMP PRIVATE(i,j,e) &
     !$OMP DEFAULT(NONE)
-     
+    
     !$OMP DO collapse(2)
     do e = 1, nV
       do j = 1, nO
@@ -1501,20 +1601,47 @@ subroutine use_cW_vvvf(nO,nV,t1,t2,tau,v_vovv,v_oovv,r2)
     enddo
     !$OMP END DO
     !$OMP END PARALLEL
+    call wall_time(tf)
+    if (cc_dev .and. f == 1) then
+      print*,'1st transpo', tf-ti
+    endif
 
+    call wall_time(ti)
     call gen_v_spin_3idx(cc_nV_m,cc_nV_m,cc_nV_m,cc_nV_m, f, cc_nV_S,cc_nV_S,cc_nV_S,cc_nV_S, &
          cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin, &
          nV,nV,nV, v_vvvf)
+    call wall_time(tf)
+    if (cc_dev .and. f == 1) then
+      print*,'vvvf', tf-ti
+    endif
+    call wall_time(ti)
+    call gen_v_spin_3idx(cc_nV_m,cc_nO_m,cc_nV_m,cc_nV_m, f, cc_nV_S,cc_nO_S,cc_nV_S,cc_nV_S, &
+         cc_list_vir_spin,cc_list_occ_spin,cc_list_vir_spin,cc_list_vir_spin, &
+         nV,nO,nV, v_vovf)
+    call wall_time(tf)
+    if (cc_dev .and. f == 1) then
+      print*,'vovf', tf-ti
+    endif
     
-    call compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
+    call wall_time(ti)
+    call compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovf,v_oovv,cW_vvvf)
+    call wall_time(tf)
+    if (cc_dev .and. f == 1) then
+      print*,'cW_vvvf', tf-ti
+    endif
 
+    call wall_time(ti)
     call dgemm('N','T', nO*nO, nV*nV, nV, &
                0.5d0, tau_f    , size(tau_f,1) * size(tau_f,2), &
                       cW_vvvf, size(cW_vvvf,1) * size(cW_vvvf,2), &
                1d0  , r2     , size(r2,1) * size(r2,2))
+    call wall_time(tf)
+    if (cc_dev .and. f == 1) then
+      print*,'last dgemm', tf-ti
+    endif
   enddo
 
-  deallocate(cW_vvvf)
+  deallocate(cW_vvvf,v_vvvf,v_vovf)
   
 end  
 #+end_src
@@ -1649,7 +1776,7 @@ end
 
 *** cF_vv
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
+subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,cF_vv)
 
   implicit none
 
@@ -1659,11 +1786,11 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
   double precision,intent(in)   :: Fov(nO,nV)
   double precision,intent(in)   :: Fvv(nV,nV)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
+  !double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
   double precision,intent(out)  :: cF_vv(nV,nV)
   
-  double precision, allocatable :: v_ovfv(:,:,:)
+  double precision, allocatable :: v_ovfv(:,:,:),X_ovfv(:,:,:)
   integer                       :: i,j,m,n
   integer                       :: a,b,e,f
 
@@ -1696,7 +1823,7 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
              -0.5d0, t1   , size(t1,1), &
                      Fov  , size(Fov,1), &
               1d0  , cF_vv, size(cF_vv,1))
-
+  
   !do e=1,nV
   !  do a=1,nV
   !    do m=1,nO
@@ -1706,17 +1833,23 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
   !    end do
   !  end do
   !end do
-  allocate(v_ovfv(nO,nV,nV))
+  allocate(v_ovfv(nO,nV,nV),X_ovfv(nO,nV,nV))
   do f = 1, nV
+
+     call gen_v_spin_3idx_ij_l(cc_nO_m,cc_nV_m,cc_nV_m,cc_nV_m, f, cc_nO_S,cc_nV_S,cc_nV_S,cc_nV_S, &
+                              cc_list_occ_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin, &
+                              nO,nV,nV, v_ovfv)
+
     !$OMP PARALLEL &
-    !$OMP SHARED(nO,nV,v_ovvv,v_ovfv,f) &
+    !$OMP SHARED(nO,nV,v_ovfv,X_ovfv,f) &
     !$OMP PRIVATE(m,a,e) &
     !$OMP DEFAULT(NONE)
     !$OMP DO collapse(2)
     do e = 1, nV
       do a = 1, nV
         do m = 1, nO
-          v_ovfv(m,a,e) = v_ovvv(m,a,f,e)
+          !X_ovfv(m,a,e) = v_ovvv(m,a,f,e)
+          X_ovfv(m,a,e) = v_ovfv(m,a,e)
         enddo
       enddo
     enddo
@@ -1724,11 +1857,11 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
     !$OMP END PARALLEL
     call dgemv('T', nO, nV*nV, &
                !1d0, v_ovvv(:,:,f,:), size(v_ovvv,1), &
-               1d0, v_ovfv, size(v_ovfv,1), &
+               1d0, X_ovfv, size(X_ovfv,1), &
                     t1(1,f), 1, &
                1d0, cF_vv, 1)
   enddo
-  deallocate(v_ovfv)
+  deallocate(v_ovfv,X_ovfv)
 
   !do e=1,nV
   !  do a=1,nV
@@ -1743,8 +1876,8 @@ subroutine compute_cF_vv(nO,nV,t1,tau_t,Fov,Fvv,v_oovv,v_ovvv,cF_vv)
   !end do
   do f = 1, nV
      call dgemm('T','N', nV, nV, nO*nO,&
-                -0.5d0, tau_t(:,:,:,f) , size(tau_t,1) * size(tau_t,2), &
-                        v_oovv(:,:,:,f), size(v_oovv,1) * size(v_oovv,2), &
+                -0.5d0, tau_t(1,1,1,f) , size(tau_t,1) * size(tau_t,2), &
+                        v_oovv(1,1,1,f), size(v_oovv,1) * size(v_oovv,2), &
                 1d0   , cF_vv, size(cF_vv,1))
   enddo
 
@@ -1840,7 +1973,7 @@ end
 
 *** cW_ovvo
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
+subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_oovo,v_oovv,cW_ovvo)
 
   implicit none
 
@@ -1851,7 +1984,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
   double precision,intent(in)   :: v_oovo(nO,nO,nV,nO)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
   double precision,intent(in)   :: v_ovvo(nO,nV,nV,nO)
-  double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
+  !double precision,intent(in)   :: v_ovvv(nO,nV,nV,nV)
 
   double precision,intent(out)  :: cW_ovvo(nO,nV,nV,nO)
 
@@ -1859,6 +1992,7 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
   integer                       :: a,b,e,f
   double precision, allocatable :: A_oovo(:,:,:,:), B_vovo(:,:,:,:)
   double precision, allocatable :: A_voov(:,:,:,:), B_voov(:,:,:,:), C_ovov(:,:,:,:)
+  double precision, allocatable :: v_ovev(:,:,:), cW_oveo(:,:,:)
 
   !$OMP PARALLEL &
   !$OMP SHARED(cW_ovvo,v_ovvo,nO,nV) &
@@ -1888,10 +2022,37 @@ subroutine compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_ovvv,v_oovo,v_oovv,cW_ovvo)
   !    end do
   !  end do
   !end do
-  call dgemm('N','T', nO*nV*nV, nO, nV, &
-             1.d0, v_ovvv , size(v_ovvv,1) * size(v_ovvv,2) * size(v_ovvv,3), &
-                   t1     , size(t1,1), &
-             1.d0, cW_ovvo, size(cW_ovvo,1) * size(cW_ovvo,2) * size(cW_ovvo,3))
+  allocate(v_ovev(nO,nV,nV),cW_oveo(nO,nV,nO))
+  do e = 1, nV
+
+    call gen_v_spin_3idx_ij_l(cc_nO_m,cc_nV_m,cc_nV_m,cc_nV_m, e, cc_nO_S,cc_nV_S,cc_nV_S,cc_nV_S, &
+                              cc_list_occ_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin, &
+                              nO,nV,nV, v_ovev)
+     
+    call dgemm('N','T', nO*nV, nO, nV, &
+               1.d0, v_ovev , size(v_ovev,1) * size(v_ovev,2), &
+                     t1     , size(t1,1), &
+               0.d0, cW_oveo, size(cW_oveo,1) * size(cW_oveo,2))
+    !$OMP PARALLEL &
+    !$OMP SHARED(e,cW_ovvo,cW_oveo,nO,nV) &
+    !$OMP PRIVATE(m,b,j) &
+    !$OMP DEFAULT(NONE)
+    !$OMP DO collapse(2)
+    do j = 1, nO
+      do b = 1, nV
+        do m = 1, nO
+          cW_ovvo(m,b,e,j) = cW_ovvo(m,b,e,j) + cW_oveo(m,b,j)
+        enddo
+      enddo
+    enddo
+    !$OMP END DO
+    !$OMP END PARALLEL
+  enddo
+  deallocate(v_ovev,cW_oveo)
+  !call dgemm('N','T', nO*nV*nV, nO, nV, &
+  !           1.d0, v_ovvv , size(v_ovvv,1) * size(v_ovvv,2) * size(v_ovvv,3), &
+  !                 t1     , size(t1,1), &
+  !           1.d0, cW_ovvo, size(cW_ovvo,1) * size(cW_ovvo,2) * size(cW_ovvo,3))
 
   !do j=1,nO
   !  do e=1,nV
@@ -2137,7 +2298,7 @@ end
 
 *** cW_vvvf
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
+subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovf,v_oovv,cW_vvvf)
  
   implicit none
 
@@ -2146,7 +2307,7 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
   double precision,intent(in)   :: t2(nO,nO,nV,nV)
   double precision,intent(in)   :: tau(nO,nO,nV,nV)
   double precision,intent(in)   :: v_oovv(nO,nO,nV,nV)
-  double precision,intent(in)   :: v_vovv(nV,nO,nV,nV)
+  double precision,intent(in)   :: v_vovf(nV,nO,nV)
   double precision,intent(in)   :: v_vvvf(nV,nV,nV)
 
   double precision,intent(out)  :: cW_vvvf(nV,nV,nV)
@@ -2154,11 +2315,13 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
   integer                       :: i,j,m,n
   integer                       :: a,b,c,d,e
   double precision, allocatable :: A_ovvf(:,:,:), B_vvvf(:,:,:), v_oovf(:,:,:)
+  double precision :: ti,tf
 
   allocate(A_ovvf(nO,nV,nV), B_vvvf(nV,nV,nV))
+  allocate(v_oovf(nO,nO,nV))
 
   !$OMP PARALLEL &
-  !$OMP SHARED(nO,nV,cW_vvvf,A_ovvf,v_vovv,v_vvvf,f) &
+  !$OMP SHARED(nO,nV,cW_vvvf,A_ovvf,v_vovf,v_vvvf,f) &
   !$OMP PRIVATE(a,b,c,d,e,m) &
   !$OMP DEFAULT(NONE)
   
@@ -2190,7 +2353,8 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
     do a=1,nV
       do m=1,nO
         !A_ovvv(m,a,e,f) = v_vovv(a,m,e,f)
-        A_ovvf(m,a,e) = v_vovv(a,m,e,f)
+        !A_ovvf(m,a,e) = v_vovv(a,m,e,f)
+        A_ovvf(m,a,e) = v_vovf(a,m,e)
       end do
     end do
   end do
@@ -2203,8 +2367,8 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
              0d0, B_vvvf, size(B_vvvf,1))
   
   !$OMP PARALLEL &
-  !$OMP SHARED(nO,nV,cW_vvvf,B_vvvf) &
-  !$OMP PRIVATE(a,b,c,d,e,m) &
+  !$OMP SHARED(nO,nV,cW_vvvf,B_vvvf,v_oovf,v_oovv,f) &
+  !$OMP PRIVATE(a,b,c,d,e,m,n) &
   !$OMP DEFAULT(NONE)
 
   !$OMP DO collapse(3)
@@ -2216,10 +2380,9 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
       end do
     end do
   end do
-  !$OMP END DO
-  !$OMP END PARALLEL
+  !$OMP END DO NOWAIT
   
-  deallocate(A_ovvf,B_vvvf)
+  !deallocate(A_ovvf,B_vvvf)
 
   !do a=1,nV
   !  do b=1,nV
@@ -2236,12 +2399,6 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
   !    end do
   !  end do
   !end do
-
-  allocate(v_oovf(nO,nO,nV))
-  !$OMP PARALLEL &
-  !$OMP SHARED(nO,nV,v_oovf,v_oovv,f) &
-  !$OMP PRIVATE(m,n,e) &
-  !$OMP DEFAULT(NONE)
 
   !$OMP DO collapse(2)
   do e = 1, nV
@@ -2260,6 +2417,7 @@ subroutine compute_cW_vvvf(nO,nV,t1,t2,tau,f,v_vvvf,v_vovv,v_oovv,cW_vvvf)
              1.d0  , cW_vvvf, size(cW_vvvf,1) * size(cW_vvvf,2))
   
   deallocate(v_oovf)
+  deallocate(A_ovvf,B_vvvf)
 
 end
 #+end_src

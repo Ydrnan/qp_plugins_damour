@@ -708,50 +708,218 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
 
   ! Residual
   r2 = 0d0
+  
   do gam = 1, nV
     do beta = 1, nV
       do v = 1, nO
         do u = 1, nO
-
          r2(u,v,beta,gam) = cc_space_v_oovv(u,v,beta,gam)
+        enddo
+      enddo
+    enddo
+  enddo
 
-         do j = 1, nO
-           do i = 1, nO
-             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             + A1(u,v,i,j) * tau(i,j,beta,gam)
-           enddo
-         enddo
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !       do j = 1, nO
+  !         do i = 1, nO
+  !           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !           + A1(u,v,i,j) * tau(i,j,beta,gam)
+  !         enddo
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
 
-         do a = 1, nV
-           do b = 1, nv
-             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             + B1(a,b,beta,gam) * tau(u,v,a,b)
-           enddo
-         enddo
+  call dgemm('N','N',nO*nO,nV*nV,nO*nO, &
+             1d0, A1, size(A1,1) * size(A1,2), &
+                  tau, size(tau,1) * size(tau,2), &
+             1d0, r2, size(r2,1) * size(r2,2))
 
-         do a = 1, nV
-           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-           + g_vir(a,beta) * t2(u,v,a,gam) &
-           + g_vir(a,gam)  * t2(v,u,a,beta) ! P
-         enddo
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !       do a = 1, nV
+  !         do b = 1, nv
+  !           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !           + B1(a,b,beta,gam) * tau(u,v,a,b)
+  !         enddo
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
 
-         do i = 1, nO
-           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-           - g_occ(u,i) * t2(i,v,beta,gam) &
-           - g_occ(v,i) * t2(i,u,gam,beta) ! P
-         enddo
+  call dgemm('N','N',nO*nO,nV*nV,nV*nV, &
+             1d0, tau, size(tau,1) * size(tau,2), &
+                  B1 , size(B1,1) * size(B1,2), &
+             1d0, r2, size(r2,1) * size(r2,2)) 
 
-         do a = 1, nV
-           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-           + cc_space_v_ovvv(u,a,beta,gam) * t1(v,a) &
-           + cc_space_v_ovvv(v,a,gam,beta) * t1(u,a) ! P
-           do i = 1, nO
-             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             - cc_space_v_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
-             - cc_space_v_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
-           enddo
-         enddo
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !       do a = 1, nV
+  !         r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !         + g_vir(a,beta) * t2(u,v,a,gam) &
+  !         + g_vir(a,gam)  * t2(v,u,a,beta) ! P
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: X_oovv(:,:,:,:),Y_oovv(:,:,:,:)
+  allocate(X_oovv(nO,nO,nV,nV),Y_oovv(nO,nO,nV,nV))
+  do a = 1, nV
+    do gam = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+          X_oovv(u,v,gam,a) = t2(u,v,gam,a)
+        enddo
+      enddo
+    enddo
+  enddo
+  call dgemm('N','N',nO*nO*nV,nV,nV, &
+             1d0, X_oovv, size(X_oovv,1) * size(X_oovv,2) * size(X_oovv,3), &
+                  g_vir, size(g_vir,1), &
+             0d0, Y_oovv, size(Y_oovv,1) * size(Y_oovv,2) * size(Y_oovv,3))
 
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+          r2(u,v,beta,gam) = r2(u,v,beta,gam) + Y_oovv(u,v,beta,gam) + Y_oovv(v,u,gam,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !       do i = 1, nO
+  !         r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !         - g_occ(u,i) * t2(i,v,beta,gam) &
+  !         - g_occ(v,i) * t2(i,u,gam,beta) ! P
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N',nO,nO*nV*nV,nO, &
+             1d0, g_occ , size(g_occ,1), &
+                  t2    , size(t2,1), &
+             0d0, X_oovv, size(X_oovv,1))
+
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+          r2(u,v,beta,gam) = r2(u,v,beta,gam) - X_oovv(u,v,beta,gam) - X_oovv(v,u,gam,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !        do a = 1, nV
+  !          r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !          + cc_space_v_ovvv(u,a,beta,gam) * t1(v,a) &
+  !          + cc_space_v_ovvv(v,a,gam,beta) * t1(u,a) ! P
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  double precision, allocatable :: X_vovv(:,:,:,:)
+  allocate(X_vovv(nV,nO,nV,nV))
+  do gam = 1, nV
+    do beta = 1, nV
+      do u = 1, nO
+        do a = 1, nV
+          X_vovv(a,u,beta,gam) = cc_space_v_ovvv(u,a,beta,gam)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','N',nO,nO*nV*nV,nV, &
+             1d0, t1    , size(t1,1), &
+                  X_vovv, size(X_vovv,1), &
+             0d0, Y_oovv, size(Y_oovv,1))
+
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+          r2(u,v,beta,gam) = r2(u,v,beta,gam) + Y_oovv(v,u,beta,gam) + Y_oovv(u,v,gam,beta)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !        do a = 1, nV
+  !          do i = 1, nO
+  !           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !           - cc_space_v_ovov(u,a,i,gam)  * t1(i,beta) * t1(v,a) &
+  !           - cc_space_v_ovov(v,a,i,beta) * t1(i,gam)  * t1(u,a) ! P
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  double precision, allocatable :: X_vovo(:,:,:,:), Y_vovv(:,:,:,:)
+  allocate(X_vovo(nV,nO,nV,nO), Y_vovv(nV,nO,nV,nV))
+  do i = 1, nO
+    do gam = 1, nV
+      do u = 1, nO
+        do a = 1, nV
+          X_vovo(a,u,gam,i) = cc_space_v_ovov(u,a,i,gam)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  call dgemm('N','N',nV*nO*nV,nV,nO, &
+              1d0, X_vovo, size(X_vovo,1) * size(X_vovo,2) * size(X_vovo,3), &
+                   t1    , size(t1,1), &
+              0d0, Y_vovv, size(Y_vovv,1) * size(Y_vovv,2) * size(Y_vovv,3))
+
+  call dgemm('N','N',nO,nO*nV*nV,nV, &
+             1d0, t1, size(t1,1), &
+                  Y_vovv, size(Y_vovv,1), &
+             0d0, X_oovv, size(X_oovv,1))
+  
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+          r2(u,v,beta,gam) = r2(u,v,beta,gam) - X_oovv(v,u,gam,beta) - X_oovv(u,v,beta,gam)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
          do i = 1, nO
            r2(u,v,beta,gam) = r2(u,v,beta,gam) &
            - cc_space_v_oovo(u,v,beta,i) * t1(i,gam) &
@@ -762,7 +930,15 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
              - cc_space_v_ovvo(v,a,gam,i)  * t1(u,a) * t1(i,beta) ! P
            enddo
          enddo
+        enddo
+      enddo
+    enddo
+  enddo
 
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
          do a = 1, nV
            do i = 1, nO
              r2(u,v,beta,gam) = r2(u,v,beta,gam) &
@@ -776,7 +952,6 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
              - K1(v,a,i,beta) * t2(i,u,gam,a) ! P
            enddo
          enddo
-
         enddo
       enddo
     enddo
@@ -1003,23 +1178,43 @@ subroutine compute_g_occ(nO,nV,t1,t2,H_oo,g_occ)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
 
-  g_occ = 0d0
+  !g_occ = 0d0
 
+  !do i = 1, nO
+  !  do u = 1, nO
+  !    g_occ(u,i) = H_oo(u,i)
+  !    
+  !    do a = 1, nV
+  !      g_occ(u,i) = g_occ(u,i) + cc_space_f_vo(a,i) * t1(u,a)
+  !      
+  !      do j = 1, nO
+  !        g_occ(u,i) = g_occ(u,i) + (2d0 * cc_space_v_ovoo(u,a,i,j) - cc_space_v_ovoo(u,a,j,i)) * t1(j,a)
+  !      enddo
+  !         
+  !    enddo
+  !  enddo
+  !enddo
+
+  call dgemm('N','N',nO,nO,nV, &
+             1d0, t1, size(t1,1), &
+                  cc_space_f_vo, size(cc_space_f_vo,1), &
+             0d0, g_occ, size(g_occ,1))
+  
   do i = 1, nO
     do u = 1, nO
-      g_occ(u,i) = H_oo(u,i)
-      
-      do a = 1, nV
-        g_occ(u,i) = g_occ(u,i) + cc_space_f_vo(a,i) * t1(u,a)
-        
-        do j = 1, nO
-          g_occ(u,i) = g_occ(u,i) + (2d0 * cc_space_v_ovoo(u,a,i,j) - cc_space_v_ovoo(u,a,j,i)) * t1(j,a)
-        enddo
-           
-      enddo
+      g_occ(u,i) = g_occ(u,i) + H_oo(u,i)
     enddo
   enddo
   
+  do i = 1, nO
+    do j = 1, nO
+      do a = 1, nV
+        do u = 1, nO
+          g_occ(u,i) = g_occ(u,i) + (2d0 * cc_space_v_ovoo(u,a,i,j) - cc_space_v_ovoo(u,a,j,i)) * t1(j,a)
+        enddo
+      enddo
+    enddo
+  enddo
 end
 #+END_SRC
 
@@ -1036,19 +1231,40 @@ subroutine compute_g_vir(nO,nV,t1,t2,H_vv,g_vir)
 
   integer :: a,tmp_a,b,k,l,c,d,tmp_c,tmp_d,i,j,u,v, beta, gam
 
-  g_vir = 0d0
+  !g_vir = 0d0
 
+  !do beta = 1, nV
+  !  do a = 1, nV
+  !    g_vir(a,beta) = H_vv(a,beta)
+  !    
+  !    do i = 1, nO
+  !      g_vir(a,beta) = g_vir(a,beta) - cc_space_f_vo(a,i) * t1(i,beta)
+  !      
+  !      do b = 1, nV
+  !        g_vir(a,beta) = g_vir(a,beta) + (2d0 * cc_space_v_vvvo(a,b,beta,i) - cc_space_v_vvvo(b,a,beta,i)) * t1(i,b)
+  !      enddo
+  !         
+  !    enddo
+  !  enddo
+  !enddo
+  
+  call dgemm('N','N',nV,nV,nO, &
+             -1d0, cc_space_f_vo , size(cc_space_f_vo,1), &
+                   t1   , size(t1,1), &
+              0d0, g_vir, size(g_vir,1))
+      
   do beta = 1, nV
     do a = 1, nV
-      g_vir(a,beta) = H_vv(a,beta)
-      
-      do i = 1, nO
-        g_vir(a,beta) = g_vir(a,beta) - cc_space_f_vo(a,i) * t1(i,beta)
-        
-        do b = 1, nV
+      g_vir(a,beta) = g_vir(a,beta) + H_vv(a,beta)
+    enddo
+  enddo
+
+  do i = 1, nO
+    do beta = 1, nV
+      do b = 1, nV
+        do a = 1, nV
           g_vir(a,beta) = g_vir(a,beta) + (2d0 * cc_space_v_vvvo(a,b,beta,i) - cc_space_v_vvvo(b,a,beta,i)) * t1(i,b)
         enddo
-           
       enddo
     enddo
   enddo

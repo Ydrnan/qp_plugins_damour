@@ -1106,21 +1106,58 @@ subroutine compute_r2(nO,nV,t1,t2,tau,r2,max_r2)
     enddo
   enddo
   
-  do gam = 1, nV
-    do beta = 1, nV
-      do v = 1, nO
+  !do gam = 1, nV
+  !  do beta = 1, nV
+  !    do v = 1, nO
+  !      do u = 1, nO
+  !       do a = 1, nV
+  !         do i = 1, nO
+  !           r2(u,v,beta,gam) = r2(u,v,beta,gam) &
+  !           - K1(u,a,i,gam)  * t2(i,v,beta,a) &
+  !           - K1(v,a,i,beta) * t2(i,u,gam,a) ! P
+  !         enddo
+  !       enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  do a = 1, nV
+    do i = 1, nO
+      do gam = 1, nV
         do u = 1, nO
-         do a = 1, nV
-           do i = 1, nO
-             r2(u,v,beta,gam) = r2(u,v,beta,gam) &
-             - K1(u,a,i,gam)  * t2(i,v,beta,a) &
-             - K1(v,a,i,beta) * t2(i,u,gam,a) ! P
-           enddo
-         enddo
+          X_ovov(u,gam,i,a) = K1(u,a,i,gam)
         enddo
       enddo
     enddo
   enddo
+
+  do beta = 1, nV
+    do v = 1, nO
+      do a = 1, nV
+        do i = 1, nO
+          Z_ovov(i,a,v,beta) = t2(i,v,beta,a)
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  call dgemm('N','N',nO*nV,nO*nV,nO*nV, &
+             1d0, X_ovov, size(X_ovov,1) * size(X_ovov,2), &
+                  Y_ovov, size(Y_ovov,1) * size(Y_ovov,2), &
+             0d0, Z_ovov, size(Y_ovov,1) * size(Y_ovov,2))
+  
+  do gam = 1, nV
+    do beta = 1, nV
+      do v = 1, nO
+        do u = 1, nO
+           r2(u,v,beta,gam) = r2(u,v,beta,gam) - Z_ovov(u,gam,v,beta) - Z_ovov(v,beta,u,gam)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  deallocate(X_ovov,Y_ovov,Z_ovov)
   
   ! Change the sign for consistency with the code in spin orbitals
   do b = 1, nV

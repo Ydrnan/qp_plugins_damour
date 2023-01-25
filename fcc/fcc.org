@@ -28,7 +28,7 @@ subroutine run_fcc()
   integer, allocatable :: crea_b_beg(:), anni_b_beg(:), anni_b_nb(:)
   integer, allocatable :: crea_b_end(:), anni_b_end(:), crea_b_nb(:)
   integer(bit_kind), allocatable :: T_crea_a(:,:),T_anni_a(:,:), T_crea_b(:,:), T_anni_b(:,:), T_a(:,:,:), T_b(:,:,:)
-  integer(bit_kind), allocatable :: res_a(:), res_b(:)
+  integer(bit_kind), allocatable :: res_a(:), res1_a(:), res_b(:), res1_b(:)
   integer :: ndet_ab, ndet_a, ndet_b, nT_a, nT_b, nt_crea, nt_anni
   integer :: nO, nV, nOa, nOb, nVa, nVb, nt_anni_a,nt_crea_a,nt_anni_b,nt_crea_b
   integer :: cc_order, max_k,fact, max_order,degree
@@ -108,8 +108,8 @@ subroutine run_fcc()
 
   ! Gen alpha/beta det
   k = 1
-  do i = 1, ndet_a
-    do j = 1, ndet_b
+  do j = 1, ndet_b
+    do i = 1, ndet_a
       det_bit_ab(:,1,k) = det_bit_a(:,i)
       det_bit_ab(:,2,k) = det_bit_b(:,j)
       k = k + 1
@@ -234,7 +234,7 @@ subroutine run_fcc()
         !print*,i+(j-1)*nt_crea_a,size(T_a,3)
         T_a(:,1,k) = T_anni_a(:,j)
         T_a(:,2,k) = T_crea_a(:,i)
-        call print_det(T_a(1,1,k),N_int)
+        !call print_det(T_a(1,1,k),N_int)
         k = k + 1
       enddo
     enddo
@@ -278,7 +278,7 @@ subroutine run_fcc()
       do i = crea_b_beg(i_order), crea_b_end(i_order)
         T_b(:,1,k) = T_anni_b(:,j)
         T_b(:,2,k) = T_crea_b(:,i)
-        call print_det(T_b(1,1,k),N_int)
+        !call print_det(T_b(1,1,k),N_int)
         k = k + 1
       enddo
     enddo
@@ -308,33 +308,11 @@ subroutine run_fcc()
   C1(1,1) = 1d0
   C3(1,1) = 1d0
 
-  ! Anni
-  ! Apply
-  !0001010  1110101
-  !1111110  1111110
-  !         1110100  
-  !1110100 (not anni) and det
- 
-  !test
-  !0001010 1110101
-  !1110110 1110110
-  !
-  !0001000 1110111 (not anni) or det
-  !        0001000 not((not anni) or det)
-
-  ! Crea
-  ! Apply
-  ! 0001010
-  ! 1100000
-  ! 1101010 crea or det
-  !
-  ! Test
-  ! 0001010
-  ! 1101000
-  ! 0001000 crea and det
   
-  allocate(res_a(N_int),res_b(N_int))
+  allocate(res1_a(N_int),res_a(N_int),res1_b(N_int),res_b(N_int))
 
+  print*,'det_bit_b', size(det_bit_b,2)
+  print*,'T_b', size(T_b,3), nT_b
   do k = 1, max_k
      
     C2 = 0d0
@@ -342,28 +320,38 @@ subroutine run_fcc()
       do tb = 1, nT_b
          
         ! Apply exc and check
-        print*,'b'
-        call print_det(det_bit_b(1,db),N_int)
-        print*,'Tb'
-        call print_det(T_b(1,1,db),N_int)
-        ok = .True.
-        do i = 1, N_int
-          res_b(i) = iand(not(T_b(i,1,tb)),det_bit_b(i,db))
-          if (not(ior(not(T_b(i,1,tb)),det_bit_b(i,db))) /= 0) then
-            ok = .False.
-          endif
-        enddo
-        print*,'anni'
-        call print_det(res_b,N_int)
+        !print*,'b'
+        !call print_det_one_dimension(det_bit_b(1,db),N_int)
+        !print*,'Tb'
+        !call print_det(T_b(1,1,tb),N_int)
+        ! Annihilation part
+        call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,N_int)
+        !ok = .True.
+        !do i = 1, N_int
+        !  res1_b(i) = iand(not(T_b(i,1,tb)),det_bit_b(i,db))
+        !  if (not(ior(not(T_b(i,1,tb)),det_bit_b(i,db))) /= 0) then
+        !    ok = .False.
+        !  endif
+        !enddo
+        !print*,'anni', ok
+        !call print_det_one_dimension(res1_b,N_int)
+        !print*, 'test'
+        !call print_det_one_dimension(not(ior(not(T_b(1,1,tb)),det_bit_b(1,db))),N_int)
         if (.not. ok) cycle
-        do i = 1, N_int
-          res_b(i) = ior(T_b(i,2,tb),res_b(i))
-          if (iand(T_b(i,2,tb),res_b(i)) /= 0) then
-            ok = .False.
-          endif
-        enddo
-        print*,'crea'
-        call print_det(res_b,N_int)
+        ! Creation part
+        call apply_particles_bitstring(det_bit_b(1,db),T_b(1,2,tb),res_b,ok,N_int)
+        !do i = 1, N_int
+        !  res_b(i) = ior(T_b(i,2,tb),res1_b(i))
+        !  if (iand(T_b(i,2,tb),res1_b(i)) /= 0) then
+        !    ok = .False.
+        !  endif
+        !enddo
+        !print*,'crea', ok
+        !call print_det_one_dimension(res_b,N_int)
+        !print*,'test'
+        !call print_det_one_dimension(res1_b(1),N_int)
+        !call print_det_one_dimension(T_b(1,2,tb),N_int)
+        !call print_det_one_dimension(iand(T_b(1,2,tb),res1_b(1)),N_int)
         if (.not. ok) cycle
         
         ! Search res_b in det_b
@@ -378,20 +366,11 @@ subroutine run_fcc()
         do da = 1, ndet_a
           do ta = 1, nT_a
             ! Apply exc and check
-            ok = .True.
-            do i = 1, N_int
-              res_a(i) = iand(not(T_a(i,1,ta)),det_bit_a(i,da))
-              if (ior(T_a(i,1,ta),det_bit_a(i,da)) /= 0) then
-                ok = .False.
-              endif
-            enddo
+            ! Annihilation
+            call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,N_int)
             if (.not. ok) cycle
-            do i = 1, N_int
-              res_b(i) = ior(T_a(i,2,ta),res_a(i))
-              if (iand(T_a(i,2,ta),res_a(i)) /= 0) then
-                ok = .False.
-              endif
-            enddo
+            ! Creation
+            call apply_particles_bitstring(det_bit_a(1,da),T_a(1,2,ta),res_a,ok,N_int)
             if (.not. ok) cycle
         
             ! Search res_a in det_a
@@ -427,15 +406,100 @@ subroutine run_fcc()
     
   enddo
 
-  !! Residual equations
-  !do j = 1, nT_b
-  !  do i = 1, nT_a
-  !    do k = 1, N_int
-  !      det(k) = det_bit_ab(k,1)
-  !    enddo
-  !  enddo
-  !enddo
+  ! TODO add i_order = 0 => no exc
+  ! Residual equations
+  do j = 1, nT_b
+    do i = 1, nT_a
+      
+    enddo
+  enddo
   
   
 end
 #+end_src
+
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine apply_holes_bitstring(spin_det,h_bitstring,res,ok,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  BEGIN_DOC
+  ! h_bitstring must be a integer containing some 1 where electrons have to
+  ! be annihilate
+  END_DOC
+
+  ! Anni
+  ! Apply
+  !0001010  1110101
+  !1111110  1111110
+  !         1110100  
+  !1110100 (not anni) and det
+ 
+  !test
+  !0001010 1110101
+  !1110110 1110110
+  !
+  !0001000 1110111 (not anni) or det
+  !        0001000 not((not anni) or det)
+
+  integer, intent(in)            :: Nint
+  integer(bit_kind), intent(in)  :: spin_det(Nint), h_bitstring(Nint)
+  integer(bit_kind), intent(out) :: res(Nint)
+  logical, intent(out)           :: ok
+
+  integer                        :: i
+
+  ok = .True.
+  do i = 1, Nint
+    res(i) = iand(not(h_bitstring(i)),spin_det(i))
+    if (not(ior(not(h_bitstring(i)),spin_det(i))) /= 0) then
+      ok = .False.
+    endif
+  enddo  
+  
+end
+#+end_src
+
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine apply_particles_bitstring(spin_det,p_bitstring,res,ok,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  BEGIN_DOC
+  ! p_bitstring must be a integer containing some 1 where electrons have to
+  ! be annihilate
+  END_DOC
+
+  ! Crea
+  ! Apply
+  ! 0001010
+  ! 1100000
+  ! 1101010 crea or det
+  !
+  ! Test
+  ! 0001010
+  ! 1101000
+  ! 0001000 crea and det
+
+  integer, intent(in)            :: Nint
+  integer(bit_kind), intent(in)  :: spin_det(Nint), p_bitstring(Nint)
+  integer(bit_kind), intent(out) :: res(Nint)
+  logical, intent(out)           :: ok
+
+  integer                        :: i
+
+  ok = .True.
+  do i = 1, Nint
+    res(i) = ior(p_bitstring(i),spin_det(i))
+    if (iand(p_bitstring(i),spin_det(i)) /= 0) then
+      ok = .False.
+    endif
+  enddo
+
+end
+ #+end_src
+ 

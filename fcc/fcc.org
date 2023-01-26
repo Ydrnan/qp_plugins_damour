@@ -57,55 +57,16 @@ subroutine run_fcc()
   max_k = 4
 
   ! Numer of alpha/beta det
-  !ndet_a = 1
-  !do i = 0, nOa-1
-  !  ndet_a = ndet_a + int(binom_func(nOa,nOa-i)) * int(binom_func(nVa,i))
-  !enddo
-  !ndet_b = 1
-  !do i = 0, nOb-1
-  !  ndet_b = ndet_b + int(binom_func(nOb,nOb-i)) * int(binom_func(nVb,i))
-  !enddo
   ndet_a = int(binom_func(nOa+nVa,nOa))
   ndet_b = int(binom_func(nOb+nVb,nOb))
   ndet_ab = ndet_a * ndet_b
 
-  allocate(det_a(nOa+nVa,ndet_a), det_b(nOb+nVb,ndet_b))
-  ! Gen alpha et beta det (list)
-  call gen_k_in_n(nOa,nOa+nVa,1,ndet_a,det_a)
-  call gen_k_in_n(nOb,nOb+nVb,1,ndet_b,det_b)
-
   allocate(det_bit_a(N_int,ndet_a), det_bit_b(N_int,ndet_b), det_bit_ab(N_int,2,ndet_ab))
-  allocate(tmp(mo_num))
-
-  ! List to bistring of alpha/beta det
-  do i = 1, ndet_a
-    do j = 1, n_core_orb
-       tmp(j) = list_core(j)
-    enddo
-    k = 1 + n_core_orb
-    do j = 1, nOa+nVa
-       if (det_a(j,i) == 1) then
-        tmp(k) = j
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(det_bit_a(1,i),tmp,k-1,N_int)
-  enddo
-    
-  do i = 1, ndet_b
-    do j = 1, n_core_orb
-       tmp(j) = list_core(j)
-    enddo
-    k = 1 + n_core_orb
-    do j = 1, nOb+nVb
-      if (det_b(j,i) == 1) then
-        tmp(k) = j
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(det_bit_b(1,i),tmp,k-1,N_int)
-  enddo
-
+  
+  ! Gen alpha et beta det (list)
+  call gen_spin_det(nOa,nVa,ndet_a,det_bit_a,N_int)
+  call gen_spin_det(nOb,nVb,ndet_b,det_bit_b,N_int)
+  
   ! Gen alpha/beta det
   k = 1
   do j = 1, ndet_b
@@ -118,52 +79,60 @@ subroutine run_fcc()
   
   allocate(C1(ndet_a,ndet_b),C2(ndet_a,ndet_b),C3(ndet_a,ndet_b))
 
+#+end_src
+** Crea/anni
+#+begin_src f90 :comments org :tangle fcc.irp.f
   ! Number of alpha/beta crea/anni
-  nt_crea_a  = 0
-  nt_crea_b  = 0
-  nt_anni_a  = 0
-  nt_anni_b  = 0
   
   allocate(crea_a_beg(max_order),crea_a_end(max_order),crea_a_nb(max_order))
   allocate(crea_b_beg(max_order),crea_b_end(max_order),crea_b_nb(max_order))
   allocate(anni_a_beg(max_order),anni_a_end(max_order),anni_a_nb(max_order))
   allocate(anni_b_beg(max_order),anni_b_end(max_order),anni_b_nb(max_order))
+  
+  call compute_nb_op_spin(nVa,max_order,nt_crea_a,crea_a_beg,crea_a_nb,crea_a_end)
+  call compute_nb_op_spin(nOa,max_order,nt_anni_a,anni_a_beg,anni_a_nb,anni_a_end)
+  call compute_nb_op_spin(nVb,max_order,nt_crea_b,crea_b_beg,crea_b_nb,crea_b_end)
+  call compute_nb_op_spin(nOb,max_order,nt_anni_b,anni_b_beg,anni_b_nb,anni_b_end)
 
-  crea_a_beg = 0
-  crea_a_nb  = 0
-  crea_a_end = 0
-  anni_a_beg = 0
-  anni_a_nb  = 0
-  anni_a_end = 0
-  crea_b_beg = 0
-  crea_b_nb  = 0
-  crea_b_end = 0
-  anni_b_beg = 0
-  anni_b_nb  = 0
-  anni_b_end = 0
+  !nt_crea_a  = 0
+  !nt_crea_b  = 0
+  !nt_anni_a  = 0
+  !nt_anni_b  = 0
+  !crea_a_beg = 0
+  !crea_a_nb  = 0
+  !crea_a_end = 0
+  !anni_a_beg = 0
+  !anni_a_nb  = 0
+  !anni_a_end = 0
+  !crea_b_beg = 0
+  !crea_b_nb  = 0
+  !crea_b_end = 0
+  !anni_b_beg = 0
+  !anni_b_nb  = 0
+  !anni_b_end = 0
 
-  ! Beginning/end indexes for each order, number of config for each order
-  do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
-    crea_a_beg(i_order) = nt_crea_a+1
-    crea_a_nb(i_order)  = int(binom_func(nVa,i_order))
-    nt_crea_a           = nt_crea_a + crea_a_nb(i_order)
-    crea_a_end(i_order) = crea_a_beg(i_order) + crea_a_nb(i_order) - 1
-    
-    anni_a_beg(i_order) = nt_anni_a+1
-    anni_a_nb(i_order)  = int(binom_func(nOa,i_order))
-    nt_anni_a           = nt_anni_a + anni_a_nb(i_order)
-    anni_a_end(i_order) = anni_a_beg(i_order) + anni_a_nb(i_order) - 1
-    
-    crea_b_beg(i_order) = nt_crea_b+1
-    crea_b_nb(i_order)  = int(binom_func(nVb,i_order))
-    nt_crea_b           = nt_crea_b + crea_b_nb(i_order)
-    crea_b_end(i_order) = crea_b_beg(i_order) + crea_b_nb(i_order) - 1
-    
-    anni_b_beg(i_order) = nt_anni_b+1
-    anni_b_nb(i_order)  = int(binom_func(nOb,i_order))
-    nt_anni_b           = nt_anni_b + anni_b_nb(i_order)
-    anni_b_end(i_order) = anni_b_beg(i_order) + anni_b_nb(i_order) - 1
-  enddo
+  !! Beginning/end indexes for each order, number of config for each order
+  !do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
+  !  crea_a_beg(i_order) = nt_crea_a+1
+  !  crea_a_nb(i_order)  = int(binom_func(nVa,i_order))
+  !  nt_crea_a           = nt_crea_a + crea_a_nb(i_order)
+  !  crea_a_end(i_order) = crea_a_beg(i_order) + crea_a_nb(i_order) - 1
+  !  
+  !  anni_a_beg(i_order) = nt_anni_a+1
+  !  anni_a_nb(i_order)  = int(binom_func(nOa,i_order))
+  !  nt_anni_a           = nt_anni_a + anni_a_nb(i_order)
+  !  anni_a_end(i_order) = anni_a_beg(i_order) + anni_a_nb(i_order) - 1
+  !  
+  !  crea_b_beg(i_order) = nt_crea_b+1
+  !  crea_b_nb(i_order)  = int(binom_func(nVb,i_order))
+  !  nt_crea_b           = nt_crea_b + crea_b_nb(i_order)
+  !  crea_b_end(i_order) = crea_b_beg(i_order) + crea_b_nb(i_order) - 1
+  !  
+  !  anni_b_beg(i_order) = nt_anni_b+1
+  !  anni_b_nb(i_order)  = int(binom_func(nOb,i_order))
+  !  nt_anni_b           = nt_anni_b + anni_b_nb(i_order)
+  !  anni_b_end(i_order) = anni_b_beg(i_order) + anni_b_nb(i_order) - 1
+  !enddo
 
   ! Number of T alpha/beta
   nT_a = 0
@@ -176,130 +145,145 @@ subroutine run_fcc()
   allocate(T_crea_a(N_int,nt_crea_a), T_anni_a(N_int,nt_anni_a), T_a(N_int,2,nT_a))
   allocate(T_crea_b(N_int,nt_crea_b), T_anni_b(N_int,nt_anni_b), T_b(N_int,2,nT_b), T(nT_a,nT_b))
 
-  ! Gen the alpha/beta parts of the excitations and convert them to bistring
-  allocate(det_anni(nOa,nt_anni_a),det_crea(nVa,nt_crea_a))
-  do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
-    allocate(t_anni(nVa,anni_a_nb(i_order)),t_crea(nOa,anni_a_nb(i_order)))
-    call gen_k_in_n(i_order,nOa,anni_a_beg(i_order),nt_anni_a,det_anni)
-    call gen_k_in_n(i_order,nVa,crea_a_beg(i_order),nt_crea_a,det_crea)
-    deallocate(t_anni,t_crea)
-  enddo
+#+end_src
 
-  ! List of int to bitstrings
-  do i = 1, nt_anni_a
-    k = 1
-    do j = 1, nOa
-      if (det_anni(j,i) == 1) then
-        tmp(k) = j + n_core_orb
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(T_anni_a(1,i),tmp,k-1,N_int)
-  enddo
-  do i = 1, nt_crea_a
-    k = 1
-    do j = 1, nVa
-      if (det_crea(j,i) == 1) then
-        tmp(k) = j + n_core_orb + nOa
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(T_crea_a(1,i),tmp,k-1,N_int)
-  enddo
-  deallocate(det_anni,det_crea)
-  allocate(det(N_int,2))
+** T alpha/beta
+#+begin_src f90 :comments org :tangle fcc.irp.f
+  call gen_spin_T(nOa,nVa,max_order,nt_crea_a,nt_anni_a, &
+   crea_a_beg,anni_a_beg,crea_a_end,anni_a_end,crea_a_nb,anni_a_nb,nT_a,T_a,N_int)
+  call gen_spin_T(nOb,nVb,max_order,nt_crea_b,nt_anni_b, &
+   crea_b_beg,anni_b_beg,crea_b_end,anni_b_end,crea_b_nb,anni_b_nb,nT_b,T_b,N_int)
 
-  ! Debug
-  !print*,'Anni',nt_anni_a
+  !! Gen the alpha/beta parts of the excitations and convert them to bistring
+  !allocate(det_anni(nOa,nt_anni_a),det_crea(nVa,nt_crea_a))
+  !do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
+  !  allocate(t_anni(nVa,anni_a_nb(i_order)),t_crea(nOa,anni_a_nb(i_order)))
+  !  call gen_k_in_n(i_order,nOa,anni_a_beg(i_order),nt_anni_a,det_anni)
+  !  call gen_k_in_n(i_order,nVa,crea_a_beg(i_order),nt_crea_a,det_crea)
+  !  deallocate(t_anni,t_crea)
+  !enddo
+
+  !allocate(tmp(mo_num))
+
+  !! List of int to bitstrings
   !do i = 1, nt_anni_a
-  !  det(:,1) = T_anni_a(:,i)
-  !  det(:,2) = 0
-  !  call print_det(det,N_int)
-  !  print*,T_anni_a(:,i)
+  !  k = 1
+  !  do j = 1, nOa
+  !    if (det_anni(j,i) == 1) then
+  !      tmp(k) = j + n_core_orb
+  !      k = k + 1
+  !    endif
+  !  enddo
+  !  call list_to_bitstring(T_anni_a(1,i),tmp,k-1,N_int)
   !enddo
-  !print*,'Crea',nt_crea_a
   !do i = 1, nt_crea_a
-  !  det(:,1) = T_crea_a(:,i)
-  !  det(:,2) = 0
-  !  call print_det(det,N_int)
-  !  print*,T_crea_a(:,i)
+  !  k = 1
+  !  do j = 1, nVa
+  !    if (det_crea(j,i) == 1) then
+  !      tmp(k) = j + n_core_orb + nOa
+  !      k = k + 1
+  !    endif
+  !  enddo
+  !  call list_to_bitstring(T_crea_a(1,i),tmp,k-1,N_int)
   !enddo
-  
-  ! gather anni and crea alpha
-  print*,nt_anni_a,nt_crea_a,nt_anni_a*nt_crea_a,size(T_a,3)
-  k = 1
-  do i_order = 1, max_order
-    do j = anni_a_beg(i_order), anni_a_end(i_order)
-      do i = 1, crea_a_beg(i_order), crea_a_end(i_order)
-        !print*,i+(j-1)*nt_crea_a,size(T_a,3)
-        T_a(:,1,k) = T_anni_a(:,j)
-        T_a(:,2,k) = T_crea_a(:,i)
-        !call print_det(T_a(1,1,k),N_int)
-        k = k + 1
-      enddo
-    enddo
-  enddo
+  !deallocate(det_anni,det_crea)
+  !allocate(det(N_int,2))
 
-  allocate(det_anni(nOb,nt_anni_b),det_crea(nVb,nt_crea_b))
-  do i_order = 1, max_order !min(cc_order,min(nOb,nVb))
-    allocate(t_anni(nVb,anni_b_nb(i_order)),t_crea(nOb,crea_b_nb(i_order)))
-    call gen_k_in_n(i_order,nOb,anni_b_beg(i_order),nt_anni_b,det_anni)
-    call gen_k_in_n(i_order,nVb,crea_b_beg(i_order),nt_crea_b,det_crea)
-    deallocate(t_anni,t_crea)
-  enddo
+  !! Debug
+  !!print*,'Anni',nt_anni_a
+  !!do i = 1, nt_anni_a
+  !!  det(:,1) = T_anni_a(:,i)
+  !!  det(:,2) = 0
+  !!  call print_det(det,N_int)
+  !!  print*,T_anni_a(:,i)
+  !!enddo
+  !!print*,'Crea',nt_crea_a
+  !!do i = 1, nt_crea_a
+  !!  det(:,1) = T_crea_a(:,i)
+  !!  det(:,2) = 0
+  !!  call print_det(det,N_int)
+  !!  print*,T_crea_a(:,i)
+  !!enddo
+  !
+  !! gather anni and crea alpha
+  !print*,nt_anni_a,nt_crea_a,nt_anni_a*nt_crea_a,size(T_a,3)
+  !k = 1
+  !do i_order = 1, max_order
+  !  do j = anni_a_beg(i_order), anni_a_end(i_order)
+  !    do i = 1, crea_a_beg(i_order), crea_a_end(i_order)
+  !      !print*,i+(j-1)*nt_crea_a,size(T_a,3)
+  !      T_a(:,1,k) = T_anni_a(:,j)
+  !      T_a(:,2,k) = T_crea_a(:,i)
+  !      !call print_det(T_a(1,1,k),N_int)
+  !      k = k + 1
+  !    enddo
+  !  enddo
+  !enddo
 
-  ! List of int to bitstrings
-  do i = 1, nt_anni_b
-    k = 1
-    do j = 1, nOb
-      if (det_anni(j,i) == 1) then
-        tmp(k) = j + n_core_orb
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(T_anni_b(1,i),tmp,k-1,N_int)
-  enddo
-  do i = 1, nt_crea_b
-    k = 1
-    do j = 1, nVb
-      if (det_crea(j,i) == 1) then
-        tmp(k) = j + n_core_orb + nOb
-        k = k + 1
-      endif
-    enddo
-    call list_to_bitstring(T_crea_b(1,i),tmp,k-1,N_int)
-  enddo
-  deallocate(det_anni,det_crea)
-  
-  ! gather anni and crea beta
-  k = 1
-  do i_order = 1, max_order
-    do j = anni_b_beg(i_order), anni_b_end(i_order)
-      do i = crea_b_beg(i_order), crea_b_end(i_order)
-        T_b(:,1,k) = T_anni_b(:,j)
-        T_b(:,2,k) = T_crea_b(:,i)
-        !call print_det(T_b(1,1,k),N_int)
-        k = k + 1
-      enddo
-    enddo
-  enddo
-  
-  ! Debug
-  !print*,'Anni',nt_anni_a
-  !do i = 1, nt_anni_a
-  !  det(:,1) = T_anni_a(:,i)
-  !  det(:,2) = 0
-  !  call print_det(det,N_int)
-  !  !print*,T_anni_a(:,i)
+  !allocate(det_anni(nOb,nt_anni_b),det_crea(nVb,nt_crea_b))
+  !do i_order = 1, max_order !min(cc_order,min(nOb,nVb))
+  !  allocate(t_anni(nVb,anni_b_nb(i_order)),t_crea(nOb,crea_b_nb(i_order)))
+  !  call gen_k_in_n(i_order,nOb,anni_b_beg(i_order),nt_anni_b,det_anni)
+  !  call gen_k_in_n(i_order,nVb,crea_b_beg(i_order),nt_crea_b,det_crea)
+  !  deallocate(t_anni,t_crea)
   !enddo
-  !print*,'Crea',nt_crea_a
-  !do i = 1, nt_crea_a
-  !  det(:,1) = T_crea_a(:,i)
-  !  det(:,2) = 0
-  !  call print_det(det,N_int)
-  !  !print*,T_crea_a(:,i)
+
+  !! List of int to bitstrings
+  !do i = 1, nt_anni_b
+  !  k = 1
+  !  do j = 1, nOb
+  !    if (det_anni(j,i) == 1) then
+  !      tmp(k) = j + n_core_orb
+  !      k = k + 1
+  !    endif
+  !  enddo
+  !  call list_to_bitstring(T_anni_b(1,i),tmp,k-1,N_int)
   !enddo
-  
+  !do i = 1, nt_crea_b
+  !  k = 1
+  !  do j = 1, nVb
+  !    if (det_crea(j,i) == 1) then
+  !      tmp(k) = j + n_core_orb + nOb
+  !      k = k + 1
+  !    endif
+  !  enddo
+  !  call list_to_bitstring(T_crea_b(1,i),tmp,k-1,N_int)
+  !enddo
+  !deallocate(det_anni,det_crea)
+  !
+  !! gather anni and crea beta
+  !k = 1
+  !do i_order = 1, max_order
+  !  do j = anni_b_beg(i_order), anni_b_end(i_order)
+  !    do i = crea_b_beg(i_order), crea_b_end(i_order)
+  !      T_b(:,1,k) = T_anni_b(:,j)
+  !      T_b(:,2,k) = T_crea_b(:,i)
+  !      !call print_det(T_b(1,1,k),N_int)
+  !      k = k + 1
+  !    enddo
+  !  enddo
+  !enddo
+  !
+  !! Debug
+  !!print*,'Anni',nt_anni_a
+  !!do i = 1, nt_anni_a
+  !!  det(:,1) = T_anni_a(:,i)
+  !!  det(:,2) = 0
+  !!  call print_det(det,N_int)
+  !!  !print*,T_anni_a(:,i)
+  !!enddo
+  !!print*,'Crea',nt_crea_a
+  !!do i = 1, nt_crea_a
+  !!  det(:,1) = T_crea_a(:,i)
+  !!  det(:,2) = 0
+  !!  call print_det(det,N_int)
+  !!  !print*,T_crea_a(:,i)
+  !!enddo
+
+#+end_src
+
+** Build C
+#+begin_src f90 :comments org :tangle fcc.irp.f
   ! Init
   T = 0 ! Or replace by a guess
   C1 = 0d0
@@ -390,7 +374,7 @@ subroutine run_fcc()
              endif
            enddo
 
-           call get_phase((/det_a,det_b/),(/res_a,res_b/),phase,N_int)
+           call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,N_int)
            
            C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
 
@@ -418,6 +402,7 @@ subroutine run_fcc()
 end
 #+end_src
 
+** Apply holes
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine apply_holes_bitstring(spin_det,h_bitstring,res,ok,Nint)
 
@@ -462,6 +447,7 @@ subroutine apply_holes_bitstring(spin_det,h_bitstring,res,ok,Nint)
 end
 #+end_src
 
+** Apply particles
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine apply_particles_bitstring(spin_det,p_bitstring,res,ok,Nint)
 
@@ -503,3 +489,140 @@ subroutine apply_particles_bitstring(spin_det,p_bitstring,res,ok,Nint)
 end
  #+end_src
  
+
+** Gen spin det
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine gen_spin_det(nOs,nVs,ndet_s,det_bit_s,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  integer, intent(in)            :: nOs,nVs,ndet_s,Nint
+  integer(bit_kind), intent(out) :: det_bit_s(Nint,ndet_s)
+  integer, allocatable           :: det_s(:,:), tmp(:)
+
+  integer :: i,j,k
+  
+  allocate(det_s(nOs+nVs,ndet_s))
+  allocate(tmp(mo_num))
+  
+  ! Gen alpha/beta det (list)
+  call gen_k_in_n(nOs,nOs+nVs,1,ndet_s,det_s)
+
+  ! List to bistring of alpha/beta det
+  do i = 1, ndet_s
+    do j = 1, n_core_orb
+       tmp(j) = list_core(j)
+    enddo
+    k = 1 + n_core_orb
+    do j = 1, nOs+nVs
+       if (det_s(j,i) == 1) then
+        tmp(k) = j
+        k = k + 1
+      endif
+    enddo
+    call list_to_bitstring(det_bit_s(1,i),tmp,k-1,Nint)
+  enddo
+
+  deallocate(det_s,tmp)
+  
+end
+#+end_src
+
+** Nb op spin
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine compute_nb_op_spin(nOs,max_order,nt_op_s,op_s_beg,op_s_nb,op_s_end)
+
+  implicit none
+
+  integer, intent(in)        :: nOs, max_order
+  integer, intent(out)       :: nt_op_s, op_s_beg(max_order), op_s_nb(max_order), op_s_end(max_order)
+
+  integer                    :: i_order
+  double precision, external :: binom_func
+  
+  nt_op_s  = 0
+  op_s_beg = 0
+  op_s_nb  = 0
+  op_s_end = 0
+
+  do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
+    op_s_beg(i_order) = nt_op_s+1
+    op_s_nb(i_order)  = int(binom_func(nOs,i_order))
+    nt_op_s           = nt_op_s + op_s_nb(i_order)
+    op_s_end(i_order) = op_s_beg(i_order) + op_s_nb(i_order) - 1
+  enddo
+  
+end
+#+end_src
+
+** Gen spin T
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
+   crea_s_beg,anni_s_beg,crea_s_end,anni_s_end,crea_s_nb,anni_s_nb,nT_s,T_s,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  integer, intent(in)            :: nOs, nVs, nT_s, max_order, Nint, nt_crea_s, nt_anni_s
+  integer, intent(in)            :: anni_s_beg(max_order), crea_s_beg(max_order)
+  integer, intent(in)            :: anni_s_end(max_order), crea_s_end(max_order)
+  integer, intent(in)            :: anni_s_nb(max_order), crea_s_nb(max_order)
+  integer(bit_kind), intent(out) :: T_s(Nint,2,nT_s)
+
+  integer, allocatable           :: det_anni(:,:), det_crea(:,:), tmp(:), t_anni(:,:), t_crea(:,:)
+  integer(bit_kind), allocatable :: T_anni_s(:,:), T_crea_s(:,:)
+  integer                        :: i,j,k,i_order
+
+  ! Gen the alpha/beta parts of the excitations and convert them to bistring
+  allocate(det_anni(nOs,nt_anni_s),det_crea(nVs,nt_crea_s))
+  do i_order = 1, max_order
+    allocate(t_anni(nVs,anni_s_nb(i_order)),t_crea(nOs,anni_s_nb(i_order)))
+    call gen_k_in_n(i_order,nOs,anni_s_beg(i_order),nt_anni_s,det_anni)
+    call gen_k_in_n(i_order,nVs,crea_s_beg(i_order),nt_crea_s,det_crea)
+    deallocate(t_anni,t_crea)
+  enddo
+
+  allocate(T_anni_s(Nint,nt_anni_s), T_crea_s(Nint,nt_crea_s))
+  allocate(tmp(mo_num))
+
+  ! List of int to bitstrings
+  do i = 1, nt_anni_s
+    k = 1
+    do j = 1, nOs
+      if (det_anni(j,i) == 1) then
+        tmp(k) = j + n_core_orb
+        k = k + 1
+      endif
+    enddo
+    call list_to_bitstring(T_anni_s(1,i),tmp,k-1,N_int)
+  enddo
+  do i = 1, nt_crea_s
+    k = 1
+    do j = 1, nVs
+      if (det_crea(j,i) == 1) then
+        tmp(k) = j + n_core_orb + nOs
+        k = k + 1
+      endif
+    enddo
+    call list_to_bitstring(T_crea_s(1,i),tmp,k-1,N_int)
+  enddo
+
+  ! gather anni and crea alpha
+  k = 1
+  do i_order = 1, max_order
+    do j = anni_s_beg(i_order), anni_s_end(i_order)
+      do i = 1, crea_s_beg(i_order), crea_s_end(i_order)
+        T_s(:,1,k) = T_anni_s(:,j)
+        T_s(:,2,k) = T_crea_s(:,i)
+        k = k + 1
+      enddo
+    enddo
+  enddo
+
+  deallocate(det_anni,det_crea,T_anni_s,T_crea_s,tmp)
+  
+end
+#+end_src

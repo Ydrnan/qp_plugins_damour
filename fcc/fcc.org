@@ -1,3 +1,4 @@
+** Prog
 #+begin_src f90 :comments org :tangle fcc.irp.f
 program fcc
 
@@ -11,6 +12,7 @@ program fcc
 end
 #+end_src
 
+** Main
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine run_fcc()
 
@@ -20,21 +22,19 @@ subroutine run_fcc()
 
   double precision, allocatable :: T(:,:)
   double precision, allocatable :: C1(:,:), C2(:,:), C3(:,:)
-  integer, allocatable :: det_a(:,:), det_b(:,:),tmp(:)
-  integer(bit_kind), allocatable :: det(:,:),det_bit_a(:,:),det_bit_b(:,:),det_bit_ab(:,:,:)
-  integer, allocatable :: det_crea(:,:),det_anni(:,:), t_anni(:,:), t_crea(:,:)
+  integer(bit_kind), allocatable :: det_bit_a(:,:),det_bit_b(:,:),det_bit_ab(:,:,:)
   integer, allocatable :: crea_a_beg(:), anni_a_beg(:), anni_a_nb(:)
   integer, allocatable :: crea_a_end(:), anni_a_end(:), crea_a_nb(:)
   integer, allocatable :: crea_b_beg(:), anni_b_beg(:), anni_b_nb(:)
   integer, allocatable :: crea_b_end(:), anni_b_end(:), crea_b_nb(:)
-  integer(bit_kind), allocatable :: T_crea_a(:,:),T_anni_a(:,:), T_crea_b(:,:), T_anni_b(:,:), T_a(:,:,:), T_b(:,:,:)
-  integer(bit_kind), allocatable :: res_a(:), res1_a(:), res_b(:), res1_b(:)
+  integer(bit_kind), allocatable :: T_crea_a(:,:),T_anni_a(:,:), T_crea_b(:,:), T_anni_b(:,:)
+  integer(bit_kind), allocatable  :: T_a(:,:,:), T_b(:,:,:)
+  integer, allocatable :: T_a_beg(:), T_a_end(:)
+  integer, allocatable :: T_b_beg(:), T_b_end(:)
   integer :: ndet_ab, ndet_a, ndet_b, nT_a, nT_b, nt_crea, nt_anni
-  integer :: nO, nV, nOa, nOb, nVa, nVb, nt_anni_a,nt_crea_a,nt_anni_b,nt_crea_b
-  integer :: cc_order, max_k,fact, max_order,degree
-  integer :: i,j,k,n,i_order,idx,da,db,ta,tb,exc_a,exc_b,idx_anni,idx_crea
-  logical :: ok
-  double precision :: phase
+  integer :: nOa, nOb, nVa, nVb, nt_anni_a,nt_crea_a,nt_anni_b,nt_crea_b
+  integer :: cc_order, max_k,fact, max_order
+  integer :: i,j,k,n,i_order
 
   if (n_del_orb > 0) then
   print*,'n',nT_a
@@ -77,327 +77,46 @@ subroutine run_fcc()
     enddo
   enddo
   
-  allocate(C1(ndet_a,ndet_b),C2(ndet_a,ndet_b),C3(ndet_a,ndet_b))
-
-#+end_src
-** Crea/anni
-#+begin_src f90 :comments org :tangle fcc.irp.f
   ! Number of alpha/beta crea/anni
-  
-  allocate(crea_a_beg(max_order),crea_a_end(max_order),crea_a_nb(max_order))
-  allocate(crea_b_beg(max_order),crea_b_end(max_order),crea_b_nb(max_order))
-  allocate(anni_a_beg(max_order),anni_a_end(max_order),anni_a_nb(max_order))
-  allocate(anni_b_beg(max_order),anni_b_end(max_order),anni_b_nb(max_order))
+  allocate(crea_a_beg(0:max_order),crea_a_end(0:max_order),crea_a_nb(0:max_order))
+  allocate(crea_b_beg(0:max_order),crea_b_end(0:max_order),crea_b_nb(0:max_order))
+  allocate(anni_a_beg(0:max_order),anni_a_end(0:max_order),anni_a_nb(0:max_order))
+  allocate(anni_b_beg(0:max_order),anni_b_end(0:max_order),anni_b_nb(0:max_order))
   
   call compute_nb_op_spin(nVa,max_order,nt_crea_a,crea_a_beg,crea_a_nb,crea_a_end)
   call compute_nb_op_spin(nOa,max_order,nt_anni_a,anni_a_beg,anni_a_nb,anni_a_end)
   call compute_nb_op_spin(nVb,max_order,nt_crea_b,crea_b_beg,crea_b_nb,crea_b_end)
   call compute_nb_op_spin(nOb,max_order,nt_anni_b,anni_b_beg,anni_b_nb,anni_b_end)
 
-  !nt_crea_a  = 0
-  !nt_crea_b  = 0
-  !nt_anni_a  = 0
-  !nt_anni_b  = 0
-  !crea_a_beg = 0
-  !crea_a_nb  = 0
-  !crea_a_end = 0
-  !anni_a_beg = 0
-  !anni_a_nb  = 0
-  !anni_a_end = 0
-  !crea_b_beg = 0
-  !crea_b_nb  = 0
-  !crea_b_end = 0
-  !anni_b_beg = 0
-  !anni_b_nb  = 0
-  !anni_b_end = 0
-
-  !! Beginning/end indexes for each order, number of config for each order
-  !do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
-  !  crea_a_beg(i_order) = nt_crea_a+1
-  !  crea_a_nb(i_order)  = int(binom_func(nVa,i_order))
-  !  nt_crea_a           = nt_crea_a + crea_a_nb(i_order)
-  !  crea_a_end(i_order) = crea_a_beg(i_order) + crea_a_nb(i_order) - 1
-  !  
-  !  anni_a_beg(i_order) = nt_anni_a+1
-  !  anni_a_nb(i_order)  = int(binom_func(nOa,i_order))
-  !  nt_anni_a           = nt_anni_a + anni_a_nb(i_order)
-  !  anni_a_end(i_order) = anni_a_beg(i_order) + anni_a_nb(i_order) - 1
-  !  
-  !  crea_b_beg(i_order) = nt_crea_b+1
-  !  crea_b_nb(i_order)  = int(binom_func(nVb,i_order))
-  !  nt_crea_b           = nt_crea_b + crea_b_nb(i_order)
-  !  crea_b_end(i_order) = crea_b_beg(i_order) + crea_b_nb(i_order) - 1
-  !  
-  !  anni_b_beg(i_order) = nt_anni_b+1
-  !  anni_b_nb(i_order)  = int(binom_func(nOb,i_order))
-  !  nt_anni_b           = nt_anni_b + anni_b_nb(i_order)
-  !  anni_b_end(i_order) = anni_b_beg(i_order) + anni_b_nb(i_order) - 1
-  !enddo
-
   ! Number of T alpha/beta
   nT_a = 0
   nT_b = 0
-  do i_order = 1, max_order
+  do i_order = 0, max_order
     nT_a = nT_a + crea_a_nb(i_order) * anni_a_nb(i_order)
     nT_b = nT_b + crea_b_nb(i_order) * anni_b_nb(i_order)
   enddo
 
   allocate(T_crea_a(N_int,nt_crea_a), T_anni_a(N_int,nt_anni_a), T_a(N_int,2,nT_a))
   allocate(T_crea_b(N_int,nt_crea_b), T_anni_b(N_int,nt_anni_b), T_b(N_int,2,nT_b), T(nT_a,nT_b))
+  allocate(T_a_beg(0:max_order), T_a_end(0:max_order))
+  allocate(T_b_beg(0:max_order), T_b_end(0:max_order))
 
-#+end_src
-
-** T alpha/beta
-#+begin_src f90 :comments org :tangle fcc.irp.f
+  ! T alpha/beta 
   call gen_spin_T(nOa,nVa,max_order,nt_crea_a,nt_anni_a, &
-   crea_a_beg,anni_a_beg,crea_a_end,anni_a_end,crea_a_nb,anni_a_nb,nT_a,T_a,N_int)
+   crea_a_beg,anni_a_beg,crea_a_end,anni_a_end,crea_a_nb,anni_a_nb, &
+   nT_a,T_a,T_a_beg,T_a_end,N_int)
   call gen_spin_T(nOb,nVb,max_order,nt_crea_b,nt_anni_b, &
-   crea_b_beg,anni_b_beg,crea_b_end,anni_b_end,crea_b_nb,anni_b_nb,nT_b,T_b,N_int)
+   crea_b_beg,anni_b_beg,crea_b_end,anni_b_end,crea_b_nb,anni_b_nb, &
+   nT_b,T_b,T_b_beg,T_b_end,N_int)
 
-  !! Gen the alpha/beta parts of the excitations and convert them to bistring
-  !allocate(det_anni(nOa,nt_anni_a),det_crea(nVa,nt_crea_a))
-  !do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
-  !  allocate(t_anni(nVa,anni_a_nb(i_order)),t_crea(nOa,anni_a_nb(i_order)))
-  !  call gen_k_in_n(i_order,nOa,anni_a_beg(i_order),nt_anni_a,det_anni)
-  !  call gen_k_in_n(i_order,nVa,crea_a_beg(i_order),nt_crea_a,det_crea)
-  !  deallocate(t_anni,t_crea)
-  !enddo
-
-  !allocate(tmp(mo_num))
-
-  !! List of int to bitstrings
-  !do i = 1, nt_anni_a
-  !  k = 1
-  !  do j = 1, nOa
-  !    if (det_anni(j,i) == 1) then
-  !      tmp(k) = j + n_core_orb
-  !      k = k + 1
-  !    endif
-  !  enddo
-  !  call list_to_bitstring(T_anni_a(1,i),tmp,k-1,N_int)
-  !enddo
-  !do i = 1, nt_crea_a
-  !  k = 1
-  !  do j = 1, nVa
-  !    if (det_crea(j,i) == 1) then
-  !      tmp(k) = j + n_core_orb + nOa
-  !      k = k + 1
-  !    endif
-  !  enddo
-  !  call list_to_bitstring(T_crea_a(1,i),tmp,k-1,N_int)
-  !enddo
-  !deallocate(det_anni,det_crea)
-  !allocate(det(N_int,2))
-
-  !! Debug
-  !!print*,'Anni',nt_anni_a
-  !!do i = 1, nt_anni_a
-  !!  det(:,1) = T_anni_a(:,i)
-  !!  det(:,2) = 0
-  !!  call print_det(det,N_int)
-  !!  print*,T_anni_a(:,i)
-  !!enddo
-  !!print*,'Crea',nt_crea_a
-  !!do i = 1, nt_crea_a
-  !!  det(:,1) = T_crea_a(:,i)
-  !!  det(:,2) = 0
-  !!  call print_det(det,N_int)
-  !!  print*,T_crea_a(:,i)
-  !!enddo
-  !
-  !! gather anni and crea alpha
-  !print*,nt_anni_a,nt_crea_a,nt_anni_a*nt_crea_a,size(T_a,3)
-  !k = 1
-  !do i_order = 1, max_order
-  !  do j = anni_a_beg(i_order), anni_a_end(i_order)
-  !    do i = 1, crea_a_beg(i_order), crea_a_end(i_order)
-  !      !print*,i+(j-1)*nt_crea_a,size(T_a,3)
-  !      T_a(:,1,k) = T_anni_a(:,j)
-  !      T_a(:,2,k) = T_crea_a(:,i)
-  !      !call print_det(T_a(1,1,k),N_int)
-  !      k = k + 1
-  !    enddo
-  !  enddo
-  !enddo
-
-  !allocate(det_anni(nOb,nt_anni_b),det_crea(nVb,nt_crea_b))
-  !do i_order = 1, max_order !min(cc_order,min(nOb,nVb))
-  !  allocate(t_anni(nVb,anni_b_nb(i_order)),t_crea(nOb,crea_b_nb(i_order)))
-  !  call gen_k_in_n(i_order,nOb,anni_b_beg(i_order),nt_anni_b,det_anni)
-  !  call gen_k_in_n(i_order,nVb,crea_b_beg(i_order),nt_crea_b,det_crea)
-  !  deallocate(t_anni,t_crea)
-  !enddo
-
-  !! List of int to bitstrings
-  !do i = 1, nt_anni_b
-  !  k = 1
-  !  do j = 1, nOb
-  !    if (det_anni(j,i) == 1) then
-  !      tmp(k) = j + n_core_orb
-  !      k = k + 1
-  !    endif
-  !  enddo
-  !  call list_to_bitstring(T_anni_b(1,i),tmp,k-1,N_int)
-  !enddo
-  !do i = 1, nt_crea_b
-  !  k = 1
-  !  do j = 1, nVb
-  !    if (det_crea(j,i) == 1) then
-  !      tmp(k) = j + n_core_orb + nOb
-  !      k = k + 1
-  !    endif
-  !  enddo
-  !  call list_to_bitstring(T_crea_b(1,i),tmp,k-1,N_int)
-  !enddo
-  !deallocate(det_anni,det_crea)
-  !
-  !! gather anni and crea beta
-  !k = 1
-  !do i_order = 1, max_order
-  !  do j = anni_b_beg(i_order), anni_b_end(i_order)
-  !    do i = crea_b_beg(i_order), crea_b_end(i_order)
-  !      T_b(:,1,k) = T_anni_b(:,j)
-  !      T_b(:,2,k) = T_crea_b(:,i)
-  !      !call print_det(T_b(1,1,k),N_int)
-  !      k = k + 1
-  !    enddo
-  !  enddo
-  !enddo
-  !
-  !! Debug
-  !!print*,'Anni',nt_anni_a
-  !!do i = 1, nt_anni_a
-  !!  det(:,1) = T_anni_a(:,i)
-  !!  det(:,2) = 0
-  !!  call print_det(det,N_int)
-  !!  !print*,T_anni_a(:,i)
-  !!enddo
-  !!print*,'Crea',nt_crea_a
-  !!do i = 1, nt_crea_a
-  !!  det(:,1) = T_crea_a(:,i)
-  !!  det(:,2) = 0
-  !!  call print_det(det,N_int)
-  !!  !print*,T_crea_a(:,i)
-  !!enddo
-
-#+end_src
-
-** Build C
-#+begin_src f90 :comments org :tangle fcc.irp.f
   ! Init
-  T = 0 ! Or replace by a guess
-  C1 = 0d0
-  C3 = 0d0
-
-  C1(1,1) = 1d0
-  C3(1,1) = 1d0
-
+  T = 0d0
+  allocate(C3(ndet_a,ndet_b))
   
-  allocate(res1_a(N_int),res_a(N_int),res1_b(N_int),res_b(N_int))
-
-  print*,'det_bit_b', size(det_bit_b,2)
-  print*,'T_b', size(T_b,3), nT_b
-  do k = 1, max_k
-     
-    C2 = 0d0
-    do db = 1, ndet_b
-      do tb = 1, nT_b
-         
-        ! Apply exc and check
-        !print*,'b'
-        !call print_det_one_dimension(det_bit_b(1,db),N_int)
-        !print*,'Tb'
-        !call print_det(T_b(1,1,tb),N_int)
-        ! Annihilation part
-        call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,N_int)
-        !ok = .True.
-        !do i = 1, N_int
-        !  res1_b(i) = iand(not(T_b(i,1,tb)),det_bit_b(i,db))
-        !  if (not(ior(not(T_b(i,1,tb)),det_bit_b(i,db))) /= 0) then
-        !    ok = .False.
-        !  endif
-        !enddo
-        !print*,'anni', ok
-        !call print_det_one_dimension(res1_b,N_int)
-        !print*, 'test'
-        !call print_det_one_dimension(not(ior(not(T_b(1,1,tb)),det_bit_b(1,db))),N_int)
-        if (.not. ok) cycle
-        ! Creation part
-        call apply_particles_bitstring(det_bit_b(1,db),T_b(1,2,tb),res_b,ok,N_int)
-        !do i = 1, N_int
-        !  res_b(i) = ior(T_b(i,2,tb),res1_b(i))
-        !  if (iand(T_b(i,2,tb),res1_b(i)) /= 0) then
-        !    ok = .False.
-        !  endif
-        !enddo
-        !print*,'crea', ok
-        !call print_det_one_dimension(res_b,N_int)
-        !print*,'test'
-        !call print_det_one_dimension(res1_b(1),N_int)
-        !call print_det_one_dimension(T_b(1,2,tb),N_int)
-        !call print_det_one_dimension(iand(T_b(1,2,tb),res1_b(1)),N_int)
-        if (.not. ok) cycle
-        
-        ! Search res_b in det_b
-        do i = 1, ndet_b
-          call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,N_int)
-          if (degree == 0) then
-            exc_b = i
-            exit
-          endif
-        enddo
-
-        do da = 1, ndet_a
-          do ta = 1, nT_a
-            ! Apply exc and check
-            ! Annihilation
-            call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,N_int)
-            if (.not. ok) cycle
-            ! Creation
-            call apply_particles_bitstring(det_bit_a(1,da),T_a(1,2,ta),res_a,ok,N_int)
-            if (.not. ok) cycle
-        
-            ! Search res_a in det_a
-            do i = 1, ndet_a
-              call get_excitation_degree_spin(det_bit_a(1,i),res_a(1),degree,N_int)
-              if (degree == 0) then
-                exc_a = i
-                exit
-             endif
-           enddo
-           ! Search res_b in det_b
-           do i = 1, ndet_b
-             call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,N_int)
-             if (degree == 0) then
-               exc_b = i
-               exit
-             endif
-           enddo
-
-           call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,N_int)
-           
-           C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
-
-          enddo
-        enddo
-      enddo
-    enddo
-    
-    ! update
-    fact = factorial(k)
-    C3(:,:) = C3(:,:) + C2(:,:) * 1d0/dble(fact)
-    C1 = C2
-    
-  enddo
-
-  ! TODO add i_order = 0 => no exc
+  call exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b,&
+       nT_a,T_a,T_a_beg,T_a_end,nT_b,T_b,T_b_beg,T_b_end,T,C3,N_int)
+  
   ! Residual equations
-  do j = 1, nT_b
-    do i = 1, nT_a
-      
-    enddo
-  enddo
-  
   
 end
 #+end_src
@@ -489,7 +208,6 @@ subroutine apply_particles_bitstring(spin_det,p_bitstring,res,ok,Nint)
 end
  #+end_src
  
-
 ** Gen spin det
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine gen_spin_det(nOs,nVs,ndet_s,det_bit_s,Nint)
@@ -537,7 +255,7 @@ subroutine compute_nb_op_spin(nOs,max_order,nt_op_s,op_s_beg,op_s_nb,op_s_end)
   implicit none
 
   integer, intent(in)        :: nOs, max_order
-  integer, intent(out)       :: nt_op_s, op_s_beg(max_order), op_s_nb(max_order), op_s_end(max_order)
+  integer, intent(out)       :: nt_op_s, op_s_beg(0:max_order), op_s_nb(0:max_order), op_s_end(0:max_order)
 
   integer                    :: i_order
   double precision, external :: binom_func
@@ -547,7 +265,7 @@ subroutine compute_nb_op_spin(nOs,max_order,nt_op_s,op_s_beg,op_s_nb,op_s_end)
   op_s_nb  = 0
   op_s_end = 0
 
-  do i_order = 1, max_order !min(cc_order,min(nOa,nVa))
+  do i_order = 0, max_order 
     op_s_beg(i_order) = nt_op_s+1
     op_s_nb(i_order)  = int(binom_func(nOs,i_order))
     nt_op_s           = nt_op_s + op_s_nb(i_order)
@@ -560,17 +278,19 @@ end
 ** Gen spin T
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
-   crea_s_beg,anni_s_beg,crea_s_end,anni_s_end,crea_s_nb,anni_s_nb,nT_s,T_s,Nint)
+   crea_s_beg,anni_s_beg,crea_s_end,anni_s_end,crea_s_nb,anni_s_nb, &
+   nT_s,T_s,T_s_beg,T_s_end,Nint)
 
   use bitmasks
   
   implicit none
 
   integer, intent(in)            :: nOs, nVs, nT_s, max_order, Nint, nt_crea_s, nt_anni_s
-  integer, intent(in)            :: anni_s_beg(max_order), crea_s_beg(max_order)
-  integer, intent(in)            :: anni_s_end(max_order), crea_s_end(max_order)
-  integer, intent(in)            :: anni_s_nb(max_order), crea_s_nb(max_order)
+  integer, intent(in)            :: anni_s_beg(0:max_order), crea_s_beg(0:max_order)
+  integer, intent(in)            :: anni_s_end(0:max_order), crea_s_end(0:max_order)
+  integer, intent(in)            :: anni_s_nb(0:max_order), crea_s_nb(0:max_order)
   integer(bit_kind), intent(out) :: T_s(Nint,2,nT_s)
+  integer, intent(out)           :: T_s_beg(0:max_order), T_s_end(0:max_order)
 
   integer, allocatable           :: det_anni(:,:), det_crea(:,:), tmp(:), t_anni(:,:), t_crea(:,:)
   integer(bit_kind), allocatable :: T_anni_s(:,:), T_crea_s(:,:)
@@ -598,6 +318,9 @@ subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
       endif
     enddo
     call list_to_bitstring(T_anni_s(1,i),tmp,k-1,N_int)
+    ! Debug
+    !print*,'anni'
+    !call print_det_one_dimension(T_anni_s(1,i),N_int)
   enddo
   do i = 1, nt_crea_s
     k = 1
@@ -608,21 +331,145 @@ subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
       endif
     enddo
     call list_to_bitstring(T_crea_s(1,i),tmp,k-1,N_int)
+    ! Debug
+    !print*,'crea'
+    !call print_det_one_dimension(T_crea_s(1,i),N_int)
   enddo
 
   ! gather anni and crea alpha
   k = 1
-  do i_order = 1, max_order
+  do i_order = 0, max_order
+    T_s_beg(i_order) = k
     do j = anni_s_beg(i_order), anni_s_end(i_order)
-      do i = 1, crea_s_beg(i_order), crea_s_end(i_order)
+      do i = crea_s_beg(i_order), crea_s_end(i_order)
         T_s(:,1,k) = T_anni_s(:,j)
         T_s(:,2,k) = T_crea_s(:,i)
+        ! Debug
+        !print*,i_order
+        !call print_det(T_s(1,1,k),N_int)
         k = k + 1
       enddo
     enddo
+    T_s_end(i_order) = k-1
   enddo
 
   deallocate(det_anni,det_crea,T_anni_s,T_crea_s,tmp)
   
+end
+#+end_src
+
+** Exp wf
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
+     nT_a,T_a,T_a_beg,T_a_end,nT_b,T_b,T_b_beg,T_b_end,T,C3,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  integer, intent(in)            :: max_k,max_order,ndet_a, ndet_b, nT_a, nT_b, Nint
+  integer(bit_kind), intent(in)  :: T_a(Nint,2,nT_a), T_b(Nint,2,nT_b)
+  integer(bit_kind), intent(in)  :: det_bit_a(Nint,ndet_a), det_bit_b(Nint,ndet_b)
+  integer, intent(in)            :: T_a_beg(0:max_order), T_a_end(0:max_order)
+  integer, intent(in)            :: T_b_beg(0:max_order), T_b_end(0:max_order)
+  double precision, intent(in)   :: T(nT_a,nT_b)
+  
+  double precision, intent(out)  :: C3(ndet_a,ndet_b)
+  
+  double precision, allocatable  :: C1(:,:), C2(:,:)
+  integer(bit_kind), allocatable :: res1_a(:), res_a(:), res1_b(:), res_b(:)
+  integer                        :: i,j,k,ta,tb,da,db,fact,exc_a,exc_b,degree,i_order
+  integer, external              :: factorial
+  logical                        :: ok
+  double precision               :: phase
+
+  allocate(C1(ndet_a,ndet_b),C2(ndet_a,ndet_b))
+
+  ! Init
+  C1 = 0d0
+  C3 = 0d0
+  C1(1,1) = 1d0
+  C3(1,1) = 1d0
+
+  allocate(res1_a(Nint),res_a(Nint),res1_b(Nint),res_b(Nint))
+
+  do k = 1, max_k
+    !print*,'k',k
+    ! Init
+    C2 = 0d0
+    do db = 1, ndet_b
+      do da = 1, ndet_a
+        do i_order = 0, max_order
+          do tb = T_b_beg(i_order), T_b_end(i_order)
+            do ta = T_a_beg(i_order), T_a_end(i_order)
+         
+              ! Annihilation part
+              call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,Nint)
+              if (.not. ok) cycle
+              
+              ! Creation part
+              call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,Nint)
+              if (.not. ok) cycle
+              
+              ! Search res_b in det_b
+              do i = 1, ndet_b
+                call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
+                if (degree == 0) then
+                  exc_b = i
+                  exit
+                endif
+              enddo
+
+              ! Apply exc and check
+              ! Annihilation
+              call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,Nint)
+              if (.not. ok) cycle
+              ! Creation
+              call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,Nint)
+              if (.not. ok) cycle
+        
+              ! Search res_a in det_a
+              do i = 1, ndet_a
+                call get_excitation_degree_spin(det_bit_a(1,i),res_a(1),degree,Nint)
+                if (degree == 0) then
+                  exc_a = i
+                  exit
+                endif
+              enddo
+           
+              ! Search res_b in det_b
+              do i = 1, ndet_b
+                call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
+                if (degree == 0) then
+                  exc_b = i
+                  exit
+                endif
+              enddo
+
+              call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
+              ! Debug
+              !print*,i_order,ta,tb
+              !call print_det(T_a(1,1,ta),Nint)
+              !call print_det(T_b(1,1,tb),Nint)
+              !print*,''
+              !call print_det((/det_bit_a(1,da),det_bit_b(1,db)/),Nint)
+              !call print_det((/res_a,res_b/),Nint)
+           
+              C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+    
+    ! update
+    fact = factorial(k)
+    C3(:,:) = C3(:,:) + C2(:,:) * 1d0/dble(fact)
+    C1 = C2
+    
+  enddo
+
+  deallocate(C1,C2,res1_a,res_a,res1_b,res_b)
+
 end
 #+end_src

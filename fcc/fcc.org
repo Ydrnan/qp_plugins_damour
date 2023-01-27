@@ -113,10 +113,33 @@ subroutine run_fcc()
   T = 0d0
   allocate(C3(ndet_a,ndet_b))
   
-  call exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b,&
-       nT_a,T_a,T_a_beg,T_a_end,nT_b,T_b,T_b_beg,T_b_end,T,C3,N_int)
-  
+  !call exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
+  !     nT_a,T_a,nT_b,T_b,T,C3,N_int)
+
+  logical :: ok
+  integer :: tb,ta
+  integer(bit_kind), allocatable :: res1_a(:), res_a(:), res1_b(:), res_b(:)
+  allocate(res1_a(N_int),res_a(N_int),res1_b(N_int),res_b(N_int))
+ 
   ! Residual equations
+  do tb = 1, nT_b
+    ! Annihilation part
+    call apply_holes_bitstring(det_bit_b(1,1),T_b(1,1,tb),res1_b,ok,N_int)
+    if (.not. ok) cycle
+    ! Creation part
+    call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,N_int)
+    if (.not. ok) cycle
+    do ta = 1, nT_a
+      ! Annihilation
+      call apply_holes_bitstring(det_bit_a(1,1),T_a(1,1,ta),res1_a,ok,N_int)
+      if (.not. ok) cycle
+      ! Creation
+      call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,N_int)
+      if (.not. ok) cycle
+      !call print_det((/res_a,res_b/),N_int)
+      !call print_det(T_a(1,1,ta),N_int)
+    enddo
+  enddo
   
 end
 #+end_src
@@ -361,7 +384,7 @@ end
 ** Exp wf
 #+begin_src f90 :comments org :tangle fcc.irp.f
 subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
-     nT_a,T_a,T_a_beg,T_a_end,nT_b,T_b,T_b_beg,T_b_end,T,C3,Nint)
+     nT_a,T_a,nT_b,T_b,T,C3,Nint)
 
   use bitmasks
   
@@ -370,8 +393,6 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
   integer, intent(in)            :: max_k,max_order,ndet_a, ndet_b, nT_a, nT_b, Nint
   integer(bit_kind), intent(in)  :: T_a(Nint,2,nT_a), T_b(Nint,2,nT_b)
   integer(bit_kind), intent(in)  :: det_bit_a(Nint,ndet_a), det_bit_b(Nint,ndet_b)
-  integer, intent(in)            :: T_a_beg(0:max_order), T_a_end(0:max_order)
-  integer, intent(in)            :: T_b_beg(0:max_order), T_b_end(0:max_order)
   double precision, intent(in)   :: T(nT_a,nT_b)
   
   double precision, intent(out)  :: C3(ndet_a,ndet_b)
@@ -399,64 +420,62 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
     C2 = 0d0
     do db = 1, ndet_b
       do da = 1, ndet_a
-        do i_order = 0, max_order
-          do tb = T_b_beg(i_order), T_b_end(i_order)
-            do ta = T_a_beg(i_order), T_a_end(i_order)
-         
-              ! Annihilation part
-              call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,Nint)
-              if (.not. ok) cycle
-              
-              ! Creation part
-              call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,Nint)
-              if (.not. ok) cycle
-              
-              ! Search res_b in det_b
-              do i = 1, ndet_b
-                call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
-                if (degree == 0) then
-                  exc_b = i
-                  exit
-                endif
-              enddo
-
-              ! Apply exc and check
-              ! Annihilation
-              call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,Nint)
-              if (.not. ok) cycle
-              ! Creation
-              call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,Nint)
-              if (.not. ok) cycle
+        do tb = 1, nT_b
+          do ta = 1, nT_a
         
-              ! Search res_a in det_a
-              do i = 1, ndet_a
-                call get_excitation_degree_spin(det_bit_a(1,i),res_a(1),degree,Nint)
-                if (degree == 0) then
-                  exc_a = i
-                  exit
-                endif
-              enddo
-           
-              ! Search res_b in det_b
-              do i = 1, ndet_b
-                call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
-                if (degree == 0) then
-                  exc_b = i
-                  exit
-                endif
-              enddo
-
-              call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
-              ! Debug
-              !print*,i_order,ta,tb
-              !call print_det(T_a(1,1,ta),Nint)
-              !call print_det(T_b(1,1,tb),Nint)
-              !print*,''
-              !call print_det((/det_bit_a(1,da),det_bit_b(1,db)/),Nint)
-              !call print_det((/res_a,res_b/),Nint)
-           
-              C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
+            ! Annihilation part
+            call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,Nint)
+            if (.not. ok) cycle
+            
+            ! Creation part
+            call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,Nint)
+            if (.not. ok) cycle
+            
+            ! Search res_b in det_b
+            do i = 1, ndet_b
+              call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
+              if (degree == 0) then
+                exc_b = i
+                exit
+              endif
             enddo
+
+            ! Apply exc and check
+            ! Annihilation
+            call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,Nint)
+            if (.not. ok) cycle
+            ! Creation
+            call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,Nint)
+            if (.not. ok) cycle
+        
+            ! Search res_a in det_a
+            do i = 1, ndet_a
+              call get_excitation_degree_spin(det_bit_a(1,i),res_a(1),degree,Nint)
+              if (degree == 0) then
+                exc_a = i
+                exit
+              endif
+            enddo
+         
+            ! Search res_b in det_b
+            do i = 1, ndet_b
+              call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
+              if (degree == 0) then
+                exc_b = i
+                exit
+              endif
+            enddo
+
+            call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
+            ! Debug
+            !print*,i_order,ta,tb
+            !call print_det(T_a(1,1,ta),Nint)
+            !call print_det(T_b(1,1,tb),Nint)
+            !print*,''
+            !call print_det((/det_bit_a(1,da),det_bit_b(1,db)/),Nint)
+            !call print_det((/res_a,res_b/),Nint)
+         
+            C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
           enddo
         enddo
       enddo
@@ -471,5 +490,16 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
 
   deallocate(C1,C2,res1_a,res_a,res1_b,res_b)
 
+end
+#+end_src
+
+** Residue
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine compute_residue()
+
+  implicit none
+
+
+  
 end
 #+end_src

@@ -125,7 +125,6 @@ do i = 1, 100
   call exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
        nT_a,T_a,nT_b,T_b,T,C3,N_int)
 
-  !C3(2,2) = -0.178065842860d0
   ! Energy
   call i_H_psi(det_bit_ab(1,1,1),det_bit_ab,C3,N_int,ndet_ab,ndet_ab,1,energy)
   print*,'E', energy+nuclear_repulsion
@@ -147,6 +146,7 @@ do i = 1, 100
       call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,N_int)
       if (.not. ok) cycle
       det = (/res_a,res_b/)
+      !print*,ta,tb
       !call print_det((/res_a,res_b/),N_int)
       !call print_det(T_a(1,1,ta),N_int)
 
@@ -154,29 +154,44 @@ do i = 1, 100
         call get_excitation_degree_spin(det_bit_a(1,da),res_a,degree,N_int)
         if (degree == 0) exit
       enddo
+      !print*,'alpha'
+      !call print_det((/res_a,det_bit_a(1,da)/),N_int)
       
       do db = 1, ndet_b
-      call get_excitation_degree_spin(det_bit_b(1,db),res_b,degree,N_int)
+        call get_excitation_degree_spin(det_bit_b(1,db),res_b,degree,N_int)
         if (degree == 0) exit
       enddo
+      !print*,'beta'
+      !call print_det((/res_b,det_bit_b(1,db)/),N_int)
 
-      call get_phase(det_bit_ab(1,1,1),det_bit_ab(1,da,db),phase,N_int)
+      do j = 1, N_det
+        call get_excitation_degree(det_bit_ab(1,1,da+(db-1)*ndet_a),psi_det(1,1,j),degree,N_int) 
+        if (degree == 0) exit
+      enddo
+      !print*,'check'
+      !call print_det((/res_a,res_b/),N_int)
+      !call print_det(det_bit_ab(1,1,da+(db-1)*ndet_a),N_int)
+      !call print_det(psi_det(1,1,j),N_int)
+
+      call get_phase(det_bit_ab(1,1,1),det_bit_ab(1,1,da+(db-1)*ndet_a),phase,N_int)
       
       call i_H_psi(det,det_bit_ab,C3,N_int,ndet_ab,ndet_ab,1,H)
       r = H - energy * C3(da,db) * phase
       if (dabs(r) > max_r) then
          max_r = dabs(r)
       endif
-      T(ta,tb) = T(ta,tb) + r/energy 
-      print*,'H',H,- energy * C3(da,db) * phase, phase
-      print*,'r',r,r/energy
+      T(ta,tb) = T(ta,tb) + r/energy * 0.1d0
+      !print*,'H',H,- energy * C3(da,db) * phase, phase
+      !print*,'r',r,r/energy
+      !print*,C3(da,db),psi_coef(j,1)*1d0/psi_coef(1,1)
 
     enddo
   enddo
   !print*,'T',T
   !print*,'C',C3
-  print*,'E',energy,max_r
+  print*,'E',energy+nuclear_repulsion,max_r
 enddo
+
   
 end
 #+end_src
@@ -452,7 +467,7 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
   allocate(res1_a(Nint),res_a(Nint),res1_b(Nint),res_b(Nint))
 
   do k = 1, max_k
-    !print*,'k',k
+    
     ! Init
     C2 = 0d0
     do db = 1, ndet_b
@@ -511,20 +526,20 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
             !print*,''
             !call print_det((/det_bit_a(1,da),det_bit_b(1,db)/),Nint)
             !call print_det((/res_a,res_b/),Nint)
-         
+            !print*,'p',phase
             C2(exc_a,exc_b) = C2(exc_a,exc_b) + C1(da,db) * T(ta,tb) * phase
           enddo
         enddo
       enddo
     enddo
-    
+
     ! update
     fact = factorial(k)
     C3(:,:) = C3(:,:) + C2(:,:) * 1d0/dble(fact)
     C1 = C2
     
   enddo
-
+  
   deallocate(C1,C2,res1_a,res_a,res1_b,res_b)
 
 end

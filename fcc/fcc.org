@@ -38,7 +38,7 @@ subroutine run_fcc()
   logical :: ok
   integer :: tb,ta,da,db,degree
   integer(bit_kind), allocatable :: res1_a(:), res_a(:), res1_b(:), res_b(:), det(:)
-  double precision :: H, r, energy, max_r, phase
+  double precision :: H, r, energy, max_r, phase, delta
   allocate(res1_a(N_int),res_a(N_int),res1_b(N_int),res_b(N_int), det(N_int))
 
 
@@ -139,6 +139,9 @@ do i = 1, 100
     call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,N_int)
     if (.not. ok) cycle
     do ta = 1, nT_a
+      if (ta == 1 .and. tb == 1) then
+         cycle
+      endif
       ! Annihilation
       call apply_holes_bitstring(det_bit_a(1,1),T_a(1,1,ta),res1_a,ok,N_int)
       if (.not. ok) cycle
@@ -150,6 +153,7 @@ do i = 1, 100
       !call print_det((/res_a,res_b/),N_int)
       !call print_det(T_a(1,1,ta),N_int)
 
+      call extract_delta(T_a(1,1,ta),T_a(1,2,ta),T_b(1,1,tb),T_b(1,2,tb),delta,N_int)
       do da = 1, ndet_a
         call get_excitation_degree_spin(det_bit_a(1,da),res_a,degree,N_int)
         if (degree == 0) exit
@@ -180,7 +184,8 @@ do i = 1, 100
       if (dabs(r) > max_r) then
          max_r = dabs(r)
       endif
-      T(ta,tb) = T(ta,tb) + r/energy * 0.1d0
+      T(ta,tb) = T(ta,tb) + r/delta !energy * 0.1d0
+      !print*,delta
       !print*,'H',H,- energy * C3(da,db) * phase, phase
       !print*,'r',r,r/energy
       !print*,C3(da,db),psi_coef(j,1)*1d0/psi_coef(1,1)
@@ -553,5 +558,58 @@ subroutine compute_residue()
 
 
   
+end
+#+end_src
+
+** Extract e orb
+#+begin_src f90 :comments org :tangle fcc.irp.f
+subroutine extract_delta(anni_a,crea_a,anni_b,crea_b,delta,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  BEGIN_DOC
+  ! Compute the delta_i...a... based on the annihilation/excitation determinants
+  END_DOC
+
+  integer, intent(in) :: Nint
+  integer(bit_kind), intent(in) :: anni_a(Nint), crea_a(Nint)
+  integer(bit_kind), intent(in) :: anni_b(Nint), crea_b(Nint)
+  double precision, intent(out) :: delta
+  integer, allocatable :: orb_list(:,:)
+  integer :: i,j,idx,nb(2)
+
+  allocate(orb_list(Nint*bit_kind_size,2))
+
+  delta = 0d0
+
+  !call print_det((/anni_a,anni_b/),Nint)
+  call bitstring_to_list_ab((/anni_a,anni_b/), orb_list, nb, Nint)
+  !print*,'anni a',orb_list(:,1)
+  !print*,'anni b',orb_list(:,2)
+  
+  do j = 1, 2
+    do i = 1, nb(j)
+      idx = orb_list(i,j)
+      if (idx == 0) exit
+      !print*,'o',orb_list(i,j)
+      delta = delta + fock_matrix_mo(idx,idx)
+    enddo
+  enddo
+  
+  call bitstring_to_list_ab((/crea_a,crea_b/), orb_list, nb, Nint)
+  !print*,'crea',orb_list
+  do j = 1, 2
+    do i = 1, nb(j)
+      idx = orb_list(i,j)
+      if (idx == 0) exit
+      !print*,'v',orb_list(i,j)
+      delta = delta - fock_matrix_mo(idx,idx)
+    enddo
+  enddo
+  
+  deallocate(orb_list) 
+
 end
 #+end_src

@@ -177,34 +177,42 @@ subroutine run_ccsd_space_orb
   call write_t1(nO,nV,t1)
   call write_t2(nO,nV,t2)
   
-  !call e_ccsd(tau,t1,energy)
-  !print*,''
-  !print*,'E(CCSD)=', hf_energy + energy, energy
-
-  !! CCSD(T)
-  !double precision, allocatable :: W1(:,:,:,:,:,:)
-  !double precision, allocatable :: V1(:,:,:,:,:,:)
-  !double precision :: e_ccsdt
-
-  !if (elec_alpha_num + elec_beta_num > 2) then 
-  !  allocate(W1(nO, nO, nO, nV, nV, nV))
-  !  allocate(V1(nO, nO, nO, nV, nV, nV))
-
-  !  call form_w(t2,W1)
-  !  call form_v(t1,w1,v1)
-  !  call space_ccsd_par_t_energy(t1,t2,W1,V1,e_ccsdt)
-
-  !  print*,''
-  !  print*,"delta (T):", e_ccsdt
-  !  print*,"E_CCSD(T):", hf_energy + energy + e_ccsdt
-
-  !  deallocate(v1,w1)
-  !endif
-
   ! Deallocation
   if (cc_update_method == 'diis') then
     !deallocate(all_err1,all_err2,all_t1,all_t2)
     deallocate(all_err,all_t)
+  endif
+  
+  ! CCSD(T)
+  double precision :: e_t
+
+  if (cc_par_t .and. elec_alpha_num + elec_beta_num > 2) then 
+
+    ! Dumb way
+    !call wall_time(ta)
+    !call space_ccsd_par_t_energy(nO,nV,t1,t2,e_t)
+    !call wall_time(tb)
+    !print*,'Time: ',tb-ta, ' s'
+
+    !print*,''
+    !write(*,'(A15,F18.12,A3)') ' E(CCSD(T))  = ', uncorr_energy + energy + e_t, ' Ha'
+    !write(*,'(A15,F18.12,A3)') ' E(T)        = ', e_t, ' Ha'
+    !write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + e_t, ' Ha'
+    !print*,''
+
+    ! New
+    print*,'Computing (T) correction...'
+    call wall_time(ta)
+    call space_ccsd_par_t_energy_v2(nO,nV,t1,t2,e_t)
+    call wall_time(tb)
+    print*,'Time: ',tb-ta, ' s'
+
+    print*,''
+    write(*,'(A15,F18.12,A3)') ' E(CCSD(T))  = ', uncorr_energy + energy + e_t, ' Ha'
+    write(*,'(A15,F18.12,A3)') ' E(T)        = ', e_t, ' Ha'
+    write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + e_t, ' Ha'
+    print*,''
+
   endif
 
   deallocate(t1,r1,t2,r2,delta,tau)

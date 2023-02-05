@@ -136,16 +136,16 @@ end
 #+END_SRC
 
 * Better way
-
 ** Main
 #+BEGIN_SRC f90 :comments org :tangle ccsd_t.irp.f
-subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,energy)
+subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,f_o,f_v,v_vvvo,v_vvoo,v_vooo,energy)
 
   implicit none
 
   integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: t1(nO, nV)
-  double precision, intent(in)  :: t2(nO, nO, nV, nV)
+  double precision, intent(in)  :: t1(nO,nV), f_o(nO), f_v(nV)
+  double precision, intent(in)  :: t2(nO,nO,nV,nV)
+  double precision, intent(in)  :: v_vvvo(nV,nV,nV,nO), v_vvoo(nV,nV,nO,nO), v_vooo(nV,nO,nO,nO)
   double precision, intent(out) :: energy
   
   double precision, allocatable :: W(:,:,:,:,:,:)
@@ -154,7 +154,7 @@ subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,energy)
   double precision, allocatable :: X_vvvo(:,:,:,:), X_ovoo(:,:,:,:), X_vvoo(:,:,:,:)
   double precision, allocatable :: T_vvoo(:,:,:,:), T_ovvo(:,:,:,:), T_vo(:,:)
   integer                       :: i,j,k,l,a,b,c,d
-  double precision              :: e,ta,tb
+  double precision              :: e,ta,tb, delta, delta_ijk
  
   !allocate(W(nV,nV,nV,nO,nO,nO))
   !allocate(V(nV,nV,nV,nO,nO,nO))
@@ -163,18 +163,28 @@ subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,energy)
   allocate(T_vvoo(nV,nV,nO,nO), T_ovvo(nO,nV,nV,nO), T_vo(nV,nO))
 
   ! Temporary arrays
-  !cc_space_v_vvvo(b,a,d,i) * t2(k,j,c,d) &
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,T_vvoo,T_ovvo,T_vo,X_vvvo,X_ovoo,X_vvoo, &
+  !$OMP t1,t2,v_vvvo,v_vooo,v_vvoo) &
+  !$OMP PRIVATE(a,b,c,d,i,j,k,l) &
+  !$OMP DEFAULT(NONE)
+  
+  !v_vvvo(b,a,d,i) * t2(k,j,c,d) &
   !X_vvvo(d,b,a,i) * T_vvoo(d,c,k,j)
+  
+  !$OMP DO collapse(3)
   do i = 1, nO
     do a = 1, nV
       do b = 1, nV
         do d = 1, nV
-          X_vvvo(d,b,a,i) = cc_space_v_vvvo(b,a,d,i)
+          X_vvvo(d,b,a,i) = v_vvvo(b,a,d,i)
         enddo
       enddo
     enddo
   enddo
+  !$OMP END DO nowait
 
+  !$OMP DO collapse(3)
   do j = 1, nO
     do k = 1, nO
       do c = 1, nV
@@ -184,20 +194,24 @@ subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,energy)
       enddo
     enddo
   enddo
+  !$OMP END DO nowait
  
-  !cc_space_v_vooo(c,j,k,l) * t2(i,l,a,b) &
+  !v_vooo(c,j,k,l) * t2(i,l,a,b) &
   !X_ovoo(l,c,j,k) * T_ovvo(l,a,b,i) &
 
+  !$OMP DO collapse(3)
   do k = 1, nO
     do j = 1, nO
       do c = 1, nV
         do l = 1, nO
-           X_ovoo(l,c,j,k) = cc_space_v_vooo(c,j,k,l)
+           X_ovoo(l,c,j,k) = v_vooo(c,j,k,l)
         enddo
       enddo
     enddo
   enddo
+  !$OMP END DO nowait
 
+  !$OMP DO collapse(3)
   do i = 1, nO
     do b = 1, nV
       do a = 1, nV
@@ -207,46 +221,53 @@ subroutine space_ccsd_par_t_energy_v2(nO,nV,t1,t2,energy)
       enddo
     enddo
   enddo
+  !$OMP END DO nowait
                      
-  !cc_space_v_vvoo(b,c,j,k) * t1(i,a) &
+  !v_vvoo(b,c,j,k) * t1(i,a) &
   !X_vvoo(b,c,k,j) * T1_vo(a,i) &
+  
+  !$OMP DO collapse(3)
   do j = 1, nO
     do k = 1, nO
       do c = 1, nV
         do b = 1, nV
-          X_vvoo(b,c,k,j) = cc_space_v_vvoo(b,c,j,k)
+          X_vvoo(b,c,k,j) = v_vvoo(b,c,j,k)
         enddo
       enddo
     enddo
   enddo
+  !$OMP END DO nowait
 
+  !$OMP DO collapse(1)
   do i = 1, nO
     do a = 1, nV
       T_vo(a,i) = t1(i,a)
     enddo
   enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
 
   call wall_time(ta)
   energy = 0d0
   do i = 1, nO
     do j = 1, nO
       do k = 1, nO
+        delta_ijk = f_o(i) + f_o(j) + f_o(k)
         call form_w_ijk(nO,nV,i,j,k,T_vvoo,T_ovvo,X_vvvo,X_ovoo,W_ijk)
         call form_v_ijk(nO,nV,i,j,k,T_vo,X_vvoo,W_ijk,V_ijk)
         !$OMP PARALLEL &
-        !$OMP SHARED(energy,nV,i,j,k,W_ijk,V_ijk,cc_space_f_o,cc_space_f_v) &
-        !$OMP PRIVATE(a,b,c,e) &
+        !$OMP SHARED(energy,nV,i,j,k,W_ijk,V_ijk,f_o,f_v,delta_ijk) &
+        !$OMP PRIVATE(a,b,c,e,delta) &
         !$OMP DEFAULT(NONE)
         e = 0d0
         !$OMP DO
         do c = 1, nV
           do b = 1, nV
             do a = 1, nV
+              delta = 1d0 / (delta_ijk - f_v(a) - f_v(b) - f_v(c))
               !energy = energy + (4d0 * W(i,j,k,a,b,c) + W(i,j,k,b,c,a) + W(i,j,k,c,a,b)) * (V(i,j,k,a,b,c) - V(i,j,k,c,b,a)) / (cc_space_f_o(i) + cc_space_f_o(j) + cc_space_f_o(k) - cc_space_f_v(a) - cc_space_f_v(b) - cc_space_f_v(c))  !delta_ooovvv(i,j,k,a,b,c)
               e = e + (4d0 * W_ijk(a,b,c) + W_ijk(b,c,a) + W_ijk(c,a,b)) &
-                              ,* (V_ijk(a,b,c) - V_ijk(c,b,a)) &
-                              / (cc_space_f_o(i) + cc_space_f_o(j) + cc_space_f_o(k) &
-                              - cc_space_f_v(a) - cc_space_f_v(b) - cc_space_f_v(c))  !delta_ooovvv(i,j,k,a,b,c)
+                       * (V_ijk(a,b,c) - V_ijk(c,b,a)) * delta
             enddo
           enddo
         enddo

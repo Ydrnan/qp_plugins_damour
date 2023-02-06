@@ -105,7 +105,7 @@ subroutine run_ccsd_spin_orb_sub
   allocate(v_ovvo(nO,nV,nV,nO))
   allocate(v_ovov(nO,nV,nO,nV))
   allocate(v_oovv(nO,nO,nV,nV))
-  allocate(v_vvvo(nV,nV,nV,nO))
+  !allocate(v_vvvo(nV,nV,nV,nO))
   !allocate(v_vvov(nV,nV,nO,nV))
   !allocate(v_vovv(nV,nO,nV,nV))
   !allocate(v_ovvv(nO,nV,nV,nV))
@@ -305,14 +305,32 @@ subroutine run_ccsd_spin_orb_sub
   call write_t1(nO,nV,t1)
   call write_t2(nO,nV,t2)
 
-  if (cc_par_t) then
+  ! Deallocate
+  if (cc_update_method == 'diis') then
+     deallocate(all_err,all_t)
+  endif
+  deallocate(tau,tau_t)
+  deallocate(r1,r2)
+  deallocate(cF_oo,cF_ov,cF_vv)
+  deallocate(cW_oooo,cW_ovvo)!,cW_vvvv)
+  deallocate(v_oooo)
+  deallocate(v_ovoo,v_oovo)
+  deallocate(v_ovvo,v_ovov,v_oovv)
+  
+  if (cc_par_t .and. elec_alpha_num  +elec_beta_num > 2) then
     double precision :: t_corr
     print*,'CCSD(T) calculation...'
     call wall_time(ta)
+    !allocate(v_vvvo(nV,nV,nV,nO))
+    !call gen_v_spin(cc_nV_m,cc_nV_m,cc_nV_m,cc_nO_m, &
+    !   cc_nV_S,cc_nV_S,cc_nV_S,cc_nO_S, &
+    !   cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_occ_spin, &
+    !   nV,nV,nV,nO, v_vvvo)
+
     !call compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
-    !call compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
-    print*,'Working on it...'
-    call abort
+    call compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,t_corr)
+    !print*,'Working on it...'
+    !call abort
     call wall_time(tb)
     print*,'Done'
     print*,'Time: ',tb-ta, ' s'
@@ -322,19 +340,8 @@ subroutine run_ccsd_spin_orb_sub
     write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + t_corr, ' Ha'
   endif
   
-  ! Deallocate
-  if (cc_update_method == 'diis') then
-    !deallocate(all_err1,all_err2,all_t1,all_t2)
-     deallocate(all_err,all_t)
-  endif
-  deallocate(t1,t2,tau,tau_t)
-  deallocate(r1,r2)
-  deallocate(cF_oo,cF_ov,cF_vv)
-  deallocate(cW_oooo,cW_ovvo)!,cW_vvvv)
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
-  deallocate(v_oooo)
-  deallocate(v_ovoo,v_oovo,v_ooov)
-  deallocate(v_ovvo,v_ovov,v_oovv,v_vvoo)
+  deallocate(v_ooov,v_vvoo,t1,t2)
   !deallocate(v_ovvv,v_vvvo,v_vovv)
   !deallocate(v_vvvv)
   

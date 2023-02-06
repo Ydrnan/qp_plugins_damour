@@ -1,0 +1,36 @@
+#+begin_src bash
+#!/bin/bash
+
+# To extract the ccsd and ccsd(t) energies that will be used
+# as references in the test
+
+# To be executed in $QP_ROOT/tests/work
+files=$(ls *.ccsd.out)
+
+for f in $files
+do
+    e=$(grep 'E(CCSD)' $f | tail -n 1 | awk '{printf $3}')
+    e_t=$(grep 'E(CCSD(T))' $f | tail -n 1 | awk '{printf $3}')
+    mol=$(echo $f | sed 's/.ccsd.out//g')
+    echo '@test "'$mol'" {'
+    echo 'run ' $mol.ezfio $e $e_t
+    echo '}'
+    echo ''
+done
+#+end_src
+
+#+begin_src bash
+#!/bin/bash
+
+# Just to know which ezfio are open shell systems
+
+# To be executed in $QP_ROOT/tests/work
+ezfio=$(ls -d *.ezfio)
+
+for e in $ezfio
+do
+    a=$(cat $e/electrons/elec_alpha_num)
+    b=$(cat $e/electrons/elec_beta_num)
+    echo $e $a $b
+done
+#+end_src

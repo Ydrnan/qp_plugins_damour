@@ -28,6 +28,12 @@ subroutine run_extract_c
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
 
+  if (extract_c3 .or. extract_c4) then
+    print*,''
+    print*,'The computation of the phase factor for exc > 2 should be solved before'
+    call abort
+  endif
+
   thresh_coef = thresh_extract_c
 
   allocate(n_spin(4))

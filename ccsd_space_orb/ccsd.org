@@ -45,7 +45,9 @@ subroutine run_ccsd_space_orb
   
   PROVIDE mo_two_e_integrals_in_map
 
-  det = psi_det(:,:,1)
+  det = psi_det(:,:,cc_ref)
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
 
   ! Extract number of occ/vir alpha/beta spin orbitals
   !call extract_n_spin(det,n_spin)
@@ -54,10 +56,12 @@ subroutine run_ccsd_space_orb
   nVa = cc_nVa !n_spin(3)
   nVb = cc_nVb !n_spin(4)
 
-  if (nOa /= nOb .or. nVa /= nVb) then
-    print*, 'nO_alpha /= nO_beta or nV_alpha /= nV_beta, abort'
-    call abort
-  endif
+  do i = 1, cc_nO_m
+    if (cc_list_occ_spin(i,1) /= cc_list_occ_spin(i,2)) then
+      print*, 'Open shell system, abort'
+      call abort
+    endif
+  enddo
   
   ! Number of occ/vir spatial orb
   nO = nOa

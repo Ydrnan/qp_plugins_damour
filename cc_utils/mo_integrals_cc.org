@@ -565,7 +565,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_oo, (cc_nOa, cc_nOa)]
 
   implicit none
 
-  call gen_f_space(psi_det(1,1,1), cc_nOa,cc_nOa, cc_list_occ,cc_list_occ, cc_space_f_oo)
+  call gen_f_space(psi_det(1,1,cc_ref), cc_nOa,cc_nOa, cc_list_occ,cc_list_occ, cc_space_f_oo)
 
 END_PROVIDER
 #+end_src
@@ -576,7 +576,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_ov, (cc_nOa, cc_nVa)]
 
   implicit none
 
-  call gen_f_space(psi_det(1,1,1), cc_nOa,cc_nVa, cc_list_occ,cc_list_vir, cc_space_f_ov)
+  call gen_f_space(psi_det(1,1,cc_ref), cc_nOa,cc_nVa, cc_list_occ,cc_list_vir, cc_space_f_ov)
 
 END_PROVIDER
 #+end_src
@@ -587,7 +587,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_vo, (cc_nVa, cc_nOa)]
 
   implicit none
 
-  call gen_f_space(psi_det(1,1,1), cc_nVa,cc_nOa, cc_list_vir,cc_list_occ, cc_space_f_vo)
+  call gen_f_space(psi_det(1,1,cc_ref), cc_nVa,cc_nOa, cc_list_vir,cc_list_occ, cc_space_f_vo)
 
 END_PROVIDER
 #+end_src
@@ -598,7 +598,7 @@ BEGIN_PROVIDER [double precision, cc_space_f_vv, (cc_nVa, cc_nVa)]
 
   implicit none
 
-  call gen_f_space(psi_det(1,1,1), cc_nVa,cc_nVa, cc_list_vir,cc_list_vir, cc_space_f_vv)
+  call gen_f_space(psi_det(1,1,cc_ref), cc_nVa,cc_nVa, cc_list_vir,cc_list_vir, cc_space_f_vv)
 
 END_PROVIDER
 #+end_src

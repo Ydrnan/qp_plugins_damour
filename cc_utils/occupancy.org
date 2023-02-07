@@ -237,7 +237,7 @@ end
   implicit none
 
   BEGIN_DOC
-  ! Number of orbitals without core and deleted ones of the first det in psi_det
+  ! Number of orbitals without core and deleted ones of the cc_ref det in psi_det
   ! a: alpha, b: beta
   ! nO_m: max(a,b) occupied 
   ! nOa: nb a occupied 
@@ -252,7 +252,7 @@ end
   integer :: n_spin(4)
 
   ! Extract number of occ/vir alpha/beta spin orbitals
-  call extract_n_spin(psi_det(1,1,1),n_spin)
+  call extract_n_spin(psi_det(1,1,cc_ref),n_spin)
 
   cc_nOa  = n_spin(1)
   cc_nOb  = n_spin(2)
@@ -308,7 +308,7 @@ END_PROVIDER
   ! List of occupied and virtual spatial orbitals without core and deleted ones
   END_DOC
 
-  call extract_list_orb_space(psi_det(1,1,1),cc_nOa,cc_nVa,cc_list_occ,cc_list_vir)
+  call extract_list_orb_space(psi_det(1,1,cc_ref),cc_nOa,cc_nVa,cc_list_occ,cc_list_vir)
 
 END_PROVIDER
 #+end_src
@@ -324,7 +324,7 @@ END_PROVIDER
   ! List of occupied and virtual spin orbitals without core and deleted ones
   END_DOC
 
-  call extract_list_orb_spin(psi_det(1,1,1),cc_nO_m,cc_nV_m,cc_list_occ_spin,cc_list_vir_spin)
+  call extract_list_orb_spin(psi_det(1,1,cc_ref),cc_nO_m,cc_nV_m,cc_list_occ_spin,cc_list_vir_spin)
 
 END_PROVIDER
 #+end_src

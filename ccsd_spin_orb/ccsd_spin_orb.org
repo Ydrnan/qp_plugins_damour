@@ -58,8 +58,10 @@ subroutine run_ccsd_spin_orb_sub
   double precision              :: uncorr_energy, energy, max_r, max_r1, max_r2, cc, ta, tb,ti,tf,tbi,tfi
   integer(bit_kind)             :: det(N_int,2)
 
-  det = psi_det(:,:,1)
-  
+  det = psi_det(:,:,cc_ref)
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
+ 
   ! Extract number of occ/vir alpha/beta spin orbitals
   !call extract_n_spin(det,n_spin)
   nOa = cc_nOa !n_spin(1)
@@ -85,7 +87,7 @@ subroutine run_ccsd_spin_orb_sub
   ! Debug
   !print*,nO_m,nV_m
   
-  allocate(list_occ(nO_m,2), list_vir(NV_m,2))
+  allocate(list_occ(nO_m,2), list_vir(nV_m,2))
   list_occ = cc_list_occ_spin
   list_vir = cc_list_vir_spin
   ! Debug

@@ -254,15 +254,15 @@ end
   ! Extract number of occ/vir alpha/beta spin orbitals
   call extract_n_spin(psi_det(1,1,1),n_spin)
 
-  cc_nO_m = max(n_spin(1), n_spin(2))
   cc_nOa  = n_spin(1)
   cc_nOb  = n_spin(2)
-  cc_nOab = n_spin(1) + n_spin(2)
-  cc_nV_m = max(n_spin(3), n_spin(4))
+  cc_nOab = cc_nOa + cc_nOb    !n_spin(1) + n_spin(2)
+  cc_nO_m = max(cc_nOa,cc_nOb) !max(n_spin(1), n_spin(2))
   cc_nVa  = n_spin(3)
   cc_nVb  = n_spin(4)
-  cc_nVab = n_spin(3) + n_spin(4)
-  cc_n_mo = n_spin(1) + n_spin(3)
+  cc_nVab = cc_nVa + cc_nVb    !n_spin(3) + n_spin(4)
+  cc_nV_m = max(cc_nVa,cc_nVb) !max(n_spin(3), n_spin(4))
+  cc_n_mo = cc_nVa + cc_nVb    !n_spin(1) + n_spin(3)
   cc_nO_S = (/cc_nOa,cc_nOb/)
   cc_nV_S = (/cc_nVa,cc_nVb/)
 

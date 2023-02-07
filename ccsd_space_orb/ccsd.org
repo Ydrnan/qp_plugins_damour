@@ -48,11 +48,11 @@ subroutine run_ccsd_space_orb
   det = psi_det(:,:,1)
 
   ! Extract number of occ/vir alpha/beta spin orbitals
-  call extract_n_spin(det,n_spin)
-  nOa = n_spin(1)
-  nOb = n_spin(2)
-  nVa = n_spin(3)
-  nVb = n_spin(4)
+  !call extract_n_spin(det,n_spin)
+  nOa = cc_nOa !n_spin(1)
+  nOb = cc_nOb !n_spin(2)
+  nVa = cc_nVa !n_spin(3)
+  nVb = cc_nVb !n_spin(4)
 
   if (nOa /= nOb .or. nVa /= nVb) then
     print*, 'nO_alpha /= nO_beta or nV_alpha /= nV_beta, abort'
@@ -64,9 +64,12 @@ subroutine run_ccsd_space_orb
   nV = nVa
   
   allocate(list_occ(nO),list_vir(nV))
-  call extract_list_orb_space(det,nO,nV,list_occ,list_vir)
-  print*,'occ',list_occ
-  print*,'vir',list_vir
+  list_occ = cc_list_occ
+  list_vir = cc_list_vir
+  ! Debug
+  !call extract_list_orb_space(det,nO,nV,list_occ,list_vir)
+  !print*,'occ',list_occ
+  !print*,'vir',list_vir
   
   allocate(t2(nO,nO,nV,nV), r2(nO,nO,nV,nV))
   allocate(tau(nO,nO,nV,nV))

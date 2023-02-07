@@ -61,29 +61,35 @@ subroutine run_ccsd_spin_orb_sub
   det = psi_det(:,:,1)
   
   ! Extract number of occ/vir alpha/beta spin orbitals
-  call extract_n_spin(det,n_spin)
-  nOa = n_spin(1)
-  nOb = n_spin(2)
-  nVa = n_spin(3)
-  nVb = n_spin(4)
+  !call extract_n_spin(det,n_spin)
+  nOa = cc_nOa !n_spin(1)
+  nOb = cc_nOb !n_spin(2)
+  nVa = cc_nVa !n_spin(3)
+  nVb = cc_nVb !n_spin(4)
 
   ! Total number of occ/vir spin orb
-  nO = nOa + nOb
-  nV = nVa + nVb
+  nO = cc_nOab !nOa + nOb
+  nV = cc_nVab !nVa + nVb
+  ! Debug
   !print*,nO,nV
 
   ! Number of occ/vir spin orb per spin
-  nO_S = (/nOa,nOb/)
-  nV_S = (/nVa,nVb/)
+  nO_S = cc_nO_S !(/nOa,nOb/)
+  nV_S = cc_nV_S !(/nVa,nVb/)
+  ! Debug
   !print*,nO_S,nV_S
 
   ! Maximal number of occ/vir 
-  nO_m = max(nOa, nOb)
-  nV_m = max(nVa, nVb)
+  nO_m = cc_nO_m !max(nOa, nOb)
+  nV_m = cc_nV_m !max(nVa, nVb)
+  ! Debug
   !print*,nO_m,nV_m
   
   allocate(list_occ(nO_m,2), list_vir(NV_m,2))
-  call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
+  list_occ = cc_list_occ_spin
+  list_vir = cc_list_vir_spin
+  ! Debug
+  !call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
   !print*,list_occ(:,1)
   !print*,list_occ(:,2)
   !print*,list_vir(:,1)

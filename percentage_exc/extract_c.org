@@ -178,10 +178,9 @@ subroutine run_extract_c
         enddo
       enddo
     enddo
+    print*,'Nb C3 computed'  
   endif
   
-  print*,'Nb C3 computed'  
-
   !c4
   if (extract_c4) then
     do s1 = 1, 2
@@ -229,9 +228,8 @@ subroutine run_extract_c
         enddo
       enddo
     enddo
+    print*,'Nb C4 computed'  
   endif
-  
-  print*,'Nb C4 computed'  
 
   print*,''
   print*,'Nb of coef', nb_coef
@@ -355,10 +353,9 @@ subroutine run_extract_c
         enddo
       enddo
     enddo
+    print*,'C3: Done'
   endif
   
-  print*,'C3: Done'
-
   !c4
   if (extract_c4) then
     do s1 = 1, 2
@@ -424,10 +421,9 @@ subroutine run_extract_c
         enddo
       enddo
     enddo
+    print*,'C4: Done'
   endif
 
-  print*,'C4: Done'
-  
   deallocate(t1,c1,t2,c2,c3_bc,c4_abcd)
 
   ! Sort the det wrt their coef
@@ -464,19 +460,21 @@ subroutine run_extract_c
 
   call overlap_wf(nb_coef,l_det,l_coef)
 
-  ! Save the wave function
-  print*,'Save the wave function...'
-  ! Save a one det wf
-  call save_det_cc(1, N_states, l_det, l_coef)
-  ! Just to have a large enough psi_det vector...
-  if (nb_coef > N_det) then
-    call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
-    call copy_H_apply_buffer_to_wf
-    SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+  if (write_cc_wf) then
+    ! Save the wave function
+    print*,'Save the wave function...'
+    ! Save a one det wf
+    call save_det_cc(1, N_states, l_det, l_coef)
+    ! Just to have a large enough psi_det vector...
+    if (nb_coef > N_det) then
+      call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
+      call copy_H_apply_buffer_to_wf
+      SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+    endif
+    ! Save the wave function
+    call save_det_cc(nb_coef, N_states, l_det, l_coef)
+    print*,'Done'
   endif
-  ! Save the wave function
-  call save_det_cc(nb_coef, N_states, l_det, l_coef)
-  print*,'Done'
 
   deallocate(l_coef,l_det)
 

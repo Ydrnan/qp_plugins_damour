@@ -1,4 +1,4 @@
-#+begin_src f90 :comments org :tangle phase.irp.f
+#+begin_src f90 :comments org :notangle phase.irp.f
 program run
   implicit none
 
@@ -38,6 +38,26 @@ program run
 end
 #+end_src
 
+** phase
+#+begin_src f90 :comments org :tangle phase.irp.f
+subroutine get_phase_general(det1,det2,phase,degree,Nint)
+  implicit none
+
+  integer, intent(in)           :: Nint
+  integer(bit_kind), intent(in) :: det1(Nint,2), det2(Nint,2)
+  double precision, intent(out) :: phase
+  integer, intent(out)          :: degree
+  integer :: n(2)
+  integer, allocatable :: list_anni(:,:), list_crea(:,:)
+
+  allocate(list_anni(N_int*bit_kind_size,2))
+  allocate(list_crea(N_int*bit_kind_size,2))
+
+  call get_excitation_general(det1,det2,degree,n,list_anni,list_crea,phase,Nint)
+end
+#+end_src
+
+** Get excitation general
 #+begin_src f90 :comments org :tangle phase.irp.f
 subroutine get_excitation_general(det1,det2,degree,n,list_anni,list_crea,phase,Nint)
 
@@ -143,7 +163,16 @@ subroutine get_excitation_general(det1,det2,degree,n,list_anni,list_crea,phase,N
       d = d + abs(pos_anni(i,j) - pos_crea(i,j))
     enddo
   enddo
+  
   phase = dble((-1)**d)
 
+  ! Debug
+  !print*,l2(1:n2(1),1)
+  !print*,l2(1:n2(2),2)
+  !!call print_det(det1,Nint)
+  !!call print_det(det2,Nint)
+  !print*,phase
+  !print*,''
 end
 #+end_src
+

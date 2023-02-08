@@ -28,11 +28,11 @@ subroutine run_extract_c
   integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
 
-  if (extract_c3 .or. extract_c4) then
-    print*,''
-    print*,'The computation of the phase factor for exc > 2 should be solved before'
-    call abort
-  endif
+  !if (extract_c3 .or. extract_c4) then
+  !  print*,''
+  !  print*,'The computation of the phase factor for exc > 2 should be solved before'
+  !  call abort
+  !endif
 
   thresh_coef = thresh_extract_c
 
@@ -339,7 +339,8 @@ subroutine run_extract_c
                         call apply_particle(res3, s1, p1, res4, ok, N_int)
                         call apply_particle(res4, s2, p2, res5, ok, N_int)
                         call apply_particle(res5, s3, p3, tmp_det(1,1,idx_coef), ok, N_int)
-                        call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                        !call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                        call get_phase_general(psi_det(1,1,1),tmp_det(1,1,idx_coef),phase,degree,N_int)
                         tmp_coef(idx_coef) = c3_bc(i,j,k,a) * phase
                         idx_coef = idx_coef + 1
                       endif
@@ -404,7 +405,8 @@ subroutine run_extract_c
                               call apply_particle(res5, s2, p2, res6, ok, N_int)
                               call apply_particle(res6, s3, p3, res7, ok, N_int)
                               call apply_particle(res7, s4, p4, tmp_det(1,1,idx_coef), ok, N_int)
-                              call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                              !call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                              call get_phase_general(psi_det(1,1,1),tmp_det(1,1,idx_coef),phase,degree,N_int)
                               tmp_coef(idx_coef) = c4_abcd(i,j,k,l) * phase
                               idx_coef = idx_coef + 1
                             endif

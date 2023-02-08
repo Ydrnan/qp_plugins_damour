@@ -33,10 +33,10 @@ subroutine run_fcc()
   integer, allocatable :: T_b_beg(:), T_b_end(:)
   integer :: ndet_ab, ndet_a, ndet_b, nT_a, nT_b, nt_crea, nt_anni
   integer :: nOa, nOb, nVa, nVb, nt_anni_a,nt_crea_a,nt_anni_b,nt_crea_b
-  integer :: cc_order, max_k,fact, max_order
+  integer :: cc_order, max_k,fact, max_order, max_order_a, max_order_b
   integer :: i,j,k,n,i_order
   logical :: ok, not_converged
-  integer :: tb,ta,da,db,degree, nb_iter
+  integer :: tb,ta,da,db,degree, nb_iter, degree_a, degree_b
   integer(bit_kind), allocatable :: res1_a(:), res_a(:), res1_b(:), res_b(:), det(:)
   double precision :: H, energy, max_r, phase, delta
   double precision, external :: binom_func
@@ -55,15 +55,20 @@ subroutine run_fcc()
   nOb = cc_nOb
   nVa = cc_nVa
   nVb = cc_nVb
-  
-  cc_order = 2
-  print*,min(nOa,nVa),min(nOb,nVb)
-  max_order = min(cc_order,min(min(nOa,nVa),min(nOb,nVb)))
-  max_k = 1
 
-  ! Numer of alpha/beta det
-  ndet_a = int(binom_func(nOa+nVa,nOa))
-  ndet_b = int(binom_func(nOb+nVb,nOb))
+  ! Order of the method, max alpha/beta excitation
+  cc_order = 2 
+  !print*,min(nOa,nVa)+min(nOb,nVb)
+  max_order_a = min(nOa,nVa)
+  max_order_b = min(nOb,nVb)
+  max_order = min(cc_order,max_order_a+max_order_b)
+  !print*,'max_order',max_order
+  max_k = 4
+
+  ! Number of alpha/beta det
+  ndet_a = floor(binom_func(nOa+nVa,nOa)+0.5d0)
+  ndet_b = floor(binom_func(nOb+nVb,nOb)+0.5d0)
+  ! Total number
   ndet_ab = ndet_a * ndet_b
 
   allocate(det_bit_a(N_int,ndet_a), det_bit_b(N_int,ndet_b), det_bit_ab(N_int,2,ndet_ab))
@@ -82,35 +87,37 @@ subroutine run_fcc()
     enddo
   enddo
   
-  ! Number of alpha/beta crea/anni
   allocate(crea_a_beg(0:max_order),crea_a_end(0:max_order),crea_a_nb(0:max_order))
   allocate(crea_b_beg(0:max_order),crea_b_end(0:max_order),crea_b_nb(0:max_order))
   allocate(anni_a_beg(0:max_order),anni_a_end(0:max_order),anni_a_nb(0:max_order))
   allocate(anni_b_beg(0:max_order),anni_b_end(0:max_order),anni_b_nb(0:max_order))
   
-  call compute_nb_op_spin(nVa,max_order,nt_crea_a,crea_a_beg,crea_a_nb,crea_a_end)
-  call compute_nb_op_spin(nOa,max_order,nt_anni_a,anni_a_beg,anni_a_nb,anni_a_end)
-  call compute_nb_op_spin(nVb,max_order,nt_crea_b,crea_b_beg,crea_b_nb,crea_b_end)
-  call compute_nb_op_spin(nOb,max_order,nt_anni_b,anni_b_beg,anni_b_nb,anni_b_end)
+  ! Number of alpha/beta crea/anni
+  call compute_nb_op_spin(nVa,max_order_a,nt_crea_a,crea_a_beg,crea_a_nb,crea_a_end)
+  call compute_nb_op_spin(nOa,max_order_a,nt_anni_a,anni_a_beg,anni_a_nb,anni_a_end)
+  call compute_nb_op_spin(nVb,max_order_b,nt_crea_b,crea_b_beg,crea_b_nb,crea_b_end)
+  call compute_nb_op_spin(nOb,max_order_b,nt_anni_b,anni_b_beg,anni_b_nb,anni_b_end)
 
   ! Number of T alpha/beta
   nT_a = 0
   nT_b = 0
-  do i_order = 0, max_order
+  do i_order = 0, max_order_a
     nT_a = nT_a + crea_a_nb(i_order) * anni_a_nb(i_order)
+  enddo
+  do i_order = 0, max_order_b
     nT_b = nT_b + crea_b_nb(i_order) * anni_b_nb(i_order)
   enddo
 
   allocate(T_crea_a(N_int,nt_crea_a), T_anni_a(N_int,nt_anni_a), T_a(N_int,2,nT_a))
   allocate(T_crea_b(N_int,nt_crea_b), T_anni_b(N_int,nt_anni_b), T_b(N_int,2,nT_b), T(nT_a,nT_b))
-  allocate(T_a_beg(0:max_order), T_a_end(0:max_order))
-  allocate(T_b_beg(0:max_order), T_b_end(0:max_order))
+  allocate(T_a_beg(0:max_order_a), T_a_end(0:max_order_a))
+  allocate(T_b_beg(0:max_order_b), T_b_end(0:max_order_b))
 
   ! T alpha/beta 
-  call gen_spin_T(nOa,nVa,max_order,nt_crea_a,nt_anni_a, &
+  call gen_spin_T(nOa,nVa,max_order_a,nt_crea_a,nt_anni_a, &
    crea_a_beg,anni_a_beg,crea_a_end,anni_a_end,crea_a_nb,anni_a_nb, &
    nT_a,T_a,T_a_beg,T_a_end,N_int)
-  call gen_spin_T(nOb,nVb,max_order,nt_crea_b,nt_anni_b, &
+  call gen_spin_T(nOb,nVb,max_order_b,nt_crea_b,nt_anni_b, &
    crea_b_beg,anni_b_beg,crea_b_end,anni_b_end,crea_b_nb,anni_b_nb, &
    nT_b,T_b,T_b_beg,T_b_end,N_int)
 
@@ -126,13 +133,15 @@ subroutine run_fcc()
   not_converged = .True.
   max_r = 0d0
   do while (not_converged)
-    
+
+    ! wf exppoentialization
     call exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
          nT_a,T_a,nT_b,T_b,T,C3,N_int)
-  
+
+    !print*,'c',C3
     ! Energy
     call i_H_psi(det_bit_ab(1,1,1),det_bit_ab,C3,N_int,ndet_ab,ndet_ab,1,energy)
-    !print*,'E',nb_iter,energy+nuclear_repulsion,max_r
+    !print*,'E1',energy+nuclear_repulsion,max_r
     
     max_r = 0d0
     
@@ -154,14 +163,13 @@ subroutine run_fcc()
         ! Creation
         call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,N_int)
         if (.not. ok) cycle
+        ! Resulting det
         det = (/res_a,res_b/)
         !print*,ta,tb
         !call print_det((/res_a,res_b/),N_int)
         !call print_det(T_a(1,1,ta),N_int)
-  
-        ! Delta computed with orbital energies
-        !call extract_delta(T_a(1,1,ta),T_a(1,2,ta),T_b(1,1,tb),T_b(1,2,tb),delta,N_int)
-        
+
+        ! Search for the index of det in the wf
         do da = 1, ndet_a
           call get_excitation_degree_spin(det_bit_a(1,da),res_a,degree,N_int)
           if (degree == 0) exit
@@ -175,20 +183,38 @@ subroutine run_fcc()
         enddo
         !print*,'beta'
         !call print_det((/res_b,det_bit_b(1,db)/),N_int)
-  
-        do j = 1, N_det
-          call get_excitation_degree(det_bit_ab(1,1,da+(db-1)*ndet_a),psi_det(1,1,j),degree,N_int) 
-          if (degree == 0) exit
-        enddo
+
+        ! Check the excitation degree
+        call get_excitation_degree_spin(det_bit_a(1,1),res_a,degree_a,N_int)
+        call get_excitation_degree_spin(det_bit_b(1,1),res_b,degree_b,N_int)
+        if (degree_a + degree_b > cc_order) then
+           R(ta,tb) = 0d0
+           cycle
+        endif
+
+        ! Debug
+        !do j = 1, N_det
+        !  call get_excitation_degree(det_bit_ab(1,1,da+(db-1)*ndet_a),psi_det(1,1,j),degree,N_int) 
+        !  if (degree == 0) exit
+        !enddo
         !print*,'check'
         !call print_det((/res_a,res_b/),N_int)
         !call print_det(det_bit_ab(1,1,da+(db-1)*ndet_a),N_int)
         !call print_det(psi_det(1,1,j),N_int)
   
-        call get_phase(det_bit_ab(1,1,1),det_bit_ab(1,1,da+(db-1)*ndet_a),phase,N_int)
-        
+        !call get_phase(det_bit_ab(1,1,1),det_bit_ab(1,1,da+(db-1)*ndet_a),phase,N_int)
+        ! Must be replaced
+        call get_phase(det_bit_ab(1,1,1),(/res_a,res_b/),phase,N_int)
+        if (degree_a+degree_b > 2) then
+           print*,'Need the right subroutine for the phase'
+           call abort
+        endif
+
+        !call print_det((/res_a,res_b/),N_int)
         call i_H_psi(det,det_bit_ab,C3,N_int,ndet_ab,ndet_ab,1,H)
-        R(ta,tb) = H - energy * C3(da,db) * phase
+        !print*,'H',H,energy*C3(da,db),T(ta,tb)
+        R(ta,tb) = (H - energy * C3(da,db)) * phase
+        ! Max elem
         if (dabs(R(ta,tb)) > max_r) then
            max_r = dabs(R(ta,tb))
         endif
@@ -201,6 +227,8 @@ subroutine run_fcc()
       enddo
     enddo
 
+    ! Update the amplitudes
+    !print*,'R',R
     R(1,1) = 0d0
     do tb = 1, nT_b
       do ta = 1, nT_a
@@ -228,10 +256,24 @@ subroutine run_fcc()
     if (max_r < cc_thresh_conv .and. nb_iter > 0) then
        not_converged = .False.
     endif
+    !if (nb_iter > 2) exit
     !print*,'T',T
     !print*,'C',C3
     nb_iter = nb_iter + 1
   enddo
+
+  deallocate(res1_a,res_a,res1_b,res_b,det)
+  deallocate(crea_a_beg,crea_a_end,crea_a_nb)
+  deallocate(crea_b_beg,crea_b_end,crea_b_nb)
+  deallocate(anni_a_beg,anni_a_end,anni_a_nb)
+  deallocate(anni_b_beg,anni_b_end,anni_b_nb)
+  deallocate(T_crea_a, T_anni_a, T_a)
+  deallocate(T_crea_b, T_anni_b, T_b, T)
+  deallocate(T_a_beg, T_a_end)
+  deallocate(T_b_beg, T_b_end)
+  deallocate(C3,R)
+  deallocate(all_t,all_err)
+  deallocate(det_bit_a, det_bit_b, det_bit_ab)
 
   
 end
@@ -383,7 +425,7 @@ subroutine compute_nb_op_spin(nOs,max_order,nt_op_s,op_s_beg,op_s_nb,op_s_end)
 
   do i_order = 0, max_order 
     op_s_beg(i_order) = nt_op_s+1
-    op_s_nb(i_order)  = int(binom_func(nOs,i_order))
+    op_s_nb(i_order)  = floor(binom_func(nOs,i_order)+0.5d0)
     nt_op_s           = nt_op_s + op_s_nb(i_order)
     op_s_end(i_order) = op_s_beg(i_order) + op_s_nb(i_order) - 1
   enddo
@@ -414,12 +456,20 @@ subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
 
   ! Gen the alpha/beta parts of the excitations and convert them to bistring
   allocate(det_anni(nOs,nt_anni_s),det_crea(nVs,nt_crea_s))
-  do i_order = 1, max_order
+  do i_order = 0, max_order
+    !print*,'i_order',i_order
     allocate(t_anni(nVs,anni_s_nb(i_order)),t_crea(nOs,anni_s_nb(i_order)))
     call gen_k_in_n(i_order,nOs,anni_s_beg(i_order),nt_anni_s,det_anni)
     call gen_k_in_n(i_order,nVs,crea_s_beg(i_order),nt_crea_s,det_crea)
     deallocate(t_anni,t_crea)
   enddo
+
+  !do i = 1, nt_crea_s
+  !  print*,i
+  !  print*,det_crea(:,i)
+  !  print*,''
+  !enddo
+  !call abort
 
   allocate(T_anni_s(Nint,nt_anni_s), T_crea_s(Nint,nt_crea_s))
   allocate(tmp(mo_num))
@@ -435,7 +485,7 @@ subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
     enddo
     call list_to_bitstring(T_anni_s(1,i),tmp,k-1,N_int)
     ! Debug
-    !print*,'anni'
+    !print*,'anni',i
     !call print_det_one_dimension(T_anni_s(1,i),N_int)
   enddo
   do i = 1, nt_crea_s
@@ -448,7 +498,7 @@ subroutine gen_spin_T(nOs,nVs,max_order,nt_crea_s,nt_anni_s, &
     enddo
     call list_to_bitstring(T_crea_s(1,i),tmp,k-1,N_int)
     ! Debug
-    !print*,'crea'
+    !print*,'crea',i
     !call print_det_one_dimension(T_crea_s(1,i),N_int)
   enddo
 
@@ -493,6 +543,7 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
   double precision, allocatable  :: C1(:,:), C2(:,:)
   integer(bit_kind), allocatable :: res1_a(:), res_a(:), res1_b(:), res_b(:)
   integer                        :: i,j,k,ta,tb,da,db,fact,exc_a,exc_b,degree,i_order
+  integer                        :: degree_a, degree_b
   integer, external              :: factorial
   logical                        :: ok
   double precision               :: phase
@@ -504,6 +555,8 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
   C3 = 0d0
   C1(1,1) = 1d0
   C3(1,1) = 1d0
+  !print*,'c',C3
+  !print*,'t',T
 
   allocate(res1_a(Nint),res_a(Nint),res1_b(Nint),res_b(Nint))
 
@@ -516,55 +569,71 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
         do tb = 1, nT_b
           do ta = 1, nT_a
         
+            ! Apply exc and check
             ! Annihilation part
             call apply_holes_bitstring(det_bit_b(1,db),T_b(1,1,tb),res1_b,ok,Nint)
             if (.not. ok) cycle
-            
             ! Creation part
             call apply_particles_bitstring(res1_b,T_b(1,2,tb),res_b,ok,Nint)
             if (.not. ok) cycle
-            
-            ! Search res_b in det_b
-            do i = 1, ndet_b
-              call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
-              if (degree == 0) then
-                exc_b = i
-                exit
-              endif
-            enddo
-
-            ! Apply exc and check
             ! Annihilation
             call apply_holes_bitstring(det_bit_a(1,da),T_a(1,1,ta),res1_a,ok,Nint)
             if (.not. ok) cycle
             ! Creation
             call apply_particles_bitstring(res1_a,T_a(1,2,ta),res_a,ok,Nint)
             if (.not. ok) cycle
-        
+            
+            call get_excitation_degree_spin(det_bit_b(1,db),res_b(1),degree_b,Nint)
+            call get_excitation_degree_spin(det_bit_a(1,da),res_a(1),degree_a,Nint)
+            !print*,'degree',degree_a,degree_b
+            if (degree_a + degree_b > max_order .or. degree_a + degree_b == 0) cycle
+
+            
             ! Search res_a in det_a
+            ok = .False.
             do i = 1, ndet_a
               call get_excitation_degree_spin(det_bit_a(1,i),res_a(1),degree,Nint)
               if (degree == 0) then
                 exc_a = i
+                ok = .True.
                 exit
               endif
             enddo
+            if (.not. ok) then
+              print*,'No 0 degree exc in wf a',ta
+              call print_det_one_dimension(res_a,Nint)
+              print*,''
+              call print_det(T_a(1,1,ta),Nint)
+              call abort
+            endif
          
             ! Search res_b in det_b
+            ok = .False.
             do i = 1, ndet_b
               call get_excitation_degree_spin(det_bit_b(1,i),res_b(1),degree,Nint)
               if (degree == 0) then
                 exc_b = i
+                ok = .True.
                 exit
               endif
             enddo
+            if (.not. ok) then
+              print*,'No 0 degree exc in wf b'
+              call print_det_one_dimension(res_b,Nint)
+              print*,''
+              call abort
+            endif
 
+            ! Phase
+            ! TODO: phase for arbitrary degree of exc
             call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
+            !print*,'phase',phase
             ! Debug
             !print*,i_order,ta,tb
+            !print*,exc_a,exc_b,T(ta,tb),C1(da,db)
             !call print_det(T_a(1,1,ta),Nint)
             !call print_det(T_b(1,1,tb),Nint)
-            !print*,''
+            !print*,'det'
             !call print_det((/det_bit_a(1,da),det_bit_b(1,db)/),Nint)
             !call print_det((/res_a,res_b/),Nint)
             !print*,'p',phase
@@ -576,9 +645,13 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
 
     ! update
     fact = factorial(k)
+    !print*,'f',fact
+    !print*,'&',c3
+    !print*,'2',c2
     C3(:,:) = C3(:,:) + C2(:,:) * 1d0/dble(fact)
+    !print*,'&&',c3
     C1 = C2
-    
+    !call abort
   enddo
   
   deallocate(C1,C2,res1_a,res_a,res1_b,res_b)

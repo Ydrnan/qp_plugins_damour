@@ -201,14 +201,15 @@ subroutine run_fcc()
         !call print_det((/res_a,res_b/),N_int)
         !call print_det(det_bit_ab(1,1,da+(db-1)*ndet_a),N_int)
         !call print_det(psi_det(1,1,j),N_int)
-  
         !call get_phase(det_bit_ab(1,1,1),det_bit_ab(1,1,da+(db-1)*ndet_a),phase,N_int)
+        
         ! Must be replaced
-        call get_phase(det_bit_ab(1,1,1),(/res_a,res_b/),phase,N_int)
-        if (degree_a+degree_b > 2) then
-           print*,'Need the right subroutine for the phase'
-           call abort
-        endif
+        !call get_phase(det_bit_ab(1,1,1),(/res_a,res_b/),phase,N_int)
+        call get_phase_general(det_bit_ab(1,1,1),(/res_a,res_b/),phase,degree,N_int)
+        !if (degree_a+degree_b > 2) then
+        !   print*,'Need the right subroutine for the phase'
+        !   call abort
+        !endif
 
         !call print_det((/res_a,res_b/),N_int)
         call i_H_psi(det,det_bit_ab,C3,N_int,ndet_ab,ndet_ab,1,H)
@@ -626,7 +627,8 @@ subroutine exp_wf(max_k,max_order,ndet_a,det_bit_a,ndet_b,det_bit_b, &
 
             ! Phase
             ! TODO: phase for arbitrary degree of exc
-            call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
+            !call get_phase((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,Nint)
+            call get_phase_general((/det_bit_a(1,da),det_bit_b(1,db)/),(/res_a,res_b/),phase,degree,Nint)
             !print*,'phase',phase
             ! Debug
             !print*,i_order,ta,tb

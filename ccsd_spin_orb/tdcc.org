@@ -6,10 +6,257 @@ Péter G. Szalay and Rodney J. Bartlett
 The Journal of Chemical Physics 101, 4936 (1994)
 http://dx.doi.org/10.1063/1.467416
 
-* M
-** bM1
+* Main
 #+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
+program tdcc
+
+  implicit none
+
+  double precision, allocatable  :: t1(:,:), t2(:,:,:,:), tau(:,:,:,:), tau_t(:,:,:,:)
+  double precision, allocatable  :: r1(:,:), r2(:,:,:,:), Q1(:,:), Q2(:,:,:,:)
+  double precision, allocatable  :: f_oo(:,:), f_ov(:,:), f_vv(:,:), f_o(:), f_v(:)
+  double precision, allocatable  :: v_oooo(:,:,:,:), v_vooo(:,:,:,:), v_ovoo(:,:,:,:)
+  double precision, allocatable  :: v_oovo(:,:,:,:), v_ooov(:,:,:,:), v_vvoo(:,:,:,:)
+  double precision, allocatable  :: v_vovo(:,:,:,:), v_voov(:,:,:,:), v_ovvo(:,:,:,:)
+  double precision, allocatable  :: v_ovov(:,:,:,:), v_oovv(:,:,:,:)
+  double precision, allocatable  :: cF_oo(:,:), cF_ov(:,:), cF_vv(:,:)
+  double precision, allocatable  :: cW_oooo(:,:,:,:), cW_ovvo(:,:,:,:)
+  double precision, allocatable :: all_err(:,:), all_t(:,:)
+  integer(bit_kind), allocatable :: det(:,:)
+  integer, allocatable           :: list_occ(:,:), list_vir(:,:)
+  integer                        :: nO,nV,nO_m,nV_m,nO_S(2),nV_S(2),n_spin(4)
+  integer                        :: ma,mb,na,nb
+  logical                        :: not_converged
+  integer                        :: nb_iter,i
+  double precision               :: uncorr_energy,energy,W_ba,max_r,max_r1,max_r2
+  double precision               :: ta,tb,ti,tf,tbi,tfi
+  
+  allocate(det(N_int,2))
+  
+  nO = cc_nOab
+  nV = cc_nVab
+  det = psi_det(:,:,cc_ref)
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
+
+  ! Extract active orb
+  call extract_open_spin_orb(nO,nV,det,ma,mb,na,nb)
+  print*,ma,mb,na,nb
+
+  ! Number of occ/vir spin orb per spin
+  nO_S = cc_nO_S !(/nOa,nOb/)
+  nV_S = cc_nV_S !(/nVa,nVb/)
+
+  ! Maximal number of occ/vir 
+  nO_m = cc_nO_m !max(nOa, nOb)
+  nV_m = cc_nV_m !max(nVa, nVb)
+
+  allocate(list_occ(nO_m,2), list_vir(nV_m,2))
+  list_occ = cc_list_occ_spin
+  list_vir = cc_list_vir_spin
+ 
+  allocate(t1(nO,nV),t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
+  allocate(r1(nO,nV),r2(nO,nO,nV,nV))
+  allocate(Q1(nO,nV),Q2(nO,nO,nV,nV))
+  allocate(v_oooo(nO,nO,nO,nO))
+  allocate(v_ovoo(nO,nV,nO,nO))
+  allocate(v_oovo(nO,nO,nV,nO))
+  allocate(v_ooov(nO,nO,nO,nV))
+  allocate(v_vvoo(nV,nV,nO,nO))
+  allocate(v_ovvo(nO,nV,nV,nO))
+  allocate(v_ovov(nO,nV,nO,nV))
+  allocate(v_oovv(nO,nO,nV,nV))
+  allocate(f_o(nO), f_v(nV))
+  allocate(f_oo(nO, nO))
+  allocate(f_ov(nO, nV))
+  allocate(f_vv(nV, nV))
+  allocate(cF_oo(nO,nO), cF_ov(nO,nV), cF_vv(nV,nV))
+  allocate(cW_oooo(nO,nO,nO,nO), cW_ovvo(nO,nV,nV,nO))
+
+  ! Allocation for the diis
+  if (cc_update_method == 'diis') then
+    allocate(all_err(nO*nV+nO*nO*nV*nV,cc_diis_depth), all_t(nO*nV+nO*nO*nV*nV,cc_diis_depth))
+    all_err = 0d0
+    all_t   = 0d0
+  endif
+
+
+
+  call gen_f_spin(det, nO_m,nO_m, nO_S,nO_S, list_occ,list_occ, nO,nO, f_oo)
+  call gen_f_spin(det, nO_m,nV_m, nO_S,nV_S, list_occ,list_vir, nO,nV, f_ov)
+  call gen_f_spin(det, nV_m,nV_m, nV_S,nV_S, list_vir,list_vir, nV,nV, f_vv)
+
+  ! Diag elements
+  do i = 1, nO
+    f_o(i) = f_oo(i,i)
+  enddo
+  do i = 1, nV
+    f_v(i) = f_vv(i,i)
+  enddo
+
+  ! Bi electronic integrals from list
+  ! OOOO
+  call gen_v_spin(nO_m,nO_m,nO_m,nO_m, nO_S,nO_S,nO_S,nO_S, list_occ,list_occ,list_occ,list_occ, nO,nO,nO,nO, v_oooo)
+
+  ! OOO V
+  call gen_v_spin(nO_m,nV_m,nO_m,nO_m, nO_S,nV_S,nO_S,nO_S, list_occ,list_vir,list_occ,list_occ, nO,nV,nO,nO, v_ovoo)
+  call gen_v_spin(nO_m,nO_m,nV_m,nO_m, nO_S,nO_S,nV_S,nO_S, list_occ,list_occ,list_vir,list_occ, nO,nO,nV,nO, v_oovo)
+  call gen_v_spin(nO_m,nO_m,nO_m,nV_m, nO_S,nO_S,nO_S,nV_S, list_occ,list_occ,list_occ,list_vir, nO,nO,nO,nV, v_ooov)
+
+  ! OO VV
+  call gen_v_spin(nV_m,nV_m,nO_m,nO_m, nV_S,nV_S,nO_S,nO_S, list_vir,list_vir,list_occ,list_occ, nV,nV,nO,nO, v_vvoo)
+  call gen_v_spin(nO_m,nV_m,nV_m,nO_m, nO_S,nV_S,nV_S,nO_S, list_occ,list_vir,list_vir,list_occ, nO,nV,nV,nO, v_ovvo)
+  call gen_v_spin(nO_m,nV_m,nO_m,nV_m, nO_S,nV_S,nO_S,nV_S, list_occ,list_vir,list_occ,list_vir, nO,nV,nO,nV, v_ovov)
+  call gen_v_spin(nO_m,nO_m,nV_m,nV_m, nO_S,nO_S,nV_S,nV_S, list_occ,list_occ,list_vir,list_vir, nO,nO,nV,nV, v_oovv)
+  
+  call guess_t1(nO,nV,f_o,f_v,f_ov,t1)
+  call guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
+
+  ! Set the active-active t2 to 0
+  t2(ma,nb,na,mb) = 0d0
+  t2(ma,nb,mb,na) = 0d0
+  t2(nb,ma,na,mb) = 0d0
+  t2(nb,ma,mb,na) = 0d0
+  call compute_tau(nO,nV,t1,t2,tau)
+  call compute_tau_t(nO,nV,t1,t2,tau_t)
+
+  ! Loop init
+  nb_iter = 0
+  not_converged = .True.
+  r1 = 0d0
+  r2 = 0d0
+  max_r1 = 0d0
+  max_r2 = 0d0
+
+  call det_energy(det,uncorr_energy)
+  print*,'Det energy', uncorr_energy
+  call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+  print*,'guess energy', uncorr_energy+energy, energy
+
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  write(*,'(A77)') ' |   It.  |       E(CCSD) (Ha) | Correlation (Ha) |  Conv. T1  |  Conv. T2  |'
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+
+  call wall_time(ta)
+
+  ! Loop
+  do while (not_converged)
+
+    !print*,'t1',t1
+    !print*,'t2',t2
+    ! Intermediates
+    call wall_time(tbi)
+    call compute_cF_oo(nO,nV,t1,tau_t,F_oo,F_ov,v_ooov,v_oovv,cF_oo)
+    call compute_cF_ov(nO,nV,t1,F_ov,v_oovv,cF_ov)
+    call compute_cF_vv(nO,nV,t1,tau_t,F_ov,F_vv,v_oovv,cF_vv)
+
+    call compute_cW_oooo(nO,nV,t1,t2,tau,v_oooo,v_ooov,v_oovv,cW_oooo)
+    call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_oovo,v_oovv,cW_ovvo)
+
+    ! Residuals
+    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
+    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
+
+    !print*,'r2',r2
+    W_ba = r2(ma,nb,na,mb)
+    print*,'W_ba',W_ba
+    
+    call compute_Q1(nO,nV,det,t1,t2,Q1)
+    call compute_Q2(nO,nV,det,t1,t2,Q2)
+
+    r1 = r1 - Q1 * W_ba
+    r2 = r2 - Q2 * W_ba
+    
+    r2(ma,nb,na,mb) = 0d0
+    r2(ma,nb,mb,na) = 0d0
+    r2(nb,ma,na,mb) = 0d0
+    r2(nb,ma,mb,na) = 0d0
+    
+    ! Max elements in the residuals
+    max_r1 = maxval(abs(r1(:,:)))
+    max_r2 = maxval(abs(r2(:,:,:,:)))
+    max_r  = max(max_r1,max_r2)
+
+    ! Update
+    if (cc_update_method == 'diis') then
+      !call update_t_ccsd(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+      !call update_t_ccsd_diis(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err1,all_err2,all_t1,all_t2)
+      call update_t_ccsd_diis_v3(nO,nV,nb_iter,f_o,f_v,r1,r2,t1,t2,all_err,all_t)
+
+    ! Standard update as T = T - Delta
+    elseif (cc_update_method == 'none') then
+      call update_t1(nO,nV,f_o,f_v,r1,t1)
+      call update_t2(nO,nV,f_o,f_v,r2,t2)
+    else
+      print*,'Unkonw cc_method_method: '//cc_update_method
+    endif
+
+    ! Enforced to be zero
+    t2(ma,nb,na,mb) = 0d0
+    t2(ma,nb,mb,na) = 0d0
+    t2(nb,ma,na,mb) = 0d0
+    t2(nb,ma,mb,na) = 0d0
+    
+    call compute_tau(nO,nV,t1,t2,tau)
+    call compute_tau_t(nO,nV,t1,t2,tau_t)
+
+    ! Print
+    call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+    print*,energy,W_ba
+    print*,'S',uncorr_energy+energy+W_ba
+    print*,'T',uncorr_energy+energy-W_ba
+    call wall_time(tfi)
+    !print*,''
+    !print*,'Iter n. :', nb_iter
+    !print*,'E(CCSD)= ', hf_energy + energy, energy
+    !print*,'r       :', max_r1, max_r2
+    write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', &
+         uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
+    if (cc_dev) then
+      print*,'Total:',tfi-tbi,'s'
+    endif
+
+    ! Convergence
+    nb_iter = nb_iter + 1
+    if (max_r < cc_thresh_conv .or. nb_iter > cc_max_iter) then
+      not_converged = .False.
+    endif
+
+  enddo
+  write(*,'(A77)') ' -----------------------------------------------------------------------------'
+  call wall_time(tb)
+  print*,'Time: ',tb-ta, ' s'
+  print*,''
+  if (max_r < cc_thresh_conv) then
+    write(*,'(A30,I6,A11)') ' Successful convergence after ', nb_iter, ' iterations'
+  else
+    write(*,'(A26,I6,A11)') ' Failed convergence after ', nb_iter, ' iterations'
+  endif
+  print*,''
+  write(*,'(A15,F18.12,A3)') ' E(CCSD)     = ', uncorr_energy+energy, ' Ha'
+  write(*,'(A15,F18.12,A3)') ' Correlation = ', energy, ' Ha'
+  write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
+
+  ! Deallocate
+  if (cc_update_method == 'diis') then
+     deallocate(all_err,all_t)
+  endif
+  deallocate(tau,tau_t)
+  deallocate(r1,r2)
+  deallocate(cF_oo,cF_ov,cF_vv)
+  deallocate(cW_oooo,cW_ovvo)!,cW_vvvv)
+  deallocate(v_oooo)
+  deallocate(v_ovoo,v_oovo)
+  deallocate(v_ovvo,v_ovov,v_oovv)
+  deallocate(t1,t2)
+
+end
+#+end_src
+
+* Q
+** Q1
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
 
   implicit none
 
@@ -17,51 +264,101 @@ subroutine compute_bM1(nO,nV,det,t1,t2,bM1)
   integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
   
-  double precision, intent(out) :: bM1(nO,nV)
+  double precision, intent(out) :: Q1(nO,nV)
 
-  integer                       :: i,ib,n,nb,m,mb,a,ab
-  integer                       :: nOa, nVa
-
-  nOa = nO/2
-  nVa = nV/2
+  integer                       :: ia,ib,na,nb,ma,mb,aa,ab
+  integer                       :: i_ia, i_aa
+  integer                       :: i_ib, i_ab
+  integer                       :: f_ia, f_aa
+  integer                       :: f_ib, f_ab
 
   ! List of open spin orbitals
-  call extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
+  call extract_open_spin_orb(nO,nV,det,ma,mb,na,nb)
+
+  i_ia = 1
+  i_ib = cc_nOa + 1
+  i_aa = 1
+  i_ab = cc_nVa + 1
+
+  f_ia = cc_nOa
+  f_ib = cc_nOab
+  f_aa = cc_nVa
+  f_ab = cc_nVab
+
+  !print*,'ia',i_ia,f_ia
+  !print*,'ib',i_ib,f_ib
+  !print*,'aa',i_aa,f_aa
+  !print*,'ab',i_ab,f_ab
   
   ! Init
-  bM1 = 0d0
-  
-  ! M_i^n
-  do i = 1, nOa
-    if (i == m) cycle
-    ib = i + nOa
-    bM1(i,n) = t2(ib,m,mb,n)
-  enddo
+  Q1 = 0d0
 
-  ! M_m^a
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    bM1(a,m) = - t2(nb,m,ab,n)
-  enddo
+  ! ### Spin case: i_a, a_a ###
 
-  ! M_i^a
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    do i = 1, nOa
-      if (i == m) cycle
-      ib = i + nOa
-      bM1(i,a) = t2(ib,m,mb,n) * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q1(ia,aa) = Q1(ia,aa) & 
+      -1.0d0 * t1(nb, ab) * t2(ma, ib, na, mb) & 
+      -1.0d0 * t1(ib, mb) * t2(ma, nb, na, ab)
     enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    Q1(ia,na) = Q1(ia,na) & 
+    -1.0d0 * t2(ma, ib, na, mb)
+  enddo
+
+  !! Deltas:((ma, ia))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    Q1(ma,aa) = Q1(ma,aa) & 
+    +1.0d0 * t2(ma, nb, na, ab)
+  enddo
+
+  ! ### Spin case: i_b, a_b ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q1(ib,ab) = Q1(ib,ab) & 
+      -1.0d0 * t1(ma, aa) * t2(ia, nb, na, mb) & 
+      -1.0d0 * t1(ia, na) * t2(ma, nb, aa, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    Q1(ib,mb) = Q1(ib,mb) & 
+    -1.0d0 * t2(ia, nb, na, mb)
+  enddo
+
+  !! Deltas:((nb, ib))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    Q1(nb,ab) = Q1(nb,ab) & 
+    +1.0d0 * t2(ma, nb, aa, mb)
   enddo
   
 end
 #+end_src
 
-** bM2
+** Q2
 #+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine compute_bM2(nO,nV,det,t1,t2,bM2)
+subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
 
   implicit none
 
@@ -69,248 +366,1426 @@ subroutine compute_bM2(nO,nV,det,t1,t2,bM2)
   integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
   
-  double precision, intent(out) :: bM2(nO,nO,nV,nV)
+  double precision, intent(out) :: Q2(nO,nO,nV,nV)
 
-  integer                       :: i,ib,j,jb,n,nb,m,mb,a,ab,b,bb
-  integer                       :: nOa, nVa
-  double precision, allocatable :: t1p(:,:), tau(:,:,:,:)
+  integer                       :: ia,ib,ja,jb,na,nb,ma,mb,aa,ab,ba,bb
+  integer                       :: i_ia, i_ja, i_aa, i_ba
+  integer                       :: i_ib, i_jb, i_ab, i_bb
+  integer                       :: f_ia, f_ja, f_aa, f_ba
+  integer                       :: f_ib, f_jb, f_ab, f_bb
 
-  allocate(t1p(nO,nV),tau(nO,nO,nV,nV))
-  
-  nOa = nO/2
-  nVa = nV/2
-
-  ! t1'(i,a)
-  do a = 1, nVa
-    ab = a + nVa
-    do i = 1, nOa
-      ib = i + nOa
-      t1p(i,a) = t1(i,a) - t1(ib,ab)
-    enddo
-  enddo
-
-  ! t1'(ib,ab)
-  do a = 1, nVa
-    ab = a + nVa
-    do i = 1, nOa
-      ib = i + nOa
-      t1p(ib,ab) = t1(ib,ab) - t1(i,a)
-    enddo
-  enddo
-
-  do b = 1, nV
-    do a = 1, nV
-      do j = 1, nO
-        do i = 1, nO
-          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
-        enddo
-      enddo
-    enddo
-  enddo
-  
   ! List of open spin orbitals
-  call extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
+  call extract_open_spin_orb(nO,nV,det,ma,mb,na,nb)
+
+  i_ia = 1
+  i_ja = 1
+  i_ib = cc_nOa + 1
+  i_jb = cc_nOa + 1
+  i_aa = 1
+  i_ba = 1
+  i_ab = cc_nVa + 1
+  i_bb = cc_nVa + 1
+
+  f_ia = cc_nOa
+  f_ja = cc_nOa
+  f_ib = cc_nOab
+  f_jb = cc_nOab
+  f_aa = cc_nVa
+  f_ba = cc_nVa
+  f_ab = cc_nVab
+  f_bb = cc_nVab
   
   ! Init
-  bM2 = 0d0
+  Q2 = 0d0
 
-  ! M_ij^na
-  do a = 1, nVa
-    if (a == n) cycle
-    do j = 1, nOa
-      if (j == m) cycle
-      jb = j + nOa
-      do i = 1, nOa
-        if (i == m) cycle
-        ib = i + nOa
-        bM2(i,j,n,a) = - t2(ib,m,mb,n) * t1p(j,a)  &
-                       + t2(jb,m,mb,n) * t1p(i,a)  &
-                       - t2(ib,m,ab,n) * t1(jb,mb) &
-                       + t2(jb,m,ab,n) * t1(ib,mb)
-      enddo
-    enddo
-  enddo
+  ! ### Spin case: i_a, j_a, a_a, b_a ###
 
-  ! M(i,jb,n,ab)
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    do j = 1, nOa
-      if (j == m) cycle
-      jb = j + nOa
-      do i = 1, nOa
-        if (i == m) cycle
-        ib = i + nOa
-        bM2(i,jb,n,ab) = - t2(ib,m,mb,n)  * t1p(jb,ab) &
-                         - t2(m,ib,a,mb)  * t1(j,n)    &
-                         - t2(m,j,a,n)    * t1(ib,mb)  &
-                         - tau(ib,j,mb,n) * t1(m,a)
-      enddo
-    enddo
-  enddo
-
-  ! M(m,i,a,b)
-  do b = 1, nVa
-    if (b == n) cycle
-    bb = b + nVa
-    do a = 1, nVa
-      if (a == n) cycle
-      ab = a + nVa
-      do i = 1, nOa
-        if (i == m) cycle
-        ib = i + nOa
-        bM2(m,i,a,b) =   t2(nb,m,mb,n) * t1p(i,b)  & 
-                       - t2(nb,m,bb,n) * t1p(i,a)  &
-                       + t2(m,ib,n,ab) * t1(nb,bb) &
-                       - t2(m,ib,n,bb) * t1(nb,ab)
-      enddo
-    enddo
-  enddo
-
-  ! M(m,ib,a,bb)
-  do b = 1, nVa
-    if (b == n) cycle
-    bb = b + nVa
-    do a = 1, nVa
-      if (a == n) cycle
-      ab = a + nVa
-      do i = 1, nOa
-        if (i == m) cycle
-        ib = i + nOa
-        bM2(m,ib,a,bb) =   t2(nb,m,ab,n)  * t1p(ib,bb) &
-                         + t2(i,nb,n,ab)  * t1(m,b)    &
-                         + t2(i,m,n,b)    * t1(nb,ab)  &
-                         + tau(m,nb,b,ab) * t1(i,n)
-      enddo
-    enddo
-  enddo
-
-  ! M(i,j,a,b)
-  do b = 1, nVa
-    if (b == n) cycle
-    bb = b + nVa
-    do a = 1, nVa
-      if (a == n) cycle
-      ab = a + nVa
-      do j = 1, nOa
-        if (j == m) cycle
-        jb = j + nOa
-        do i = 1, nOa
-          if (i == m) cycle
-          ib = i + nOa
-          bM2(i,j,a,b) = - (t2(ib,m,mb,n)  * t1(nb,ab) + t2(nb,m,ab,n) * t1(ib,mb)) * t1p(j,b) &
-                         + (t2(jb,m,mb,n)  * t1(nb,ab) + t2(nb,m,ab,n) * t1(jb,mb)) * t1p(i,b) & ! - P(ij)
-                         + (t2(ib,m,mb,n)  * t1(nb,bb) + t2(nb,m,bb,n) * t1(ib,mb)) * t1p(j,a) & ! - P(ab)
-                         - (t2(jb,m,mb,n)  * t1(nb,bb) + t2(nb,m,bb,n) * t1(jb,mb)) * t1p(i,a) & ! + P(ij) P(ab)
-                         - t2(m,jb,n,mb)   * t2(nb,ib,ab,bb) &
-                         + t2(m,ib,n,mb)   * t2(nb,jb,ab,bb) &
-                         - t2(m,nb,n,bb)   * t2(ib,jb,mb,ab) &
-                         + t2(m,nb,n,ab)   * t2(ib,jb,mb,bb) &
-                         - tau(nb,ib,mb,b) * t2(m,jb,n,bb)   &
-                         + tau(nb,jb,mb,b) * t2(m,ib,n,bb)   & ! P(ij)
-                         + tau(nb,ib,mb,a) * t2(m,jb,n,ab)   & ! P(ab)
-                         - tau(nb,jb,mb,a) * t2(m,ib,n,ab)     ! P(ij) P(ab)
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          Q2(ia,ja,aa,ba) = Q2(ia,ja,aa,ba) & 
+          -1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t2(nb, jb, ab, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t2(nb, ib, ab, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t2(ma, jb, na, ab) * t2(nb, ib, bb, mb) & 
+          -1.0d0 * t2(ma, ib, na, ab) * t2(nb, jb, bb, mb) & 
+          +1.0d0 * t2(ma, nb, na, ab) * t2(ib, jb, bb, mb) & 
+          -1.0d0 * t2(ib, jb, ab, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t2(nb, jb, ab, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t2(nb, ib, ab, mb) * t2(ma, jb, na, bb) & 
+          +1.0d0 * t1(nb, ab) * t1(jb, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t1(nb, ab) * t1(ib, mb) * t2(ma, jb, na, bb) & 
+          -1.0d0 * t1(nb, bb) * t1(jb, mb) * t2(ma, ib, na, ab) & 
+          +1.0d0 * t1(nb, bb) * t1(ib, mb) * t2(ma, jb, na, ab)
         enddo
       enddo
     enddo
   enddo
 
-  ! M(i,jb,a,bb)
-  do b = 1, nVa
-    if (b == n) cycle
-    bb = b + nVa
-    do a = 1, nVa
-      if (a == n) cycle
-      ab = a + nVa
-      do j = 1, nOa
-        if (j == m) cycle
-        jb = j + nOa
-        do i = 1, nOa
-          if (i == m) cycle
-          ib = i + nOa
-          bM2(i,jb,a,bb) = - (t2(ib,m,mb,n) * t1(ab,nb) + t2(nb,m,ab,n) * t1(mb,ib)) * t1p(jb,bb) & ! Typo in the paper on the last term
-                           - (t2(j,nb,n,mb) * t1(m,a)   + t2(nb,m,mb,a) * t1(i,n))   * t1p(jb,bb) &
-                           + t2(j,nb,n,mb)   * t2(m,ib,b,ab) &
-                           + t2(m,ib,n,mb)   * t2(jb,n,b,ab) &
-                           + t2(m,nb,b,mb)   * t2(j,ib,n,ab) &
-                           + t2(m,nb,n,ab)   * t2(j,ib,b,mb) &
-                           + t2(ib,nb,mb,ab) * t2(m,j,n,b)   &
-                           + t1(nb,ab) * t1(ib,mb) * t2(m,j,n,b) &
-                           + t2(nb,ib,mb,ab) * t1(j,n) * t1(m,b) &
-                           - t2(m,ib,n,ab) * t2(j,nb,m,mb) &
-                           - t2(j,nb,n,ab) * t2(m,ib,b,mb) &
-                           - t1(j,n) * t1(nb,ab) * t2(m,ib,b,mb) &
-                           - t2(j,nb,n,ab) * t1(m,b) * t1(ib,mb) &
-                           - tau(ib,j,mb,n) * tau(nb,m,ab,b)
+  !! Deltas:((na, ba))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        Q2(ia,ja,aa,na) = Q2(ia,ja,aa,na) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, ib, na, ab) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, jb, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ia,ja,na,ba) = Q2(ia,ja,na,ba) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, ib, na, bb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, jb, na, bb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ia,ma,aa,ba) = Q2(ia,ma,aa,ba) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ma,ja,aa,ba) = Q2(ma,ja,aa,ba) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(ia,ma,aa,na) = Q2(ia,ma,aa,na) & 
+      -1.0d0 * t2(ma, ib, na, ab)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ia,ma,na,ba) = Q2(ia,ma,na,ba) & 
+      +1.0d0 * t2(ma, ib, na, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(ma,ja,aa,na) = Q2(ma,ja,aa,na) & 
+      +1.0d0 * t2(ma, jb, na, ab)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ma,ja,na,ba) = Q2(ma,ja,na,ba) & 
+      -1.0d0 * t2(ma, jb, na, bb)
+    enddo
+  enddo
+
+  ! ### Spin case: i_a, j_b, a_a, b_b ###
+
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
+          -1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t2(ja, nb, ba, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t2(ma, ib, ba, ab) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t2(ma, nb, ba, ab) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t2(ja, ib, na, ab) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t2(ja, nb, na, ab) * t2(ma, ib, ba, mb) & 
+          +1.0d0 * t2(ma, ib, na, ab) * t2(ja, nb, ba, mb) & 
+          -1.0d0 * t2(ma, nb, na, ab) * t2(ja, ib, ba, mb) & 
+          +1.0d0 * t2(nb, ib, ab, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t1(nb, ab) * t1(ma, ba) * t2(ja, ib, na, mb) & 
+          +1.0d0 * t1(nb, ab) * t1(ja, na) * t2(ma, ib, ba, mb) & 
+          +1.0d0 * t1(nb, ab) * t1(ib, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t1(ma, ba) * t1(ja, na) * t2(nb, ib, ab, mb) & 
+          +1.0d0 * t1(ma, ba) * t1(ib, mb) * t2(ja, nb, na, ab) & 
+          +1.0d0 * t1(ja, na) * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+          +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na) * t1(ib, mb)
         enddo
       enddo
     enddo
   enddo
 
-  ! M(m,nb,n,ab)
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    bM2(m,nb,n,ab) = -t1(m,a)  
-  enddo
-
-  ! M(m,ib,n,mb)
-  do i = 1, nOa
-    if (i == m) cycle
-    ib = i + nOa
-    bM2(m,ib,n,mb) = t1(i,n)
-  enddo
-
-  ! M(m,nb,a,bb)
-  do b = 1, nVa
-    if (b == n) cycle
-    bb = b + nVa
-    do a = 1, nVa
-      if (a == n) cycle
-      ab = a + nVa
-      bM2(m,nb,a,bb) = - tau(m,nb,b,ab)
+  !! Deltas:((mb, bb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        Q2(ia,jb,aa,mb) = Q2(ia,jb,aa,mb) & 
+        -1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ja, ib, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(nb, ib, ab, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ja, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ja, na) * t1(ib, mb)
+      enddo
     enddo
   enddo
 
-  ! M(i,m,a,n)
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    do i = 1, nOa
-      if (i == m) cycle
-      ib = i + nOa
-      bM2(i,m,a,n) = - t2(ib,m,ab,n)
+  !! Deltas:((na, aa))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ia,jb,na,bb) = Q2(ia,jb,na,bb) & 
+        +1.0d0 * t1(ma, ba) * t2(ja, ib, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(ma, ib, ba, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, ja, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t1(ja, na) * t1(ib, mb)
+      enddo
     enddo
   enddo
 
-  ! M(m,ib,n,ab)
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    do i = 1, nOa
-      if (i == m) cycle
-      ib = i + nOa
-      bM2(m,ib,n,ab) = tau(i,m,n,a)
+  !! Deltas:((nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ia,nb,aa,bb) = Q2(ia,nb,aa,bb) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
+      enddo
     enddo
   enddo
 
-  ! M(m,ib,a,mb)
-  do a = 1, nVa
-    if (a == n) cycle
-    ab = a + nVa
-    do i = 1, nOa
-      if (i == m) cycle
-      ib = i + nOa
-      bM2(m,ib,a,mb) = tau(i,nb,n,ab)
+  !! Deltas:((ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ma,jb,aa,bb) = Q2(ma,jb,aa,bb) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
+        +1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
+      enddo
     enddo
   enddo
-  
-  deallocate(t1p,tau)
-  
+
+  !! Deltas:((nb, ib))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
+          -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
+          +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      Q2(ia,jb,na,mb) = Q2(ia,jb,na,mb) & 
+      +1.0d0 * t2(ja, ib, na, mb) & 
+      +1.0d0 * t1(ja, na) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(ia,nb,aa,mb) = Q2(ia,nb,aa,mb) & 
+      +1.0d0 * t2(nb, ib, ab, mb) & 
+      +1.0d0 * t1(nb, ab) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(ia,nb,na,bb) = Q2(ia,nb,na,bb) & 
+      +1.0d0 * t2(ma, ib, ba, mb) & 
+      +1.0d0 * t1(ma, ba) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(ma,jb,aa,mb) = Q2(ma,jb,aa,mb) & 
+      +1.0d0 * t2(ja, nb, na, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(ma,jb,na,bb) = Q2(ma,jb,na,bb) & 
+      +1.0d0 * t2(ma, ja, ba, na) & 
+      +1.0d0 * t1(ma, ba) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia), (nb, jb))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(ma,nb,aa,bb) = Q2(ma,nb,aa,bb) & 
+      +1.0d0 * t2(ma, nb, ba, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ma, ba)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    Q2(ia,nb,na,mb) = Q2(ia,nb,na,mb) & 
+    +1.0d0 * t1(ib, mb)
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    Q2(ma,jb,na,mb) = Q2(ma,jb,na,mb) & 
+    +1.0d0 * t1(ja, na)
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ia), (nb, jb))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    Q2(ma,nb,aa,mb) = Q2(ma,nb,aa,mb) & 
+    +1.0d0 * t1(nb, ab)
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia), (nb, jb))
+  do bb = i_bb, f_bb
+    if (bb == mb) cycle 
+    ba = bb - cc_nVa
+    Q2(ma,nb,na,bb) = Q2(ma,nb,na,bb) & 
+    +1.0d0 * t1(ma, ba)
+  enddo
+
+  ! ### Spin case: i_a, j_b, a_b, b_a ###
+
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          Q2(ia,jb,ab,ba) = Q2(ia,jb,ab,ba) & 
+          +1.0d0 * t2(ja, nb, aa, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t2(ma, ib, aa, bb) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t2(ma, nb, aa, bb) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t2(ma, ja, aa, na) * t2(nb, ib, bb, mb) & 
+          +1.0d0 * t2(ja, ib, aa, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t2(ja, nb, aa, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t2(ma, ib, aa, mb) * t2(ja, nb, na, bb) & 
+          +1.0d0 * t2(ma, nb, aa, mb) * t2(ja, ib, na, bb) & 
+          -1.0d0 * t1(ma, aa) * t1(nb, bb) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ja, na) * t2(nb, ib, bb, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ib, mb) * t2(ja, nb, na, bb) & 
+          -1.0d0 * t1(nb, bb) * t1(ja, na) * t2(ma, ib, aa, mb) & 
+          -1.0d0 * t1(nb, bb) * t1(ib, mb) * t2(ma, ja, aa, na) & 
+          -1.0d0 * t1(ja, na) * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+          -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na) * t1(ib, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        Q2(ia,jb,ab,na) = Q2(ia,jb,ab,na) & 
+        -1.0d0 * t1(ma, aa) * t2(ja, ib, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(ma, ib, aa, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, ja, aa, na) & 
+        -1.0d0 * t1(ma, aa) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ia,jb,mb,ba) = Q2(ia,jb,mb,ba) & 
+        -1.0d0 * t1(nb, bb) * t2(ja, ib, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(nb, ib, bb, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ja, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ia,nb,ab,ba) = Q2(ia,nb,ab,ba) & 
+        -1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ma,jb,ab,ba) = Q2(ma,jb,ab,ba) & 
+        -1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
+        -1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      Q2(ia,jb,mb,na) = Q2(ia,jb,mb,na) & 
+      -1.0d0 * t2(ja, ib, na, mb) & 
+      -1.0d0 * t1(ja, na) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(ia,nb,ab,na) = Q2(ia,nb,ab,na) & 
+      -1.0d0 * t2(ma, ib, aa, mb) & 
+      -1.0d0 * t1(ma, aa) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ia,nb,mb,ba) = Q2(ia,nb,mb,ba) & 
+      -1.0d0 * t2(nb, ib, bb, mb) & 
+      -1.0d0 * t1(nb, bb) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(ma,jb,ab,na) = Q2(ma,jb,ab,na) & 
+      -1.0d0 * t2(ma, ja, aa, na) & 
+      -1.0d0 * t1(ma, aa) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ma,jb,mb,ba) = Q2(ma,jb,mb,ba) & 
+      -1.0d0 * t2(ja, nb, na, bb) & 
+      -1.0d0 * t1(nb, bb) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia), (nb, jb))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ma,nb,ab,ba) = Q2(ma,nb,ab,ba) & 
+      -1.0d0 * t2(ma, nb, aa, bb) & 
+      -1.0d0 * t1(ma, aa) * t1(nb, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    Q2(ia,nb,mb,na) = Q2(ia,nb,mb,na) & 
+    -1.0d0 * t1(ib, mb)
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    Q2(ma,jb,mb,na) = Q2(ma,jb,mb,na) & 
+    -1.0d0 * t1(ja, na)
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia), (nb, jb))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    Q2(ma,nb,ab,na) = Q2(ma,nb,ab,na) & 
+    -1.0d0 * t1(ma, aa)
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ia), (nb, jb))
+  do ba = i_ba, f_ba
+    if (ba == na) cycle 
+    bb = ba + cc_nVa
+    Q2(ma,nb,mb,ba) = Q2(ma,nb,mb,ba) & 
+    -1.0d0 * t1(nb, bb)
+  enddo
+
+  ! ### Spin case: i_b, j_a, a_a, b_b ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          Q2(ib,ja,aa,bb) = Q2(ib,ja,aa,bb) & 
+          +1.0d0 * t2(ma, jb, ba, ab) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t2(ia, nb, ba, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t2(ma, nb, ba, ab) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t2(ia, jb, na, ab) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t2(ma, jb, na, ab) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t2(ia, nb, na, ab) * t2(ma, jb, ba, mb) & 
+          +1.0d0 * t2(ma, nb, na, ab) * t2(ia, jb, ba, mb) & 
+          -1.0d0 * t2(nb, jb, ab, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t1(nb, ab) * t1(ma, ba) * t2(ia, jb, na, mb) & 
+          -1.0d0 * t1(nb, ab) * t1(ia, na) * t2(ma, jb, ba, mb) & 
+          -1.0d0 * t1(nb, ab) * t1(jb, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t1(ma, ba) * t1(ia, na) * t2(nb, jb, ab, mb) & 
+          -1.0d0 * t1(ma, ba) * t1(jb, mb) * t2(ia, nb, na, ab) & 
+          -1.0d0 * t1(ia, na) * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+          -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na) * t1(jb, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        Q2(ib,ja,aa,mb) = Q2(ib,ja,aa,mb) & 
+        -1.0d0 * t1(nb, ab) * t2(ia, jb, na, mb) & 
+        -1.0d0 * t1(ia, na) * t2(nb, jb, ab, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ia, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ib,ja,na,bb) = Q2(ib,ja,na,bb) & 
+        -1.0d0 * t1(ma, ba) * t2(ia, jb, na, mb) & 
+        -1.0d0 * t1(ia, na) * t2(ma, jb, ba, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, ia, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ib,ma,aa,bb) = Q2(ib,ma,aa,bb) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
+        -1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(nb,ja,aa,bb) = Q2(nb,ja,aa,bb) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      Q2(ib,ja,na,mb) = Q2(ib,ja,na,mb) & 
+      -1.0d0 * t2(ia, jb, na, mb) & 
+      -1.0d0 * t1(ia, na) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(ib,ma,aa,mb) = Q2(ib,ma,aa,mb) & 
+      -1.0d0 * t2(ia, nb, na, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(ib,ma,na,bb) = Q2(ib,ma,na,bb) & 
+      -1.0d0 * t2(ma, ia, ba, na) & 
+      -1.0d0 * t1(ma, ba) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      Q2(nb,ja,aa,mb) = Q2(nb,ja,aa,mb) & 
+      -1.0d0 * t2(nb, jb, ab, mb) & 
+      -1.0d0 * t1(nb, ab) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(nb,ja,na,bb) = Q2(nb,ja,na,bb) & 
+      -1.0d0 * t2(ma, jb, ba, mb) & 
+      -1.0d0 * t1(ma, ba) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja), (nb, ib))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(nb,ma,aa,bb) = Q2(nb,ma,aa,bb) & 
+      -1.0d0 * t2(ma, nb, ba, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ma, ba)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    Q2(ib,ma,na,mb) = Q2(ib,ma,na,mb) & 
+    -1.0d0 * t1(ia, na)
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    Q2(nb,ja,na,mb) = Q2(nb,ja,na,mb) & 
+    -1.0d0 * t1(jb, mb)
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ja), (nb, ib))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    Q2(nb,ma,aa,mb) = Q2(nb,ma,aa,mb) & 
+    -1.0d0 * t1(nb, ab)
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja), (nb, ib))
+  do bb = i_bb, f_bb
+    if (bb == mb) cycle 
+    ba = bb - cc_nVa
+    Q2(nb,ma,na,bb) = Q2(nb,ma,na,bb) & 
+    -1.0d0 * t1(ma, ba)
+  enddo
+
+  ! ### Spin case: i_b, j_a, a_b, b_a ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
+          -1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t2(ma, jb, aa, bb) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t2(ia, nb, aa, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t2(ma, nb, aa, bb) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t2(ma, ia, aa, na) * t2(nb, jb, bb, mb) & 
+          -1.0d0 * t2(ia, jb, aa, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t2(ma, jb, aa, mb) * t2(ia, nb, na, bb) & 
+          +1.0d0 * t2(ia, nb, aa, mb) * t2(ma, jb, na, bb) & 
+          -1.0d0 * t2(ma, nb, aa, mb) * t2(ia, jb, na, bb) & 
+          +1.0d0 * t1(ma, aa) * t1(nb, bb) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t1(ma, aa) * t1(ia, na) * t2(nb, jb, bb, mb) & 
+          +1.0d0 * t1(ma, aa) * t1(jb, mb) * t2(ia, nb, na, bb) & 
+          +1.0d0 * t1(nb, bb) * t1(ia, na) * t2(ma, jb, aa, mb) & 
+          +1.0d0 * t1(nb, bb) * t1(jb, mb) * t2(ma, ia, aa, na) & 
+          +1.0d0 * t1(ia, na) * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+          +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na) * t1(jb, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        Q2(ib,ja,ab,na) = Q2(ib,ja,ab,na) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(ia, jb, na, mb) & 
+        +1.0d0 * t1(ia, na) * t2(ma, jb, aa, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, ia, aa, na) & 
+        +1.0d0 * t1(ma, aa) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ib,ja,mb,ba) = Q2(ib,ja,mb,ba) & 
+        +1.0d0 * t1(nb, bb) * t2(ia, jb, na, mb) & 
+        +1.0d0 * t1(ia, na) * t2(nb, jb, bb, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ia, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(ib,ma,ab,ba) = Q2(ib,ma,ab,ba) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
+        +1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        Q2(nb,ja,ab,ba) = Q2(nb,ja,ab,ba) & 
+        +1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
+          -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
+          +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      Q2(ib,ja,mb,na) = Q2(ib,ja,mb,na) & 
+      +1.0d0 * t2(ia, jb, na, mb) & 
+      +1.0d0 * t1(ia, na) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(ib,ma,ab,na) = Q2(ib,ma,ab,na) & 
+      +1.0d0 * t2(ma, ia, aa, na) & 
+      +1.0d0 * t1(ma, aa) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(ib,ma,mb,ba) = Q2(ib,ma,mb,ba) & 
+      +1.0d0 * t2(ia, nb, na, bb) & 
+      +1.0d0 * t1(nb, bb) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(nb,ja,ab,na) = Q2(nb,ja,ab,na) & 
+      +1.0d0 * t2(ma, jb, aa, mb) & 
+      +1.0d0 * t1(ma, aa) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(nb,ja,mb,ba) = Q2(nb,ja,mb,ba) & 
+      +1.0d0 * t2(nb, jb, bb, mb) & 
+      +1.0d0 * t1(nb, bb) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja), (nb, ib))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      Q2(nb,ma,ab,ba) = Q2(nb,ma,ab,ba) & 
+      +1.0d0 * t2(ma, nb, aa, bb) & 
+      +1.0d0 * t1(ma, aa) * t1(nb, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    Q2(ib,ma,mb,na) = Q2(ib,ma,mb,na) & 
+    +1.0d0 * t1(ia, na)
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    Q2(nb,ja,mb,na) = Q2(nb,ja,mb,na) & 
+    +1.0d0 * t1(jb, mb)
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja), (nb, ib))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    Q2(nb,ma,ab,na) = Q2(nb,ma,ab,na) & 
+    +1.0d0 * t1(ma, aa)
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ja), (nb, ib))
+  do ba = i_ba, f_ba
+    if (ba == na) cycle 
+    bb = ba + cc_nVa
+    Q2(nb,ma,mb,ba) = Q2(nb,ma,mb,ba) & 
+    +1.0d0 * t1(nb, bb)
+  enddo
+
+  ! ### Spin case: i_b, j_b, a_b, b_b ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          Q2(ib,jb,ab,bb) = Q2(ib,jb,ab,bb) & 
+          -1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t2(ma, ja, aa, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t2(ma, ia, aa, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t2(ia, ja, aa, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t2(ma, ja, aa, na) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t2(ma, ia, aa, na) * t2(ja, nb, ba, mb) & 
+          +1.0d0 * t2(ja, nb, aa, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t2(ia, nb, aa, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t2(ma, nb, aa, mb) * t2(ia, ja, ba, na) & 
+          +1.0d0 * t1(ma, aa) * t1(ja, na) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ia, na) * t2(ja, nb, ba, mb) & 
+          -1.0d0 * t1(ma, ba) * t1(ja, na) * t2(ia, nb, aa, mb) & 
+          +1.0d0 * t1(ma, ba) * t1(ia, na) * t2(ja, nb, aa, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        Q2(ib,jb,ab,mb) = Q2(ib,jb,ab,mb) & 
+        -1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(ia, nb, aa, mb) & 
+        +1.0d0 * t1(ia, na) * t2(ja, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ib,jb,mb,bb) = Q2(ib,jb,mb,bb) & 
+        +1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(ia, nb, ba, mb) & 
+        -1.0d0 * t1(ia, na) * t2(ja, nb, ba, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(ib,nb,ab,bb) = Q2(ib,nb,ab,bb) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        Q2(nb,jb,ab,bb) = Q2(nb,jb,ab,bb) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(ib,nb,ab,mb) = Q2(ib,nb,ab,mb) & 
+      -1.0d0 * t2(ia, nb, aa, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(ib,nb,mb,bb) = Q2(ib,nb,mb,bb) & 
+      +1.0d0 * t2(ia, nb, ba, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      Q2(nb,jb,ab,mb) = Q2(nb,jb,ab,mb) & 
+      +1.0d0 * t2(ja, nb, aa, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      Q2(nb,jb,mb,bb) = Q2(nb,jb,mb,bb) & 
+      -1.0d0 * t2(ja, nb, ba, mb)
+    enddo
+  enddo
+ 
 end
 #+end_src
 
-** Extract open orb spin
+* Extract open orb spin
 #+begin_src f90 :comments org :tangle tdcc.irp.f
 subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
 
@@ -354,43 +1829,9 @@ subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
   enddo
 
   ! Ref:
-  !   a     n     m     i
-  !   |    -|->   |    -|->
-  !   |     |   <-|-  <-|-
-  m  = list_o(1)
-  mb = list_o(2)
-  n  = list_o(3)
-  nb = list_o(4)
-
-  ! Reminder: -The index of i_beta (ib) is i_alpha (i) + number of occupied alpha (nOa)
-  !           -The index of a_beta (ab) is a_alpha (a) + number of virtual alpha (nVa)
-  !           -Cycle when i == m and a == n to avoid considering an
-  ! open MO as a core or virtual one
   
-end
-#+end_src
-  
-
-
-* Spin-flipped T
-#+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
-
-  implicit none
-  
-  integer, intent(in)  :: nO,nV
-  integer, intent(out) :: sp_idx_o(nO), sp_idx_v(nV)
-
-  integer              :: i,a
-  integer              :: nOa,nVa
-
-  if (elec_alpha_num /= elec_beta_num) then
-    print*,'elec_alpha_num /= elec_beta_num, abort'
-    call abort
-  endif
-
-  nOa = nO / 2
-  nVa = nV / 2
+  !nOa = nO / 2
+  !nVa = nV / 2
 
   ! T1
   !              a
@@ -403,95 +1844,21 @@ subroutine gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
   !    :   ba    |   bb
   !   nO         |
   
-  ! List of indexes to loop on the beta before the alpha, i.e.,
-  ! to reverse the spin
-  do i = 1, nO
-    if (i <= nOa) then
-      sp_idx_o(i) = i + nOa
-    else
-      sp_idx_o(i) = i - nOa
-    endif
-  enddo
+  !   a     n     m     i
+  !   |    -|->   |    -|->
+  !   |     |   <-|-  <-|-
+  m  = list_o(1)
+  nb = list_o(3)
+  n  = list_o(2)
+  mb = list_o(4)
 
-  do a = 1, nV
-    if (a <= nVa) then
-      sp_idx_v(a) = a + nVa
-    else
-      sp_idx_v(a) = a - nVa
-    endif
-  enddo
+  ! Reminder: -The index of i_beta (ib) is i_alpha (i) + number of occupied alpha (nOa)
+  !           -The index of a_beta (ab) is a_alpha (a) + number of virtual alpha (nVa)
+  !           -Cycle when i == m and a == n to avoid considering an
+  ! open MO as a core or virtual one
   
 end
 #+end_src
-
-#+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine spin_flip_t1(nO,nV,t1,t1_sp)
-
-  implicit none
-
-  integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: t1(nO,nV)
   
-  double precision, intent(out) :: t1_sp(nO,nV)
 
-  integer                       :: i,a,tmp_i,tmp_a
-  integer                       :: nOa, nVa
-  integer, allocatable          :: sp_idx_o(:), sp_idx_v(:)
 
-  allocate(sp_idx_o(nO), sp_idx_v(nV))
-
-  ! Indexes to reverse the spin
-  call gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
-
-  ! Spin-flipped amplitudes
-  do tmp_a = 1, nV
-    a = sp_idx_v(tmp_a)
-    do tmp_i = 1, nO
-      i = sp_idx_o(tmp_i)
-      t1_sp(tmp_i,tmp_a) = t1(i,a)
-    enddo
-  enddo
-
-  deallocate(sp_idx_o,sp_idx_v)
-  
-end
-#+end_src
-
-#+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine spin_flip_t2(nO,nV,t2,t2_sp)
-
-  implicit none
-
-  integer, intent(in)           :: nO,nV
-  double precision, intent(in)  :: t2(nO,nO,nV,nV)
-  
-  double precision, intent(out) :: t2_sp(nO,nO,nV,nV)
-
-  integer                       :: i,j,a,b,tmp_i,tmp_j,tmp_a,tmp_b
-  integer                       :: nOa, nVa
-  integer, allocatable          :: sp_idx_o(:), sp_idx_v(:)
-
-  allocate(sp_idx_o(nO), sp_idx_v(nV))
-
-  ! Indexes to reverse the spin
-  call gen_sp_idx(nO,nV,sp_idx_o,sp_idx_v)
-
-  ! Spin-flipped amplitudes
-  do tmp_b = 1, nV
-    b = sp_idx_v(tmp_b)
-    do tmp_a = 1, nV
-      a = sp_idx_v(tmp_a)
-      do tmp_j = 1, nO
-        j = sp_idx_o(tmp_j)
-        do tmp_i = 1, nO
-          i = sp_idx_o(tmp_i)
-          t2_sp(tmp_i,tmp_j,tmp_a,tmp_b) = t2(i,j,a,b)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  deallocate(sp_idx_o,sp_idx_v)
-  
-end
-#+end_src

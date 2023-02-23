@@ -37,7 +37,7 @@ subroutine pccd_jacobian_v2(nO, nV, t2, t2_jacobian)
   ! [ 2(fcc_a^a - fcc_i^i) - 4 v_{ia}^{ia} + 2v_{ia}^{ai} ] \delta_{ij} \delta_{ab}
   do a = 1, nV
     do i = 1, nO
-      t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (fcc_v(a) - fcc_o(i)) &
+      t2_jacobian(i,a,i,a) = t2_jacobian(i,a,i,a) + 2d0 * (cc_space_f_v(a) - cc_space_f_o(i)) &
                   - 4d0 * cc_space_v_iaia(i,a) + 2d0 * cc_space_v_iaai(i,a)
     enddo
   enddo
@@ -188,7 +188,7 @@ subroutine pccd_jacobian(nO, nV, t2,t2_jacobian)
   ! 2 (fcc_a^a - fcc_i^i) - 4 v_ia^ia + 2 v_ia^ai + v_aa^aa + v_ii^ii - \sum_k v_kk^aa t_k^a - \sum_c v_ii^cc t_i^c
   do a = 1, nV
     do i = 1, nO
-      t2_jacobian(i,a,i,a) = 2d0*(fcc_v(a) - fcc_o(i)) &
+      t2_jacobian(i,a,i,a) = 2d0*(cc_space_f_v(a) - cc_space_f_o(i)) &
       - 4.0d0*cc_space_v_iaia(i,a) + 2.0d0*cc_space_v_iaai(i,a) + cc_space_v_aabb(a,a) + cc_space_v_iijj(i,i) &
       - yV1(a) - yO1(i) 
     enddo

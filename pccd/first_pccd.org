@@ -55,8 +55,6 @@ subroutine run_first_pccd
   double precision              :: accu1, accu2, accu3, accu4, accu5
   logical                       :: not_converged
 
-  CC = 1d-6
-
   PROVIDE mo_two_e_integrals_in_map
 
   if (n_core_orb > 0) then
@@ -158,7 +156,7 @@ subroutine run_first_pccd
     enddo
     
     print*, nb_iter, energy, max_r2
-    if (dabs(max_r2) < CC) then
+    if (dabs(max_r2) < cc_thresh_conv .or. nb_iter > cc_max_iter ) then
        not_converged =  .False.
     endif
 

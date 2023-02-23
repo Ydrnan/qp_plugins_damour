@@ -16,8 +16,14 @@ subroutine run_pccd
   logical                       :: not_converged
   integer                       :: nO, nV
 
-  nO = cc_nO
-  nV = cc_nV
+  if (elec_alpha_num /= elec_beta_num) then
+     print*,'pCCD is restricted to closed-shell systems'
+     print*,'elec_alpha_num /= elec_beta_num, abort'
+     call abort
+  endif
+  
+  nO = cc_nOa
+  nV = cc_nVa
   
   print*,''
   print*,'---run_pccd---'
@@ -87,7 +93,7 @@ subroutine run_pccd
     print*, nb_iter, energy, max_r2
 
     ! Exit criterion
-    if (max_r2 < 1e-6) then
+    if (max_r2 < cc_thresh_conv) then
        not_converged = .False.
        print*,''
        print*,'******************************'
@@ -95,7 +101,7 @@ subroutine run_pccd
        print*,'******************************' 
     endif
 
-    if (nb_iter >= 100) then
+    if (nb_iter >= cc_max_iter) then
        print*,'#########################'
        print*,'   Convergence failed'
        print*,'#########################'

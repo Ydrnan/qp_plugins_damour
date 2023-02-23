@@ -60,7 +60,7 @@ subroutine r2_pccd(nO, nV, t2, U1, U2, U3, U4, U5, r2)
   do a = 1, nV
      do i = 1, nO
         r2(i,a) = cc_space_v_iiaa(i,a) &
-          + 2d0 *(fcc_v(a) - fcc_o(i) - U1(a) - U2(i)) * t2(i,a) &
+          + 2d0 *(cc_space_f_v(a) - cc_space_f_o(i) - U1(a) - U2(i)) * t2(i,a) &
           - 2d0*(2d0 * cc_space_v_iaia(i,a) &
           - cc_space_v_aiia(a,i) &
           - cc_space_v_aaii(a,i) * t2(i,a)) * t2(i,a) &

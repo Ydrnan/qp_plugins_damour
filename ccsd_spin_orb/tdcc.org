@@ -13,7 +13,7 @@ program tdcc
   implicit none
 
   double precision, allocatable  :: t1(:,:), t2(:,:,:,:), tau(:,:,:,:), tau_t(:,:,:,:)
-  double precision, allocatable  :: r1(:,:), r2(:,:,:,:), Q1(:,:), Q2(:,:,:,:)
+  double precision, allocatable  :: r1(:,:), r2(:,:,:,:), M1(:,:), M2(:,:,:,:)
   double precision, allocatable  :: f_oo(:,:), f_ov(:,:), f_vv(:,:), f_o(:), f_v(:)
   double precision, allocatable  :: v_oooo(:,:,:,:), v_vooo(:,:,:,:), v_ovoo(:,:,:,:)
   double precision, allocatable  :: v_oovo(:,:,:,:), v_ooov(:,:,:,:), v_vvoo(:,:,:,:)
@@ -57,7 +57,7 @@ program tdcc
  
   allocate(t1(nO,nV),t2(nO,nO,nV,nV), tau(nO,nO,nV,nV), tau_t(nO,nO,nV,nV))
   allocate(r1(nO,nV),r2(nO,nO,nV,nV))
-  allocate(Q1(nO,nV),Q2(nO,nO,nV,nV))
+  allocate(M1(nO,nV),M2(nO,nO,nV,nV))
   allocate(v_oooo(nO,nO,nO,nO))
   allocate(v_ovoo(nO,nV,nO,nO))
   allocate(v_oovo(nO,nO,nV,nO))
@@ -159,13 +159,13 @@ program tdcc
     W_ba = -r2(ma,nb,na,mb)
     print*,'W_ba',W_ba
     
-    call compute_Q1_2(nO,nV,det,t1,t2,Q1)
-    call compute_Q2_2(nO,nV,det,t1,t2,Q2)
+    call compute_M1(nO,nV,det,t1,t2,M1)
+    call compute_M2_12(nO,nV,det,t1,t2,M2)
 
-    r1 = r1 + Q1 * W_ba
-    r2 = r2 + Q2 * W_ba
-    !print*,'Q1',Q1
-    !print*,'Q2',Q2
+    r1 = r1 + M1 * W_ba
+    r2 = r2 + M2 * W_ba
+    !print*,'M1',M1
+    !print*,'M2',M2
 
     !print*,r2(ma,nb,na,mb)
     !print*,r2(ma,nb,mb,na)
@@ -248,10 +248,10 @@ program tdcc
 end
 #+end_src
 
-* Q
-** Q1
+* M
+** M1
 #+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
+subroutine compute_M1(nO,nV,det,t1,t2,M1)
 
   implicit none
 
@@ -259,7 +259,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
   
-  double precision, intent(out) :: Q1(nO,nV)
+  double precision, intent(out) :: M1(nO,nV)
 
   integer                       :: ia,ib,na,nb,ma,mb,aa,ab
   integer                       :: i_ia, i_aa
@@ -286,8 +286,8 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   !print*,'ab',i_ab,f_ab
   
   ! Init
-  Q1 = 0d0
-  
+  M1 = 0d0
+
   ! ### Spin case: i_a, a_a ###
 
   do ia = i_ia, f_ia
@@ -296,7 +296,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q1(ia,aa) = Q1(ia,aa) & 
+      M1(ia,aa) = M1(ia,aa) & 
       -1.0d0 * t1(nb, ab) * t2(ma, ib, na, mb) & 
       -1.0d0 * t1(ib, mb) * t2(ma, nb, na, ab)
     enddo
@@ -306,7 +306,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   do ia = i_ia, f_ia
     if (ia == ma) cycle 
     ib = ia + cc_nOa
-    Q1(ia,na) = Q1(ia,na) & 
+    M1(ia,na) = M1(ia,na) & 
     -1.0d0 * t2(ma, ib, na, mb)
   enddo
 
@@ -314,7 +314,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   do aa = i_aa, f_aa
     if (aa == na) cycle 
     ab = aa + cc_nVa
-    Q1(ma,aa) = Q1(ma,aa) & 
+    M1(ma,aa) = M1(ma,aa) & 
     +1.0d0 * t2(ma, nb, na, ab)
   enddo
 
@@ -326,7 +326,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q1(ib,ab) = Q1(ib,ab) & 
+      M1(ib,ab) = M1(ib,ab) & 
       -1.0d0 * t1(ma, aa) * t2(ia, nb, na, mb) & 
       -1.0d0 * t1(ia, na) * t2(ma, nb, aa, mb)
     enddo
@@ -336,7 +336,7 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   do ib = i_ib, f_ib
     if (ib == nb) cycle 
     ia = ib - cc_nOa
-    Q1(ib,mb) = Q1(ib,mb) & 
+    M1(ib,mb) = M1(ib,mb) & 
     -1.0d0 * t2(ia, nb, na, mb)
   enddo
 
@@ -344,14 +344,14 @@ subroutine compute_Q1(nO,nV,det,t1,t2,Q1)
   do ab = i_ab, f_ab
     if (ab == mb) cycle 
     aa = ab - cc_nVa
-    Q1(nb,ab) = Q1(nb,ab) & 
+    M1(nb,ab) = M1(nb,ab) & 
     +1.0d0 * t2(ma, nb, aa, mb)
   enddo
   
 end
 #+end_src
 
-** Q1
+** M1_2
 #+begin_src f90 :comments org :tangle tdcc.irp.f
 subroutine compute_Q1_2(nO,nV,det,t1,t2,Q1)
 
@@ -390,90 +390,12 @@ subroutine compute_Q1_2(nO,nV,det,t1,t2,Q1)
   ! Init
   Q1 = 0d0
 
-  ! ### Spin case: i_a, a_a ###
-
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do aa = i_aa, f_aa
-      if (aa == na) cycle 
-      ab = aa + cc_nVa
-      Q1(ia,aa) = Q1(ia,aa) & 
-      -1.0d0 * t1(nb, ab) * t2(ma, ib, na, mb) & 
-      -1.0d0 * t1(ma, na) * t2(nb, ib, ab, mb) & 
-      -1.0d0 * t1(ib, mb) * t2(ma, nb, na, ab) & 
-      +1.0d0 * t1(nb, mb) * t2(ma, ib, na, ab) & 
-      -1.0d0 * t1(nb, ab) * t1(ma, na) * t1(ib, mb)
-    enddo
-  enddo
-
-  !! Deltas:((na, aa))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    Q1(ia,na) = Q1(ia,na) & 
-    -1.0d0 * t2(ma, ib, na, mb) & 
-    -1.0d0 * t1(ma, na) * t1(ib, mb)
-  enddo
-
-  !! Deltas:((ma, ia))
-  do aa = i_aa, f_aa
-    if (aa == na) cycle 
-    ab = aa + cc_nVa
-    Q1(ma,aa) = Q1(ma,aa) & 
-    +1.0d0 * t2(ma, nb, na, ab) & 
-    +1.0d0 * t1(nb, ab) * t1(ma, na)
-  enddo
-
-  !! Deltas:((na, aa), (ma, ia))
-  Q1(ma,na) = Q1(ma,na) & 
-  +1.0d0 * t1(ma, na)
-
-  ! ### Spin case: i_b, a_b ###
-
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ab = i_ab, f_ab
-      if (ab == mb) cycle 
-      aa = ab - cc_nVa
-      Q1(ib,ab) = Q1(ib,ab) & 
-      -1.0d0 * t1(ma, aa) * t2(ia, nb, na, mb) & 
-      -1.0d0 * t1(ia, na) * t2(ma, nb, aa, mb) & 
-      +1.0d0 * t1(ma, na) * t2(ia, nb, aa, mb) & 
-      -1.0d0 * t1(nb, mb) * t2(ma, ia, aa, na) & 
-      -1.0d0 * t1(ma, aa) * t1(ia, na) * t1(nb, mb)
-    enddo
-  enddo
-
-  !! Deltas:((mb, ab))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    Q1(ib,mb) = Q1(ib,mb) & 
-    -1.0d0 * t2(ia, nb, na, mb) & 
-    -1.0d0 * t1(ia, na) * t1(nb, mb)
-  enddo
-
-  !! Deltas:((nb, ib))
-  do ab = i_ab, f_ab
-    if (ab == mb) cycle 
-    aa = ab - cc_nVa
-    Q1(nb,ab) = Q1(nb,ab) & 
-    +1.0d0 * t2(ma, nb, aa, mb) & 
-    +1.0d0 * t1(ma, aa) * t1(nb, mb)
-  enddo
-
-  !! Deltas:((mb, ab), (nb, ib))
-  Q1(nb,mb) = Q1(nb,mb) & 
-  +1.0d0 * t1(nb, mb)
-  
 end
 #+end_src
 
-** Q2
+** M2
 #+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
+subroutine compute_M2(nO,nV,det,t1,t2,M2)
 
   implicit none
 
@@ -481,7 +403,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
   
-  double precision, intent(out) :: Q2(nO,nO,nV,nV)
+  double precision, intent(out) :: M2(nO,nO,nV,nV)
 
   integer                       :: ia,ib,ja,jb,na,nb,ma,mb,aa,ab,ba,bb
   integer                       :: i_ia, i_ja, i_aa, i_ba
@@ -511,7 +433,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   f_bb = cc_nVab
   
   ! Init
-  Q2 = 0d0
+  M2 = 0d0
 
   ! ### Spin case: i_a, j_a, a_a, b_a ###
 
@@ -527,7 +449,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ia,ja,aa,ba) = Q2(ia,ja,aa,ba) & 
+          M2(ia,ja,aa,ba) = M2(ia,ja,aa,ba) & 
           -1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
           -1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
           +1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
@@ -571,7 +493,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ia,ja,aa,na) = Q2(ia,ja,aa,na) & 
+        M2(ia,ja,aa,na) = M2(ia,ja,aa,na) & 
         -1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
         +1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
         +1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
@@ -592,7 +514,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,ja,na,ba) = Q2(ia,ja,na,ba) & 
+        M2(ia,ja,na,ba) = M2(ia,ja,na,ba) & 
         +1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
         -1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
         -1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
@@ -613,13 +535,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,ma,aa,ba) = Q2(ia,ma,aa,ba) & 
+        M2(ia,ma,aa,ba) = M2(ia,ma,aa,ba) & 
         +1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
         -1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
         -1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
         +1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab)
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab)
       enddo
     enddo
   enddo
@@ -634,13 +556,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ma,ja,aa,ba) = Q2(ma,ja,aa,ba) & 
+        M2(ma,ja,aa,ba) = M2(ma,ja,aa,ba) & 
         -1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
         +1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
         +1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
         -1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab)
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab)
       enddo
     enddo
   enddo
@@ -652,8 +574,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ia,ma,aa,na) = Q2(ia,ma,aa,na) & 
-      -1.0d0 * t2(ma, ib, na, ab)
+      M2(ia,ma,aa,na) = M2(ia,ma,aa,na) & 
+      +1.0d0 * t2(ma, ib, na, ab)
     enddo
   enddo
 
@@ -664,8 +586,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ia,ma,na,ba) = Q2(ia,ma,na,ba) & 
-      +1.0d0 * t2(ma, ib, na, bb)
+      M2(ia,ma,na,ba) = M2(ia,ma,na,ba) & 
+      -1.0d0 * t2(ma, ib, na, bb)
     enddo
   enddo
 
@@ -676,8 +598,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ma,ja,aa,na) = Q2(ma,ja,aa,na) & 
-      +1.0d0 * t2(ma, jb, na, ab)
+      M2(ma,ja,aa,na) = M2(ma,ja,aa,na) & 
+      -1.0d0 * t2(ma, jb, na, ab)
     enddo
   enddo
 
@@ -688,8 +610,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,ja,na,ba) = Q2(ma,ja,na,ba) & 
-      -1.0d0 * t2(ma, jb, na, bb)
+      M2(ma,ja,na,ba) = M2(ma,ja,na,ba) & 
+      +1.0d0 * t2(ma, jb, na, bb)
     enddo
   enddo
 
@@ -707,23 +629,15 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
+          M2(ia,jb,aa,bb) = M2(ia,jb,aa,bb) & 
           -1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
           -1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
           +1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
           +1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
-          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
-          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
           -1.0d0 * t2(ja, nb, ba, ab) * t2(ma, ib, na, mb) & 
           -1.0d0 * t2(ma, ib, ba, ab) * t2(ja, nb, na, mb) & 
           +1.0d0 * t2(ma, nb, ba, ab) * t2(ja, ib, na, mb) & 
@@ -754,11 +668,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ia,jb,aa,mb) = Q2(ia,jb,aa,mb) & 
+        M2(ia,jb,aa,mb) = M2(ia,jb,aa,mb) & 
         -1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
         +1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
-        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
-        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
         +1.0d0 * t1(nb, ab) * t2(ja, ib, na, mb) & 
         +1.0d0 * t1(ja, na) * t2(nb, ib, ab, mb) & 
         +1.0d0 * t1(ib, mb) * t2(ja, nb, na, ab) & 
@@ -777,7 +689,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ia,jb,na,bb) = Q2(ia,jb,na,bb) & 
+        M2(ia,jb,na,bb) = M2(ia,jb,na,bb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
         +1.0d0 * t1(ma, ba) * t2(ja, ib, na, mb) & 
         +1.0d0 * t1(ja, na) * t2(ma, ib, ba, mb) & 
         +1.0d0 * t1(ib, mb) * t2(ma, ja, ba, na) & 
@@ -796,15 +710,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ia,nb,aa,bb) = Q2(ia,nb,aa,bb) & 
+        M2(ia,nb,aa,bb) = M2(ia,nb,aa,bb) & 
         +1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
         -1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
-        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
-        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
-        +1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
-        +1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
-        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
       enddo
     enddo
   enddo
@@ -819,57 +731,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ma,jb,aa,bb) = Q2(ma,jb,aa,bb) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
-        +1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
-        +1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
-        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((nb, ib))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        do bb = i_bb, f_bb
-          if (bb == mb) cycle 
-          ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
-          -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((mb, ab))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        do bb = i_bb, f_bb
-          if (bb == mb) cycle 
-          ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
-          +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
-          -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
-          -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb)
-        enddo
+        M2(ma,jb,aa,bb) = M2(ma,jb,aa,bb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
+        -1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
       enddo
     enddo
   enddo
@@ -881,7 +749,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do jb = i_jb, f_jb
       if (jb == nb) cycle 
       ja = jb - cc_nOa
-      Q2(ia,jb,na,mb) = Q2(ia,jb,na,mb) & 
+      M2(ia,jb,na,mb) = M2(ia,jb,na,mb) & 
       +1.0d0 * t2(ja, ib, na, mb) & 
       +1.0d0 * t1(ja, na) * t1(ib, mb)
     enddo
@@ -894,9 +762,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ia,nb,aa,mb) = Q2(ia,nb,aa,mb) & 
-      +1.0d0 * t2(nb, ib, ab, mb) & 
-      +1.0d0 * t1(nb, ab) * t1(ib, mb)
+      M2(ia,nb,aa,mb) = M2(ia,nb,aa,mb) & 
+      -1.0d0 * t2(nb, ib, ab, mb) & 
+      -1.0d0 * t1(nb, ab) * t1(ib, mb)
     enddo
   enddo
 
@@ -907,9 +775,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ia,nb,na,bb) = Q2(ia,nb,na,bb) & 
-      +1.0d0 * t2(ma, ib, ba, mb) & 
-      +1.0d0 * t1(ma, ba) * t1(ib, mb)
+      M2(ia,nb,na,bb) = M2(ia,nb,na,bb) & 
+      -1.0d0 * t2(ma, ib, ba, mb) & 
+      -1.0d0 * t1(ma, ba) * t1(ib, mb)
     enddo
   enddo
 
@@ -920,9 +788,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ma,jb,aa,mb) = Q2(ma,jb,aa,mb) & 
-      +1.0d0 * t2(ja, nb, na, ab) & 
-      +1.0d0 * t1(nb, ab) * t1(ja, na)
+      M2(ma,jb,aa,mb) = M2(ma,jb,aa,mb) & 
+      -1.0d0 * t2(ja, nb, na, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ja, na)
     enddo
   enddo
 
@@ -933,9 +801,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ma,jb,na,bb) = Q2(ma,jb,na,bb) & 
-      +1.0d0 * t2(ma, ja, ba, na) & 
-      +1.0d0 * t1(ma, ba) * t1(ja, na)
+      M2(ma,jb,na,bb) = M2(ma,jb,na,bb) & 
+      -1.0d0 * t2(ma, ja, ba, na) & 
+      -1.0d0 * t1(ma, ba) * t1(ja, na)
     enddo
   enddo
 
@@ -946,7 +814,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ma,nb,aa,bb) = Q2(ma,nb,aa,bb) & 
+      M2(ma,nb,aa,bb) = M2(ma,nb,aa,bb) & 
       +1.0d0 * t2(ma, nb, ba, ab) & 
       +1.0d0 * t1(nb, ab) * t1(ma, ba)
     enddo
@@ -956,23 +824,23 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ia = i_ia, f_ia
     if (ia == ma) cycle 
     ib = ia + cc_nOa
-    Q2(ia,nb,na,mb) = Q2(ia,nb,na,mb) & 
-    +1.0d0 * t1(ib, mb)
+    M2(ia,nb,na,mb) = M2(ia,nb,na,mb) & 
+    -1.0d0 * t1(ib, mb)
   enddo
 
   !! Deltas:((na, aa), (mb, bb), (ma, ia))
   do jb = i_jb, f_jb
     if (jb == nb) cycle 
     ja = jb - cc_nOa
-    Q2(ma,jb,na,mb) = Q2(ma,jb,na,mb) & 
-    +1.0d0 * t1(ja, na)
+    M2(ma,jb,na,mb) = M2(ma,jb,na,mb) & 
+    -1.0d0 * t1(ja, na)
   enddo
 
   !! Deltas:((mb, bb), (ma, ia), (nb, jb))
   do aa = i_aa, f_aa
     if (aa == na) cycle 
     ab = aa + cc_nVa
-    Q2(ma,nb,aa,mb) = Q2(ma,nb,aa,mb) & 
+    M2(ma,nb,aa,mb) = M2(ma,nb,aa,mb) & 
     +1.0d0 * t1(nb, ab)
   enddo
 
@@ -980,7 +848,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do bb = i_bb, f_bb
     if (bb == mb) cycle 
     ba = bb - cc_nVa
-    Q2(ma,nb,na,bb) = Q2(ma,nb,na,bb) & 
+    M2(ma,nb,na,bb) = M2(ma,nb,na,bb) & 
     +1.0d0 * t1(ma, ba)
   enddo
 
@@ -998,7 +866,15 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ia,jb,ab,ba) = Q2(ia,jb,ab,ba) & 
+          M2(ia,jb,ab,ba) = M2(ia,jb,ab,ba) & 
+          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
           +1.0d0 * t2(ja, nb, aa, bb) * t2(ma, ib, na, mb) & 
           +1.0d0 * t2(ma, ib, aa, bb) * t2(ja, nb, na, mb) & 
           -1.0d0 * t2(ma, nb, aa, bb) * t2(ja, ib, na, mb) & 
@@ -1029,7 +905,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ia,jb,ab,na) = Q2(ia,jb,ab,na) & 
+        M2(ia,jb,ab,na) = M2(ia,jb,ab,na) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
         -1.0d0 * t1(ma, aa) * t2(ja, ib, na, mb) & 
         -1.0d0 * t1(ja, na) * t2(ma, ib, aa, mb) & 
         -1.0d0 * t1(ib, mb) * t2(ma, ja, aa, na) & 
@@ -1048,7 +926,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,jb,mb,ba) = Q2(ia,jb,mb,ba) & 
+        M2(ia,jb,mb,ba) = M2(ia,jb,mb,ba) & 
+        +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
         -1.0d0 * t1(nb, bb) * t2(ja, ib, na, mb) & 
         -1.0d0 * t1(ja, na) * t2(nb, ib, bb, mb) & 
         -1.0d0 * t1(ib, mb) * t2(ja, nb, na, bb) & 
@@ -1067,11 +947,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,nb,ab,ba) = Q2(ia,nb,ab,ba) & 
-        -1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
-        -1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
-        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
+        M2(ia,nb,ab,ba) = M2(ia,nb,ab,ba) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
       enddo
     enddo
   enddo
@@ -1086,11 +968,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ma,jb,ab,ba) = Q2(ma,jb,ab,ba) & 
-        -1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
-        -1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
-        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
+        M2(ma,jb,ab,ba) = M2(ma,jb,ab,ba) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
+        +1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
       enddo
     enddo
   enddo
@@ -1102,7 +986,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do jb = i_jb, f_jb
       if (jb == nb) cycle 
       ja = jb - cc_nOa
-      Q2(ia,jb,mb,na) = Q2(ia,jb,mb,na) & 
+      M2(ia,jb,mb,na) = M2(ia,jb,mb,na) & 
       -1.0d0 * t2(ja, ib, na, mb) & 
       -1.0d0 * t1(ja, na) * t1(ib, mb)
     enddo
@@ -1115,9 +999,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ia,nb,ab,na) = Q2(ia,nb,ab,na) & 
-      -1.0d0 * t2(ma, ib, aa, mb) & 
-      -1.0d0 * t1(ma, aa) * t1(ib, mb)
+      M2(ia,nb,ab,na) = M2(ia,nb,ab,na) & 
+      +1.0d0 * t2(ma, ib, aa, mb) & 
+      +1.0d0 * t1(ma, aa) * t1(ib, mb)
     enddo
   enddo
 
@@ -1128,9 +1012,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ia,nb,mb,ba) = Q2(ia,nb,mb,ba) & 
-      -1.0d0 * t2(nb, ib, bb, mb) & 
-      -1.0d0 * t1(nb, bb) * t1(ib, mb)
+      M2(ia,nb,mb,ba) = M2(ia,nb,mb,ba) & 
+      +1.0d0 * t2(nb, ib, bb, mb) & 
+      +1.0d0 * t1(nb, bb) * t1(ib, mb)
     enddo
   enddo
 
@@ -1141,9 +1025,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ma,jb,ab,na) = Q2(ma,jb,ab,na) & 
-      -1.0d0 * t2(ma, ja, aa, na) & 
-      -1.0d0 * t1(ma, aa) * t1(ja, na)
+      M2(ma,jb,ab,na) = M2(ma,jb,ab,na) & 
+      +1.0d0 * t2(ma, ja, aa, na) & 
+      +1.0d0 * t1(ma, aa) * t1(ja, na)
     enddo
   enddo
 
@@ -1154,9 +1038,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,jb,mb,ba) = Q2(ma,jb,mb,ba) & 
-      -1.0d0 * t2(ja, nb, na, bb) & 
-      -1.0d0 * t1(nb, bb) * t1(ja, na)
+      M2(ma,jb,mb,ba) = M2(ma,jb,mb,ba) & 
+      +1.0d0 * t2(ja, nb, na, bb) & 
+      +1.0d0 * t1(nb, bb) * t1(ja, na)
     enddo
   enddo
 
@@ -1167,7 +1051,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,nb,ab,ba) = Q2(ma,nb,ab,ba) & 
+      M2(ma,nb,ab,ba) = M2(ma,nb,ab,ba) & 
       -1.0d0 * t2(ma, nb, aa, bb) & 
       -1.0d0 * t1(ma, aa) * t1(nb, bb)
     enddo
@@ -1177,23 +1061,23 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ia = i_ia, f_ia
     if (ia == ma) cycle 
     ib = ia + cc_nOa
-    Q2(ia,nb,mb,na) = Q2(ia,nb,mb,na) & 
-    -1.0d0 * t1(ib, mb)
+    M2(ia,nb,mb,na) = M2(ia,nb,mb,na) & 
+    +1.0d0 * t1(ib, mb)
   enddo
 
   !! Deltas:((na, ba), (mb, ab), (ma, ia))
   do jb = i_jb, f_jb
     if (jb == nb) cycle 
     ja = jb - cc_nOa
-    Q2(ma,jb,mb,na) = Q2(ma,jb,mb,na) & 
-    -1.0d0 * t1(ja, na)
+    M2(ma,jb,mb,na) = M2(ma,jb,mb,na) & 
+    +1.0d0 * t1(ja, na)
   enddo
 
   !! Deltas:((na, ba), (ma, ia), (nb, jb))
   do ab = i_ab, f_ab
     if (ab == mb) cycle 
     aa = ab - cc_nVa
-    Q2(ma,nb,ab,na) = Q2(ma,nb,ab,na) & 
+    M2(ma,nb,ab,na) = M2(ma,nb,ab,na) & 
     -1.0d0 * t1(ma, aa)
   enddo
 
@@ -1201,7 +1085,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ba = i_ba, f_ba
     if (ba == na) cycle 
     bb = ba + cc_nVa
-    Q2(ma,nb,mb,ba) = Q2(ma,nb,mb,ba) & 
+    M2(ma,nb,mb,ba) = M2(ma,nb,mb,ba) & 
     -1.0d0 * t1(nb, bb)
   enddo
 
@@ -1219,7 +1103,15 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ib,ja,aa,bb) = Q2(ib,ja,aa,bb) & 
+          M2(ib,ja,aa,bb) = M2(ib,ja,aa,bb) & 
+          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
           +1.0d0 * t2(ma, jb, ba, ab) * t2(ia, nb, na, mb) & 
           +1.0d0 * t2(ia, nb, ba, ab) * t2(ma, jb, na, mb) & 
           -1.0d0 * t2(ma, nb, ba, ab) * t2(ia, jb, na, mb) & 
@@ -1250,7 +1142,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ib,ja,aa,mb) = Q2(ib,ja,aa,mb) & 
+        M2(ib,ja,aa,mb) = M2(ib,ja,aa,mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
         -1.0d0 * t1(nb, ab) * t2(ia, jb, na, mb) & 
         -1.0d0 * t1(ia, na) * t2(nb, jb, ab, mb) & 
         -1.0d0 * t1(jb, mb) * t2(ia, nb, na, ab) & 
@@ -1269,7 +1163,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,ja,na,bb) = Q2(ib,ja,na,bb) & 
+        M2(ib,ja,na,bb) = M2(ib,ja,na,bb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
         -1.0d0 * t1(ma, ba) * t2(ia, jb, na, mb) & 
         -1.0d0 * t1(ia, na) * t2(ma, jb, ba, mb) & 
         -1.0d0 * t1(jb, mb) * t2(ma, ia, ba, na) & 
@@ -1288,11 +1184,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,ma,aa,bb) = Q2(ib,ma,aa,bb) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
-        -1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
-        -1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
-        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
+        M2(ib,ma,aa,bb) = M2(ib,ma,aa,bb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
+        +1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
       enddo
     enddo
   enddo
@@ -1307,11 +1205,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(nb,ja,aa,bb) = Q2(nb,ja,aa,bb) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
-        -1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
-        -1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
-        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
+        M2(nb,ja,aa,bb) = M2(nb,ja,aa,bb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
       enddo
     enddo
   enddo
@@ -1323,7 +1223,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ja = i_ja, f_ja
       if (ja == ma) cycle 
       jb = ja + cc_nOa
-      Q2(ib,ja,na,mb) = Q2(ib,ja,na,mb) & 
+      M2(ib,ja,na,mb) = M2(ib,ja,na,mb) & 
       -1.0d0 * t2(ia, jb, na, mb) & 
       -1.0d0 * t1(ia, na) * t1(jb, mb)
     enddo
@@ -1336,9 +1236,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ib,ma,aa,mb) = Q2(ib,ma,aa,mb) & 
-      -1.0d0 * t2(ia, nb, na, ab) & 
-      -1.0d0 * t1(nb, ab) * t1(ia, na)
+      M2(ib,ma,aa,mb) = M2(ib,ma,aa,mb) & 
+      +1.0d0 * t2(ia, nb, na, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ia, na)
     enddo
   enddo
 
@@ -1349,9 +1249,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ib,ma,na,bb) = Q2(ib,ma,na,bb) & 
-      -1.0d0 * t2(ma, ia, ba, na) & 
-      -1.0d0 * t1(ma, ba) * t1(ia, na)
+      M2(ib,ma,na,bb) = M2(ib,ma,na,bb) & 
+      +1.0d0 * t2(ma, ia, ba, na) & 
+      +1.0d0 * t1(ma, ba) * t1(ia, na)
     enddo
   enddo
 
@@ -1362,9 +1262,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(nb,ja,aa,mb) = Q2(nb,ja,aa,mb) & 
-      -1.0d0 * t2(nb, jb, ab, mb) & 
-      -1.0d0 * t1(nb, ab) * t1(jb, mb)
+      M2(nb,ja,aa,mb) = M2(nb,ja,aa,mb) & 
+      +1.0d0 * t2(nb, jb, ab, mb) & 
+      +1.0d0 * t1(nb, ab) * t1(jb, mb)
     enddo
   enddo
 
@@ -1375,9 +1275,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,ja,na,bb) = Q2(nb,ja,na,bb) & 
-      -1.0d0 * t2(ma, jb, ba, mb) & 
-      -1.0d0 * t1(ma, ba) * t1(jb, mb)
+      M2(nb,ja,na,bb) = M2(nb,ja,na,bb) & 
+      +1.0d0 * t2(ma, jb, ba, mb) & 
+      +1.0d0 * t1(ma, ba) * t1(jb, mb)
     enddo
   enddo
 
@@ -1388,7 +1288,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,ma,aa,bb) = Q2(nb,ma,aa,bb) & 
+      M2(nb,ma,aa,bb) = M2(nb,ma,aa,bb) & 
       -1.0d0 * t2(ma, nb, ba, ab) & 
       -1.0d0 * t1(nb, ab) * t1(ma, ba)
     enddo
@@ -1398,23 +1298,23 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ib = i_ib, f_ib
     if (ib == nb) cycle 
     ia = ib - cc_nOa
-    Q2(ib,ma,na,mb) = Q2(ib,ma,na,mb) & 
-    -1.0d0 * t1(ia, na)
+    M2(ib,ma,na,mb) = M2(ib,ma,na,mb) & 
+    +1.0d0 * t1(ia, na)
   enddo
 
   !! Deltas:((na, aa), (mb, bb), (nb, ib))
   do ja = i_ja, f_ja
     if (ja == ma) cycle 
     jb = ja + cc_nOa
-    Q2(nb,ja,na,mb) = Q2(nb,ja,na,mb) & 
-    -1.0d0 * t1(jb, mb)
+    M2(nb,ja,na,mb) = M2(nb,ja,na,mb) & 
+    +1.0d0 * t1(jb, mb)
   enddo
 
   !! Deltas:((mb, bb), (ma, ja), (nb, ib))
   do aa = i_aa, f_aa
     if (aa == na) cycle 
     ab = aa + cc_nVa
-    Q2(nb,ma,aa,mb) = Q2(nb,ma,aa,mb) & 
+    M2(nb,ma,aa,mb) = M2(nb,ma,aa,mb) & 
     -1.0d0 * t1(nb, ab)
   enddo
 
@@ -1422,7 +1322,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do bb = i_bb, f_bb
     if (bb == mb) cycle 
     ba = bb - cc_nVa
-    Q2(nb,ma,na,bb) = Q2(nb,ma,na,bb) & 
+    M2(nb,ma,na,bb) = M2(nb,ma,na,bb) & 
     -1.0d0 * t1(ma, ba)
   enddo
 
@@ -1440,23 +1340,15 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
+          M2(ib,ja,ab,ba) = M2(ib,ja,ab,ba) & 
           -1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
           -1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
           +1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
           +1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
-          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
-          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
           -1.0d0 * t2(ma, jb, aa, bb) * t2(ia, nb, na, mb) & 
           -1.0d0 * t2(ia, nb, aa, bb) * t2(ma, jb, na, mb) & 
           +1.0d0 * t2(ma, nb, aa, bb) * t2(ia, jb, na, mb) & 
@@ -1487,11 +1379,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ib,ja,ab,na) = Q2(ib,ja,ab,na) & 
+        M2(ib,ja,ab,na) = M2(ib,ja,ab,na) & 
         -1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
         +1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
-        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
-        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
         +1.0d0 * t1(ma, aa) * t2(ia, jb, na, mb) & 
         +1.0d0 * t1(ia, na) * t2(ma, jb, aa, mb) & 
         +1.0d0 * t1(jb, mb) * t2(ma, ia, aa, na) & 
@@ -1510,7 +1400,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ib,ja,mb,ba) = Q2(ib,ja,mb,ba) & 
+        M2(ib,ja,mb,ba) = M2(ib,ja,mb,ba) & 
+        -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
         +1.0d0 * t1(nb, bb) * t2(ia, jb, na, mb) & 
         +1.0d0 * t1(ia, na) * t2(nb, jb, bb, mb) & 
         +1.0d0 * t1(jb, mb) * t2(ia, nb, na, bb) & 
@@ -1529,15 +1421,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ib,ma,ab,ba) = Q2(ib,ma,ab,ba) & 
+        M2(ib,ma,ab,ba) = M2(ib,ma,ab,ba) & 
         +1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
         -1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
-        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
-        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
-        +1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
-        +1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
-        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
+        -1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
       enddo
     enddo
   enddo
@@ -1552,57 +1442,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(nb,ja,ab,ba) = Q2(nb,ja,ab,ba) & 
-        +1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
-        +1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
-        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((ma, ia))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        do ba = i_ba, f_ba
-          if (ba == na) cycle 
-          bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
-          -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((na, aa))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        do ba = i_ba, f_ba
-          if (ba == na) cycle 
-          bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
-          +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
-          -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
-          -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb)
-        enddo
+        M2(nb,ja,ab,ba) = M2(nb,ja,ab,ba) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
       enddo
     enddo
   enddo
@@ -1614,7 +1460,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ja = i_ja, f_ja
       if (ja == ma) cycle 
       jb = ja + cc_nOa
-      Q2(ib,ja,mb,na) = Q2(ib,ja,mb,na) & 
+      M2(ib,ja,mb,na) = M2(ib,ja,mb,na) & 
       +1.0d0 * t2(ia, jb, na, mb) & 
       +1.0d0 * t1(ia, na) * t1(jb, mb)
     enddo
@@ -1627,9 +1473,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ib,ma,ab,na) = Q2(ib,ma,ab,na) & 
-      +1.0d0 * t2(ma, ia, aa, na) & 
-      +1.0d0 * t1(ma, aa) * t1(ia, na)
+      M2(ib,ma,ab,na) = M2(ib,ma,ab,na) & 
+      -1.0d0 * t2(ma, ia, aa, na) & 
+      -1.0d0 * t1(ma, aa) * t1(ia, na)
     enddo
   enddo
 
@@ -1640,9 +1486,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ib,ma,mb,ba) = Q2(ib,ma,mb,ba) & 
-      +1.0d0 * t2(ia, nb, na, bb) & 
-      +1.0d0 * t1(nb, bb) * t1(ia, na)
+      M2(ib,ma,mb,ba) = M2(ib,ma,mb,ba) & 
+      -1.0d0 * t2(ia, nb, na, bb) & 
+      -1.0d0 * t1(nb, bb) * t1(ia, na)
     enddo
   enddo
 
@@ -1653,9 +1499,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(nb,ja,ab,na) = Q2(nb,ja,ab,na) & 
-      +1.0d0 * t2(ma, jb, aa, mb) & 
-      +1.0d0 * t1(ma, aa) * t1(jb, mb)
+      M2(nb,ja,ab,na) = M2(nb,ja,ab,na) & 
+      -1.0d0 * t2(ma, jb, aa, mb) & 
+      -1.0d0 * t1(ma, aa) * t1(jb, mb)
     enddo
   enddo
 
@@ -1666,9 +1512,9 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(nb,ja,mb,ba) = Q2(nb,ja,mb,ba) & 
-      +1.0d0 * t2(nb, jb, bb, mb) & 
-      +1.0d0 * t1(nb, bb) * t1(jb, mb)
+      M2(nb,ja,mb,ba) = M2(nb,ja,mb,ba) & 
+      -1.0d0 * t2(nb, jb, bb, mb) & 
+      -1.0d0 * t1(nb, bb) * t1(jb, mb)
     enddo
   enddo
 
@@ -1679,7 +1525,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(nb,ma,ab,ba) = Q2(nb,ma,ab,ba) & 
+      M2(nb,ma,ab,ba) = M2(nb,ma,ab,ba) & 
       +1.0d0 * t2(ma, nb, aa, bb) & 
       +1.0d0 * t1(ma, aa) * t1(nb, bb)
     enddo
@@ -1689,23 +1535,23 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ib = i_ib, f_ib
     if (ib == nb) cycle 
     ia = ib - cc_nOa
-    Q2(ib,ma,mb,na) = Q2(ib,ma,mb,na) & 
-    +1.0d0 * t1(ia, na)
+    M2(ib,ma,mb,na) = M2(ib,ma,mb,na) & 
+    -1.0d0 * t1(ia, na)
   enddo
 
   !! Deltas:((na, ba), (mb, ab), (nb, ib))
   do ja = i_ja, f_ja
     if (ja == ma) cycle 
     jb = ja + cc_nOa
-    Q2(nb,ja,mb,na) = Q2(nb,ja,mb,na) & 
-    +1.0d0 * t1(jb, mb)
+    M2(nb,ja,mb,na) = M2(nb,ja,mb,na) & 
+    -1.0d0 * t1(jb, mb)
   enddo
 
   !! Deltas:((na, ba), (ma, ja), (nb, ib))
   do ab = i_ab, f_ab
     if (ab == mb) cycle 
     aa = ab - cc_nVa
-    Q2(nb,ma,ab,na) = Q2(nb,ma,ab,na) & 
+    M2(nb,ma,ab,na) = M2(nb,ma,ab,na) & 
     +1.0d0 * t1(ma, aa)
   enddo
 
@@ -1713,7 +1559,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
   do ba = i_ba, f_ba
     if (ba == na) cycle 
     bb = ba + cc_nVa
-    Q2(nb,ma,mb,ba) = Q2(nb,ma,mb,ba) & 
+    M2(nb,ma,mb,ba) = M2(nb,ma,mb,ba) & 
     +1.0d0 * t1(nb, bb)
   enddo
 
@@ -1731,7 +1577,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ib,jb,ab,bb) = Q2(ib,jb,ab,bb) & 
+          M2(ib,jb,ab,bb) = M2(ib,jb,ab,bb) & 
           -1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
           -1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
           +1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
@@ -1775,7 +1621,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ib,jb,ab,mb) = Q2(ib,jb,ab,mb) & 
+        M2(ib,jb,ab,mb) = M2(ib,jb,ab,mb) & 
         -1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
         +1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
         +1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
@@ -1796,7 +1642,7 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,jb,mb,bb) = Q2(ib,jb,mb,bb) & 
+        M2(ib,jb,mb,bb) = M2(ib,jb,mb,bb) & 
         +1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
         -1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
         -1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
@@ -1817,13 +1663,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,nb,ab,bb) = Q2(ib,nb,ab,bb) & 
+        M2(ib,nb,ab,bb) = M2(ib,nb,ab,bb) & 
         +1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
         -1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
         -1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
         +1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
-        +1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
-        -1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb)
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb)
       enddo
     enddo
   enddo
@@ -1838,13 +1684,13 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(nb,jb,ab,bb) = Q2(nb,jb,ab,bb) & 
+        M2(nb,jb,ab,bb) = M2(nb,jb,ab,bb) & 
         -1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
         +1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
         +1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
         -1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
-        -1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
-        +1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb)
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb)
       enddo
     enddo
   enddo
@@ -1856,8 +1702,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ib,nb,ab,mb) = Q2(ib,nb,ab,mb) & 
-      -1.0d0 * t2(ia, nb, aa, mb)
+      M2(ib,nb,ab,mb) = M2(ib,nb,ab,mb) & 
+      +1.0d0 * t2(ia, nb, aa, mb)
     enddo
   enddo
 
@@ -1868,8 +1714,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ib,nb,mb,bb) = Q2(ib,nb,mb,bb) & 
-      +1.0d0 * t2(ia, nb, ba, mb)
+      M2(ib,nb,mb,bb) = M2(ib,nb,mb,bb) & 
+      -1.0d0 * t2(ia, nb, ba, mb)
     enddo
   enddo
 
@@ -1880,8 +1726,8 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(nb,jb,ab,mb) = Q2(nb,jb,ab,mb) & 
-      +1.0d0 * t2(ja, nb, aa, mb)
+      M2(nb,jb,ab,mb) = M2(nb,jb,ab,mb) & 
+      -1.0d0 * t2(ja, nb, aa, mb)
     enddo
   enddo
 
@@ -1892,17 +1738,17 @@ subroutine compute_Q2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,jb,mb,bb) = Q2(nb,jb,mb,bb) & 
-      -1.0d0 * t2(ja, nb, ba, mb)
+      M2(nb,jb,mb,bb) = M2(nb,jb,mb,bb) & 
+      +1.0d0 * t2(ja, nb, ba, mb)
     enddo
   enddo
-  
+
 end
 #+end_src
 
-** Q2
+** M2_2
 #+begin_src f90 :comments org :tangle tdcc.irp.f
-subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
+subroutine compute_M2_2(nO,nV,det,t1,t2,M2)
 
   implicit none
 
@@ -1910,7 +1756,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   integer(bit_kind), intent(in) :: det(N_int,2)
   double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
   
-  double precision, intent(out) :: Q2(nO,nO,nV,nV)
+  double precision, intent(out) :: M2(nO,nO,nV,nV)
 
   integer                       :: ia,ib,ja,jb,na,nb,ma,mb,aa,ab,ba,bb
   integer                       :: i_ia, i_ja, i_aa, i_ba
@@ -1940,7 +1786,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   f_bb = cc_nVab
   
   ! Init
-  Q2 = 0d0
+  M2 = 0d0
 
   ! ### Spin case: i_a, j_a, a_a, b_a ###
 
@@ -1956,7 +1802,1360 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ia,ja,aa,ba) = Q2(ia,ja,aa,ba) & 
+          M2(ia,ja,aa,ba) = M2(ia,ja,aa,ba) & 
+          +1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t2(nb, jb, ab, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t2(nb, ib, ab, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t2(ma, jb, na, ab) * t2(nb, ib, bb, mb) & 
+          -1.0d0 * t2(ma, ib, na, ab) * t2(nb, jb, bb, mb) & 
+          +1.0d0 * t2(ma, nb, na, ab) * t2(ib, jb, bb, mb) & 
+          -1.0d0 * t2(ib, jb, ab, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t2(nb, jb, ab, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t2(nb, ib, ab, mb) * t2(ma, jb, na, bb) & 
+          +1.0d0 * t1(nb, ab) * t1(jb, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t1(nb, ab) * t1(ib, mb) * t2(ma, jb, na, bb) & 
+          -1.0d0 * t1(nb, bb) * t1(jb, mb) * t2(ma, ib, na, ab) & 
+          +1.0d0 * t1(nb, bb) * t1(ib, mb) * t2(ma, jb, na, ab)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        M2(ia,ja,aa,na) = M2(ia,ja,aa,na) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, ib, na, ab) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, jb, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ia,ja,na,ba) = M2(ia,ja,na,ba) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, ib, na, bb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, jb, na, bb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ia,ma,aa,ba) = M2(ia,ma,aa,ba) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ma,ja,aa,ba) = M2(ma,ja,aa,ba) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(ia,ma,aa,na) = M2(ia,ma,aa,na) & 
+      +1.0d0 * t2(ma, ib, na, ab)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ia,ma,na,ba) = M2(ia,ma,na,ba) & 
+      -1.0d0 * t2(ma, ib, na, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(ma,ja,aa,na) = M2(ma,ja,aa,na) & 
+      -1.0d0 * t2(ma, jb, na, ab)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ma,ja,na,ba) = M2(ma,ja,na,ba) & 
+      +1.0d0 * t2(ma, jb, na, bb)
+    enddo
+  enddo
+
+  ! ### Spin case: i_a, j_b, a_a, b_b ###
+
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          M2(ia,jb,aa,bb) = M2(ia,jb,aa,bb) & 
+          +1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t2(ja, nb, ba, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t2(ma, ib, ba, ab) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t2(ma, nb, ba, ab) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t2(ja, ib, na, ab) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t2(ja, nb, na, ab) * t2(ma, ib, ba, mb) & 
+          +1.0d0 * t2(ma, ib, na, ab) * t2(ja, nb, ba, mb) & 
+          -1.0d0 * t2(ma, nb, na, ab) * t2(ja, ib, ba, mb) & 
+          +1.0d0 * t2(nb, ib, ab, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t1(nb, ab) * t1(ma, ba) * t2(ja, ib, na, mb) & 
+          +1.0d0 * t1(nb, ab) * t1(ja, na) * t2(ma, ib, ba, mb) & 
+          +1.0d0 * t1(nb, ab) * t1(ib, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t1(ma, ba) * t1(ja, na) * t2(nb, ib, ab, mb) & 
+          +1.0d0 * t1(ma, ba) * t1(ib, mb) * t2(ja, nb, na, ab) & 
+          +1.0d0 * t1(ja, na) * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+          +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na) * t1(ib, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        M2(ia,jb,aa,mb) = M2(ia,jb,aa,mb) & 
+        +1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ja, ib, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(nb, ib, ab, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ja, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ia,jb,na,bb) = M2(ia,jb,na,bb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(ja, ib, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(ma, ib, ba, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, ja, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ia,nb,aa,bb) = M2(ia,nb,aa,bb) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ma,jb,aa,bb) = M2(ma,jb,aa,bb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
+        -1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      M2(ia,jb,na,mb) = M2(ia,jb,na,mb) & 
+      +1.0d0 * t2(ja, ib, na, mb) & 
+      +1.0d0 * t1(ja, na) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(ia,nb,aa,mb) = M2(ia,nb,aa,mb) & 
+      -1.0d0 * t2(nb, ib, ab, mb) & 
+      -1.0d0 * t1(nb, ab) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(ia,nb,na,bb) = M2(ia,nb,na,bb) & 
+      -1.0d0 * t2(ma, ib, ba, mb) & 
+      -1.0d0 * t1(ma, ba) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(ma,jb,aa,mb) = M2(ma,jb,aa,mb) & 
+      -1.0d0 * t2(ja, nb, na, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(ma,jb,na,bb) = M2(ma,jb,na,bb) & 
+      -1.0d0 * t2(ma, ja, ba, na) & 
+      -1.0d0 * t1(ma, ba) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia), (nb, jb))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(ma,nb,aa,bb) = M2(ma,nb,aa,bb) & 
+      +1.0d0 * t2(ma, nb, ba, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ma, ba)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    M2(ia,nb,na,mb) = M2(ia,nb,na,mb) & 
+    -1.0d0 * t1(ib, mb)
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    M2(ma,jb,na,mb) = M2(ma,jb,na,mb) & 
+    -1.0d0 * t1(ja, na)
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ia), (nb, jb))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    M2(ma,nb,aa,mb) = M2(ma,nb,aa,mb) & 
+    +1.0d0 * t1(nb, ab)
+  enddo
+
+  !! Deltas:((na, aa), (ma, ia), (nb, jb))
+  do bb = i_bb, f_bb
+    if (bb == mb) cycle 
+    ba = bb - cc_nVa
+    M2(ma,nb,na,bb) = M2(ma,nb,na,bb) & 
+    +1.0d0 * t1(ma, ba)
+  enddo
+
+  ! ### Spin case: i_a, j_b, a_b, b_a ###
+
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          M2(ia,jb,ab,ba) = M2(ia,jb,ab,ba) & 
+          -1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t2(ja, nb, aa, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t2(ma, ib, aa, bb) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t2(ma, nb, aa, bb) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t2(ma, ja, aa, na) * t2(nb, ib, bb, mb) & 
+          +1.0d0 * t2(ja, ib, aa, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t2(ja, nb, aa, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t2(ma, ib, aa, mb) * t2(ja, nb, na, bb) & 
+          +1.0d0 * t2(ma, nb, aa, mb) * t2(ja, ib, na, bb) & 
+          -1.0d0 * t1(ma, aa) * t1(nb, bb) * t2(ja, ib, na, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ja, na) * t2(nb, ib, bb, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ib, mb) * t2(ja, nb, na, bb) & 
+          -1.0d0 * t1(nb, bb) * t1(ja, na) * t2(ma, ib, aa, mb) & 
+          -1.0d0 * t1(nb, bb) * t1(ib, mb) * t2(ma, ja, aa, na) & 
+          -1.0d0 * t1(ja, na) * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+          -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na) * t1(ib, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        M2(ia,jb,ab,na) = M2(ia,jb,ab,na) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(ja, ib, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(ma, ib, aa, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, ja, aa, na) & 
+        -1.0d0 * t1(ma, aa) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ia,jb,mb,ba) = M2(ia,jb,mb,ba) & 
+        -1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(nb, bb) * t2(ja, ib, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(nb, ib, bb, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ja, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t1(ja, na) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ia,nb,ab,ba) = M2(ia,nb,ab,ba) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ma,jb,ab,ba) = M2(ma,jb,ab,ba) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
+        +1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      M2(ia,jb,mb,na) = M2(ia,jb,mb,na) & 
+      -1.0d0 * t2(ja, ib, na, mb) & 
+      -1.0d0 * t1(ja, na) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(ia,nb,ab,na) = M2(ia,nb,ab,na) & 
+      +1.0d0 * t2(ma, ib, aa, mb) & 
+      +1.0d0 * t1(ma, aa) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ia,nb,mb,ba) = M2(ia,nb,mb,ba) & 
+      +1.0d0 * t2(nb, ib, bb, mb) & 
+      +1.0d0 * t1(nb, bb) * t1(ib, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(ma,jb,ab,na) = M2(ma,jb,ab,na) & 
+      +1.0d0 * t2(ma, ja, aa, na) & 
+      +1.0d0 * t1(ma, aa) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ma,jb,mb,ba) = M2(ma,jb,mb,ba) & 
+      +1.0d0 * t2(ja, nb, na, bb) & 
+      +1.0d0 * t1(nb, bb) * t1(ja, na)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ia), (nb, jb))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ma,nb,ab,ba) = M2(ma,nb,ab,ba) & 
+      -1.0d0 * t2(ma, nb, aa, bb) & 
+      -1.0d0 * t1(ma, aa) * t1(nb, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (nb, jb))
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    M2(ia,nb,mb,na) = M2(ia,nb,mb,na) & 
+    +1.0d0 * t1(ib, mb)
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (ma, ia))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    M2(ma,jb,mb,na) = M2(ma,jb,mb,na) & 
+    +1.0d0 * t1(ja, na)
+  enddo
+
+  !! Deltas:((na, ba), (ma, ia), (nb, jb))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    M2(ma,nb,ab,na) = M2(ma,nb,ab,na) & 
+    -1.0d0 * t1(ma, aa)
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ia), (nb, jb))
+  do ba = i_ba, f_ba
+    if (ba == na) cycle 
+    bb = ba + cc_nVa
+    M2(ma,nb,mb,ba) = M2(ma,nb,mb,ba) & 
+    -1.0d0 * t1(nb, bb)
+  enddo
+
+  ! ### Spin case: i_b, j_a, a_a, b_b ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          M2(ib,ja,aa,bb) = M2(ib,ja,aa,bb) & 
+          -1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t2(ma, jb, ba, ab) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t2(ia, nb, ba, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t2(ma, nb, ba, ab) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t2(ia, jb, na, ab) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t2(ma, jb, na, ab) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t2(ia, nb, na, ab) * t2(ma, jb, ba, mb) & 
+          +1.0d0 * t2(ma, nb, na, ab) * t2(ia, jb, ba, mb) & 
+          -1.0d0 * t2(nb, jb, ab, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t1(nb, ab) * t1(ma, ba) * t2(ia, jb, na, mb) & 
+          -1.0d0 * t1(nb, ab) * t1(ia, na) * t2(ma, jb, ba, mb) & 
+          -1.0d0 * t1(nb, ab) * t1(jb, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t1(ma, ba) * t1(ia, na) * t2(nb, jb, ab, mb) & 
+          -1.0d0 * t1(ma, ba) * t1(jb, mb) * t2(ia, nb, na, ab) & 
+          -1.0d0 * t1(ia, na) * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+          -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na) * t1(jb, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        M2(ib,ja,aa,mb) = M2(ib,ja,aa,mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(nb, ab) * t2(ia, jb, na, mb) & 
+        -1.0d0 * t1(ia, na) * t2(nb, jb, ab, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ia, nb, na, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ib,ja,na,bb) = M2(ib,ja,na,bb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(ia, jb, na, mb) & 
+        -1.0d0 * t1(ia, na) * t2(ma, jb, ba, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, ia, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ib,ma,aa,bb) = M2(ib,ma,aa,bb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
+        +1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(nb,ja,aa,bb) = M2(nb,ja,aa,bb) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      M2(ib,ja,na,mb) = M2(ib,ja,na,mb) & 
+      -1.0d0 * t2(ia, jb, na, mb) & 
+      -1.0d0 * t1(ia, na) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(ib,ma,aa,mb) = M2(ib,ma,aa,mb) & 
+      +1.0d0 * t2(ia, nb, na, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(ib,ma,na,bb) = M2(ib,ma,na,bb) & 
+      +1.0d0 * t2(ma, ia, ba, na) & 
+      +1.0d0 * t1(ma, ba) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do aa = i_aa, f_aa
+      if (aa == na) cycle 
+      ab = aa + cc_nVa
+      M2(nb,ja,aa,mb) = M2(nb,ja,aa,mb) & 
+      +1.0d0 * t2(nb, jb, ab, mb) & 
+      +1.0d0 * t1(nb, ab) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(nb,ja,na,bb) = M2(nb,ja,na,bb) & 
+      +1.0d0 * t2(ma, jb, ba, mb) & 
+      +1.0d0 * t1(ma, ba) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja), (nb, ib))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(nb,ma,aa,bb) = M2(nb,ma,aa,bb) & 
+      -1.0d0 * t2(ma, nb, ba, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ma, ba)
+    enddo
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    M2(ib,ma,na,mb) = M2(ib,ma,na,mb) & 
+    +1.0d0 * t1(ia, na)
+  enddo
+
+  !! Deltas:((na, aa), (mb, bb), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    M2(nb,ja,na,mb) = M2(nb,ja,na,mb) & 
+    +1.0d0 * t1(jb, mb)
+  enddo
+
+  !! Deltas:((mb, bb), (ma, ja), (nb, ib))
+  do aa = i_aa, f_aa
+    if (aa == na) cycle 
+    ab = aa + cc_nVa
+    M2(nb,ma,aa,mb) = M2(nb,ma,aa,mb) & 
+    -1.0d0 * t1(nb, ab)
+  enddo
+
+  !! Deltas:((na, aa), (ma, ja), (nb, ib))
+  do bb = i_bb, f_bb
+    if (bb == mb) cycle 
+    ba = bb - cc_nVa
+    M2(nb,ma,na,bb) = M2(nb,ma,na,bb) & 
+    -1.0d0 * t1(ma, ba)
+  enddo
+
+  ! ### Spin case: i_b, j_a, a_b, b_a ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          M2(ib,ja,ab,ba) = M2(ib,ja,ab,ba) & 
+          +1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t2(ma, jb, aa, bb) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t2(ia, nb, aa, bb) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t2(ma, nb, aa, bb) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t2(ma, ia, aa, na) * t2(nb, jb, bb, mb) & 
+          -1.0d0 * t2(ia, jb, aa, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t2(ma, jb, aa, mb) * t2(ia, nb, na, bb) & 
+          +1.0d0 * t2(ia, nb, aa, mb) * t2(ma, jb, na, bb) & 
+          -1.0d0 * t2(ma, nb, aa, mb) * t2(ia, jb, na, bb) & 
+          +1.0d0 * t1(ma, aa) * t1(nb, bb) * t2(ia, jb, na, mb) & 
+          +1.0d0 * t1(ma, aa) * t1(ia, na) * t2(nb, jb, bb, mb) & 
+          +1.0d0 * t1(ma, aa) * t1(jb, mb) * t2(ia, nb, na, bb) & 
+          +1.0d0 * t1(nb, bb) * t1(ia, na) * t2(ma, jb, aa, mb) & 
+          +1.0d0 * t1(nb, bb) * t1(jb, mb) * t2(ma, ia, aa, na) & 
+          +1.0d0 * t1(ia, na) * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+          +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na) * t1(jb, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        M2(ib,ja,ab,na) = M2(ib,ja,ab,na) & 
+        +1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(ia, jb, na, mb) & 
+        +1.0d0 * t1(ia, na) * t2(ma, jb, aa, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, ia, aa, na) & 
+        +1.0d0 * t1(ma, aa) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ib,ja,mb,ba) = M2(ib,ja,mb,ba) & 
+        +1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(nb, bb) * t2(ia, jb, na, mb) & 
+        +1.0d0 * t1(ia, na) * t2(nb, jb, bb, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ia, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t1(ia, na) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(ib,ma,ab,ba) = M2(ib,ma,ab,ba) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
+        -1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do ba = i_ba, f_ba
+        if (ba == na) cycle 
+        bb = ba + cc_nVa
+        M2(nb,ja,ab,ba) = M2(nb,ja,ab,ba) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      M2(ib,ja,mb,na) = M2(ib,ja,mb,na) & 
+      +1.0d0 * t2(ia, jb, na, mb) & 
+      +1.0d0 * t1(ia, na) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(ib,ma,ab,na) = M2(ib,ma,ab,na) & 
+      -1.0d0 * t2(ma, ia, aa, na) & 
+      -1.0d0 * t1(ma, aa) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(ib,ma,mb,ba) = M2(ib,ma,mb,ba) & 
+      -1.0d0 * t2(ia, nb, na, bb) & 
+      -1.0d0 * t1(nb, bb) * t1(ia, na)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(nb,ja,ab,na) = M2(nb,ja,ab,na) & 
+      -1.0d0 * t2(ma, jb, aa, mb) & 
+      -1.0d0 * t1(ma, aa) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(nb,ja,mb,ba) = M2(nb,ja,mb,ba) & 
+      -1.0d0 * t2(nb, jb, bb, mb) & 
+      -1.0d0 * t1(nb, bb) * t1(jb, mb)
+    enddo
+  enddo
+
+  !! Deltas:((ma, ja), (nb, ib))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    do ba = i_ba, f_ba
+      if (ba == na) cycle 
+      bb = ba + cc_nVa
+      M2(nb,ma,ab,ba) = M2(nb,ma,ab,ba) & 
+      +1.0d0 * t2(ma, nb, aa, bb) & 
+      +1.0d0 * t1(ma, aa) * t1(nb, bb)
+    enddo
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (ma, ja))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    M2(ib,ma,mb,na) = M2(ib,ma,mb,na) & 
+    -1.0d0 * t1(ia, na)
+  enddo
+
+  !! Deltas:((na, ba), (mb, ab), (nb, ib))
+  do ja = i_ja, f_ja
+    if (ja == ma) cycle 
+    jb = ja + cc_nOa
+    M2(nb,ja,mb,na) = M2(nb,ja,mb,na) & 
+    -1.0d0 * t1(jb, mb)
+  enddo
+
+  !! Deltas:((na, ba), (ma, ja), (nb, ib))
+  do ab = i_ab, f_ab
+    if (ab == mb) cycle 
+    aa = ab - cc_nVa
+    M2(nb,ma,ab,na) = M2(nb,ma,ab,na) & 
+    +1.0d0 * t1(ma, aa)
+  enddo
+
+  !! Deltas:((mb, ab), (ma, ja), (nb, ib))
+  do ba = i_ba, f_ba
+    if (ba == na) cycle 
+    bb = ba + cc_nVa
+    M2(nb,ma,mb,ba) = M2(nb,ma,mb,ba) & 
+    +1.0d0 * t1(nb, bb)
+  enddo
+
+  ! ### Spin case: i_b, j_b, a_b, b_b ###
+
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        do bb = i_bb, f_bb
+          if (bb == mb) cycle 
+          ba = bb - cc_nVa
+          M2(ib,jb,ab,bb) = M2(ib,jb,ab,bb) & 
+          +1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t2(ma, ja, aa, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t2(ma, ia, aa, ba) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t2(ia, ja, aa, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t2(ma, ja, aa, na) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t2(ma, ia, aa, na) * t2(ja, nb, ba, mb) & 
+          +1.0d0 * t2(ja, nb, aa, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t2(ia, nb, aa, mb) * t2(ma, ja, ba, na) & 
+          +1.0d0 * t2(ma, nb, aa, mb) * t2(ia, ja, ba, na) & 
+          +1.0d0 * t1(ma, aa) * t1(ja, na) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t1(ma, aa) * t1(ia, na) * t2(ja, nb, ba, mb) & 
+          -1.0d0 * t1(ma, ba) * t1(ja, na) * t2(ia, nb, aa, mb) & 
+          +1.0d0 * t1(ma, ba) * t1(ia, na) * t2(ja, nb, aa, mb)
+        enddo
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do ab = i_ab, f_ab
+        if (ab == mb) cycle 
+        aa = ab - cc_nVa
+        M2(ib,jb,ab,mb) = M2(ib,jb,ab,mb) & 
+        +1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(ja, na) * t2(ia, nb, aa, mb) & 
+        +1.0d0 * t1(ia, na) * t2(ja, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do jb = i_jb, f_jb
+      if (jb == nb) cycle 
+      ja = jb - cc_nOa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ib,jb,mb,bb) = M2(ib,jb,mb,bb) & 
+        -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(ja, na) * t2(ia, nb, ba, mb) & 
+        -1.0d0 * t1(ia, na) * t2(ja, nb, ba, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(ib,nb,ab,bb) = M2(ib,nb,ab,bb) & 
+        -1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      do bb = i_bb, f_bb
+        if (bb == mb) cycle 
+        ba = bb - cc_nVa
+        M2(nb,jb,ab,bb) = M2(nb,jb,ab,bb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb)
+      enddo
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(ib,nb,ab,mb) = M2(ib,nb,ab,mb) & 
+      +1.0d0 * t2(ia, nb, aa, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, jb))
+  do ib = i_ib, f_ib
+    if (ib == nb) cycle 
+    ia = ib - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(ib,nb,mb,bb) = M2(ib,nb,mb,bb) & 
+      -1.0d0 * t2(ia, nb, ba, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, bb), (nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do ab = i_ab, f_ab
+      if (ab == mb) cycle 
+      aa = ab - cc_nVa
+      M2(nb,jb,ab,mb) = M2(nb,jb,ab,mb) & 
+      -1.0d0 * t2(ja, nb, aa, mb)
+    enddo
+  enddo
+
+  !! Deltas:((mb, ab), (nb, ib))
+  do jb = i_jb, f_jb
+    if (jb == nb) cycle 
+    ja = jb - cc_nOa
+    do bb = i_bb, f_bb
+      if (bb == mb) cycle 
+      ba = bb - cc_nVa
+      M2(nb,jb,mb,bb) = M2(nb,jb,mb,bb) & 
+      +1.0d0 * t2(ja, nb, ba, mb)
+    enddo
+  enddo
+
+end
+#+end_src
+
+** M2_12
+#+begin_src f90 :comments org :tangle tdcc.irp.f
+subroutine compute_M2_12(nO,nV,det,t1,t2,M2)
+
+  implicit none
+
+  integer, intent(in)           :: nO,nV
+  integer(bit_kind), intent(in) :: det(N_int,2)
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+  
+  double precision, intent(out) :: M2(nO,nO,nV,nV)
+
+  integer                       :: ia,ib,ja,jb,na,nb,ma,mb,aa,ab,ba,bb
+  integer                       :: i_ia, i_ja, i_aa, i_ba
+  integer                       :: i_ib, i_jb, i_ab, i_bb
+  integer                       :: f_ia, f_ja, f_aa, f_ba
+  integer                       :: f_ib, f_jb, f_ab, f_bb
+
+  ! List of open spin orbitals
+  call extract_open_spin_orb(nO,nV,det,ma,mb,na,nb)
+
+  i_ia = 1
+  i_ja = 1
+  i_ib = cc_nOa + 1
+  i_jb = cc_nOa + 1
+  i_aa = 1
+  i_ba = 1
+  i_ab = cc_nVa + 1
+  i_bb = cc_nVa + 1
+
+  f_ia = cc_nOa
+  f_ja = cc_nOa
+  f_ib = cc_nOab
+  f_jb = cc_nOab
+  f_aa = cc_nVa
+  f_ba = cc_nVa
+  f_ab = cc_nVab
+  f_bb = cc_nVab
+  
+  ! Init
+  M2 = 0d0
+
+  ! ### Spin case: i_a, j_a, a_a, b_a ###
+
+  do ia = i_ia, f_ia
+    if (ia == ma) cycle 
+    ib = ia + cc_nOa
+    do ja = i_ja, f_ja
+      if (ja == ma) cycle 
+      jb = ja + cc_nOa
+      do aa = i_aa, f_aa
+        if (aa == na) cycle 
+        ab = aa + cc_nVa
+        do ba = i_ba, f_ba
+          if (ba == na) cycle 
+          bb = ba + cc_nVa
+          M2(ia,ja,aa,ba) = M2(ia,ja,aa,ba) & 
           -1.0d0 * t1(ia, aa) * t1(nb, bb) * t2(ma, jb, na, mb) & 
           -1.0d0 * t1(ia, aa) * t1(ma, na) * t2(nb, jb, bb, mb) & 
           -1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
@@ -2028,7 +3227,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ia,ja,aa,na) = Q2(ia,ja,aa,na) & 
+        M2(ia,ja,aa,na) = M2(ia,ja,aa,na) & 
         -1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
         -1.0d0 * t1(ia, aa) * t1(ma, na) * t1(jb, mb) & 
         +1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
@@ -2054,7 +3253,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,ja,na,ba) = Q2(ia,ja,na,ba) & 
+        M2(ia,ja,na,ba) = M2(ia,ja,na,ba) & 
         +1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
         +1.0d0 * t1(ia, ba) * t1(ma, na) * t1(jb, mb) & 
         -1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
@@ -2080,7 +3279,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,ma,aa,ba) = Q2(ia,ma,aa,ba) & 
+        M2(ia,ma,aa,ba) = M2(ia,ma,aa,ba) & 
         +1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
         +1.0d0 * t1(ia, aa) * t1(nb, bb) * t1(ma, na) & 
         -1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
@@ -2089,9 +3288,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         -1.0d0 * t1(ia, ba) * t1(nb, ab) * t1(ma, na) & 
         +1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
         +1.0d0 * t1(ib, bb) * t1(nb, ab) * t1(ma, na) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab) & 
-        +1.0d0 * t1(ma, na) * t2(nb, ib, ab, bb)
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, na, ab) & 
+        -1.0d0 * t1(ma, na) * t2(nb, ib, ab, bb)
       enddo
     enddo
   enddo
@@ -2106,7 +3305,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ma,ja,aa,ba) = Q2(ma,ja,aa,ba) & 
+        M2(ma,ja,aa,ba) = M2(ma,ja,aa,ba) & 
         -1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
         -1.0d0 * t1(ja, aa) * t1(nb, bb) * t1(ma, na) & 
         +1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
@@ -2115,9 +3314,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         +1.0d0 * t1(ja, ba) * t1(nb, ab) * t1(ma, na) & 
         -1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
         -1.0d0 * t1(jb, bb) * t1(nb, ab) * t1(ma, na) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab) & 
-        -1.0d0 * t1(ma, na) * t2(nb, jb, ab, bb)
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, na, ab) & 
+        +1.0d0 * t1(ma, na) * t2(nb, jb, ab, bb)
       enddo
     enddo
   enddo
@@ -2129,10 +3328,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ia,ma,aa,na) = Q2(ia,ma,aa,na) & 
+      M2(ia,ma,aa,na) = M2(ia,ma,aa,na) & 
       +1.0d0 * t1(ia, aa) * t1(ma, na) & 
       -1.0d0 * t1(ib, ab) * t1(ma, na) & 
-      -1.0d0 * t2(ma, ib, na, ab)
+      +1.0d0 * t2(ma, ib, na, ab)
     enddo
   enddo
 
@@ -2143,10 +3342,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ia,ma,na,ba) = Q2(ia,ma,na,ba) & 
+      M2(ia,ma,na,ba) = M2(ia,ma,na,ba) & 
       -1.0d0 * t1(ia, ba) * t1(ma, na) & 
       +1.0d0 * t1(ib, bb) * t1(ma, na) & 
-      +1.0d0 * t2(ma, ib, na, bb)
+      -1.0d0 * t2(ma, ib, na, bb)
     enddo
   enddo
 
@@ -2157,10 +3356,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ma,ja,aa,na) = Q2(ma,ja,aa,na) & 
+      M2(ma,ja,aa,na) = M2(ma,ja,aa,na) & 
       -1.0d0 * t1(ja, aa) * t1(ma, na) & 
       +1.0d0 * t1(jb, ab) * t1(ma, na) & 
-      +1.0d0 * t2(ma, jb, na, ab)
+      -1.0d0 * t2(ma, jb, na, ab)
     enddo
   enddo
 
@@ -2171,10 +3370,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,ja,na,ba) = Q2(ma,ja,na,ba) & 
+      M2(ma,ja,na,ba) = M2(ma,ja,na,ba) & 
       +1.0d0 * t1(ja, ba) * t1(ma, na) & 
       -1.0d0 * t1(jb, bb) * t1(ma, na) & 
-      -1.0d0 * t2(ma, jb, na, bb)
+      +1.0d0 * t2(ma, jb, na, bb)
     enddo
   enddo
 
@@ -2192,7 +3391,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
+          M2(ia,jb,aa,bb) = M2(ia,jb,aa,bb) & 
           -1.0d0 * t1(ia, aa) * t1(ma, ba) * t2(ja, nb, na, mb) & 
           -1.0d0 * t1(ia, aa) * t1(ja, na) * t2(ma, nb, ba, mb) & 
           +1.0d0 * t1(ia, aa) * t1(ma, na) * t2(ja, nb, ba, mb) & 
@@ -2203,36 +3402,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
           -1.0d0 * t1(ib, ab) * t1(ma, na) * t2(ja, nb, ba, mb) & 
           +1.0d0 * t1(ib, ab) * t1(nb, mb) * t2(ma, ja, ba, na) & 
           +1.0d0 * t1(ib, ab) * t1(ma, ba) * t1(ja, na) * t1(nb, mb) & 
-          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(ma, na) * t2(ia, nb, ba, mb) & 
-          +1.0d0 * t1(ja, aa) * t1(nb, mb) * t2(ma, ia, ba, na) & 
-          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t1(ia, na) * t1(nb, mb) & 
-          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
-          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(ma, na) * t2(ia, nb, ba, mb) & 
-          -1.0d0 * t1(jb, ab) * t1(nb, mb) * t2(ma, ia, ba, na) & 
-          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t1(ia, na) * t1(nb, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(ma, na) * t2(ja, nb, aa, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(nb, mb) * t2(ma, ja, aa, na) & 
-          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t1(ja, na) * t1(nb, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(ma, na) * t2(ja, nb, aa, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(nb, mb) * t2(ma, ja, aa, na) & 
-          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t1(ja, na) * t1(nb, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ma, na) * t2(ia, nb, aa, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(nb, mb) * t2(ma, ia, aa, na) & 
-          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t1(ia, na) * t1(nb, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ma, na) * t2(ia, nb, aa, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(nb, mb) * t2(ma, ia, aa, na) & 
-          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t1(ia, na) * t1(nb, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ma, na) * t2(nb, ib, ab, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(jb, bb) * t1(nb, mb) * t2(ma, ib, na, ab) & 
+          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t1(ma, na) * t1(ib, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ma, na) * t2(nb, ib, ab, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ja, ba) * t1(nb, mb) * t2(ma, ib, na, ab) & 
+          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t1(ma, na) * t1(ib, mb) & 
           -1.0d0 * t2(ja, nb, ba, ab) * t2(ma, ib, na, mb) & 
           -1.0d0 * t2(ma, ib, ba, ab) * t2(ja, nb, na, mb) & 
           +1.0d0 * t2(ma, nb, ba, ab) * t2(ja, ib, na, mb) & 
@@ -2267,15 +3446,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ia,jb,aa,mb) = Q2(ia,jb,aa,mb) & 
+        M2(ia,jb,aa,mb) = M2(ia,jb,aa,mb) & 
         -1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
         -1.0d0 * t1(ia, aa) * t1(ja, na) * t1(nb, mb) & 
         +1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
         +1.0d0 * t1(ib, ab) * t1(ja, na) * t1(nb, mb) & 
-        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
-        +1.0d0 * t1(ja, aa) * t1(ia, na) * t1(nb, mb) & 
-        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
-        -1.0d0 * t1(jb, ab) * t1(ia, na) * t1(nb, mb) & 
         +1.0d0 * t1(nb, ab) * t2(ja, ib, na, mb) & 
         +1.0d0 * t1(ja, na) * t2(nb, ib, ab, mb) & 
         +1.0d0 * t1(ib, mb) * t2(ja, nb, na, ab) & 
@@ -2295,7 +3470,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ia,jb,na,bb) = Q2(ia,jb,na,bb) & 
+        M2(ia,jb,na,bb) = M2(ia,jb,na,bb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(jb, bb) * t1(ma, na) * t1(ib, mb) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(ja, ba) * t1(ma, na) * t1(ib, mb) & 
         +1.0d0 * t1(ma, ba) * t2(ja, ib, na, mb) & 
         +1.0d0 * t1(ja, na) * t2(ma, ib, ba, mb) & 
         -1.0d0 * t1(ma, na) * t2(ja, ib, ba, mb) & 
@@ -2315,20 +3494,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ia,nb,aa,bb) = Q2(ia,nb,aa,bb) & 
+        M2(ia,nb,aa,bb) = M2(ia,nb,aa,bb) & 
         +1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
         +1.0d0 * t1(ia, aa) * t1(ma, ba) * t1(nb, mb) & 
         -1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
         -1.0d0 * t1(ib, ab) * t1(ma, ba) * t1(nb, mb) & 
-        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
-        -1.0d0 * t1(ia, ba) * t1(ma, aa) * t1(nb, mb) & 
-        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
-        +1.0d0 * t1(ib, bb) * t1(ma, aa) * t1(nb, mb) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
-        +1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
-        +1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
-        -1.0d0 * t1(nb, mb) * t2(ma, ib, ba, ab) & 
-        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
+        -1.0d0 * t1(nb, ab) * t2(ma, ib, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(nb, ib, ab, mb) & 
+        -1.0d0 * t1(ib, mb) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(nb, mb) * t2(ma, ib, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ib, mb)
       enddo
     enddo
   enddo
@@ -2343,66 +3518,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ma,jb,aa,bb) = Q2(ma,jb,aa,bb) & 
-        +1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
-        +1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
-        +1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
-        -1.0d0 * t1(ma, na) * t2(ja, nb, ba, ab) & 
-        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((nb, ib))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        do bb = i_bb, f_bb
-          if (bb == mb) cycle 
-          ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
-          -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(ma, ba) * t1(nb, mb) & 
-          +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(ma, ba) * t1(nb, mb) & 
-          +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ma, aa) * t1(nb, mb) & 
-          -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ma, aa) * t1(nb, mb)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((mb, ab))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        do bb = i_bb, f_bb
-          if (bb == mb) cycle 
-          ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
-          +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
-          +1.0d0 * t1(ia, ba) * t1(ja, na) * t1(nb, mb) & 
-          -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
-          -1.0d0 * t1(ib, bb) * t1(ja, na) * t1(nb, mb) & 
-          -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
-          -1.0d0 * t1(ja, ba) * t1(ia, na) * t1(nb, mb) & 
-          +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
-          +1.0d0 * t1(jb, bb) * t1(ia, na) * t1(nb, mb)
-        enddo
+        M2(ma,jb,aa,bb) = M2(ma,jb,aa,bb) & 
+        +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(jb, bb) * t1(nb, ab) * t1(ma, na) & 
+        -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(ja, ba) * t1(nb, ab) * t1(ma, na) & 
+        -1.0d0 * t1(nb, ab) * t2(ma, ja, ba, na) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, na, ab) & 
+        -1.0d0 * t1(ja, na) * t2(ma, nb, ba, ab) & 
+        +1.0d0 * t1(ma, na) * t2(ja, nb, ba, ab) & 
+        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ja, na)
       enddo
     enddo
   enddo
@@ -2414,7 +3539,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do jb = i_jb, f_jb
       if (jb == nb) cycle 
       ja = jb - cc_nOa
-      Q2(ia,jb,na,mb) = Q2(ia,jb,na,mb) & 
+      M2(ia,jb,na,mb) = M2(ia,jb,na,mb) & 
       +1.0d0 * t2(ja, ib, na, mb) & 
       +1.0d0 * t1(ja, na) * t1(ib, mb)
     enddo
@@ -2427,11 +3552,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ia,nb,aa,mb) = Q2(ia,nb,aa,mb) & 
+      M2(ia,nb,aa,mb) = M2(ia,nb,aa,mb) & 
       +1.0d0 * t1(ia, aa) * t1(nb, mb) & 
       -1.0d0 * t1(ib, ab) * t1(nb, mb) & 
-      +1.0d0 * t2(nb, ib, ab, mb) & 
-      +1.0d0 * t1(nb, ab) * t1(ib, mb)
+      -1.0d0 * t2(nb, ib, ab, mb) & 
+      -1.0d0 * t1(nb, ab) * t1(ib, mb)
     enddo
   enddo
 
@@ -2442,9 +3567,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ia,nb,na,bb) = Q2(ia,nb,na,bb) & 
-      +1.0d0 * t2(ma, ib, ba, mb) & 
-      +1.0d0 * t1(ma, ba) * t1(ib, mb)
+      M2(ia,nb,na,bb) = M2(ia,nb,na,bb) & 
+      -1.0d0 * t2(ma, ib, ba, mb) & 
+      -1.0d0 * t1(ma, ba) * t1(ib, mb)
     enddo
   enddo
 
@@ -2455,9 +3580,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ma,jb,aa,mb) = Q2(ma,jb,aa,mb) & 
-      +1.0d0 * t2(ja, nb, na, ab) & 
-      +1.0d0 * t1(nb, ab) * t1(ja, na)
+      M2(ma,jb,aa,mb) = M2(ma,jb,aa,mb) & 
+      -1.0d0 * t2(ja, nb, na, ab) & 
+      -1.0d0 * t1(nb, ab) * t1(ja, na)
     enddo
   enddo
 
@@ -2468,9 +3593,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ma,jb,na,bb) = Q2(ma,jb,na,bb) & 
-      +1.0d0 * t2(ma, ja, ba, na) & 
-      +1.0d0 * t1(ma, ba) * t1(ja, na)
+      M2(ma,jb,na,bb) = M2(ma,jb,na,bb) & 
+      +1.0d0 * t1(jb, bb) * t1(ma, na) & 
+      -1.0d0 * t1(ja, ba) * t1(ma, na) & 
+      -1.0d0 * t2(ma, ja, ba, na) & 
+      -1.0d0 * t1(ma, ba) * t1(ja, na)
     enddo
   enddo
 
@@ -2481,64 +3608,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ma,nb,aa,bb) = Q2(ma,nb,aa,bb) & 
+      M2(ma,nb,aa,bb) = M2(ma,nb,aa,bb) & 
       +1.0d0 * t2(ma, nb, ba, ab) & 
       +1.0d0 * t1(nb, ab) * t1(ma, ba)
-    enddo
-  enddo
-
-  !! Deltas:((mb, bb), (nb, ib))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        Q2(ia,jb,aa,mb) = Q2(ia,jb,aa,mb) & 
-        -1.0d0 * t1(ja, aa) * t1(nb, mb) & 
-        +1.0d0 * t1(jb, ab) * t1(nb, mb)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((mb, ab), (nb, jb))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do aa = i_aa, f_aa
-      if (aa == na) cycle 
-      ab = aa + cc_nVa
-      do bb = i_bb, f_bb
-        if (bb == mb) cycle 
-        ba = bb - cc_nVa
-        Q2(ia,nb,aa,bb) = Q2(ia,nb,aa,bb) & 
-        -1.0d0 * t1(ia, ba) * t1(nb, mb) & 
-        +1.0d0 * t1(ib, bb) * t1(nb, mb)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((mb, ab), (nb, ib))
-  do ia = i_ia, f_ia
-    if (ia == ma) cycle 
-    ib = ia + cc_nOa
-    do jb = i_jb, f_jb
-      if (jb == nb) cycle 
-      ja = jb - cc_nOa
-      do aa = i_aa, f_aa
-        if (aa == na) cycle 
-        ab = aa + cc_nVa
-        do bb = i_bb, f_bb
-          if (bb == mb) cycle 
-          ba = bb - cc_nVa
-          Q2(ia,jb,aa,bb) = Q2(ia,jb,aa,bb) & 
-          +1.0d0 * t1(ja, ba) * t1(nb, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(nb, mb)
-        enddo
-      enddo
     enddo
   enddo
 
@@ -2546,23 +3618,23 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ia = i_ia, f_ia
     if (ia == ma) cycle 
     ib = ia + cc_nOa
-    Q2(ia,nb,na,mb) = Q2(ia,nb,na,mb) & 
-    +1.0d0 * t1(ib, mb)
+    M2(ia,nb,na,mb) = M2(ia,nb,na,mb) & 
+    -1.0d0 * t1(ib, mb)
   enddo
 
   !! Deltas:((na, aa), (mb, bb), (ma, ia))
   do jb = i_jb, f_jb
     if (jb == nb) cycle 
     ja = jb - cc_nOa
-    Q2(ma,jb,na,mb) = Q2(ma,jb,na,mb) & 
-    +1.0d0 * t1(ja, na)
+    M2(ma,jb,na,mb) = M2(ma,jb,na,mb) & 
+    -1.0d0 * t1(ja, na)
   enddo
 
   !! Deltas:((mb, bb), (ma, ia), (nb, jb))
   do aa = i_aa, f_aa
     if (aa == na) cycle 
     ab = aa + cc_nVa
-    Q2(ma,nb,aa,mb) = Q2(ma,nb,aa,mb) & 
+    M2(ma,nb,aa,mb) = M2(ma,nb,aa,mb) & 
     +1.0d0 * t1(nb, ab)
   enddo
 
@@ -2570,7 +3642,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do bb = i_bb, f_bb
     if (bb == mb) cycle 
     ba = bb - cc_nVa
-    Q2(ma,nb,na,bb) = Q2(ma,nb,na,bb) & 
+    M2(ma,nb,na,bb) = M2(ma,nb,na,bb) & 
     +1.0d0 * t1(ma, ba)
   enddo
 
@@ -2588,7 +3660,27 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ia,jb,ab,ba) = Q2(ia,jb,ab,ba) & 
+          M2(ia,jb,ab,ba) = M2(ia,jb,ab,ba) & 
+          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ma, na) * t2(nb, ib, bb, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          -1.0d0 * t1(jb, ab) * t1(nb, mb) * t2(ma, ib, na, bb) & 
+          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t1(ma, na) * t1(ib, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ma, na) * t2(nb, ib, bb, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
+          +1.0d0 * t1(ja, aa) * t1(nb, mb) * t2(ma, ib, na, bb) & 
+          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t1(ma, na) * t1(ib, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(ma, na) * t2(ja, nb, aa, mb) & 
+          +1.0d0 * t1(ia, ba) * t1(nb, mb) * t2(ma, ja, aa, na) & 
+          +1.0d0 * t1(ia, ba) * t1(ma, aa) * t1(ja, na) * t1(nb, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t2(ja, nb, na, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(ja, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ma, na) * t2(ja, nb, aa, mb) & 
+          -1.0d0 * t1(ib, bb) * t1(nb, mb) * t2(ma, ja, aa, na) & 
+          -1.0d0 * t1(ib, bb) * t1(ma, aa) * t1(ja, na) * t1(nb, mb) & 
           +1.0d0 * t2(ja, nb, aa, bb) * t2(ma, ib, na, mb) & 
           +1.0d0 * t2(ma, ib, aa, bb) * t2(ja, nb, na, mb) & 
           -1.0d0 * t2(ma, nb, aa, bb) * t2(ja, ib, na, mb) & 
@@ -2623,7 +3715,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ia,jb,ab,na) = Q2(ia,jb,ab,na) & 
+        M2(ia,jb,ab,na) = M2(ia,jb,ab,na) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
+        +1.0d0 * t1(jb, ab) * t1(ma, na) * t1(ib, mb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
+        -1.0d0 * t1(ja, aa) * t1(ma, na) * t1(ib, mb) & 
         -1.0d0 * t1(ma, aa) * t2(ja, ib, na, mb) & 
         -1.0d0 * t1(ja, na) * t2(ma, ib, aa, mb) & 
         +1.0d0 * t1(ma, na) * t2(ja, ib, aa, mb) & 
@@ -2643,7 +3739,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,jb,mb,ba) = Q2(ia,jb,mb,ba) & 
+        M2(ia,jb,mb,ba) = M2(ia,jb,mb,ba) & 
+        +1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
+        +1.0d0 * t1(ia, ba) * t1(ja, na) * t1(nb, mb) & 
+        -1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
+        -1.0d0 * t1(ib, bb) * t1(ja, na) * t1(nb, mb) & 
         -1.0d0 * t1(nb, bb) * t2(ja, ib, na, mb) & 
         -1.0d0 * t1(ja, na) * t2(nb, ib, bb, mb) & 
         -1.0d0 * t1(ib, mb) * t2(ja, nb, na, bb) & 
@@ -2663,12 +3763,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ia,nb,ab,ba) = Q2(ia,nb,ab,ba) & 
-        -1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
-        -1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
-        +1.0d0 * t1(nb, mb) * t2(ma, ib, aa, bb) & 
-        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
+        M2(ia,nb,ab,ba) = M2(ia,nb,ab,ba) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(ia, ba) * t1(ma, aa) * t1(nb, mb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ib, bb) * t1(ma, aa) * t1(nb, mb) & 
+        +1.0d0 * t1(ma, aa) * t2(nb, ib, bb, mb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ib, aa, mb) & 
+        +1.0d0 * t1(ib, mb) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(nb, mb) * t2(ma, ib, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ib, mb)
       enddo
     enddo
   enddo
@@ -2683,12 +3787,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ma,jb,ab,ba) = Q2(ma,jb,ab,ba) & 
-        -1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
-        -1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
-        -1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
-        +1.0d0 * t1(ma, na) * t2(ja, nb, aa, bb) & 
-        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
+        M2(ma,jb,ab,ba) = M2(ma,jb,ab,ba) & 
+        -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
+        -1.0d0 * t1(jb, ab) * t1(nb, bb) * t1(ma, na) & 
+        +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
+        +1.0d0 * t1(ja, aa) * t1(nb, bb) * t1(ma, na) & 
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, na, bb) & 
+        +1.0d0 * t1(nb, bb) * t2(ma, ja, aa, na) & 
+        +1.0d0 * t1(ja, na) * t2(ma, nb, aa, bb) & 
+        -1.0d0 * t1(ma, na) * t2(ja, nb, aa, bb) & 
+        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ja, na)
       enddo
     enddo
   enddo
@@ -2700,7 +3808,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do jb = i_jb, f_jb
       if (jb == nb) cycle 
       ja = jb - cc_nOa
-      Q2(ia,jb,mb,na) = Q2(ia,jb,mb,na) & 
+      M2(ia,jb,mb,na) = M2(ia,jb,mb,na) & 
       -1.0d0 * t2(ja, ib, na, mb) & 
       -1.0d0 * t1(ja, na) * t1(ib, mb)
     enddo
@@ -2713,9 +3821,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ia,nb,ab,na) = Q2(ia,nb,ab,na) & 
-      -1.0d0 * t2(ma, ib, aa, mb) & 
-      -1.0d0 * t1(ma, aa) * t1(ib, mb)
+      M2(ia,nb,ab,na) = M2(ia,nb,ab,na) & 
+      +1.0d0 * t2(ma, ib, aa, mb) & 
+      +1.0d0 * t1(ma, aa) * t1(ib, mb)
     enddo
   enddo
 
@@ -2726,9 +3834,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ia,nb,mb,ba) = Q2(ia,nb,mb,ba) & 
-      -1.0d0 * t2(nb, ib, bb, mb) & 
-      -1.0d0 * t1(nb, bb) * t1(ib, mb)
+      M2(ia,nb,mb,ba) = M2(ia,nb,mb,ba) & 
+      -1.0d0 * t1(ia, ba) * t1(nb, mb) & 
+      +1.0d0 * t1(ib, bb) * t1(nb, mb) & 
+      +1.0d0 * t2(nb, ib, bb, mb) & 
+      +1.0d0 * t1(nb, bb) * t1(ib, mb)
     enddo
   enddo
 
@@ -2739,9 +3849,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ma,jb,ab,na) = Q2(ma,jb,ab,na) & 
-      -1.0d0 * t2(ma, ja, aa, na) & 
-      -1.0d0 * t1(ma, aa) * t1(ja, na)
+      M2(ma,jb,ab,na) = M2(ma,jb,ab,na) & 
+      -1.0d0 * t1(jb, ab) * t1(ma, na) & 
+      +1.0d0 * t1(ja, aa) * t1(ma, na) & 
+      +1.0d0 * t2(ma, ja, aa, na) & 
+      +1.0d0 * t1(ma, aa) * t1(ja, na)
     enddo
   enddo
 
@@ -2752,9 +3864,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,jb,mb,ba) = Q2(ma,jb,mb,ba) & 
-      -1.0d0 * t2(ja, nb, na, bb) & 
-      -1.0d0 * t1(nb, bb) * t1(ja, na)
+      M2(ma,jb,mb,ba) = M2(ma,jb,mb,ba) & 
+      +1.0d0 * t2(ja, nb, na, bb) & 
+      +1.0d0 * t1(nb, bb) * t1(ja, na)
     enddo
   enddo
 
@@ -2765,7 +3877,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ma,nb,ab,ba) = Q2(ma,nb,ab,ba) & 
+      M2(ma,nb,ab,ba) = M2(ma,nb,ab,ba) & 
       -1.0d0 * t2(ma, nb, aa, bb) & 
       -1.0d0 * t1(ma, aa) * t1(nb, bb)
     enddo
@@ -2775,23 +3887,23 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ia = i_ia, f_ia
     if (ia == ma) cycle 
     ib = ia + cc_nOa
-    Q2(ia,nb,mb,na) = Q2(ia,nb,mb,na) & 
-    -1.0d0 * t1(ib, mb)
+    M2(ia,nb,mb,na) = M2(ia,nb,mb,na) & 
+    +1.0d0 * t1(ib, mb)
   enddo
 
   !! Deltas:((na, ba), (mb, ab), (ma, ia))
   do jb = i_jb, f_jb
     if (jb == nb) cycle 
     ja = jb - cc_nOa
-    Q2(ma,jb,mb,na) = Q2(ma,jb,mb,na) & 
-    -1.0d0 * t1(ja, na)
+    M2(ma,jb,mb,na) = M2(ma,jb,mb,na) & 
+    +1.0d0 * t1(ja, na)
   enddo
 
   !! Deltas:((na, ba), (ma, ia), (nb, jb))
   do ab = i_ab, f_ab
     if (ab == mb) cycle 
     aa = ab - cc_nVa
-    Q2(ma,nb,ab,na) = Q2(ma,nb,ab,na) & 
+    M2(ma,nb,ab,na) = M2(ma,nb,ab,na) & 
     -1.0d0 * t1(ma, aa)
   enddo
 
@@ -2799,7 +3911,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ba = i_ba, f_ba
     if (ba == na) cycle 
     bb = ba + cc_nVa
-    Q2(ma,nb,mb,ba) = Q2(ma,nb,mb,ba) & 
+    M2(ma,nb,mb,ba) = M2(ma,nb,mb,ba) & 
     -1.0d0 * t1(nb, bb)
   enddo
 
@@ -2817,7 +3929,27 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ib,ja,aa,bb) = Q2(ib,ja,aa,bb) & 
+          M2(ib,ja,aa,bb) = M2(ib,ja,aa,bb) & 
+          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          -1.0d0 * t1(ja, aa) * t1(ma, na) * t2(ia, nb, ba, mb) & 
+          +1.0d0 * t1(ja, aa) * t1(nb, mb) * t2(ma, ia, ba, na) & 
+          +1.0d0 * t1(ja, aa) * t1(ma, ba) * t1(ia, na) * t1(nb, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(ia, na) * t2(ma, nb, ba, mb) & 
+          +1.0d0 * t1(jb, ab) * t1(ma, na) * t2(ia, nb, ba, mb) & 
+          -1.0d0 * t1(jb, ab) * t1(nb, mb) * t2(ma, ia, ba, na) & 
+          -1.0d0 * t1(jb, ab) * t1(ma, ba) * t1(ia, na) * t1(nb, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(ma, na) * t2(nb, jb, ab, mb) & 
+          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          -1.0d0 * t1(ib, bb) * t1(nb, mb) * t2(ma, jb, na, ab) & 
+          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t1(ma, na) * t1(jb, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(ma, na) * t2(nb, jb, ab, mb) & 
+          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
+          +1.0d0 * t1(ia, ba) * t1(nb, mb) * t2(ma, jb, na, ab) & 
+          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t1(ma, na) * t1(jb, mb) & 
           +1.0d0 * t2(ma, jb, ba, ab) * t2(ia, nb, na, mb) & 
           +1.0d0 * t2(ia, nb, ba, ab) * t2(ma, jb, na, mb) & 
           -1.0d0 * t2(ma, nb, ba, ab) * t2(ia, jb, na, mb) & 
@@ -2852,7 +3984,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do aa = i_aa, f_aa
         if (aa == na) cycle 
         ab = aa + cc_nVa
-        Q2(ib,ja,aa,mb) = Q2(ib,ja,aa,mb) & 
+        M2(ib,ja,aa,mb) = M2(ib,ja,aa,mb) & 
+        +1.0d0 * t1(ja, aa) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(ja, aa) * t1(ia, na) * t1(nb, mb) & 
+        -1.0d0 * t1(jb, ab) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(jb, ab) * t1(ia, na) * t1(nb, mb) & 
         -1.0d0 * t1(nb, ab) * t2(ia, jb, na, mb) & 
         -1.0d0 * t1(ia, na) * t2(nb, jb, ab, mb) & 
         -1.0d0 * t1(jb, mb) * t2(ia, nb, na, ab) & 
@@ -2872,7 +4008,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,ja,na,bb) = Q2(ib,ja,na,bb) & 
+        M2(ib,ja,na,bb) = M2(ib,ja,na,bb) & 
+        +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
+        +1.0d0 * t1(ib, bb) * t1(ma, na) * t1(jb, mb) & 
+        -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
+        -1.0d0 * t1(ia, ba) * t1(ma, na) * t1(jb, mb) & 
         -1.0d0 * t1(ma, ba) * t2(ia, jb, na, mb) & 
         -1.0d0 * t1(ia, na) * t2(ma, jb, ba, mb) & 
         +1.0d0 * t1(ma, na) * t2(ia, jb, ba, mb) & 
@@ -2892,12 +4032,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,ma,aa,bb) = Q2(ib,ma,aa,bb) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
-        -1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
-        -1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
-        +1.0d0 * t1(ma, na) * t2(ia, nb, ba, ab) & 
-        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
+        M2(ib,ma,aa,bb) = M2(ib,ma,aa,bb) & 
+        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
+        -1.0d0 * t1(ib, bb) * t1(nb, ab) * t1(ma, na) & 
+        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
+        +1.0d0 * t1(ia, ba) * t1(nb, ab) * t1(ma, na) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, ia, ba, na) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, na, ab) & 
+        +1.0d0 * t1(ia, na) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(ma, na) * t2(ia, nb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(ia, na)
       enddo
     enddo
   enddo
@@ -2912,12 +4056,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(nb,ja,aa,bb) = Q2(nb,ja,aa,bb) & 
-        -1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
-        -1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
-        -1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
-        +1.0d0 * t1(nb, mb) * t2(ma, jb, ba, ab) & 
-        -1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
+        M2(nb,ja,aa,bb) = M2(nb,ja,aa,bb) & 
+        -1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
+        -1.0d0 * t1(ja, aa) * t1(ma, ba) * t1(nb, mb) & 
+        +1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
+        +1.0d0 * t1(jb, ab) * t1(ma, ba) * t1(nb, mb) & 
+        +1.0d0 * t1(nb, ab) * t2(ma, jb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(nb, jb, ab, mb) & 
+        +1.0d0 * t1(jb, mb) * t2(ma, nb, ba, ab) & 
+        -1.0d0 * t1(nb, mb) * t2(ma, jb, ba, ab) & 
+        +1.0d0 * t1(nb, ab) * t1(ma, ba) * t1(jb, mb)
       enddo
     enddo
   enddo
@@ -2929,7 +4077,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ja = i_ja, f_ja
       if (ja == ma) cycle 
       jb = ja + cc_nOa
-      Q2(ib,ja,na,mb) = Q2(ib,ja,na,mb) & 
+      M2(ib,ja,na,mb) = M2(ib,ja,na,mb) & 
       -1.0d0 * t2(ia, jb, na, mb) & 
       -1.0d0 * t1(ia, na) * t1(jb, mb)
     enddo
@@ -2942,9 +4090,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(ib,ma,aa,mb) = Q2(ib,ma,aa,mb) & 
-      -1.0d0 * t2(ia, nb, na, ab) & 
-      -1.0d0 * t1(nb, ab) * t1(ia, na)
+      M2(ib,ma,aa,mb) = M2(ib,ma,aa,mb) & 
+      +1.0d0 * t2(ia, nb, na, ab) & 
+      +1.0d0 * t1(nb, ab) * t1(ia, na)
     enddo
   enddo
 
@@ -2955,9 +4103,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ib,ma,na,bb) = Q2(ib,ma,na,bb) & 
-      -1.0d0 * t2(ma, ia, ba, na) & 
-      -1.0d0 * t1(ma, ba) * t1(ia, na)
+      M2(ib,ma,na,bb) = M2(ib,ma,na,bb) & 
+      -1.0d0 * t1(ib, bb) * t1(ma, na) & 
+      +1.0d0 * t1(ia, ba) * t1(ma, na) & 
+      +1.0d0 * t2(ma, ia, ba, na) & 
+      +1.0d0 * t1(ma, ba) * t1(ia, na)
     enddo
   enddo
 
@@ -2968,9 +4118,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do aa = i_aa, f_aa
       if (aa == na) cycle 
       ab = aa + cc_nVa
-      Q2(nb,ja,aa,mb) = Q2(nb,ja,aa,mb) & 
-      -1.0d0 * t2(nb, jb, ab, mb) & 
-      -1.0d0 * t1(nb, ab) * t1(jb, mb)
+      M2(nb,ja,aa,mb) = M2(nb,ja,aa,mb) & 
+      -1.0d0 * t1(ja, aa) * t1(nb, mb) & 
+      +1.0d0 * t1(jb, ab) * t1(nb, mb) & 
+      +1.0d0 * t2(nb, jb, ab, mb) & 
+      +1.0d0 * t1(nb, ab) * t1(jb, mb)
     enddo
   enddo
 
@@ -2981,9 +4133,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,ja,na,bb) = Q2(nb,ja,na,bb) & 
-      -1.0d0 * t2(ma, jb, ba, mb) & 
-      -1.0d0 * t1(ma, ba) * t1(jb, mb)
+      M2(nb,ja,na,bb) = M2(nb,ja,na,bb) & 
+      +1.0d0 * t2(ma, jb, ba, mb) & 
+      +1.0d0 * t1(ma, ba) * t1(jb, mb)
     enddo
   enddo
 
@@ -2994,7 +4146,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,ma,aa,bb) = Q2(nb,ma,aa,bb) & 
+      M2(nb,ma,aa,bb) = M2(nb,ma,aa,bb) & 
       -1.0d0 * t2(ma, nb, ba, ab) & 
       -1.0d0 * t1(nb, ab) * t1(ma, ba)
     enddo
@@ -3004,23 +4156,23 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ib = i_ib, f_ib
     if (ib == nb) cycle 
     ia = ib - cc_nOa
-    Q2(ib,ma,na,mb) = Q2(ib,ma,na,mb) & 
-    -1.0d0 * t1(ia, na)
+    M2(ib,ma,na,mb) = M2(ib,ma,na,mb) & 
+    +1.0d0 * t1(ia, na)
   enddo
 
   !! Deltas:((na, aa), (mb, bb), (nb, ib))
   do ja = i_ja, f_ja
     if (ja == ma) cycle 
     jb = ja + cc_nOa
-    Q2(nb,ja,na,mb) = Q2(nb,ja,na,mb) & 
-    -1.0d0 * t1(jb, mb)
+    M2(nb,ja,na,mb) = M2(nb,ja,na,mb) & 
+    +1.0d0 * t1(jb, mb)
   enddo
 
   !! Deltas:((mb, bb), (ma, ja), (nb, ib))
   do aa = i_aa, f_aa
     if (aa == na) cycle 
     ab = aa + cc_nVa
-    Q2(nb,ma,aa,mb) = Q2(nb,ma,aa,mb) & 
+    M2(nb,ma,aa,mb) = M2(nb,ma,aa,mb) & 
     -1.0d0 * t1(nb, ab)
   enddo
 
@@ -3028,7 +4180,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do bb = i_bb, f_bb
     if (bb == mb) cycle 
     ba = bb - cc_nVa
-    Q2(nb,ma,na,bb) = Q2(nb,ma,na,bb) & 
+    M2(nb,ma,na,bb) = M2(nb,ma,na,bb) & 
     -1.0d0 * t1(ma, ba)
   enddo
 
@@ -3046,7 +4198,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do ba = i_ba, f_ba
           if (ba == na) cycle 
           bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
+          M2(ib,ja,ab,ba) = M2(ib,ja,ab,ba) & 
           -1.0d0 * t1(ib, ab) * t1(nb, bb) * t2(ma, jb, na, mb) & 
           -1.0d0 * t1(ib, ab) * t1(ma, na) * t2(nb, jb, bb, mb) & 
           -1.0d0 * t1(ib, ab) * t1(jb, mb) * t2(ma, nb, na, bb) & 
@@ -3057,36 +4209,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
           +1.0d0 * t1(ia, aa) * t1(jb, mb) * t2(ma, nb, na, bb) & 
           -1.0d0 * t1(ia, aa) * t1(nb, mb) * t2(ma, jb, na, bb) & 
           +1.0d0 * t1(ia, aa) * t1(nb, bb) * t1(ma, na) * t1(jb, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(ma, na) * t2(nb, ib, bb, mb) & 
-          +1.0d0 * t1(jb, ab) * t1(ib, mb) * t2(ma, nb, na, bb) & 
-          -1.0d0 * t1(jb, ab) * t1(nb, mb) * t2(ma, ib, na, bb) & 
-          +1.0d0 * t1(jb, ab) * t1(nb, bb) * t1(ma, na) * t1(ib, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t2(ma, ib, na, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(ma, na) * t2(nb, ib, bb, mb) & 
-          -1.0d0 * t1(ja, aa) * t1(ib, mb) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(ja, aa) * t1(nb, mb) * t2(ma, ib, na, bb) & 
-          -1.0d0 * t1(ja, aa) * t1(nb, bb) * t1(ma, na) * t1(ib, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t2(ma, jb, na, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(ma, na) * t2(nb, jb, ab, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(jb, mb) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(ib, bb) * t1(nb, mb) * t2(ma, jb, na, ab) & 
-          +1.0d0 * t1(ib, bb) * t1(nb, ab) * t1(ma, na) * t1(jb, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t2(ma, jb, na, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(ma, na) * t2(nb, jb, ab, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(jb, mb) * t2(ma, nb, na, ab) & 
-          +1.0d0 * t1(ia, ba) * t1(nb, mb) * t2(ma, jb, na, ab) & 
-          -1.0d0 * t1(ia, ba) * t1(nb, ab) * t1(ma, na) * t1(jb, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t2(ma, ib, na, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ma, na) * t2(nb, ib, ab, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ib, mb) * t2(ma, nb, na, ab) & 
-          +1.0d0 * t1(jb, bb) * t1(nb, mb) * t2(ma, ib, na, ab) & 
-          -1.0d0 * t1(jb, bb) * t1(nb, ab) * t1(ma, na) * t1(ib, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ma, na) * t2(nb, ib, ab, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ib, mb) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(ja, ba) * t1(nb, mb) * t2(ma, ib, na, ab) & 
-          +1.0d0 * t1(ja, ba) * t1(nb, ab) * t1(ma, na) * t1(ib, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          +1.0d0 * t1(ja, ba) * t1(ma, na) * t2(ia, nb, aa, mb) & 
+          -1.0d0 * t1(ja, ba) * t1(nb, mb) * t2(ma, ia, aa, na) & 
+          -1.0d0 * t1(ja, ba) * t1(ma, aa) * t1(ia, na) * t1(nb, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t2(ia, nb, na, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(ia, na) * t2(ma, nb, aa, mb) & 
+          -1.0d0 * t1(jb, bb) * t1(ma, na) * t2(ia, nb, aa, mb) & 
+          +1.0d0 * t1(jb, bb) * t1(nb, mb) * t2(ma, ia, aa, na) & 
+          +1.0d0 * t1(jb, bb) * t1(ma, aa) * t1(ia, na) * t1(nb, mb) & 
           -1.0d0 * t2(ma, jb, aa, bb) * t2(ia, nb, na, mb) & 
           -1.0d0 * t2(ia, nb, aa, bb) * t2(ma, jb, na, mb) & 
           +1.0d0 * t2(ma, nb, aa, bb) * t2(ia, jb, na, mb) & 
@@ -3121,15 +4253,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ib,ja,ab,na) = Q2(ib,ja,ab,na) & 
+        M2(ib,ja,ab,na) = M2(ib,ja,ab,na) & 
         -1.0d0 * t1(ib, ab) * t2(ma, jb, na, mb) & 
         -1.0d0 * t1(ib, ab) * t1(ma, na) * t1(jb, mb) & 
         +1.0d0 * t1(ia, aa) * t2(ma, jb, na, mb) & 
         +1.0d0 * t1(ia, aa) * t1(ma, na) * t1(jb, mb) & 
-        +1.0d0 * t1(jb, ab) * t2(ma, ib, na, mb) & 
-        +1.0d0 * t1(jb, ab) * t1(ma, na) * t1(ib, mb) & 
-        -1.0d0 * t1(ja, aa) * t2(ma, ib, na, mb) & 
-        -1.0d0 * t1(ja, aa) * t1(ma, na) * t1(ib, mb) & 
         +1.0d0 * t1(ma, aa) * t2(ia, jb, na, mb) & 
         +1.0d0 * t1(ia, na) * t2(ma, jb, aa, mb) & 
         -1.0d0 * t1(ma, na) * t2(ia, jb, aa, mb) & 
@@ -3149,7 +4277,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ib,ja,mb,ba) = Q2(ib,ja,mb,ba) & 
+        M2(ib,ja,mb,ba) = M2(ib,ja,mb,ba) & 
+        -1.0d0 * t1(ja, ba) * t2(ia, nb, na, mb) & 
+        -1.0d0 * t1(ja, ba) * t1(ia, na) * t1(nb, mb) & 
+        +1.0d0 * t1(jb, bb) * t2(ia, nb, na, mb) & 
+        +1.0d0 * t1(jb, bb) * t1(ia, na) * t1(nb, mb) & 
         +1.0d0 * t1(nb, bb) * t2(ia, jb, na, mb) & 
         +1.0d0 * t1(ia, na) * t2(nb, jb, bb, mb) & 
         +1.0d0 * t1(jb, mb) * t2(ia, nb, na, bb) & 
@@ -3169,20 +4301,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(ib,ma,ab,ba) = Q2(ib,ma,ab,ba) & 
+        M2(ib,ma,ab,ba) = M2(ib,ma,ab,ba) & 
         +1.0d0 * t1(ib, ab) * t2(ma, nb, na, bb) & 
         +1.0d0 * t1(ib, ab) * t1(nb, bb) * t1(ma, na) & 
         -1.0d0 * t1(ia, aa) * t2(ma, nb, na, bb) & 
         -1.0d0 * t1(ia, aa) * t1(nb, bb) * t1(ma, na) & 
-        -1.0d0 * t1(ib, bb) * t2(ma, nb, na, ab) & 
-        -1.0d0 * t1(ib, bb) * t1(nb, ab) * t1(ma, na) & 
-        +1.0d0 * t1(ia, ba) * t2(ma, nb, na, ab) & 
-        +1.0d0 * t1(ia, ba) * t1(nb, ab) * t1(ma, na) & 
-        +1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
-        +1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
-        -1.0d0 * t1(ma, na) * t2(ia, nb, aa, bb) & 
-        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, na, bb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, ia, aa, na) & 
+        -1.0d0 * t1(ia, na) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(ma, na) * t2(ia, nb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(ia, na)
       enddo
     enddo
   enddo
@@ -3197,66 +4325,16 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ba = i_ba, f_ba
         if (ba == na) cycle 
         bb = ba + cc_nVa
-        Q2(nb,ja,ab,ba) = Q2(nb,ja,ab,ba) & 
-        +1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
-        +1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
-        +1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
-        -1.0d0 * t1(nb, mb) * t2(ma, jb, aa, bb) & 
-        +1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((ma, ia))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        do ba = i_ba, f_ba
-          if (ba == na) cycle 
-          bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
-          -1.0d0 * t1(jb, ab) * t2(ma, nb, na, bb) & 
-          -1.0d0 * t1(jb, ab) * t1(nb, bb) * t1(ma, na) & 
-          +1.0d0 * t1(ja, aa) * t2(ma, nb, na, bb) & 
-          +1.0d0 * t1(ja, aa) * t1(nb, bb) * t1(ma, na) & 
-          +1.0d0 * t1(jb, bb) * t2(ma, nb, na, ab) & 
-          +1.0d0 * t1(jb, bb) * t1(nb, ab) * t1(ma, na) & 
-          -1.0d0 * t1(ja, ba) * t2(ma, nb, na, ab) & 
-          -1.0d0 * t1(ja, ba) * t1(nb, ab) * t1(ma, na)
-        enddo
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((na, aa))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        do ba = i_ba, f_ba
-          if (ba == na) cycle 
-          bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
-          +1.0d0 * t1(ib, bb) * t2(ma, jb, na, mb) & 
-          +1.0d0 * t1(ib, bb) * t1(ma, na) * t1(jb, mb) & 
-          -1.0d0 * t1(ia, ba) * t2(ma, jb, na, mb) & 
-          -1.0d0 * t1(ia, ba) * t1(ma, na) * t1(jb, mb) & 
-          -1.0d0 * t1(jb, bb) * t2(ma, ib, na, mb) & 
-          -1.0d0 * t1(jb, bb) * t1(ma, na) * t1(ib, mb) & 
-          +1.0d0 * t1(ja, ba) * t2(ma, ib, na, mb) & 
-          +1.0d0 * t1(ja, ba) * t1(ma, na) * t1(ib, mb)
-        enddo
+        M2(nb,ja,ab,ba) = M2(nb,ja,ab,ba) & 
+        +1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
+        +1.0d0 * t1(ja, ba) * t1(ma, aa) * t1(nb, mb) & 
+        -1.0d0 * t1(jb, bb) * t2(ma, nb, aa, mb) & 
+        -1.0d0 * t1(jb, bb) * t1(ma, aa) * t1(nb, mb) & 
+        -1.0d0 * t1(ma, aa) * t2(nb, jb, bb, mb) & 
+        -1.0d0 * t1(nb, bb) * t2(ma, jb, aa, mb) & 
+        -1.0d0 * t1(jb, mb) * t2(ma, nb, aa, bb) & 
+        +1.0d0 * t1(nb, mb) * t2(ma, jb, aa, bb) & 
+        -1.0d0 * t1(ma, aa) * t1(nb, bb) * t1(jb, mb)
       enddo
     enddo
   enddo
@@ -3268,7 +4346,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ja = i_ja, f_ja
       if (ja == ma) cycle 
       jb = ja + cc_nOa
-      Q2(ib,ja,mb,na) = Q2(ib,ja,mb,na) & 
+      M2(ib,ja,mb,na) = M2(ib,ja,mb,na) & 
       +1.0d0 * t2(ia, jb, na, mb) & 
       +1.0d0 * t1(ia, na) * t1(jb, mb)
     enddo
@@ -3281,11 +4359,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ib,ma,ab,na) = Q2(ib,ma,ab,na) & 
+      M2(ib,ma,ab,na) = M2(ib,ma,ab,na) & 
       +1.0d0 * t1(ib, ab) * t1(ma, na) & 
       -1.0d0 * t1(ia, aa) * t1(ma, na) & 
-      +1.0d0 * t2(ma, ia, aa, na) & 
-      +1.0d0 * t1(ma, aa) * t1(ia, na)
+      -1.0d0 * t2(ma, ia, aa, na) & 
+      -1.0d0 * t1(ma, aa) * t1(ia, na)
     enddo
   enddo
 
@@ -3296,9 +4374,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(ib,ma,mb,ba) = Q2(ib,ma,mb,ba) & 
-      +1.0d0 * t2(ia, nb, na, bb) & 
-      +1.0d0 * t1(nb, bb) * t1(ia, na)
+      M2(ib,ma,mb,ba) = M2(ib,ma,mb,ba) & 
+      -1.0d0 * t2(ia, nb, na, bb) & 
+      -1.0d0 * t1(nb, bb) * t1(ia, na)
     enddo
   enddo
 
@@ -3309,9 +4387,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(nb,ja,ab,na) = Q2(nb,ja,ab,na) & 
-      +1.0d0 * t2(ma, jb, aa, mb) & 
-      +1.0d0 * t1(ma, aa) * t1(jb, mb)
+      M2(nb,ja,ab,na) = M2(nb,ja,ab,na) & 
+      -1.0d0 * t2(ma, jb, aa, mb) & 
+      -1.0d0 * t1(ma, aa) * t1(jb, mb)
     enddo
   enddo
 
@@ -3322,9 +4400,11 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(nb,ja,mb,ba) = Q2(nb,ja,mb,ba) & 
-      +1.0d0 * t2(nb, jb, bb, mb) & 
-      +1.0d0 * t1(nb, bb) * t1(jb, mb)
+      M2(nb,ja,mb,ba) = M2(nb,ja,mb,ba) & 
+      +1.0d0 * t1(ja, ba) * t1(nb, mb) & 
+      -1.0d0 * t1(jb, bb) * t1(nb, mb) & 
+      -1.0d0 * t2(nb, jb, bb, mb) & 
+      -1.0d0 * t1(nb, bb) * t1(jb, mb)
     enddo
   enddo
 
@@ -3335,64 +4415,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ba = i_ba, f_ba
       if (ba == na) cycle 
       bb = ba + cc_nVa
-      Q2(nb,ma,ab,ba) = Q2(nb,ma,ab,ba) & 
+      M2(nb,ma,ab,ba) = M2(nb,ma,ab,ba) & 
       +1.0d0 * t2(ma, nb, aa, bb) & 
       +1.0d0 * t1(ma, aa) * t1(nb, bb)
-    enddo
-  enddo
-
-  !! Deltas:((na, ba), (ma, ia))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        Q2(ib,ja,ab,na) = Q2(ib,ja,ab,na) & 
-        -1.0d0 * t1(jb, ab) * t1(ma, na) & 
-        +1.0d0 * t1(ja, aa) * t1(ma, na)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((na, aa), (ma, ja))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ab = i_ab, f_ab
-      if (ab == mb) cycle 
-      aa = ab - cc_nVa
-      do ba = i_ba, f_ba
-        if (ba == na) cycle 
-        bb = ba + cc_nVa
-        Q2(ib,ma,ab,ba) = Q2(ib,ma,ab,ba) & 
-        -1.0d0 * t1(ib, bb) * t1(ma, na) & 
-        +1.0d0 * t1(ia, ba) * t1(ma, na)
-      enddo
-    enddo
-  enddo
-
-  !! Deltas:((na, aa), (ma, ia))
-  do ib = i_ib, f_ib
-    if (ib == nb) cycle 
-    ia = ib - cc_nOa
-    do ja = i_ja, f_ja
-      if (ja == ma) cycle 
-      jb = ja + cc_nOa
-      do ab = i_ab, f_ab
-        if (ab == mb) cycle 
-        aa = ab - cc_nVa
-        do ba = i_ba, f_ba
-          if (ba == na) cycle 
-          bb = ba + cc_nVa
-          Q2(ib,ja,ab,ba) = Q2(ib,ja,ab,ba) & 
-          +1.0d0 * t1(jb, bb) * t1(ma, na) & 
-          -1.0d0 * t1(ja, ba) * t1(ma, na)
-        enddo
-      enddo
     enddo
   enddo
 
@@ -3400,23 +4425,23 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ib = i_ib, f_ib
     if (ib == nb) cycle 
     ia = ib - cc_nOa
-    Q2(ib,ma,mb,na) = Q2(ib,ma,mb,na) & 
-    +1.0d0 * t1(ia, na)
+    M2(ib,ma,mb,na) = M2(ib,ma,mb,na) & 
+    -1.0d0 * t1(ia, na)
   enddo
 
   !! Deltas:((na, ba), (mb, ab), (nb, ib))
   do ja = i_ja, f_ja
     if (ja == ma) cycle 
     jb = ja + cc_nOa
-    Q2(nb,ja,mb,na) = Q2(nb,ja,mb,na) & 
-    +1.0d0 * t1(jb, mb)
+    M2(nb,ja,mb,na) = M2(nb,ja,mb,na) & 
+    -1.0d0 * t1(jb, mb)
   enddo
 
   !! Deltas:((na, ba), (ma, ja), (nb, ib))
   do ab = i_ab, f_ab
     if (ab == mb) cycle 
     aa = ab - cc_nVa
-    Q2(nb,ma,ab,na) = Q2(nb,ma,ab,na) & 
+    M2(nb,ma,ab,na) = M2(nb,ma,ab,na) & 
     +1.0d0 * t1(ma, aa)
   enddo
 
@@ -3424,7 +4449,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
   do ba = i_ba, f_ba
     if (ba == na) cycle 
     bb = ba + cc_nVa
-    Q2(nb,ma,mb,ba) = Q2(nb,ma,mb,ba) & 
+    M2(nb,ma,mb,ba) = M2(nb,ma,mb,ba) & 
     +1.0d0 * t1(nb, bb)
   enddo
 
@@ -3442,7 +4467,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         do bb = i_bb, f_bb
           if (bb == mb) cycle 
           ba = bb - cc_nVa
-          Q2(ib,jb,ab,bb) = Q2(ib,jb,ab,bb) & 
+          M2(ib,jb,ab,bb) = M2(ib,jb,ab,bb) & 
           -1.0d0 * t1(ib, ab) * t1(ma, ba) * t2(ja, nb, na, mb) & 
           -1.0d0 * t1(ib, ab) * t1(ja, na) * t2(ma, nb, ba, mb) & 
           +1.0d0 * t1(ib, ab) * t1(ma, na) * t2(ja, nb, ba, mb) & 
@@ -3514,7 +4539,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do ab = i_ab, f_ab
         if (ab == mb) cycle 
         aa = ab - cc_nVa
-        Q2(ib,jb,ab,mb) = Q2(ib,jb,ab,mb) & 
+        M2(ib,jb,ab,mb) = M2(ib,jb,ab,mb) & 
         -1.0d0 * t1(ib, ab) * t2(ja, nb, na, mb) & 
         -1.0d0 * t1(ib, ab) * t1(ja, na) * t1(nb, mb) & 
         +1.0d0 * t1(ia, aa) * t2(ja, nb, na, mb) & 
@@ -3540,7 +4565,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,jb,mb,bb) = Q2(ib,jb,mb,bb) & 
+        M2(ib,jb,mb,bb) = M2(ib,jb,mb,bb) & 
         +1.0d0 * t1(ib, bb) * t2(ja, nb, na, mb) & 
         +1.0d0 * t1(ib, bb) * t1(ja, na) * t1(nb, mb) & 
         -1.0d0 * t1(ia, ba) * t2(ja, nb, na, mb) & 
@@ -3566,7 +4591,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(ib,nb,ab,bb) = Q2(ib,nb,ab,bb) & 
+        M2(ib,nb,ab,bb) = M2(ib,nb,ab,bb) & 
         +1.0d0 * t1(ib, ab) * t2(ma, nb, ba, mb) & 
         +1.0d0 * t1(ib, ab) * t1(ma, ba) * t1(nb, mb) & 
         -1.0d0 * t1(ia, aa) * t2(ma, nb, ba, mb) & 
@@ -3575,9 +4600,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         -1.0d0 * t1(ib, bb) * t1(ma, aa) * t1(nb, mb) & 
         +1.0d0 * t1(ia, ba) * t2(ma, nb, aa, mb) & 
         +1.0d0 * t1(ia, ba) * t1(ma, aa) * t1(nb, mb) & 
-        +1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
-        -1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb) & 
-        +1.0d0 * t1(nb, mb) * t2(ma, ia, aa, ba)
+        -1.0d0 * t1(ma, aa) * t2(ia, nb, ba, mb) & 
+        +1.0d0 * t1(ma, ba) * t2(ia, nb, aa, mb) & 
+        -1.0d0 * t1(nb, mb) * t2(ma, ia, aa, ba)
       enddo
     enddo
   enddo
@@ -3592,7 +4617,7 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
       do bb = i_bb, f_bb
         if (bb == mb) cycle 
         ba = bb - cc_nVa
-        Q2(nb,jb,ab,bb) = Q2(nb,jb,ab,bb) & 
+        M2(nb,jb,ab,bb) = M2(nb,jb,ab,bb) & 
         -1.0d0 * t1(jb, ab) * t2(ma, nb, ba, mb) & 
         -1.0d0 * t1(jb, ab) * t1(ma, ba) * t1(nb, mb) & 
         +1.0d0 * t1(ja, aa) * t2(ma, nb, ba, mb) & 
@@ -3601,9 +4626,9 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
         +1.0d0 * t1(jb, bb) * t1(ma, aa) * t1(nb, mb) & 
         -1.0d0 * t1(ja, ba) * t2(ma, nb, aa, mb) & 
         -1.0d0 * t1(ja, ba) * t1(ma, aa) * t1(nb, mb) & 
-        -1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
-        +1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb) & 
-        -1.0d0 * t1(nb, mb) * t2(ma, ja, aa, ba)
+        +1.0d0 * t1(ma, aa) * t2(ja, nb, ba, mb) & 
+        -1.0d0 * t1(ma, ba) * t2(ja, nb, aa, mb) & 
+        +1.0d0 * t1(nb, mb) * t2(ma, ja, aa, ba)
       enddo
     enddo
   enddo
@@ -3615,10 +4640,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(ib,nb,ab,mb) = Q2(ib,nb,ab,mb) & 
+      M2(ib,nb,ab,mb) = M2(ib,nb,ab,mb) & 
       +1.0d0 * t1(ib, ab) * t1(nb, mb) & 
       -1.0d0 * t1(ia, aa) * t1(nb, mb) & 
-      -1.0d0 * t2(ia, nb, aa, mb)
+      +1.0d0 * t2(ia, nb, aa, mb)
     enddo
   enddo
 
@@ -3629,10 +4654,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(ib,nb,mb,bb) = Q2(ib,nb,mb,bb) & 
+      M2(ib,nb,mb,bb) = M2(ib,nb,mb,bb) & 
       -1.0d0 * t1(ib, bb) * t1(nb, mb) & 
       +1.0d0 * t1(ia, ba) * t1(nb, mb) & 
-      +1.0d0 * t2(ia, nb, ba, mb)
+      -1.0d0 * t2(ia, nb, ba, mb)
     enddo
   enddo
 
@@ -3643,10 +4668,10 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do ab = i_ab, f_ab
       if (ab == mb) cycle 
       aa = ab - cc_nVa
-      Q2(nb,jb,ab,mb) = Q2(nb,jb,ab,mb) & 
+      M2(nb,jb,ab,mb) = M2(nb,jb,ab,mb) & 
       -1.0d0 * t1(jb, ab) * t1(nb, mb) & 
       +1.0d0 * t1(ja, aa) * t1(nb, mb) & 
-      +1.0d0 * t2(ja, nb, aa, mb)
+      -1.0d0 * t2(ja, nb, aa, mb)
     enddo
   enddo
 
@@ -3657,13 +4682,13 @@ subroutine compute_Q2_2(nO,nV,det,t1,t2,Q2)
     do bb = i_bb, f_bb
       if (bb == mb) cycle 
       ba = bb - cc_nVa
-      Q2(nb,jb,mb,bb) = Q2(nb,jb,mb,bb) & 
+      M2(nb,jb,mb,bb) = M2(nb,jb,mb,bb) & 
       +1.0d0 * t1(jb, bb) * t1(nb, mb) & 
       -1.0d0 * t1(ja, ba) * t1(nb, mb) & 
-      -1.0d0 * t2(ja, nb, ba, mb)
+      +1.0d0 * t2(ja, nb, ba, mb)
     enddo
   enddo
- 
+  
 end
 #+end_src
 

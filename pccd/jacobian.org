@@ -1,6 +1,8 @@
 * Jacobian
 
-cite kossoski
+Fábris Kossoski, Antoine Marie, Anthony Scemama, Michel Caffarel, and
+Pierre-François Loos, J. Chem. Theory Comput. 2021, 17, 8, 4756–4768
+https://doi.org/10.1021/acs.jctc.1c00348
 
 Full jacobian:
 \begin{align*}

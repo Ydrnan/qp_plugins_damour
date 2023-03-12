@@ -20,14 +20,34 @@ subroutine guess_amplitudes_pccd(nO, nV, t2)
   ! internal
   integer                       :: i, a
 
-  ! Guess for t2 = t_i^a / (2fcc_a^a - 2fcc_i^i)
-  do a = 1, nV
-    do i = 1, nO
-      t2(i,a) = - cc_space_v_iiaa(i,a) &
-        /(2d0 * cc_space_f_v(a) - 2d0 * cc_space_f_o(i))
-      !print*,i,a,t2(i,a)
+  PROVIDE cc_guess_t2
+
+  ! None
+  if (cc_guess_t2 == 'none') then
+     t2 = 0d0
+  ! MP
+  else if (cc_guess_t2 == 'MP') then
+    ! Guess for t2 = t_i^a / (2fcc_a^a - 2fcc_i^i)
+    do a = 1, nV
+      do i = 1, nO
+        t2(i,a) = - cc_space_v_iiaa(i,a) &
+          /(2d0 * cc_space_f_v(a) - 2d0 * cc_space_f_o(i))
+      enddo
     enddo
-  enddo
+  ! Read
+  else if (cc_guess_t2 == 'read' .and. cc_read_t2) then
+    open(unit=11, file="T2.qp")
+    do a = 1, nV
+      do i = 1, nO
+        read(11,'(F16.8)') t2(i,a)
+      enddo
+    enddo
+    close(11)
+  ! Unknown
+  else
+    print*, 'Unknown cc_guess_t type: '//cc_guess_t2
+    call abort
+  endif
 
 end  
 #+END_SRC

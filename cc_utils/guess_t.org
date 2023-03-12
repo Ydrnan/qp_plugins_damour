@@ -19,8 +19,6 @@ subroutine guess_t1(nO,nV,f_o,f_v,f_ov,t1)
   ! internal
   integer                       :: i,a
 
-  PROVIDE cc_guess_t1 cc_read_t1
-
   if (trim(cc_guess_t1) == 'none') then
      t1 = 0d0
   else if (trim(cc_guess_t1) == 'MP') then
@@ -59,8 +57,6 @@ subroutine guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
   ! internal
   integer                       :: i,j,a,b
 
-  PROVIDE cc_guess_t2 cc_read_t2
-  
   if (trim(cc_guess_t2) == 'none') then
     t2 = 0d0
   else if (trim(cc_guess_t2) == 'MP') then

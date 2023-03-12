@@ -21,24 +21,18 @@ subroutine guess_t1(nO,nV,f_o,f_v,f_ov,t1)
 
   PROVIDE cc_guess_t1 cc_read_t1
 
-  if (cc_guess_t1 == 'none') then
+  if (trim(cc_guess_t1) == 'none') then
      t1 = 0d0
-  else if (cc_guess_t1 == 'MP') then
+  else if (trim(cc_guess_t1) == 'MP') then
     do a = 1, nV
       do i = 1, nO
         t1(i,a) = f_ov(i,a) / (f_o(i) - f_v(a) - cc_level_shift_guess)
       enddo
     enddo
-  else if (cc_guess_t1 == 'read' .and. cc_read_t1) then
-    open(unit=11, file="T1.qp")
-    do a = 1, nV
-      do i = 1, nO
-        read(11,'(F16.8)') t1(i,a)
-      enddo
-    enddo
-    close(11)
+  else if (trim(cc_guess_t1) == 'read') then
+    call read_t1(nO,nV,t1)
   else
-    print*, 'Unknown cc_guess_t type: '//cc_guess_t1
+    print*, 'Unknown cc_guess_t1 type: '//trim(cc_guess_t1)
     call abort
   endif
   
@@ -67,9 +61,9 @@ subroutine guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
 
   PROVIDE cc_guess_t2 cc_read_t2
   
-  if (cc_guess_t2 == 'none') then
+  if (trim(cc_guess_t2) == 'none') then
     t2 = 0d0
-  else if (cc_guess_t2 == 'MP') then
+  else if (trim(cc_guess_t2) == 'MP') then
     do b = 1, nV
       do a = 1, nV
         do j = 1, nO
@@ -79,20 +73,10 @@ subroutine guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
         enddo
       enddo
     enddo
-  else if (cc_guess_t2 == 'read' .and. cc_read_t2) then
-    open(unit=11, file="T2.qp")
-    do b = 1, nV
-      do a = 1, nV
-        do j = 1, nO
-          do i = 1, nO
-            read(11,'(F20.12)') t2(i,j,a,b)
-          enddo
-        enddo
-      enddo
-    enddo
-    close(11)
+  else if (trim(cc_guess_t2) == 'read') then
+    call read_t2(nO,nV,t2)
   else
-    print*, 'Unknown cc_guess_t type: '//cc_guess_t2 
+    print*, 'Unknown cc_guess_t1 type: '//trim(cc_guess_t2)
     call abort
   endif
   
@@ -118,7 +102,7 @@ subroutine write_t1(nO,nV,t1)
   integer                      :: i,a
 
   if (cc_write_t1) then
-    open(unit=11, file="T1.qp")
+    open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T1')
     do a = 1, nV
       do i = 1, nO
          write(11,'(F20.12)') t1(i,a)
@@ -148,7 +132,7 @@ subroutine write_t2(nO,nV,t2)
   integer                      :: i,j,a,b
 
   if (cc_write_t2) then
-    open(unit=11, file="T2.qp")
+    open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T2')
     do b = 1, nV
       do a = 1, nV
         do j = 1, nO
@@ -181,16 +165,22 @@ subroutine read_t1(nO,nV,t1)
 
   ! internal
   integer                       :: i,a
+  logical                       :: ok
 
-  if (cc_read_t1) then
-    open(unit=11, file="T1.qp")
-    do a = 1, nV
-      do i = 1, nO
-         read(11,'(F20.12)') t1(i,a)
-      enddo
-    enddo
-    close(11)
+  inquire(file=trim(ezfio_filename)//'/cc_utils/T1', exist=ok)
+  if (.not. ok) then
+     print*, 'There is no file'// trim(ezfio_filename)//'/cc_utils/T1'
+     print*, 'Do a first calculation with cc_write_t1 = True'
+     print*, 'and cc_guess_t1 /= read before setting cc_guess_t1 = read'
+     call abort
   endif
+  open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T1')
+  do a = 1, nV
+    do i = 1, nO
+       read(11,'(F20.12)') t1(i,a)
+    enddo
+  enddo
+  close(11)
   
 end  
 #+end_src
@@ -211,20 +201,26 @@ subroutine read_t2(nO,nV,t2)
 
   ! internal
   integer                       :: i,j,a,b
+  logical                       :: ok
 
-  if (cc_read_t2) then
-    open(unit=11, file="T2.qp")
-    do b = 1, nV
-      do a = 1, nV
-        do j = 1, nO
-          do i = 1, nO
-             read(11,'(F20.12)') t2(i,j,a,b)
-          enddo
+  inquire(file=trim(ezfio_filename)//'/cc_utils/T1', exist=ok)
+  if (.not. ok) then
+     print*, 'There is no file'// trim(ezfio_filename)//'/cc_utils/T1'
+     print*, 'Do a first calculation with cc_write_t2 = True'
+     print*, 'and cc_guess_t2 /= read before setting cc_guess_t2 = read'
+     call abort
+  endif
+  open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T2')
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+           read(11,'(F20.12)') t2(i,j,a,b)
         enddo
       enddo
     enddo
-    close(11)
-  endif
+  enddo
+  close(11)
   
 end  
 #+end_src

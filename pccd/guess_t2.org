@@ -34,15 +34,6 @@ subroutine guess_amplitudes_pccd(nO, nV, t2)
           /(2d0 * cc_space_f_v(a) - 2d0 * cc_space_f_o(i))
       enddo
     enddo
-  ! Read
-  else if (cc_guess_t2 == 'read' .and. cc_read_t2) then
-    open(unit=11, file="T2.qp")
-    do a = 1, nV
-      do i = 1, nO
-        read(11,'(F16.8)') t2(i,a)
-      enddo
-    enddo
-    close(11)
   ! Unknown
   else
     print*, 'Unknown cc_guess_t type: '//cc_guess_t2

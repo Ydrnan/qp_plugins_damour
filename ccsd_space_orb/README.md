@@ -1,11 +1,11 @@
-# CCSD in spin orbitals
+# CCSD in spatial orbitals
 
-CCSD and CCSD(T) in spin orbitals for open and closed shell systems.
+CCSD and CCSD(T) in spatial orbitals for closed shell systems.
 
 ## Calculations
 To run the cc program:  
 ```
-qp run ccsd_spin_orb
+qp run ccsd_space_orb
 ```
 
 ## Settings

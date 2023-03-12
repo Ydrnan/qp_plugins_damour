@@ -1,5 +1,4 @@
-* Space
-** T1
+* T1
 #+begin_src f90 :comments org :tangle update_t.irp.f
 subroutine update_t1(nO,nV,f_o,f_v,r1,t1)
 
@@ -35,7 +34,7 @@ subroutine update_t1(nO,nV,f_o,f_v,r1,t1)
 end  
 #+end_src
 
-** T2
+* T2
 #+begin_src f90 :comments org :tangle update_t.irp.f
 subroutine update_t2(nO,nV,f_o,f_v,r2,t2)
 
@@ -73,41 +72,5 @@ subroutine update_t2(nO,nV,f_o,f_v,r2,t2)
   !$OMP END PARALLEL
   
 end  
-#+end_src
-
-** Tau
-#+begin_src f90 :comments org :tangle update_t.irp.f
-subroutine update_tau_space(nO,nV,t1,t2,tau)
-
-  implicit none
-
-  ! in
-  integer, intent(in)           :: nO, nV
-  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
-
-  ! out
-  double precision, intent(out) :: tau(nO,nO,nV,nV)
-
-  ! internal
-  integer                       :: i,j,a,b
-  
-  !$OMP PARALLEL &
-  !$OMP SHARED(nO,nV,tau,t2,t1) &
-  !$OMP PRIVATE(i,j,a,b) &
-  !$OMP DEFAULT(NONE)
-  !$OMP DO collapse(3)
-  do b = 1, nV
-    do a = 1, nV
-      do j = 1, nO
-        do i = 1, nO
-          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
-        enddo
-      enddo
-    enddo
-  enddo
-  !$OMP END DO
-  !$OMP END PARALLEL
-    
-end
 #+end_src
 

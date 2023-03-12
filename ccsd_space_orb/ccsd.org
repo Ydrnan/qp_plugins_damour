@@ -81,12 +81,6 @@ subroutine run_ccsd_space_orb
   allocate(H_oo(nO,nO), H_vv(nV,nV), H_vo(nV,nO))
 
   if (cc_update_method == 'diis') then
-    !allocate(all_err2(nO*nO*nV*nV,cc_diis_depth), all_t2(nO*nO*nV*nV,cc_diis_depth))
-    !all_err2 = 0d0
-    !all_t2   = 0d0
-    !allocate(all_err1(nO*nV,cc_diis_depth), all_t1(nO*nV,cc_diis_depth))
-    !all_err1 = 0d0
-    !all_t1   = 0d0
     allocate(all_err(nO*nV+nO*nO*nV*nV,cc_diis_depth), all_t(nO*nV+nO*nO*nV*nV,cc_diis_depth))
     all_err = 0d0
     all_t   = 0d0
@@ -99,17 +93,6 @@ subroutine run_ccsd_space_orb
     print*, 'abort'
     call abort
   endif
-
-  ! Delta
-  !do b = 1, nV
-  !  do a = 1, nV
-  !    do j = 1, nO
-  !      do i = 1, nO
-  !        delta(i,j,a,b) = cc_space_f_v(a) + cc_space_f_v(b) - cc_space_f_o(i) - cc_space_f_o(j)
-  !      enddo
-  !    enddo
-  !  enddo
-  !enddo
 
   ! Init
   call guess_t1(nO,nV,cc_space_f_o,cc_space_f_v,cc_space_f_ov,t1)
@@ -160,10 +143,6 @@ subroutine run_ccsd_space_orb
 
     ! Energy
     call e_ccsd(nO,nV,tau,t1,energy)
-    !print*,''
-    !print*,'Iter. n.:', nb_iter
-    !print*,'E(CCSD)= ', hf_energy + energy, energy
-    !print*,'r       :', max_r1, max_r2
     write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
 
     nb_iter = nb_iter + 1
@@ -192,7 +171,6 @@ subroutine run_ccsd_space_orb
   
   ! Deallocation
   if (cc_update_method == 'diis') then
-    !deallocate(all_err1,all_err2,all_t1,all_t2)
     deallocate(all_err,all_t)
   endif
 
@@ -283,6 +261,43 @@ subroutine e_ccsd(nO,nV,tau,t1,energy)
   
 end
 #+END_SRC
+
+* T
+** Tau
+#+begin_src f90 :comments org :tangle update_t.irp.f
+subroutine update_tau_space(nO,nV,t1,t2,tau)
+
+  implicit none
+
+  ! in
+  integer, intent(in)           :: nO, nV
+  double precision, intent(in)  :: t1(nO,nV), t2(nO,nO,nV,nV)
+
+  ! out
+  double precision, intent(out) :: tau(nO,nO,nV,nV)
+
+  ! internal
+  integer                       :: i,j,a,b
+  
+  !$OMP PARALLEL &
+  !$OMP SHARED(nO,nV,tau,t2,t1) &
+  !$OMP PRIVATE(i,j,a,b) &
+  !$OMP DEFAULT(NONE)
+  !$OMP DO collapse(3)
+  do b = 1, nV
+    do a = 1, nV
+      do j = 1, nO
+        do i = 1, nO
+          tau(i,j,a,b) = t2(i,j,a,b) + t1(i,a) * t1(j,b)
+        enddo
+      enddo
+    enddo
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
+    
+end
+#+end_src
 
 * Residual equations
 ** R1

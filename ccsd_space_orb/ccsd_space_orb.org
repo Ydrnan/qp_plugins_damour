@@ -6,8 +6,7 @@ cluster single and double excitation (CCSD) equations. The Journal of
 Chemical Physics, 89(12), 7382–. doi:10.1063/1.455269
 
 * Code
-
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 program ccsd
 
   implicit none
@@ -19,7 +18,7 @@ program ccsd
 end
 #+end_src
 
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb_sub.irp.f
 subroutine run_ccsd_space_orb
   
   implicit none
@@ -36,9 +35,6 @@ subroutine run_ccsd_space_orb
   double precision, allocatable :: H_oo(:,:), H_vv(:,:), H_vo(:,:)
   
   double precision, allocatable :: all_err(:,:), all_t(:,:)
-  !double precision, allocatable :: err2(:,:,:,:), tmp_err2(:), tmp_t2(:)
-  !double precision, allocatable :: all_err1(:,:), all_t1(:,:)
-  !double precision, allocatable :: err1(:,:), tmp_err1(:), tmp_t1(:)
   integer, allocatable          :: list_occ(:), list_vir(:)
   integer(bit_kind)             :: det(N_int,2)
   integer                       :: nO, nV, nOa, nOb, nVa, nVb, n_spin(4)
@@ -215,7 +211,7 @@ end
 #+END_SRC
 
 * Energy
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine e_ccsd(nO,nV,tau,t1,energy)
 
   implicit none
@@ -264,7 +260,7 @@ end
 
 * T
 ** Tau
-#+begin_src f90 :comments org :tangle update_t.irp.f
+#+begin_src f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine update_tau_space(nO,nV,t1,t2,tau)
 
   implicit none
@@ -302,7 +298,7 @@ end
 * Residual equations
 ** R1
 *** R1
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_r1(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r1,max_r1)
 
   implicit none
@@ -583,7 +579,7 @@ end
 
 *** Intermediates
 **** H_oo
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_H_oo(nO,nV,t1,t2,tau,H_oo)
 
   implicit none
@@ -640,7 +636,7 @@ end
 #+END_SRC
 
 **** H_vv
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_H_vv(nO,nV,t1,t2,tau,H_vv)
 
   implicit none
@@ -715,7 +711,7 @@ end
 #+END_SRC
 
 **** H_vo
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_H_vo(nO,nV,t1,t2,H_vo)
 
   implicit none
@@ -787,7 +783,7 @@ end
 
 ** R2
 *** R2
-#+begin_src f90 :comments org :tangle ccsd.irp.f
+#+begin_src f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_r2(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r2,max_r2)
 
   implicit none
@@ -1443,7 +1439,7 @@ end
 
 *** Intermediates
 **** A1
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_A1(nO,nV,t1,t2,tau,A1)
 
   implicit none
@@ -1554,7 +1550,7 @@ end
 #+END_SRC
 
 **** B1
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_B1(nO,nV,t1,t2,B1)
 
   implicit none
@@ -1653,7 +1649,7 @@ end
 #+END_SRC
 
 **** g_occ
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_g_occ(nO,nV,t1,t2,H_oo,g_occ)
 
   implicit none
@@ -1716,7 +1712,7 @@ end
 #+END_SRC
 
 **** g_vir
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_g_vir(nO,nV,t1,t2,H_vv,g_vir)
 
   implicit none
@@ -1779,7 +1775,7 @@ end
 #+END_SRC
 
 **** J1
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_J1(nO,nV,t1,t2,v_ovvo,v_ovoo,v_vvvo,v_vvoo,J1)
 
   implicit none
@@ -1995,7 +1991,7 @@ end
 #+END_SRC
 
 **** K1
-#+BEGIN_SRC f90 :comments org :tangle ccsd.irp.f
+#+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
 subroutine compute_K1(nO,nV,t1,t2,v_ovoo,v_vvoo,v_ovov,v_vvov,K1)
 
   implicit none

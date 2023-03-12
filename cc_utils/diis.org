@@ -271,13 +271,13 @@ subroutine compute_err1(nO,nV,f_o,f_v,r1,err1)
   integer                       :: i,a
   
   !$OMP PARALLEL &
-  !$OMP SHARED(err1,r1,f_o,f_v,nO,nV) &
+  !$OMP SHARED(err1,r1,f_o,f_v,nO,nV,cc_level_shift) &
   !$OMP PRIVATE(i,a) &
   !$OMP DEFAULT(NONE)
   !$OMP DO
   do a = 1, nV
     do i = 1, nO
-      err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a))
+      err1(i,a) = - r1(i,a) / (f_o(i) - f_v(a) - cc_level_shift)
     enddo
   enddo
   !$OMP END DO
@@ -304,7 +304,7 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
   integer                       :: i,j,a,b
 
   !$OMP PARALLEL &
-  !$OMP SHARED(err2,r2,f_o,f_v,nO,nV) &
+  !$OMP SHARED(err2,r2,f_o,f_v,nO,nV,cc_level_shift) &
   !$OMP PRIVATE(i,j,a,b) &
   !$OMP DEFAULT(NONE)
   !$OMP DO collapse(3)
@@ -312,7 +312,7 @@ subroutine compute_err2(nO,nV,f_o,f_v,r2,err2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO       
-          err2(i,j,a,b) = - r2(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b))
+          err2(i,j,a,b) = - r2(i,j,a,b) / (f_o(i) + f_o(j) - f_v(a) - f_v(b) - cc_level_shift)
         enddo
       enddo
     enddo

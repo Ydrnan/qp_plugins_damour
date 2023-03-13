@@ -15,7 +15,7 @@ function run() {
   qp set cc_utils cc_par_t true
   qp set cc_utils cc_thresh_conv 1e-12
   file="$(echo $1 | sed 's/.ezfio//g')"
-  qp run ccsd | tee $file.ccsd.out
+  qp run ccsd_space_orb | tee $file.ccsd.out
   energy1="$(grep 'E(CCSD)' $file.ccsd.out | tail -n 1 | awk '{printf $3}')"
   energy2="$(grep 'E(T)' $file.ccsd.out | tail -n 1 | awk '{printf $3}')"
   #rm $file.ccsd.out

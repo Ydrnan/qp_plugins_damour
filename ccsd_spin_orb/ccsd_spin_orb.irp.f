@@ -9,7 +9,8 @@ program ccsd
   END_DOC
 
   read_wf = .True.
+  touch read_wf
 
-  call run_ccsd_spin_orb_sub
+  call run_ccsd_spin_orb
   
 end

@@ -17,15 +17,16 @@ program ccsd
   END_DOC
 
   read_wf = .True.
+  touch read_wf
 
-  call run_ccsd_spin_orb_sub
+  call run_ccsd_spin_orb
   
 end 
 #+end_src
 
 ** Code
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine run_ccsd_spin_orb_sub
+subroutine run_ccsd_spin_orb
 
   implicit none
 

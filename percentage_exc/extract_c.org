@@ -20,80 +20,53 @@ subroutine run_extract_c
   double precision, allocatable :: c1(:,:), c2(:,:,:,:), c3_bc(:,:,:,:), c4_abcd(:,:,:,:)
   double precision, allocatable :: tmp_coef(:), l_coef(:), abs_coef(:)
   integer :: nO,nV,nOa,nOb,nVa,nVb,nO_m,nV_m,nO_S(2),nV_S(2)
-  integer, allocatable :: n_spin(:),list_occ(:,:), list_vir(:,:), list_spin_occ(:,:), list_spin_vir(:,:), key(:)
-  integer                       :: i,j,k,l,a,b,c,d,tmp_i,tmp_j,tmp_k,tmp_l,tmp_a,tmp_b,tmp_c,tmp_d,s1,s2,s3,s4
+  integer, allocatable :: list_occ(:,:),list_vir(:,:),list_spin_occ(:,:), list_spin_vir(:,:), key(:)
+  integer :: i,j,k,l,a,b,c,d,tmp_i,tmp_j,tmp_k,tmp_l,tmp_a,tmp_b,tmp_c,tmp_d,s1,s2,s3,s4
   integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,p3,p4,h1,h2,h3,h4, degree
   double precision :: thresh_coef, factor, norm, phase
   integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), res6(N_int,2), res7(N_int,2), exc(0:2,2,2)
-  integer(bit_kind), allocatable :: tmp_det(:,:,:), l_det(:,:,:)
+  integer(bit_kind), allocatable :: det(:,:), tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
 
-  !if (extract_c3 .or. extract_c4) then
-  !  print*,''
-  !  print*,'The computation of the phase factor for exc > 2 should be solved before'
-  !  call abort
-  !endif
+  allocate(det(N_int,2))
 
+  det = psi_det(:,:,cc_ref)
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
+  
   thresh_coef = thresh_extract_c
 
-  allocate(n_spin(4))
-  call extract_n_spin(psi_det(1,1,1),n_spin)
-  nOa = n_spin(1)
-  nOb = n_spin(2)
-  nVa = n_spin(3)
-  nVb = n_spin(4)
-  deallocate(n_spin)
-
   ! Total number of occ/vir spin orb
-  nO = nOa + nOb
-  nV = nVa + nVb
+  nO = cc_nOab
+  nV = cc_nVab
   !print*,nO,nV
 
   ! Number of occ/vir spin orb per spin
-  nO_S = (/nOa,nOb/)
-  nV_S = (/nVa,nVb/)
+  nO_S = cc_nO_S
+  nV_S = cc_nV_S
   !print*,nO_S,nV_S
 
   ! Maximal number of occ/vir 
-  nO_m = max(nOa, nOb)
-  nV_m = max(nVa, nVb)
-  
+  nO_m = cc_nO_m
+  nV_m = cc_nV_m
+
   allocate(list_occ(nO_m,2), list_vir(nV_m,2))
-  allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
-  call extract_list_orb_spin(psi_det(1,1,1),nO_m,nV_m,list_occ,list_vir)
-
-  do i = 1, nOa
-    list_spin_occ(i,1) = i
-  enddo
-  do i = 1, nOb
-    list_spin_occ(i,2) = nOa + i
-  enddo
-  do i = 1, nVa
-    list_spin_vir(i,1) = i
-  enddo
-  do i = 1, nVb
-    list_spin_vir(i,2) = nVa + i
-  enddo
-
-  print*,list_spin_occ(:,1)
-  print*,list_spin_occ(:,2)
-  print*,list_spin_vir(:,1)
-  print*,list_spin_vir(:,2)
+  call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
   
+  allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
+
+  list_spin_occ = cc_list_occ_spin
+  list_spin_vir = cc_list_vir_spin
+
   allocate(t1(nO,nV), t2(nO,nO,nV,nV))
   allocate(c1(nO,nV), c2(nO,nO,nV,nV), c3_bc(nO,nO,nO,nV), c4_abcd(nO,nO,nO,nO))
 
-  cc_read_t1 = .True.
-  cc_read_t2 = .True.
-  TOUCH cc_read_t1 cc_read_t2
-  
+  print*, 'T1 and T2 read from disk'
   call read_t1(nO,nV,t1)
   call read_t2(nO,nV,t2)
-  print*, 'T1 and T2 read from disk'
   
   c1 = t1
   call extract_c2(nO,nV,t1,t2,c2)
-  !call extract_c3(nO,nV,t1,t2,c3)
 
   ! Count the number of coefficients s.t. |c| > thresh
   nb_coef = 1 ! Ref
@@ -239,7 +212,7 @@ subroutine run_extract_c
 
   ! Ref
   tmp_coef(1) = 1d0
-  tmp_det(:,:,1) = psi_det(:,:,1)
+  tmp_det(:,:,1) = det
   
   idx_coef = 2
   ! c1
@@ -252,9 +225,9 @@ subroutine run_extract_c
         h1 = list_occ(tmp_i,s1)
         
         if (dabs(c1(i,a)) > thresh_coef) then
-          call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+          call apply_hole(det, s1, h1, res1, ok, N_int)
           call apply_particle(res1, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
-          call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+          call get_excitation(det,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
           tmp_coef(idx_coef) = c1(i,a) * phase
           idx_coef = idx_coef + 1
         endif
@@ -284,11 +257,11 @@ subroutine run_extract_c
               if (s1 == s2 .and. i <= j) cycle
               
               if (dabs(c2(i,j,a,b)) > thresh_coef) then
-                call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                call apply_hole(det, s1, h1, res1, ok, N_int)
                 call apply_hole(res1, s2, h2, res2, ok, N_int)
                 call apply_particle(res2, s1, p1, res3, ok, N_int)
                 call apply_particle(res3, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
-                call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
+                call get_excitation(det,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
                 tmp_coef(idx_coef) = c2(i,j,a,b) * phase
                 idx_coef = idx_coef + 1
               endif
@@ -333,14 +306,14 @@ subroutine run_extract_c
                       if (s1 == s2 .and. i <= j) cycle
                       
                       if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
-                        call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                        call apply_hole(det, s1, h1, res1, ok, N_int)
                         call apply_hole(res1, s2, h2, res2, ok, N_int)
                         call apply_hole(res2, s3, h3, res3, ok, N_int)
                         call apply_particle(res3, s1, p1, res4, ok, N_int)
                         call apply_particle(res4, s2, p2, res5, ok, N_int)
                         call apply_particle(res5, s3, p3, tmp_det(1,1,idx_coef), ok, N_int)
                         !call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
-                        call get_phase_general(psi_det(1,1,1),tmp_det(1,1,idx_coef),phase,degree,N_int)
+                        call get_phase_general(det,tmp_det(1,1,idx_coef),phase,degree,N_int)
                         tmp_coef(idx_coef) = c3_bc(i,j,k,a) * phase
                         idx_coef = idx_coef + 1
                       endif
@@ -397,7 +370,7 @@ subroutine run_extract_c
                             if (s1 == s2 .and. i <= j) cycle
                             
                             if (dabs(c4_abcd(i,j,k,l)) > thresh_coef) then
-                              call apply_hole(psi_det(1,1,1), s1, h1, res1, ok, N_int)
+                              call apply_hole(det, s1, h1, res1, ok, N_int)
                               call apply_hole(res1, s2, h2, res2, ok, N_int)
                               call apply_hole(res2, s3, h3, res3, ok, N_int)
                               call apply_hole(res3, s4, h4, res4, ok, N_int)
@@ -406,7 +379,7 @@ subroutine run_extract_c
                               call apply_particle(res6, s3, p3, res7, ok, N_int)
                               call apply_particle(res7, s4, p4, tmp_det(1,1,idx_coef), ok, N_int)
                               !call get_excitation(psi_det(1,1,1),tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
-                              call get_phase_general(psi_det(1,1,1),tmp_det(1,1,idx_coef),phase,degree,N_int)
+                              call get_phase_general(det,tmp_det(1,1,idx_coef),phase,degree,N_int)
                               tmp_coef(idx_coef) = c4_abcd(i,j,k,l) * phase
                               idx_coef = idx_coef + 1
                             endif
@@ -714,10 +687,10 @@ end
 #+end_src
 
 #+begin_src
-c1(i,a) = t1(i, a),
+c1(i,a) = t1(i, a)
 
 c2(i,j,a,b) = -t1(i, b) * t1(j, a) + t1(i, a) * t1(j, b) + 
-  t2(i, j, a, b),
+  t2(i, j, a, b)
 
 c3(i,j,k,a,b,c) = -t1(i, c) * t1(j, b) * t1(k, a) + 
   t1(i, b) * t1(j, c) * t1(k, a) + t1(i, c) * t1(j, a) * t1(k, b) - 
@@ -727,7 +700,7 @@ c3(i,j,k,a,b,c) = -t1(i, c) * t1(j, b) * t1(k, a) +
   t1(j, c) * t2(i, k, a, b) + t1(j, b) * t2(i, k, a, c) - 
   t1(j, a) * t2(i, k, b, c) + t1(i, c) * t2(j, k, a, b) - 
   t1(i, b) * t2(j, k, a, c) + t1(i, a) * t2(j, k, b, c) + 
-  t3(i, j, k, a, b, c),
+  t3(i, j, k, a, b, c)
 
 c4(i,j,k,l,a,b,c,d) =
   t1(i, d) * t1(j, c) * t1(k, b) * t1(l, a) - 
@@ -834,7 +807,7 @@ c4(i,j,k,l,a,b,c,d) =
   t1(j, b) * t3(i, k, l, a, c, d) - t1(j, a) * t3(i, k, l, b, c, d) - 
   t1(i, d) * t3(j, k, l, a, b, c) + t1(i, c) * t3(j, k, l, a, b, d) - 
   t1(i, b) * t3(j, k, l, a, c, d) + t1(i, a) * t3(j, k, l, b, c, d) + 
-  t4(i, j, k, l, a, b, c, d)}
+  t4(i, j, k, l, a, b, c, d)
 
 #+end_src
 

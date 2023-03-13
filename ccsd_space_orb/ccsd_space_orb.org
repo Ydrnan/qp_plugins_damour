@@ -52,12 +52,10 @@ subroutine run_ccsd_space_orb
   nVa = cc_nVa !n_spin(3)
   nVb = cc_nVb !n_spin(4)
 
-  do i = 1, cc_nO_m
-    if (cc_list_occ_spin(i,1) /= cc_list_occ_spin(i,2)) then
-      print*, 'Open shell system, abort'
-      call abort
-    endif
-  enddo
+  ! Check that the reference is a closed shell determinant
+  if (cc_ref_is_open_shell) then
+    call abort
+  endif
   
   ! Number of occ/vir spatial orb
   nO = nOa

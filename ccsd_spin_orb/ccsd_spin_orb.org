@@ -176,8 +176,8 @@ subroutine run_ccsd_spin_orb_sub
   t1 = 0d0
   call guess_t1(nO,nV,f_o,f_v,f_ov,t1)
   call guess_t2(nO,nV,f_o,f_v,v_oovv,t2)
-  call compute_tau(nO,nV,t1,t2,tau)
-  call compute_tau_t(nO,nV,t1,t2,tau_t)
+  call compute_tau_spin(nO,nV,t1,t2,tau)
+  call compute_tau_t_spin(nO,nV,t1,t2,tau_t)
   
   ! Loop init
   nb_iter = 0
@@ -189,7 +189,7 @@ subroutine run_ccsd_spin_orb_sub
 
   call det_energy(det,uncorr_energy)
   print*,'Det energy', uncorr_energy
-  call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+  call ccsd_energy_spin(nO,nV,t1,t2,F_ov,v_oovv,energy)
   print*,'guess energy', uncorr_energy+energy, energy
   
   write(*,'(A77)') ' -----------------------------------------------------------------------------'
@@ -223,13 +223,13 @@ subroutine run_ccsd_spin_orb_sub
 
     ! Residuals
     call wall_time(ti)
-    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
+    call compute_r1_spin(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
     call wall_time(tf)
     if (cc_dev) then
       print*,'Compute r1:',tf-ti,'s'
     endif
     call wall_time(ti)
-    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
+    call compute_r2_spin(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
     call wall_time(tf)
     if (cc_dev) then
       print*,'Compute r2:',tf-ti,'s'
@@ -255,15 +255,15 @@ subroutine run_ccsd_spin_orb_sub
       print*,'Unkonw cc_method_method: '//cc_update_method
     endif
 
-    call compute_tau(nO,nV,t1,t2,tau)
-    call compute_tau_t(nO,nV,t1,t2,tau_t)
+    call compute_tau_spin(nO,nV,t1,t2,tau)
+    call compute_tau_t_spin(nO,nV,t1,t2,tau_t)
     call wall_time(tf)
     if (cc_dev) then
       print*,'Update:',tf-ti,'s'
     endif
 
     ! Print
-    call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+    call ccsd_energy_spin(nO,nV,t1,t2,F_ov,v_oovv,energy)
     call wall_time(tfi)
     
     write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', &
@@ -319,8 +319,8 @@ subroutine run_ccsd_spin_orb_sub
     !   cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_occ_spin, &
     !   nV,nV,nV,nO, v_vvvo)
 
-    !call compute_par_t(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
-    call compute_par_t_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,t_corr)
+    !call ccsd_par_t_spin(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,v_vvvo,t_corr)
+    call ccsd_par_t_spin_v2(nO,nV,t1,t2,f_o,f_v,f_ov,v_ooov,v_vvoo,t_corr)
     !print*,'Working on it...'
     !call abort
     call wall_time(tb)
@@ -330,7 +330,10 @@ subroutine run_ccsd_spin_orb_sub
     write(*,'(A15,F18.12,A3)') ' E(CCSD(T))  = ', uncorr_energy + energy + t_corr, ' Ha'
     write(*,'(A15,F18.12,A3)') ' E(T)        = ', t_corr, ' Ha'
     write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + t_corr, ' Ha'
+    print*,''
   endif
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
   
   deallocate(f_oo,f_ov,f_vv,f_o,f_v)
   deallocate(v_ooov,v_vvoo,t1,t2)
@@ -342,7 +345,7 @@ end
 
 * Energy
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine ccsd_energy(nO,nV,t1,t2,Fov,v_oovv,energy)
+subroutine ccsd_energy_spin(nO,nV,t1,t2,Fov,v_oovv,energy)
 
   implicit none
 
@@ -388,7 +391,7 @@ end
 ** Update
 *** Tau
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_tau(nO,nV,t1,t2,tau)
+subroutine compute_tau_spin(nO,nV,t1,t2,tau)
 
   implicit none
 
@@ -423,7 +426,7 @@ end
 
 *** Tau_t
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_tau_t(nO,nV,t1,t2,tau_t)
+subroutine compute_tau_t_spin(nO,nV,t1,t2,tau_t)
 
   implicit none
 
@@ -459,7 +462,7 @@ end
 * R
 ** R1
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_r1(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
+subroutine compute_r1_spin(nO,nV,t1,t2,f_o,f_v,Fov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
 
   implicit none
 
@@ -643,7 +646,7 @@ end
 
 ** R2
 #+begin_src f90 :comments org :tangle ccsd_spin_orb_sub.irp.f
-subroutine compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
+subroutine compute_r2_spin(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
 
   implicit none
 

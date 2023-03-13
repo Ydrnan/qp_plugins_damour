@@ -97,7 +97,7 @@ subroutine run_ccsd_space_orb
   !print*,'hf_energy', hf_energy
   call det_energy(det,uncorr_energy)
   print*,'Det energy', uncorr_energy
-  call e_ccsd(nO,nV,tau,t1,energy)
+  call ccsd_energy_space(nO,nV,tau,t1,energy)
   print*,'Guess energy', uncorr_energy+energy, energy
   
   nb_iter = 0
@@ -117,8 +117,8 @@ subroutine run_ccsd_space_orb
     call compute_H_vo(nO,nV,t1,t2,H_vo)
 
     ! Residue
-    call compute_r1(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r1,max_r1)
-    call compute_r2(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r2,max_r2)
+    call compute_r1_space(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r1,max_r1)
+    call compute_r2_space(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r2,max_r2)
     max_r = max(max_r1,max_r2)
     
     ! Update
@@ -138,7 +138,7 @@ subroutine run_ccsd_space_orb
     call update_tau_space(nO,nV,t1,t2,tau)
 
     ! Energy
-    call e_ccsd(nO,nV,tau,t1,energy)
+    call ccsd_energy_space(nO,nV,tau,t1,energy)
     write(*,'(A3,I6,A3,F18.12,A3,F16.12,A3,1pE10.2,A3,1pE10.2,A2)') ' | ',nb_iter,' | ', uncorr_energy+energy,' | ', energy,' | ', max_r1,' | ', max_r2,' |'
 
     nb_iter = nb_iter + 1
@@ -179,7 +179,7 @@ subroutine run_ccsd_space_orb
 
     ! Dumb way
     !call wall_time(ta)
-    !call space_ccsd_par_t_energy(nO,nV,t1,t2,e_t)
+    !call ccsd_par_t_space(nO,nV,t1,t2,e_t)
     !call wall_time(tb)
     !print*,'Time: ',tb-ta, ' s'
 
@@ -192,7 +192,7 @@ subroutine run_ccsd_space_orb
     ! New
     print*,'Computing (T) correction...'
     call wall_time(ta)
-    call space_ccsd_par_t_energy_v2(nO,nV,t1,t2,cc_space_f_o,cc_space_f_v &
+    call ccsd_par_t_space_v2(nO,nV,t1,t2,cc_space_f_o,cc_space_f_v &
          ,cc_space_v_vvvo,cc_space_v_vvoo,cc_space_v_vooo,e_t)
     call wall_time(tb)
     print*,'Time: ',tb-ta, ' s'
@@ -202,8 +202,10 @@ subroutine run_ccsd_space_orb
     write(*,'(A15,F18.12,A3)') ' E(T)        = ', e_t, ' Ha'
     write(*,'(A15,F18.12,A3)') ' Correlation = ', energy + e_t, ' Ha'
     print*,''
-
   endif
+  
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
 
   deallocate(t1,t2)
 
@@ -212,7 +214,7 @@ end
 
 * Energy
 #+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
-subroutine e_ccsd(nO,nV,tau,t1,energy)
+subroutine ccsd_energy_space(nO,nV,tau,t1,energy)
 
   implicit none
 
@@ -299,7 +301,7 @@ end
 ** R1
 *** R1
 #+BEGIN_SRC f90 :comments org :tangle ccsd_space_orb.irp.f
-subroutine compute_r1(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r1,max_r1)
+subroutine compute_r1_space(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r1,max_r1)
 
   implicit none
 
@@ -784,7 +786,7 @@ end
 ** R2
 *** R2
 #+begin_src f90 :comments org :tangle ccsd_space_orb.irp.f
-subroutine compute_r2(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r2,max_r2)
+subroutine compute_r2_space(nO,nV,t1,t2,tau,H_oo,H_vv,H_vo,r2,max_r2)
 
   implicit none
 

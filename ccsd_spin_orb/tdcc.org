@@ -126,8 +126,8 @@ subroutine run_tdcc()
   t2(ma,nb,mb,na) = 0d0
   t2(nb,ma,na,mb) = 0d0
   t2(nb,ma,mb,na) = 0d0
-  call compute_tau(nO,nV,t1,t2,tau)
-  call compute_tau_t(nO,nV,t1,t2,tau_t)
+  call compute_tau_spin(nO,nV,t1,t2,tau)
+  call compute_tau_t_spin(nO,nV,t1,t2,tau_t)
 
   ! Loop init
   nb_iter = 0
@@ -139,7 +139,7 @@ subroutine run_tdcc()
 
   call det_energy(det,uncorr_energy)
   print*,'Det energy', uncorr_energy
-  call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+  call ccsd_energy_spin(nO,nV,t1,t2,F_ov,v_oovv,energy)
   print*,'guess energy', uncorr_energy+energy, energy
 
   write(*,'(A77)') ' -----------------------------------------------------------------------------'
@@ -162,8 +162,8 @@ subroutine run_tdcc()
     call compute_cW_ovvo(nO,nV,t1,t2,tau,v_ovvo,v_oovo,v_oovv,cW_ovvo)
 
     ! Residuals
-    call compute_r1(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
-    call compute_r2(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
+    call compute_r1_spin(nO,nV,t1,t2,f_o,f_v,F_ov,cF_oo,cF_ov,cF_vv,v_oovo,v_ovov,r1)
+    call compute_r2_spin(nO,nV,t1,t2,tau,f_o,f_v,cF_oo,cF_ov,cF_vv,cW_oooo,cW_ovvo,v_ovoo,v_oovv,v_ovvo,r2)
 
     !print*,'r2',r2
     W_ba = -r2(ma,nb,na,mb)
@@ -209,11 +209,11 @@ subroutine run_tdcc()
     t2(nb,ma,na,mb) = 0d0
     t2(nb,ma,mb,na) = 0d0
     
-    call compute_tau(nO,nV,t1,t2,tau)
-    call compute_tau_t(nO,nV,t1,t2,tau_t)
+    call compute_tau_spin(nO,nV,t1,t2,tau)
+    call compute_tau_t_spin(nO,nV,t1,t2,tau_t)
 
     ! Print
-    call ccsd_energy(nO,nV,t1,t2,F_ov,v_oovv,energy)
+    call ccsd_energy_spin(nO,nV,t1,t2,F_ov,v_oovv,energy)
     print*,energy,W_ba
     print*,'Energy of the singlet S:',uncorr_energy+energy+W_ba
     print*,'Energy of the triplet T:',uncorr_energy+energy-W_ba

@@ -16,12 +16,11 @@ subroutine run_pccd
   logical                       :: not_converged
   integer                       :: nO, nV
 
-  if (elec_alpha_num /= elec_beta_num) then
-     print*,'pCCD is restricted to closed-shell systems'
-     print*,'elec_alpha_num /= elec_beta_num, abort'
-     call abort
+  if (cc_ref_is_open_shell) then
+    print*,'pCCD is restricted to closed-shell systems, abort'
+    call abort
   endif
-  
+
   nO = cc_nOa
   nV = cc_nVa
   

@@ -23,11 +23,13 @@ subroutine run_extract_c
   integer, allocatable :: list_occ(:,:),list_vir(:,:),list_spin_occ(:,:), list_spin_vir(:,:), key(:)
   integer :: i,j,k,l,a,b,c,d,tmp_i,tmp_j,tmp_k,tmp_l,tmp_a,tmp_b,tmp_c,tmp_d,s1,s2,s3,s4
   integer :: idx_i,idx_j,idx_a,idx_b,idx_coef,nb_coef,up_bd,p1,p2,p3,p4,h1,h2,h3,h4, degree
-  double precision :: thresh_coef, factor, norm, phase
+  double precision :: thresh_coef, factor, norm, phase,s2_val
   integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), res6(N_int,2), res7(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: det(:,:), tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
 
+  PROVIDE s2_values
+  
   allocate(det(N_int,2))
 
   det = psi_det(:,:,cc_ref)
@@ -456,6 +458,11 @@ subroutine run_extract_c
     call save_det_cc(nb_coef, N_states, l_det, l_coef)
     print*,'Done'
   endif
+
+  call u_0_S2_u_0(s2_val,l_coef,nb_coef,l_det,N_int,1,nb_coef)
+  print*,''
+  print*,'S^2 =', s2_val
+  print*,''
 
   deallocate(l_coef,l_det)
 

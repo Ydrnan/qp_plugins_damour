@@ -52,6 +52,12 @@ subroutine run_extract_c
 
   allocate(list_occ(nO_m,2), list_vir(nV_m,2))
   call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
+  !print*,'occ a',list_occ(:,1)
+  !print*,'occ b',list_occ(:,2)
+  !print*,'vir a',list_vir(:,1)
+  !print*,'vir b',list_vir(:,2)
+  !print*,'nO_S',nO_s
+  !print*,'nV_S',nV_s
   
   allocate(list_spin_occ(nO_m,2), list_spin_vir(nV_m,2))
 
@@ -243,7 +249,7 @@ subroutine run_extract_c
     do s2 = s1, 2
       do tmp_b = 1, nV_S(s2)
         b = list_spin_vir(tmp_b,s2)
-        p2 = list_vir(tmp_b,s1)
+        p2 = list_vir(tmp_b,s2)
         do tmp_a = 1, nV_S(s1)
           a = list_spin_vir(tmp_a,s1)
           p1 = list_vir(tmp_a,s1)
@@ -253,7 +259,7 @@ subroutine run_extract_c
             h2 = list_occ(tmp_j,s2)
             do tmp_i = 1, nO_S(s1)
               i = list_spin_occ(tmp_i,s1)
-              h1 = list_occ(tmp_i,s2)
+              h1 = list_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
               
               if (dabs(c2(i,j,a,b)) > thresh_coef) then
@@ -859,17 +865,186 @@ end
 #+begin_src f90 :comments org :tangle extract_c.irp.f
 subroutine overlap_wf(Ndet, list_det, list_coef)
 
+  use omp_lib
+  
+  implicit none
+
+  integer, intent(in)            :: Ndet
+  integer(bit_kind), intent(in)  :: list_det(N_int,2,Ndet)
+  double precision, intent(in)   :: list_coef(Ndet)
+
+  double precision               :: accu, overlap
+  integer                        :: n_threads, num
+  integer                        :: i,j,s,degree, count, tot_count, max_exc
+  integer, allocatable           :: idx(:),idx_start(:)
+  integer(bit_kind), allocatable :: f_psi_det(:,:,:), tmp_psi_det(:,:,:,:)
+  double precision, allocatable  :: f_psi_coef(:,:), tmp_psi_coef(:,:)
+
+  PROVIDE psi_det psi_coef
+
+  !$omp parallel &
+  !$omp shared(n_threads)
+  n_threads = omp_get_num_threads()
+  !$omp end parallel
+  
+  allocate(idx(0:n_threads-1),idx_start(0:n_threads-1))
+  
+  ! TODO: add filter in psi_det on the excitation degree / cc_ref
+  ! Filter
+  max_exc = 2
+  count = 0
+  tot_count = 0
+  !$omp parallel &
+  !$omp private(i,degree) &
+  !$omp shared(tot_count,count,psi_det,N_int,max_exc,cc_ref) &
+  !$omp default(none)
+  !$omp do
+  do i = 1, size(psi_det,3)
+    call get_excitation_degree(psi_det(1,1,i),psi_det(1,1,cc_ref),degree,N_int)
+    if (degree <= max_exc) then
+       count = count + 1
+    endif
+  enddo
+  !$omp end do
+  !$omp critical
+  tot_count = tot_count + count
+  !$omp end critical
+  !$omp end parallel
+
+  allocate(f_psi_det(N_int,2,tot_count),f_psi_coef(tot_count,N_states))
+
+  ! Allocate buffers
+  allocate(tmp_psi_det(N_int,2,tot_count/n_threads*4,0:n_threads-1))
+  allocate(tmp_psi_coef(tot_count/n_threads*4,0:n_threads-1))
+  !$omp parallel &
+  !$omp private(s,i,degree,num) &
+  !$omp shared(idx,idx_start,n_threads,count,tmp_psi_det,tmp_psi_coef, &
+  !$omp f_psi_coef,psi_det,psi_coef,N_int,max_exc,N_states, &
+  !$omp cc_ref,f_psi_det) &
+  !$omp default(none)
+  num = omp_get_thread_num()
+  idx(num) = 1
+
+  ! Fill the buffer
+  !$omp do
+  do i = 1, size(psi_det,3)
+    call get_excitation_degree(psi_det(1,1,i),psi_det(1,1,cc_ref),degree,N_int)
+    if (degree <= max_exc) then
+       tmp_psi_det(:,:,idx(num),num) = psi_det(:,:,i)
+       idx(num) = idx(num) + 1
+    endif
+  enddo
+  !$omp end do
+
+  ! Compute the indexes
+  !$omp master
+  idx_start(0) = 0
+  do i = 1, n_threads-1
+    idx_start(i) = idx_start(i-1) + idx(i-1)
+  enddo
+  !$omp end master
+  !$omp barrier
+
+  ! Fill the final array
+  !$omp do
+  do j = 0, n_threads-1
+    do i = 1, idx(j)
+      f_psi_det(:,:,idx_start(j)+i) = tmp_psi_det(:,:,i,j)
+    enddo
+  enddo
+  !$omp end do
+
+  do s = 1, N_states
+    ! Fill the buffer
+    idx(num) = 1
+    !$omp do
+    do i = 1, size(psi_det,3)
+      call get_excitation_degree(psi_det(1,1,i),psi_det(1,1,cc_ref),degree,N_int)
+      if (degree <= max_exc) then
+         tmp_psi_coef(idx(num),num) = psi_coef(i,s)
+         idx(num) = idx(num) + 1
+      endif
+    enddo
+    !$omp end do
+
+    ! Compute the indexes
+    !$omp master
+    idx_start(0) = 0
+    do i = 1, n_threads-1
+      idx_start(i) = idx_start(i-1) + idx(i-1)
+    enddo
+    !$omp end master
+    !$omp barrier
+       
+    ! Fill the final array
+    !$omp do
+    do j = 0, n_threads-1
+      do i = 1, idx(j)
+        f_psi_coef(idx_start(j)+i,s) = tmp_psi_coef(i,j)
+      enddo
+    enddo
+    !$omp end do
+
+  enddo
+  !$omp end parallel
+
+  deallocate(tmp_psi_coef,tmp_psi_det)
+  
+  !$omp parallel &
+  !$omp private(s,i,j,degree,accu) &
+  !$omp shared(N_states,f_psi_det,list_det,N_int,f_psi_coef,list_coef, &
+  !$omp overlap,Ndet) &
+  !$omp default(none)
+  do s = 1, N_states
+    accu = 0d0
+    overlap = 0d0
+    !$omp do
+    do i = 1, size(f_psi_coef,1)
+      do j = 1, Ndet
+       call get_excitation_degree(f_psi_det(1,1,i),list_det(1,1,j),degree,N_int)
+       if (degree == 0) then
+         accu = accu + f_psi_coef(i,s) * list_coef(j)
+       endif
+      enddo
+    enddo
+    !$omp end do
+    !$omp critical
+    overlap = overlap + accu
+    !$omp end critical
+    !$omp barrier
+    !$omp single
+    write(*,'(A19,I2,A3,F12.6)') 'Overlap with state ', s,' = ', dabs(overlap)
+    !$omp end single
+    !$omp barrier
+  enddo
+  !$omp end parallel
+
+  deallocate(f_psi_det)
+  
+end
+
+subroutine overlap_wf_safe(Ndet, list_det, list_coef)
+
   implicit none
 
   integer, intent(in)           :: Ndet
   integer(bit_kind), intent(in) :: list_det(N_int,2,Ndet)
   double precision, intent(in)  :: list_coef(Ndet)
 
-  double precision              :: accu
+  double precision              :: accu, overlap
   integer                       :: i,j,s,degree
 
+  ! TODO: add filter in psi_det on the excitation degree / cc_ref
+
+  !$omp parallel &
+  !$omp private(s,i,j,degree,accu) &
+  !$omp shared(N_states,psi_det,list_det,N_int,psi_coef,list_coef, &
+  !$omp overlap,Ndet) &
+  !$omp default(none)
   do s = 1, N_states
     accu = 0d0
+    overlap = 0d0
+    !$omp do
     do i = 1, size(psi_coef,1)
       do j = 1, Ndet
        call get_excitation_degree(psi_det(1,1,i),list_det(1,1,j),degree,N_int)
@@ -878,8 +1053,17 @@ subroutine overlap_wf(Ndet, list_det, list_coef)
        endif
       enddo
     enddo
-    write(*,'(A19,I2,A3,F12.6)') 'Overlap with state ', s,' = ', dabs(accu)
-  enddo 
-  
+    !$omp end do
+    !$omp critical
+    overlap = overlap + accu
+    !$omp end critical
+    !$omp barrier
+    !$omp single
+    write(*,'(A19,I2,A3,F12.6)') 'Overlap with state ', s,' = ', dabs(overlap)
+    !$omp end single
+    !$omp barrier
+  enddo
+  !$omp end parallel
+
 end
 #+end_src

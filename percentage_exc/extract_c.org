@@ -86,7 +86,7 @@ subroutine run_extract_c
       do tmp_i = 1, nO_S(s1)
         i = list_spin_occ(tmp_i,s1)
         
-        if (dabs(c1(i,a)) > thresh_coef) then
+        if (dabs(c1(i,a)) >= thresh_coef) then
           nb_coef = nb_coef + 1
         endif
         
@@ -94,7 +94,7 @@ subroutine run_extract_c
     enddo
   enddo
 
-  print*,'Nb C1 computed'  
+  print*,'Nb C1 computed' 
   
   !c2
   do s1 = 1, 2
@@ -110,7 +110,7 @@ subroutine run_extract_c
               i = list_spin_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
               
-              if (dabs(c2(i,j,a,b)) > thresh_coef) then
+              if (dabs(c2(i,j,a,b)) >= thresh_coef) then
                 nb_coef = nb_coef + 1
               endif
               
@@ -147,7 +147,7 @@ subroutine run_extract_c
                       i = list_spin_occ(tmp_i,s1)
                       if (s1 == s2 .and. i <= j) cycle
                       
-                      if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
+                      if (dabs(c3_bc(i,j,k,a)) >= thresh_coef) then
                         nb_coef = nb_coef + 1
                       endif
                       
@@ -194,7 +194,7 @@ subroutine run_extract_c
                             i = list_spin_occ(tmp_i,s1)
                             if (s1 == s2 .and. i <= j) cycle
                             
-                            if (dabs(c4_abcd(i,j,k,l)) > thresh_coef) then
+                            if (dabs(c4_abcd(i,j,k,l)) >= thresh_coef) then
                               nb_coef = nb_coef + 1
                             endif
                             
@@ -233,7 +233,7 @@ subroutine run_extract_c
         i = list_spin_occ(tmp_i,s1)
         h1 = list_occ(tmp_i,s1)
         
-        if (dabs(c1(i,a)) > thresh_coef) then
+        if (dabs(c1(i,a)) >= thresh_coef) then
           call apply_hole(det, s1, h1, res1, ok, N_int)
           call apply_particle(res1, s1, p1, tmp_det(1,1,idx_coef), ok, N_int)
           call get_excitation(det,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
@@ -265,7 +265,7 @@ subroutine run_extract_c
               h1 = list_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
               
-              if (dabs(c2(i,j,a,b)) > thresh_coef) then
+              if (dabs(c2(i,j,a,b)) >= thresh_coef) then
                 call apply_hole(det, s1, h1, res1, ok, N_int)
                 call apply_hole(res1, s2, h2, res2, ok, N_int)
                 call apply_particle(res2, s1, p1, res3, ok, N_int)
@@ -314,7 +314,7 @@ subroutine run_extract_c
                       h1 = list_occ(tmp_i,s1)
                       if (s1 == s2 .and. i <= j) cycle
                       
-                      if (dabs(c3_bc(i,j,k,a)) > thresh_coef) then
+                      if (dabs(c3_bc(i,j,k,a)) >= thresh_coef) then
                         call apply_hole(det, s1, h1, res1, ok, N_int)
                         call apply_hole(res1, s2, h2, res2, ok, N_int)
                         call apply_hole(res2, s3, h3, res3, ok, N_int)
@@ -378,7 +378,7 @@ subroutine run_extract_c
                             h1 = list_occ(tmp_i,s1)
                             if (s1 == s2 .and. i <= j) cycle
                             
-                            if (dabs(c4_abcd(i,j,k,l)) > thresh_coef) then
+                            if (dabs(c4_abcd(i,j,k,l)) >= thresh_coef) then
                               call apply_hole(det, s1, h1, res1, ok, N_int)
                               call apply_hole(res1, s2, h2, res2, ok, N_int)
                               call apply_hole(res2, s3, h3, res3, ok, N_int)
@@ -443,6 +443,7 @@ subroutine run_extract_c
   !enddo
 
   call overlap_wf(nb_coef,l_det,l_coef)
+  !call overlap_wf_safe(nb_coef,l_det,l_coef)
 
   if (write_cc_wf) then
     ! Save the wave function
@@ -950,6 +951,7 @@ subroutine overlap_wf(Ndet, list_det, list_coef)
     endif
   enddo
   !$omp end do
+  idx(num) = idx(num) - 1
 
   ! Compute the indexes
   !$omp master
@@ -957,6 +959,7 @@ subroutine overlap_wf(Ndet, list_det, list_coef)
   do i = 1, n_threads-1
     idx_start(i) = idx_start(i-1) + idx(i-1)
   enddo
+  print*,idx
   !$omp end master
   !$omp barrier
 
@@ -981,6 +984,7 @@ subroutine overlap_wf(Ndet, list_det, list_coef)
       endif
     enddo
     !$omp end do
+    idx(num) = idx(num) - 1
 
     ! Compute the indexes
     !$omp master
@@ -1130,7 +1134,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   double precision :: thresh
   integer          :: count, sze, sze_max, idx
 
-  thresh = 1d-6
+  thresh = 0d0
   
   ! T
   ! t1
@@ -1138,6 +1142,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do a = 1, nV
     do i = 1, nO
       if (dabs(t1_full(i,a)) >= thresh) then
+        if (i > cc_nOa .and. a <= cc_nVa) cycle
+        if (i <= cc_nOa .and. a > cc_nVa) cycle
         idx = idx + 1
       endif
     enddo
@@ -1150,6 +1156,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do a = 1, nV
     do i = 1, nO
       if (dabs(t1_full(i,a)) >= thresh) then
+        if (i > cc_nOa .and. a <= cc_nVa) cycle
+        if (i <= cc_nOa .and. a > cc_nVa) cycle
         t1(idx) = t1_full(i,a)
         t1_idx(1,idx) = i
         t1_idx(2,idx) = a
@@ -1167,6 +1175,10 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       do j = 1, nO
         do i = j+1, nO
           if (dabs(t2_full(i,j,a,b)) >= thresh) then
+            if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
+            if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
+            if (a > cc_nVa .and. b > cc_nVa .and. (i <= cc_nOa .or. j <= cc_nOa)) cycle
+            if (a <= cc_nVa .and. b <= cc_nVa .and. (i > cc_nOa .or. j > cc_nOa)) cycle
             idx = idx + 1
           endif
         enddo
@@ -1183,6 +1195,10 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       do j = 1, nO
         do i = j+1, nO
           if (dabs(t2_full(i,j,a,b)) >= thresh) then
+            if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
+            if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
+            if (a > cc_nVa .and. b > cc_nVa .and. (i <= cc_nOa .or. j <= cc_nOa)) cycle
+            if (a <= cc_nVa .and. b <= cc_nVa .and. (i > cc_nOa .or. j > cc_nOa)) cycle
             t2(idx) = t2_full(i,j,a,b)
             t2_idx(1,idx) = i
             t2_idx(2,idx) = j
@@ -1243,218 +1259,224 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   ! Sort
   call sort_by_coef_idx(t11,t11_idx,sze_t11,4)
 
-  ! t12
-  idx = 0
-  do i = 1, sze_t1
-    do j = 1, sze_t2
-      if (dabs(t1(i) * t2(j)) >= thresh) then
-        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
-  
-  sze_t12 = idx
-  allocate(t12(sze_t12),t12_idx(6,sze_t12))
-        
-  idx = 1
-  do i = 1, sze_t1
-    do j = 1, sze_t2
-      if (dabs(t1(i) * t2(j)) >= thresh) then
-        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-        t12(idx) = t1(i) * t2(j)
-        t12_idx(1,idx) = t1_idx(1,i)
-        t12_idx(4,idx) = t1_idx(2,i)
-        t12_idx(2,idx) = t2_idx(1,j)
-        t12_idx(3,idx) = t2_idx(2,j)
-        t12_idx(5,idx) = t2_idx(3,j)
-        t12_idx(6,idx) = t2_idx(4,j)
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo 
-  ! Sort
-  call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
-  
-  ! t22
-  idx = 0
-  do i = 1, sze_t2-1
-    do j = i+1, sze_t2
-      if (dabs(t2(i) * t2(j)) >= thresh) then
-        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
-            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
+  sze_t111 = 0
+  sze_t12 = 0
+  sze_t112 = 0
+  sze_t1111 = 0
+  sze_t22 = 0
 
-  sze_t22 = idx
-  allocate(t22(sze_t22),t22_idx(8,sze_t22))
-        
-  idx = 1
-  do i = 1, sze_t2-1
-    do j = i+1, sze_t2
-      if (dabs(t2(i) * t2(j)) >= thresh) then
-        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
-            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-        t22(idx) = t2(i) * t2(j)
-        t22_idx(1,idx) = t2_idx(1,i)
-        t22_idx(2,idx) = t2_idx(2,i)
-        t22_idx(5,idx) = t2_idx(3,i)
-        t22_idx(6,idx) = t2_idx(4,i)
-        t22_idx(3,idx) = t2_idx(1,j)
-        t22_idx(4,idx) = t2_idx(2,j)
-        t22_idx(7,idx) = t2_idx(3,j)
-        t22_idx(8,idx) = t2_idx(4,j)
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
-  ! Sort
-  call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
+  !! t12
+  !idx = 0
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t2
+  !    if (dabs(t1(i) * t2(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+  !
+  !sze_t12 = idx
+   allocate(t12(sze_t12),t12_idx(6,sze_t12))
+  !      
+  !idx = 1
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t2
+  !    if (dabs(t1(i) * t2(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+  !      t12(idx) = t1(i) * t2(j)
+  !      t12_idx(1,idx) = t1_idx(1,i)
+  !      t12_idx(4,idx) = t1_idx(2,i)
+  !      t12_idx(2,idx) = t2_idx(1,j)
+  !      t12_idx(3,idx) = t2_idx(2,j)
+  !      t12_idx(5,idx) = t2_idx(3,j)
+  !      t12_idx(6,idx) = t2_idx(4,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo 
+  !! Sort
+  !call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+  !
+  !! t22
+  !idx = 0
+  !do i = 1, sze_t2-1
+  !  do j = i+1, sze_t2
+  !    if (dabs(t2(i) * t2(j)) >= thresh) then
+  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+  !          t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+  !          t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
 
-  ! T^3
-  ! t111
-  idx = 0
-  do i = 1, sze_t1
-    do j = 1, sze_t11
-      if (dabs(t1(i) * t11(j)) >= thresh) then
-        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
+  !sze_t22 = idx
+   allocate(t22(sze_t22),t22_idx(8,sze_t22))
+  !      
+  !idx = 1
+  !do i = 1, sze_t2-1
+  !  do j = i+1, sze_t2
+  !    if (dabs(t2(i) * t2(j)) >= thresh) then
+  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+  !          t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+  !          t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+  !      t22(idx) = t2(i) * t2(j)
+  !      t22_idx(1,idx) = t2_idx(1,i)
+  !      t22_idx(2,idx) = t2_idx(2,i)
+  !      t22_idx(5,idx) = t2_idx(3,i)
+  !      t22_idx(6,idx) = t2_idx(4,i)
+  !      t22_idx(3,idx) = t2_idx(1,j)
+  !      t22_idx(4,idx) = t2_idx(2,j)
+  !      t22_idx(7,idx) = t2_idx(3,j)
+  !      t22_idx(8,idx) = t2_idx(4,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+  !! Sort
+  !call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
 
-  sze_t111 = idx
-  allocate(t111(sze_t111),t111_idx(6,sze_t111))
-        
-  idx = 1
-  do i = 1, sze_t1
-    do j = 1, sze_t11
-      if (dabs(t1(i) * t11(j)) >= thresh) then
-        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-        t111(idx) = t1(i) * t11(j)
-        t111_idx(1,idx) = t1_idx(1,i)
-        t111_idx(4,idx) = t1_idx(2,i)
-        t111_idx(2,idx) = t11_idx(1,j)
-        t111_idx(3,idx) = t11_idx(2,j)
-        t111_idx(5,idx) = t11_idx(3,j)
-        t111_idx(6,idx) = t11_idx(4,j)
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
-  ! Sort
-  call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
+  !! T^3
+  !! t111
+  !idx = 0
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t11
+  !    if (dabs(t1(i) * t11(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
 
-  ! t112
-   idx = 0
-  do i = 1, sze_t11
-    do j = 1, sze_t2
-      if (dabs(t11(i) * t2(j)) >= thresh) then
-        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
-            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
-            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
-            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
+  !sze_t111 = idx
+   allocate(t111(sze_t111),t111_idx(6,sze_t111))
+  !      
+  !idx = 1
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t11
+  !    if (dabs(t1(i) * t11(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+  !      t111(idx) = t1(i) * t11(j)
+  !      t111_idx(1,idx) = t1_idx(1,i)
+  !      t111_idx(4,idx) = t1_idx(2,i)
+  !      t111_idx(2,idx) = t11_idx(1,j)
+  !      t111_idx(3,idx) = t11_idx(2,j)
+  !      t111_idx(5,idx) = t11_idx(3,j)
+  !      t111_idx(6,idx) = t11_idx(4,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+  !! Sort
+  !call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
 
-  sze_t112 = idx
-  allocate(t112(sze_t112),t112_idx(8,sze_t112))
-        
-  idx = 1
-  do i = 1, sze_t11
-    do j = 1, sze_t2
-      if (dabs(t11(i) * t2(j)) >= thresh) then
-        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
-            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
-            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
-            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
-        t112(idx) = t11(i) * t2(j)
-        t112_idx(1,idx) = t11_idx(1,i)
-        t112_idx(2,idx) = t11_idx(2,i)
-        t112_idx(5,idx) = t11_idx(3,i)
-        t112_idx(6,idx) = t11_idx(4,i)
-        t112_idx(3,idx) = t2_idx(1,j)
-        t112_idx(4,idx) = t2_idx(2,j)
-        t112_idx(7,idx) = t2_idx(3,j)
-        t112_idx(8,idx) = t2_idx(4,j)
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
-  ! Sort
-  call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
+  !! t112
+  ! idx = 0
+  !do i = 1, sze_t11
+  !  do j = 1, sze_t2
+  !    if (dabs(t11(i) * t2(j)) >= thresh) then
+  !      if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+  !          t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+  !          t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+  !          t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
 
-  ! T^4
-  ! t1111
-  idx = 0
-  do i = 1, sze_t1
-    do j = 1, sze_t111
-      if (dabs(t1(i) * t111(j)) >= thresh) then
-        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-            t1_idx(1,i) == t111_idx(3,j) .or. &
-            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-            t1_idx(2,i) == t111_idx(6,j)) cycle
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
+  !sze_t112 = idx
+   allocate(t112(sze_t112),t112_idx(8,sze_t112))
+  !      
+  !idx = 1
+  !do i = 1, sze_t11
+  !  do j = 1, sze_t2
+  !    if (dabs(t11(i) * t2(j)) >= thresh) then
+  !      if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+  !          t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+  !          t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+  !          t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+  !      t112(idx) = t11(i) * t2(j)
+  !      t112_idx(1,idx) = t11_idx(1,i)
+  !      t112_idx(2,idx) = t11_idx(2,i)
+  !      t112_idx(5,idx) = t11_idx(3,i)
+  !      t112_idx(6,idx) = t11_idx(4,i)
+  !      t112_idx(3,idx) = t2_idx(1,j)
+  !      t112_idx(4,idx) = t2_idx(2,j)
+  !      t112_idx(7,idx) = t2_idx(3,j)
+  !      t112_idx(8,idx) = t2_idx(4,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+  !! Sort
+  !call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
 
-  sze_t1111 = idx
-  allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
-        
-  idx = 1
-  do i = 1, sze_t1
-    do j = 1, sze_t111
-      if (dabs(t1(i) * t111(j)) >= thresh) then
-        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-            t1_idx(1,i) == t111_idx(3,j) .or. &
-            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-            t1_idx(2,i) == t111_idx(6,j)) cycle
-        t1111(idx) = t1(i) * t111(j)
-        t1111_idx(1,idx) = t1_idx(1,i)
-        t1111_idx(5,idx) = t1_idx(2,i)
-        t1111_idx(2,idx) = t111_idx(1,j)
-        t1111_idx(3,idx) = t111_idx(2,j)
-        t1111_idx(4,idx) = t111_idx(3,j)
-        t1111_idx(6,idx) = t111_idx(4,j)
-        t1111_idx(7,idx) = t111_idx(5,j)
-        t1111_idx(8,idx) = t111_idx(6,j)
-        idx = idx + 1
-      else
-        exit
-      endif
-    enddo
-  enddo
+  !! T^4
+  !! t1111
+  !idx = 0
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t111
+  !    if (dabs(t1(i) * t111(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+  !          t1_idx(1,i) == t111_idx(3,j) .or. &
+  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+  !          t1_idx(2,i) == t111_idx(6,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+
+  !sze_t1111 = idx
+   allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
+  !      
+  !idx = 1
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t111
+  !    if (dabs(t1(i) * t111(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+  !          t1_idx(1,i) == t111_idx(3,j) .or. &
+  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+  !          t1_idx(2,i) == t111_idx(6,j)) cycle
+  !      t1111(idx) = t1(i) * t111(j)
+  !      t1111_idx(1,idx) = t1_idx(1,i)
+  !      t1111_idx(5,idx) = t1_idx(2,i)
+  !      t1111_idx(2,idx) = t111_idx(1,j)
+  !      t1111_idx(3,idx) = t111_idx(2,j)
+  !      t1111_idx(4,idx) = t111_idx(3,j)
+  !      t1111_idx(6,idx) = t111_idx(4,j)
+  !      t1111_idx(7,idx) = t111_idx(5,j)
+  !      t1111_idx(8,idx) = t111_idx(6,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
 
   ! Reorder the index of each t
   call reorder_t_idx(t2,t2_idx,sze_t2,4)
@@ -1497,7 +1519,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
 
   sze_t1111 = new_sze_t1111
   
-  print*,sze_t1,sze_t2,sze_t11,sze_t2,sze_t111,sze_t12,sze_t1111,sze_t22
+  print*,sze_t1,sze_t2,sze_t11,sze_t111,sze_t12,sze_t1111,sze_t112,sze_t22
 
   ! Gather list with the same number of indexes
   integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
@@ -1560,6 +1582,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     c4(k+i) = t1111(i)
     c4_idx(:,k+i) = t1111_idx(:,i)
   enddo
+
+  ! Sort
+  call recursive_sort(c2,c2_idx,sze_c2,4,1)
+  call recursive_sort(c3,c3_idx,sze_c3,6,1)
+  call recursive_sort(c4,c4_idx,sze_c4,8,1)
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(c2,c2_idx,sze_c2,4,new_sze_c2)
@@ -1584,14 +1611,15 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   call build_det_t(c1,c1_idx,sze_c1,2,c1_det,c1_coef)
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
-  call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
-  call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
+  !call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
+  !call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
 
   integer :: sze_cc
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
 
-  sze_cc = sze_c1 + sze_c2 + sze_c3 + sze_c4
+  sze_cc = sze_c1 + sze_c2 !+ sze_c3 + sze_c4
+  print*,sze_cc
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
 
@@ -1604,16 +1632,16 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     psi_coef_cc(k+i) = c2_coef(i)
     psi_det_cc(:,:,k+i) = c2_det(:,:,i)
   enddo
-  k = k + sze_c2
-  do i = 1, sze_c1
-    psi_coef_cc(k+i) = c3_coef(i)
-    psi_det_cc(:,:,k+i) = c3_det(:,:,i)
-  enddo
-  k = k + sze_c3
-  do i = 1, sze_c4
-    psi_coef_cc(k+i) = c4_coef(i)
-    psi_det_cc(:,:,k+i) = c4_det(:,:,i)
-  enddo
+  !k = k + sze_c2
+  !do i = 1, sze_c1
+  !  psi_coef_cc(k+i) = c3_coef(i)
+  !  psi_det_cc(:,:,k+i) = c3_det(:,:,i)
+  !enddo
+  !k = k + sze_c3
+  !do i = 1, sze_c4
+  !  psi_coef_cc(k+i) = c4_coef(i)
+  !  psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  !enddo
   
   call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
   

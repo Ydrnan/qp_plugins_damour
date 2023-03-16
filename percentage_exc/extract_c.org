@@ -1123,12 +1123,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   integer, allocatable :: t1111_idx(:,:), t112_idx(:,:), t22_idx(:,:)
   integer :: sze_t1, sze_t11, sze_t2, sze_t111, sze_t12
   integer :: sze_t1111, sze_t112, sze_t22
+  integer :: new_sze_t11, new_sze_t22
+  integer :: new_sze_t12, new_sze_t112, new_sze_t111,new_sze_t1111
   logical :: must_exit
 
   double precision :: thresh
   integer          :: count, sze, sze_max, idx
 
-  thresh = 1d-16
+  thresh = 1d-6
   
   ! T
   ! t1
@@ -1155,6 +1157,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       endif
     enddo
   enddo
+  ! Sort
+  call sort_by_coef_idx(t1,t1_idx,sze_t1,2)
 
   ! t2
   idx = 0
@@ -1190,10 +1194,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       enddo
     enddo
   enddo
+  ! Sort
+  call sort_by_coef_idx(t2,t2_idx,sze_t2,4)
 
   ! TODO
   ! 1. Can be speed up by sorting t... and t..._idx
-  ! if (|t...(i) * t...(j)| <= thresh) cycle
+  ! do i
+  !   do j 
+  !     if (|t...(i) * t...(j)| <= thresh) exit
   ! 2. List containing the ending pos to do
   ! do i = 1, end_to_small
   !   do j = 1, end(i)
@@ -1207,6 +1215,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
         ! The resulting coeff can't contain 2 times the same spin orbital index
         if (t1_idx(1,i) == t1_idx(1,j) .or. t1_idx(2,i) == t1_idx(2,j)) cycle
         idx = idx + 1
+      else
+        exit
       endif
     enddo
   enddo
@@ -1225,185 +1235,387 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
         t11_idx(2,idx) = t1_idx(1,j)
         t11_idx(4,idx) = t1_idx(2,j)
         idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t11,t11_idx,sze_t11,4)
+
+  ! t12
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t2
+      if (dabs(t1(i) * t2(j)) >= thresh) then
+        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t12 = idx
+  allocate(t12(sze_t12),t12_idx(6,sze_t12))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t2
+      if (dabs(t1(i) * t2(j)) >= thresh) then
+        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+        t12(idx) = t1(i) * t2(j)
+        t12_idx(1,idx) = t1_idx(1,i)
+        t12_idx(4,idx) = t1_idx(2,i)
+        t12_idx(2,idx) = t2_idx(1,j)
+        t12_idx(3,idx) = t2_idx(2,j)
+        t12_idx(5,idx) = t2_idx(3,j)
+        t12_idx(6,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo 
+  ! Sort
+  call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+  
+  ! t22
+  idx = 0
+  do i = 1, sze_t2-1
+    do j = i+1, sze_t2
+      if (dabs(t2(i) * t2(j)) >= thresh) then
+        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
       endif
     enddo
   enddo
 
-  !! t22
-  !idx = 0
-  !do i = 1, sze_t2-1
-  !  do j = i+1, sze_t2
-  !    if (dabs(t2(i) * t2(j)) >= thresh) then
-  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-  !          t2_idx(2,i) == t2_idx(2,j) .or. &
-  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-  !          t2_idx(4,i) == t2_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  sze_t22 = idx
+  allocate(t22(sze_t22),t22_idx(8,sze_t22))
+        
+  idx = 1
+  do i = 1, sze_t2-1
+    do j = i+1, sze_t2
+      if (dabs(t2(i) * t2(j)) >= thresh) then
+        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+        t22(idx) = t2(i) * t2(j)
+        t22_idx(1,idx) = t2_idx(1,i)
+        t22_idx(2,idx) = t2_idx(2,i)
+        t22_idx(5,idx) = t2_idx(3,i)
+        t22_idx(6,idx) = t2_idx(4,i)
+        t22_idx(3,idx) = t2_idx(1,j)
+        t22_idx(4,idx) = t2_idx(2,j)
+        t22_idx(7,idx) = t2_idx(3,j)
+        t22_idx(8,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
 
-  !sze_t22 =idx
-  !allocate(t22(sze_t22),t22_idx(8,sze_t22))
-  !      
-  !idx = 1
-  !do i = 1, sze_t2-1
-  !  do j = i+1, sze_t2
-  !    if (dabs(t2(i) * t2(j)) >= thresh) then
-  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-  !          t2_idx(2,i) == t2_idx(2,j) .or. &
-  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-  !          t2_idx(4,i) == t2_idx(4,j)) cycle
-  !      t22(idx) = t2(i) * t2(j)
-  !      t22_idx(1,idx) = t2_idx(1,i)
-  !      t22_idx(2,idx) = t2_idx(2,i)
-  !      t22_idx(5,idx) = t2_idx(3,i)
-  !      t22_idx(6,idx) = t2_idx(4,i)
-  !      t22_idx(3,idx) = t2_idx(1,j)
-  !      t22_idx(4,idx) = t2_idx(2,j)
-  !      t22_idx(7,idx) = t2_idx(3,j)
-  !      t22_idx(8,idx) = t2_idx(4,j)
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  ! T^3
+  ! t111
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t11
+      if (dabs(t1(i) * t11(j)) >= thresh) then
+        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !! T^3
-  !! t111
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t11
-  !    if (dabs(t1(i) * t11(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  sze_t111 = idx
+  allocate(t111(sze_t111),t111_idx(6,sze_t111))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t11
+      if (dabs(t1(i) * t11(j)) >= thresh) then
+        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        t111(idx) = t1(i) * t11(j)
+        t111_idx(1,idx) = t1_idx(1,i)
+        t111_idx(4,idx) = t1_idx(2,i)
+        t111_idx(2,idx) = t11_idx(1,j)
+        t111_idx(3,idx) = t11_idx(2,j)
+        t111_idx(5,idx) = t11_idx(3,j)
+        t111_idx(6,idx) = t11_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
 
-  !sze_t111 = idx
-  !allocate(t111(size_t111),t111_idx(6,sze_t111))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t11
-  !    if (dabs(t1(i) * t11(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-  !      t111(idx) = t1(i) * t11(j)
-  !      t111_idx(1,idx) = t1_idx(1,i)
-  !      t111_idx(4,idx) = t1_idx(2,i)
-  !      t111_idx(2,idx) = t11_idx(1,j)
-  !      t111_idx(3,idx) = t11_idx(2,j)
-  !      t111_idx(5,idx) = t11_idx(3,j)
-  !      t111_idx(6,idx) = t11_idx(4,j)
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  ! t112
+   idx = 0
+  do i = 1, sze_t11
+    do j = 1, sze_t2
+      if (dabs(t11(i) * t2(j)) >= thresh) then
+        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !! t12
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t2
-  !    if (dabs(t1(i) * t2(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  sze_t112 = idx
+  allocate(t112(sze_t112),t112_idx(8,sze_t112))
+        
+  idx = 1
+  do i = 1, sze_t11
+    do j = 1, sze_t2
+      if (dabs(t11(i) * t2(j)) >= thresh) then
+        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+        t112(idx) = t11(i) * t2(j)
+        t112_idx(1,idx) = t11_idx(1,i)
+        t112_idx(2,idx) = t11_idx(2,i)
+        t112_idx(5,idx) = t11_idx(3,i)
+        t112_idx(6,idx) = t11_idx(4,i)
+        t112_idx(3,idx) = t2_idx(1,j)
+        t112_idx(4,idx) = t2_idx(2,j)
+        t112_idx(7,idx) = t2_idx(3,j)
+        t112_idx(8,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
 
-  !allocate(t12(sze_t12),t12_idx(6,sze_t12))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t2
-  !    if (dabs(t1(i) * t2(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-  !      t12(idx) = t1(i) * t2(j)
-  !      t12_idx(1,idx) = t1_idx(1,i)
-  !      t12_idx(4,idx) = t1_idx(2,i)
-  !      t12_idx(2,idx) = t2_idx(1,j)
-  !      t12_idx(3,idx) = t2_idx(2,j)
-  !      t12_idx(5,idx) = t2_idx(3,j)
-  !      t12_idx(6,idx) = t2_idx(4,j)
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo 
+  ! T^4
+  ! t1111
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t111
+      if (dabs(t1(i) * t111(j)) >= thresh) then
+        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+            t1_idx(1,i) == t111_idx(3,j) .or. &
+            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+            t1_idx(2,i) == t111_idx(6,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !! T^4
-  ! ! t1111
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t111
-  !    if (dabs(t1(i) * t111(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-  !          t1_idx(1,i) == t111_idx(3,j) .or. &
-  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-  !          t1_idx(2,i) == t111_idx(6,j)) cycle
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
-
-  !sze_t1111 = idx
-  !allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t111
-  !    if (dabs(t1(i) * t111(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-  !          t1_idx(1,i) == t111_idx(3,j) .or. &
-  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-  !          t1_idx(2,i) == t111_idx(6,j)) cycle
-  !      t1111(idx) = t1(i) * t111(j)
-  !      t1111_idx(1,idx) = t1_idx(1,i)
-  !      t1111_idx(5,idx) = t1_idx(2,i)
-  !      t1111_idx(2,idx) = t111_idx(1,j)
-  !      t1111_idx(3,idx) = t111_idx(2,j)
-  !      t1111_idx(4,idx) = t111_idx(3,j)
-  !      t1111_idx(6,idx) = t111_idx(4,j)
-  !      t1111_idx(7,idx) = t111_idx(5,j)
-  !      t1111_idx(8,idx) = t111_idx(6,j)
-  !      idx = idx + 1
-  !    endif
-  !  enddo
-  !enddo
+  sze_t1111 = idx
+  allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t111
+      if (dabs(t1(i) * t111(j)) >= thresh) then
+        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+            t1_idx(1,i) == t111_idx(3,j) .or. &
+            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+            t1_idx(2,i) == t111_idx(6,j)) cycle
+        t1111(idx) = t1(i) * t111(j)
+        t1111_idx(1,idx) = t1_idx(1,i)
+        t1111_idx(5,idx) = t1_idx(2,i)
+        t1111_idx(2,idx) = t111_idx(1,j)
+        t1111_idx(3,idx) = t111_idx(2,j)
+        t1111_idx(4,idx) = t111_idx(3,j)
+        t1111_idx(6,idx) = t111_idx(4,j)
+        t1111_idx(7,idx) = t111_idx(5,j)
+        t1111_idx(8,idx) = t111_idx(6,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
   ! Reorder the index of each t
+  call reorder_t_idx(t2,t2_idx,sze_t2,4)
+  
   call reorder_t_idx(t11,t11_idx,sze_t11,4)
-  !call reorder_t_idx(t12,t12_idx,sze_t12,6)
-  !call reorder_t_idx(t22,t22_idx,sze_t22,8)
-  !call reorder_t_idx(t111,t111_idx,sze_t111,6)
-  !call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
- 
-  integer(bit_kind), allocatable :: psi_det_t11(:,:,:)
-  double precision, allocatable :: psi_coef_t11(:)
-  allocate(psi_det_t11(1,2,sze_t11),psi_coef_t11(sze_t11))
+  call reorder_t_idx(t12,t12_idx,sze_t12,6)
+  call reorder_t_idx(t22,t22_idx,sze_t22,8)
+  
+  call reorder_t_idx(t111,t111_idx,sze_t111,6)
+  call reorder_t_idx(t112,t112_idx,sze_t112,8)
+  
+  call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
 
-  ! Build the det
-  call build_det_t(t11,t11_idx,sze_t11,4,psi_det_t11,psi_coef_t11)
+  ! Recursive sort after the reordering
+  call recursive_sort(t11,t11_idx,sze_t11,4,1)
+  call recursive_sort(t12,t12_idx,sze_t12,6,1)
+  call recursive_sort(t22,t22_idx,sze_t22,8,1)
 
-  ! Sort
-  call sort_det(psi_det_t11,psi_coef_t11,sze_t11)
-  !print*,''
-  !do i = 1, sze_t11
-  !  print*,'c',psi_coef_t11(i),psi_det_t11(1,1,i),psi_det_t11(1,2,i)
-  !  !call print_det(psi_det_t11(1,1,i),N_int)
-  !enddo
+  call recursive_sort(t111,t111_idx,sze_t111,6,1)
+  call recursive_sort(t112,t112_idx,sze_t112,8,1)
+  
+  call recursive_sort(t1111,t1111_idx,sze_t1111,8,1)
+  
+  ! Remove the duplicate and accumulate
+  call remove_duplicate_idx(t11,t11_idx,sze_t11,4,new_sze_t11)
+  call remove_duplicate_idx(t12,t12_idx,sze_t12,6,new_sze_t12)
+  call remove_duplicate_idx(t22,t22_idx,sze_t22,8,new_sze_t22)
+  
+  call remove_duplicate_idx(t111,t111_idx,sze_t111,6,new_sze_t111)
+  call remove_duplicate_idx(t112,t112_idx,sze_t112,8,new_sze_t112)
+  
+  call remove_duplicate_idx(t1111,t1111_idx,sze_t1111,8,new_sze_t1111)
+  
+  sze_t11 = new_sze_t11
+  sze_t12 = new_sze_t12
+  sze_t22 = new_sze_t22
+  
+  sze_t111 = new_sze_t111
+  sze_t112 = new_sze_t112
 
-  integer :: new_sze_t11
-  ! Sum contributions from duplicates and remove them
-  call remove_duplicate(psi_det_t11,psi_coef_t11,sze_t11,new_sze_t11)
-  print*,''
-  do i = 1, new_sze_t11
-    print*,'c',psi_coef_t11(i),psi_det_t11(1,1,i),psi_det_t11(1,2,i)
+  sze_t1111 = new_sze_t1111
+  
+  print*,sze_t1,sze_t2,sze_t11,sze_t2,sze_t111,sze_t12,sze_t1111,sze_t22
+
+  ! Gather list with the same number of indexes
+  integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
+  double precision, allocatable :: c1(:), c2(:), c3(:), c4(:)
+  integer :: sze_c1, sze_c2, sze_c3, sze_c4
+  integer :: new_sze_c2, new_sze_c3, new_sze_c4
+
+  sze_c1 = sze_t1
+  sze_c2 = sze_t11 + sze_t2
+  sze_c3 = sze_t111 + sze_t12
+  sze_c4 = sze_t1111 + sze_t112 + sze_t22
+
+  allocate(c1_idx(2,sze_c1), c2_idx(4,sze_c2))
+  allocate(c3_idx(6,sze_c3))
+  allocate(c4_idx(8,sze_c4))
+  allocate(c1(sze_c1), c2(sze_c2))
+  allocate(c3(sze_c3))
+  allocate(c4(sze_c4))
+
+  ! C1
+  do i = 1, sze_t1
+    c1(i) = t1(i)
+    c1_idx(:,i) = t1_idx(:,i)
   enddo
-  !print*,sze_t11,new_sze_t11
+
+  ! C2
+  do i = 1, sze_t2
+    c2(i) = t2(i)
+    c2_idx(:,i) = t2_idx(:,i)
+  enddo
+  k = sze_t2
+  do i = 1, sze_t11
+    c2(k+i) = t11(i)
+    c2_idx(:,k+i) = t11_idx(:,i)
+  enddo
+
+  ! C3
+  do i = 1, sze_t12
+    c3(i) = t12(i)
+    c3_idx(:,i) = t12_idx(:,i)
+  enddo
+  k = sze_t12
+  do i = 1, sze_t111
+    c3(k+i) = t111(i)
+    c3_idx(:,k+i) = t111_idx(:,i)
+  enddo
+
+  ! C4
+  do i = 1, sze_t22
+    c4(i) = t22(i)
+    c4_idx(:,i) = t22_idx(:,i)
+  enddo
+  k = sze_t22
+  do i = 1, sze_t112
+    c4(k+i) = t112(i)
+    c4_idx(:,k+i) = t112_idx(:,i)
+  enddo
+  k = k + sze_t112
+  do i = 1, sze_t1111
+    c4(k+i) = t1111(i)
+    c4_idx(:,k+i) = t1111_idx(:,i)
+  enddo
+  
+  ! Remove the duplicate and accumulate
+  call remove_duplicate_idx(c2,c2_idx,sze_c2,4,new_sze_c2)
+  call remove_duplicate_idx(c3,c3_idx,sze_c3,6,new_sze_c3)
+  call remove_duplicate_idx(c4,c4_idx,sze_c4,8,new_sze_c4)
+
+  sze_c2 = new_sze_c2
+  sze_c3 = new_sze_c3
+  sze_c4 = new_sze_c4
+
+  print*,sze_c1,sze_c2,sze_c3,sze_c4
+
+  ! Build the determinants
+  integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:)
+  integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:)
+  double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:)
+
+  allocate(c1_det(N_int,2,sze_c1),c1_coef(sze_c1))
+  allocate(c2_det(N_int,2,sze_c2),c2_coef(sze_c2))
+  allocate(c3_det(N_int,2,sze_c3),c3_coef(sze_c3))
+  allocate(c4_det(N_int,2,sze_c4),c4_coef(sze_c4))
+  
+  call build_det_t(c1,c1_idx,sze_c1,2,c1_det,c1_coef)
+  call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
+  call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
+  call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
+
+  integer :: sze_cc
+  integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
+  double precision, allocatable :: psi_coef_cc(:)
+
+  sze_cc = sze_c1 + sze_c2 + sze_c3 + sze_c4
+
+  allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
+
+  do i = 1, sze_c1
+    psi_coef_cc(i) = c1_coef(i)
+    psi_det_cc(:,:,i) = c1_det(:,:,i)
+  enddo
+  k = sze_c1
+  do i = 1, sze_c1
+    psi_coef_cc(k+i) = c2_coef(i)
+    psi_det_cc(:,:,k+i) = c2_det(:,:,i)
+  enddo
+  k = k + sze_c2
+  do i = 1, sze_c1
+    psi_coef_cc(k+i) = c3_coef(i)
+    psi_det_cc(:,:,k+i) = c3_det(:,:,i)
+  enddo
+  k = k + sze_c3
+  do i = 1, sze_c4
+    psi_coef_cc(k+i) = c4_coef(i)
+    psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  enddo
+  
+  call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
   
 end
 #+end_src
@@ -1518,8 +1730,7 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
   integer :: i,j,k
   integer :: s,h,p
   logical :: ok
-  integer(bit_kind) :: det(N_int,2),res(N_int,2)
-
+  integer(bit_kind) :: det(N_int,2),res(N_int,2)  
   
   do i = 1, sze_t
     det(:,:) = psi_det(:,:,cc_ref)
@@ -1534,9 +1745,13 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
       else
         s = 1
       endif
+      h = h + n_core_orb
+      !call print_det(det,N_int)
       call apply_hole(det,s,h,res,ok,N_int)
       if (.not. ok) then
         print*,'big problem h'
+        print*,t_idx(:,i)
+        print*,t_idx(j,i),s,h
         call abort
       endif
       det = res
@@ -1552,6 +1767,7 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
         s = 1
       endif
       p = p + cc_nO_S(s)
+      p = p + n_core_orb
       call apply_particle(det,s,p,res,ok,N_int)
       if (.not. ok) then
         print*,'big problem p'
@@ -1568,7 +1784,8 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
 end
 #+end_src
 
-** Sort det
+** Det way
+*** Sort det
 #+begin_src f90 :comments org :tangle exp_c.irp.f
 subroutine sort_det(psi_det_t,psi_coef_t,sze)
 
@@ -1656,18 +1873,18 @@ subroutine sort_det(psi_det_t,psi_coef_t,sze)
   enddo
 
   ! Check
-  print*,''
-  do i = 1, sze
-    print*,psi_coef_t(i),psi_det_t(1,1,i),psi_det_t(1,2,i)
-    !call print_det(psi_det_t(1,1,i),N_int)
-  enddo
+  !print*,''
+  !do i = 1, sze
+  !  print*,psi_coef_t(i),psi_det_t(1,1,i),psi_det_t(1,2,i)
+  !  !call print_det(psi_det_t(1,1,i),N_int)
+  !enddo
   
 end
 #+end_src
 
-** Remove duplicate
+*** Remove duplicate det
 #+begin_src f90 :comments org :tangle exp_c.irp.f
-subroutine remove_duplicate(psi_det_t,psi_coef_t,sze_t,new_sze_t)
+subroutine remove_duplicate_det(psi_det_t,psi_coef_t,sze_t,new_sze_t)
 
   implicit none
 
@@ -1706,7 +1923,7 @@ subroutine remove_duplicate(psi_det_t,psi_coef_t,sze_t,new_sze_t)
     endif
   enddo
 
-  new_sze_t = idx - 1
+  new_sze_t = idx
 
   do i = 1, new_sze_t
     psi_coef_t(i) = tmp_coef(i)
@@ -1717,5 +1934,275 @@ subroutine remove_duplicate(psi_det_t,psi_coef_t,sze_t,new_sze_t)
     psi_det_t(:,:,i) = 0
   enddo
   
+end
+#+end_src
+
+** idx way
+*** Recursive sort t_idx
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+recursive subroutine recursive_sort(t,t_idx,sze,n_idx,idx)
+
+  implicit none
+
+  integer, intent(in) :: sze,n_idx,idx
+  integer, intent(inout) :: t_idx(n_idx,sze)
+  double precision, intent(inout) :: t(sze)
+
+  integer :: i,j,k,l,val,nb_u
+  integer, allocatable :: tmp(:),tmp_idx(:,:),iorder(:),nu(:),pu(:)
+  double precision, allocatable :: tmp_t(:)
+
+  if (sze == 0) return
+
+  if (idx < n_idx) then
+
+    ! Sort
+    call multiple_idx_sort(t,t_idx,sze,n_idx,idx)
+
+    allocate(pu(sze),nu(sze))
+    ! Unique, nb and position
+    call search_unique(t,t_idx,sze,n_idx,idx,nb_u,nu,pu)
+
+    do i = 1, nb_u
+      call recursive_sort(t(pu(i)),t_idx(1,pu(i)),nu(i),n_idx,idx+1)
+    enddo
+    deallocate(pu,nu)
+
+  else
+
+    ! Sort
+    call multiple_idx_sort(t,t_idx,sze,n_idx,idx)
+
+  endif
+
+end
+#+end_src
+
+*** sort
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine multiple_idx_sort(t,t_idx,sze,n_idx,idx)
+
+  implicit none
+
+  integer, intent(in) :: sze,n_idx,idx
+  integer, intent(inout) :: t_idx(n_idx,sze)
+  double precision, intent(inout) :: t(sze)
+
+  integer :: i,j,k,l,val
+  integer, allocatable :: tmp(:),tmp_idx(:,:),iorder(:)
+  double precision, allocatable :: tmp_t(:)
+
+  ! Sort
+  allocate(tmp(sze),tmp_idx(n_idx,sze),tmp_t(sze),iorder(sze))
+
+  do i = 1, sze
+    tmp(i) = t_idx(idx,i)
+    tmp_idx(:,i) = t_idx(:,i)
+    tmp_t(i) = t(i)
+    iorder(i) = i
+  enddo
+
+  call isort(tmp,iorder,sze)
+
+  do i = 1, sze
+    t_idx(:,i) = tmp_idx(:,iorder(i))
+    t(i) = tmp_t(iorder(i))
+  enddo
+  
+  deallocate(tmp,tmp_idx,tmp_t,iorder)
+end
+#+end_src
+
+*** Unique
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine search_unique(t,t_idx,sze,n_idx,idx,nb_u,nu,pu)
+
+  implicit none
+
+  integer, intent(in) :: sze,n_idx,idx
+  integer, intent(in) :: t_idx(n_idx,sze)
+  double precision, intent(in) :: t(sze)
+
+  integer, intent(out) :: nb_u, nu(sze), pu(sze)
+
+  integer :: i,j,k,l,val
+  integer, allocatable :: tmp(:),tmp_idx(:,:),iorder(:)
+  double precision, allocatable :: tmp_t(:)
+  
+  ! Unique, nb and position
+  k = 1
+  pu = 0 ! starting position
+  nu = 0 ! nb
+  pu(1) = 1
+  nu(1) = 1
+  val = t_idx(idx,1) 
+  do i = 2, sze
+    if (val /= t_idx(idx,i)) then
+      k = k + 1
+      pu(k) = i
+      nu(k) = nu(k) + 1
+      val = t_idx(idx,i)
+    else
+      nu(k) = nu(k) + 1
+    endif
+  enddo
+
+  nb_u = k
+
+end
+#+end_src
+
+*** Remove duplicate
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine remove_duplicate_idx(t,t_idx,sze,n_idx,new_sze)
+
+  implicit none
+
+  integer, intent(in) :: sze,n_idx
+  integer, intent(inout) :: t_idx(n_idx,sze)
+  double precision, intent(inout) :: t(sze)
+
+  integer, intent(out) :: new_sze
+
+  integer :: i,j,k,l
+  integer, allocatable :: idx(:), tmp_idx(:,:)
+  double precision, allocatable :: tmp_coef(:)
+  logical :: is_eq
+
+  new_sze = 0
+  if (sze == 0) return
+  
+  allocate(idx(n_idx),tmp_idx(n_idx,sze),tmp_coef(sze))
+
+  ! Init
+  tmp_idx = 0
+  tmp_coef = 0d0
+
+  k = 1
+  idx(:) = t_idx(:,1)
+  tmp_idx(:,1) = idx(:)
+  tmp_coef(1) = t(1)
+  
+  do i = 2, sze
+
+    !print*,''
+    !print*,idx(:)
+    !print*,t_idx(:,i)
+    ! Same indexes ?
+    is_eq = .True.
+    do j = 1, n_idx
+      if (idx(j) /= t_idx(j,i)) then
+        is_eq = .False.
+        exit
+      endif
+    enddo
+    !print*,is_eq
+    
+    ! Accumulate the duplicates
+    if (is_eq) then
+      tmp_coef(k) = tmp_coef(k) + t(i)
+    else
+      k = k + 1
+      tmp_coef(k) = t(i)
+      idx(:) = t_idx(:,i)
+      tmp_idx(:,k) = idx(:)
+    endif
+    
+  enddo
+
+  new_sze = k
+
+  ! Copy
+  do i = 1, new_sze
+    t(i) = tmp_coef(i)
+    t_idx(:,i) = tmp_idx(:,i)
+  enddo
+
+  ! Nullify the remaining elements
+  do i = new_sze+1, sze
+    t(i) = 0d0
+    t_idx(:,i) = 0
+  enddo
+
+  deallocate(idx,tmp_idx,tmp_coef)
+
+end
+#+end_src
+
+** Sort by coef
+*** idx
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine sort_by_coef_idx(t,t_idx,sze,n_idx)
+
+  implicit none
+
+  integer, intent(in) :: sze,n_idx
+  integer, intent(inout) :: t_idx(n_idx,sze)
+  double precision, intent(inout) :: t(sze)
+
+  integer :: i,j,k,l,val
+  integer, allocatable :: tmp_idx(:,:),iorder(:)
+  double precision, allocatable :: tmp_t(:), tmp(:)
+
+  if (sze == 0) return
+  
+  ! Sort
+  allocate(tmp(sze),tmp_idx(n_idx,sze),tmp_t(sze),iorder(sze))
+
+  do i = 1, sze
+    tmp(i) = -dabs(t(i))
+    tmp_idx(:,i) = t_idx(:,i)
+    tmp_t(i) = t(i)
+    iorder(i) = i
+  enddo
+
+  call dsort(tmp,iorder,sze)
+
+  do i = 1, sze
+    !print*,tmp(i)
+    t_idx(:,i) = tmp_idx(:,iorder(i))
+    t(i) = tmp_t(iorder(i))
+  enddo
+  
+  deallocate(tmp,tmp_idx,tmp_t,iorder)
+end
+#+end_src
+
+*** det
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine sort_by_coef_det(psi_coef_t,psi_det_t,sze,Nint)
+
+  use bitmasks
+  
+  implicit none
+
+  integer, intent(in) :: sze,Nint
+  integer(bit_kind), intent(inout) :: psi_det_t(Nint,2,sze)
+  double precision, intent(inout) :: psi_coef_t(sze)
+
+  integer :: i,j,k,l,val
+  integer(bit_kind), allocatable :: tmp_det(:,:,:)
+  integer, allocatable :: iorder(:)
+  double precision, allocatable :: tmp_coef(:), tmp(:)
+
+  ! Sort
+  allocate(tmp(sze),tmp_det(Nint,2,sze),tmp_coef(sze),iorder(sze))
+
+  do i = 1, sze
+    tmp(i) = -dabs(psi_coef_t(i))
+    tmp_det(:,:,i) = psi_det_t(:,:,i)
+    tmp_coef(i) = psi_coef_t(i)
+    iorder(i) = i
+  enddo
+
+  call dsort(tmp,iorder,sze)
+
+  do i = 1, sze
+    !print*,tmp(i)
+    psi_det_t(:,:,i) = tmp_det(:,:,iorder(i))
+    psi_coef_t(i) = tmp_coef(iorder(i))
+  enddo
+  
+  deallocate(tmp,tmp_det,tmp_coef,iorder)
 end
 #+end_src

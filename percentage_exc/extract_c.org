@@ -28,6 +28,8 @@ subroutine run_extract_c
   integer(bit_kind) :: res1(N_int,2), res2(N_int,2), res3(N_int,2), res4(N_int,2), res5(N_int,2), res6(N_int,2), res7(N_int,2), exc(0:2,2,2)
   integer(bit_kind), allocatable :: det(:,:), tmp_det(:,:,:), l_det(:,:,:)
   logical :: ok
+  integer :: shift_occ(2)
+  integer :: shift_vir(2)
 
   PROVIDE s2_values
   
@@ -52,6 +54,9 @@ subroutine run_extract_c
   ! Maximal number of occ/vir 
   nO_m = cc_nO_m
   nV_m = cc_nV_m
+
+  shift_occ = (/0,cc_nOa/)
+  shift_vir = (/0,cc_nVa/)
 
   allocate(list_occ(nO_m,2), list_vir(nV_m,2))
   call extract_list_orb_spin(det,nO_m,nV_m,list_occ,list_vir)
@@ -82,10 +87,9 @@ subroutine run_extract_c
   ! c1
   do s1 = 1, 2
     do tmp_a = 1, nV_S(s1)
-      a = list_spin_vir(tmp_a,s1)
+      a = tmp_a + shift_vir(s1)
       do tmp_i = 1, nO_S(s1)
-        i = list_spin_occ(tmp_i,s1)
-        
+        i = tmp_i + shift_occ(s1)
         if (dabs(c1(i,a)) >= thresh_coef) then
           nb_coef = nb_coef + 1
         endif
@@ -100,14 +104,14 @@ subroutine run_extract_c
   do s1 = 1, 2
     do s2 = s1, 2
       do tmp_b = 1, nV_S(s2)
-        b = list_spin_vir(tmp_b,s2)
+        b = tmp_b + shift_vir(s2)
         do tmp_a = 1, nV_S(s1)
-          a = list_spin_vir(tmp_a,s1)
+          a = tmp_a + shift_vir(s1)
           if (s1 == s2 .and. a <= b) cycle
           do tmp_j = 1, nO_S(s2)
-            j = list_spin_occ(tmp_j,s2)
+            j = tmp_j + shift_occ(s2)
             do tmp_i = 1, nO_S(s1)
-              i = list_spin_occ(tmp_i,s1)
+              i = tmp_i + shift_occ(s1)
               if (s1 == s2 .and. i <= j) cycle
               
               if (dabs(c2(i,j,a,b)) >= thresh_coef) then
@@ -129,22 +133,22 @@ subroutine run_extract_c
       do s2 = s1, 2
         do s3 = s2, 2
           do tmp_c = 1, nV_S(s3)
-            c = list_spin_vir(tmp_c,s3)
+            c = tmp_c + shift_vir(s3)
             do tmp_b = 1, nV_S(s2)
-              b = list_spin_vir(tmp_b,s2)
+              b = tmp_b + shift_vir(s2)
               if (s2 == s3 .and. b <= c) cycle
               ! C3 for b and c fixed
               call extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
               do tmp_a = 1, nV_S(s1)
-                a = list_spin_vir(tmp_a,s1)
+                a = tmp_a + shift_vir(s1)
                 if (s1 == s2 .and. a <= b) cycle
                 do tmp_k = 1, nO_S(s3)
-                  k = list_spin_occ(tmp_k,s3)
+                  k = tmp_k + shift_occ(s3)
                   do tmp_j = 1, nO_S(s2)
-                    j = list_spin_occ(tmp_j,s2)
+                    j = tmp_j + shift_occ(s2)
                     if (s2 == s3 .and. j <= k) cycle
                     do tmp_i = 1, nO_S(s1)
-                      i = list_spin_occ(tmp_i,s1)
+                      i = tmp_i + shift_occ(s1)
                       if (s1 == s2 .and. i <= j) cycle
                       
                       if (dabs(c3_bc(i,j,k,a)) >= thresh_coef) then
@@ -170,28 +174,28 @@ subroutine run_extract_c
         do s3 = s2, 2
           do s4 = s3, 2
             do tmp_d = 1, nV_S(s4)
-              d = list_spin_vir(tmp_d,s4)
+              d = tmp_d + shift_vir(s4)
               do tmp_c = 1, nV_S(s3)
-                c = list_spin_vir(tmp_c,s3)
+                c = tmp_c + shift_vir(s3)
                 if (s3 == s4 .and. c <= d) cycle
                 do tmp_b = 1, nV_S(s2)
-                  b = list_spin_vir(tmp_b,s2)
+                  b = tmp_b + shift_vir(s2)
                   if (s2 == s3 .and. b <= c) cycle
                   do tmp_a = 1, nV_S(s1)
-                    a = list_spin_vir(tmp_a,s1)
+                    a = tmp_a + shift_vir(s1)
                     if (s1 == s2 .and. a <= b) cycle
                     ! C4 for a,b,c and d fixed
                     call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
                     do tmp_l = 1, nO_S(s4)
-                      l = list_spin_occ(tmp_l,s4)
+                      l = tmp_l + shift_occ(s4)
                       do tmp_k = 1, nO_S(s3)
-                        k = list_spin_occ(tmp_k,s3)
+                        k = tmp_k + shift_occ(s3)
                         if (s3 == s4 .and. k <= l) cycle
                         do tmp_j = 1, nO_S(s2)
-                          j = list_spin_occ(tmp_j,s2)
+                          j = tmp_j + shift_occ(s2)
                           if (s2 == s3 .and. j <= k) cycle
                           do tmp_i = 1, nO_S(s1)
-                            i = list_spin_occ(tmp_i,s1)
+                            i = tmp_i + shift_occ(s1)
                             if (s1 == s2 .and. i <= j) cycle
                             
                             if (dabs(c4_abcd(i,j,k,l)) >= thresh_coef) then
@@ -227,10 +231,10 @@ subroutine run_extract_c
   ! c1
   do s1 = 1, 2
     do tmp_a = 1, nV_S(s1)
-      a = list_spin_vir(tmp_a,s1)
+      a = tmp_a + shift_vir(s1)
       p1 = list_vir(tmp_a,s1)
       do tmp_i = 1, nO_S(s1)
-        i = list_spin_occ(tmp_i,s1)
+        i = tmp_i + shift_occ(s1)
         h1 = list_occ(tmp_i,s1)
         
         if (dabs(c1(i,a)) >= thresh_coef) then
@@ -251,17 +255,17 @@ subroutine run_extract_c
   do s1 = 1, 2
     do s2 = s1, 2
       do tmp_b = 1, nV_S(s2)
-        b = list_spin_vir(tmp_b,s2)
+        b = tmp_b + shift_vir(s2)
         p2 = list_vir(tmp_b,s2)
         do tmp_a = 1, nV_S(s1)
-          a = list_spin_vir(tmp_a,s1)
+          a = tmp_a + shift_vir(s1)
           p1 = list_vir(tmp_a,s1)
           if (s1 == s2 .and. a <= b) cycle
           do tmp_j = 1, nO_S(s2)
-            j = list_spin_occ(tmp_j,s2)
+            j = tmp_j + shift_occ(s2)
             h2 = list_occ(tmp_j,s2)
             do tmp_i = 1, nO_S(s1)
-              i = list_spin_occ(tmp_i,s1)
+              i = tmp_i + shift_occ(s1)
               h1 = list_occ(tmp_i,s1)
               if (s1 == s2 .and. i <= j) cycle
               
@@ -290,27 +294,27 @@ subroutine run_extract_c
       do s2 = s1, 2
         do s3 = s2, 2
           do tmp_c = 1, nV_S(s3)
-            c = list_spin_vir(tmp_c,s3)
+            c = tmp_c +  shift_vir(s3)
             p3 = list_vir(tmp_c,s3)
             do tmp_b = 1, nV_S(s2)
-              b = list_spin_vir(tmp_b,s2)
+              b = tmp_b + shift_vir(s2)
               p2 = list_vir(tmp_b,s2)
               if (s2 == s3 .and. b <= c) cycle
               ! C3 for b and c fixed
               call extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
               do tmp_a = 1, nV_S(s1)
-                a = list_spin_vir(tmp_a,s1)
+                a = tmp_a + shift_vir(s1)
                 p1 = list_vir(tmp_a,s1)
                 if (s1 == s2 .and. a <= b) cycle
                 do tmp_k = 1, nO_S(s3)
-                   k = list_spin_occ(tmp_k,s3)
+                   k = tmp_k + shift_occ(s3)
                    h3 = list_occ(tmp_k,s3)
                   do tmp_j = 1, nO_S(s2)
-                    j = list_spin_occ(tmp_j,s2)
+                    j = tmp_j + shift_occ(s2)
                     h2 = list_occ(tmp_j,s2)
                     if (s2 == s3 .and. j <= k) cycle
                     do tmp_i = 1, nO_S(s1)
-                      i = list_spin_occ(tmp_i,s1)
+                      i = tmp_i + shift_occ(s1)
                       h1 = list_occ(tmp_i,s1)
                       if (s1 == s2 .and. i <= j) cycle
                       
@@ -346,35 +350,35 @@ subroutine run_extract_c
         do s3 = s2, 2
           do s4 = s3, 2
             do tmp_d = 1, nV_S(s4)
-              d = list_spin_vir(tmp_d,s4)
+              d = tmp_d + shift_vir(s4)
               p4 = list_vir(tmp_d,s4)
               do tmp_c = 1, nV_S(s3)
-                c = list_spin_vir(tmp_c,s3)
+                c = tmp_c + shift_vir(s3)
                 p3 = list_vir(tmp_c,s3)
                 if (s3 == s4 .and. c <= d) cycle
                 do tmp_b = 1, nV_S(s2)
-                  b = list_spin_vir(tmp_b,s2)
+                  b = tmp_b + shift_vir(s2)
                   p2 = list_vir(tmp_b,s2)
                   if (s2 == s3 .and. b <= c) cycle
                   do tmp_a = 1, nV_S(s1)
-                    a = list_spin_vir(tmp_a,s1)
+                    a = tmp_a + shift_vir(s1)
                     p1 = list_vir(tmp_a,s1)
                     if (s1 == s2 .and. a <= b) cycle
                     ! C4 for a,b,c and d fixed
                     call extract_c4_abcd(nO,nV,t1,t2,a,b,c,d,c4_abcd)
                     do tmp_l = 1, nO_S(s4)
-                      l = list_spin_occ(tmp_l,s4)
+                      l = tmp_l + shift_occ(s4)
                       h4 = list_occ(tmp_l,s4)
                       do tmp_k = 1, nO_S(s3)
-                         k = list_spin_occ(tmp_k,s3)
+                         k = tmp_k + shift_occ(s3)
                          h3 = list_occ(tmp_k,s3)
                          if (s3 == s4 .and. k <= l) cycle
                         do tmp_j = 1, nO_S(s2)
-                          j = list_spin_occ(tmp_j,s2)
+                          j = tmp_j + shift_occ(s2)
                           h2 = list_occ(tmp_j,s2)
                           if (s2 == s3 .and. j <= k) cycle
                           do tmp_i = 1, nO_S(s1)
-                            i = list_spin_occ(tmp_i,s1)
+                            i = tmp_i + shift_occ(s1)
                             h1 = list_occ(tmp_i,s1)
                             if (s1 == s2 .and. i <= j) cycle
                             
@@ -437,7 +441,7 @@ subroutine run_extract_c
   ! print
   print*,'N_det', nb_coef
   !do i = 1, nb_coef
-  !  print*,l_coef(i)
+  !   print*,l_coef(i)
   !  call print_det(l_det(1,1,i),N_int)
   !  print*,''
   !enddo
@@ -959,7 +963,7 @@ subroutine overlap_wf(Ndet, list_det, list_coef)
   do i = 1, n_threads-1
     idx_start(i) = idx_start(i-1) + idx(i-1)
   enddo
-  print*,idx
+  !print*,idx
   !$omp end master
   !$omp barrier
 
@@ -1134,7 +1138,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   double precision :: thresh
   integer          :: count, sze, sze_max, idx
 
-  thresh = 0d0
+  thresh = 1d-6
   
   ! T
   ! t1
@@ -1144,6 +1148,9 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       if (dabs(t1_full(i,a)) >= thresh) then
         if (i > cc_nOa .and. a <= cc_nVa) cycle
         if (i <= cc_nOa .and. a > cc_nVa) cycle
+        !if (dabs(t1_full(i,a)) > 0d0) then
+        !   print*,i,a,t1_full(i,a)
+        !endif
         idx = idx + 1
       endif
     enddo
@@ -1265,218 +1272,218 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   sze_t1111 = 0
   sze_t22 = 0
 
-  !! t12
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t2
-  !    if (dabs(t1(i) * t2(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
-  !
-  !sze_t12 = idx
-   allocate(t12(sze_t12),t12_idx(6,sze_t12))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t2
-  !    if (dabs(t1(i) * t2(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
-  !          t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
-  !      t12(idx) = t1(i) * t2(j)
-  !      t12_idx(1,idx) = t1_idx(1,i)
-  !      t12_idx(4,idx) = t1_idx(2,i)
-  !      t12_idx(2,idx) = t2_idx(1,j)
-  !      t12_idx(3,idx) = t2_idx(2,j)
-  !      t12_idx(5,idx) = t2_idx(3,j)
-  !      t12_idx(6,idx) = t2_idx(4,j)
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo 
-  !! Sort
-  !call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
-  !
-  !! t22
-  !idx = 0
-  !do i = 1, sze_t2-1
-  !  do j = i+1, sze_t2
-  !    if (dabs(t2(i) * t2(j)) >= thresh) then
-  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-  !          t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
-  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-  !          t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
+  ! t12
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t2
+      if (dabs(t1(i) * t2(j)) >= thresh) then
+        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t12 = idx
+  allocate(t12(sze_t12),t12_idx(6,sze_t12))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t2
+      if (dabs(t1(i) * t2(j)) >= thresh) then
+        if (t1_idx(1,i) == t2_idx(1,j) .or. t1_idx(1,i) == t2_idx(2,j) .or. &
+            t1_idx(2,i) == t2_idx(3,j) .or. t1_idx(2,i) == t2_idx(4,j)) cycle
+        t12(idx) = t1(i) * t2(j)
+        t12_idx(1,idx) = t1_idx(1,i)
+        t12_idx(4,idx) = t1_idx(2,i)
+        t12_idx(2,idx) = t2_idx(1,j)
+        t12_idx(3,idx) = t2_idx(2,j)
+        t12_idx(5,idx) = t2_idx(3,j)
+        t12_idx(6,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo 
+  ! Sort
+  call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+  
+  ! t22
+  idx = 0
+  do i = 1, sze_t2-1
+    do j = i+1, sze_t2
+      if (dabs(t2(i) * t2(j)) >= thresh) then
+        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !sze_t22 = idx
-   allocate(t22(sze_t22),t22_idx(8,sze_t22))
-  !      
-  !idx = 1
-  !do i = 1, sze_t2-1
-  !  do j = i+1, sze_t2
-  !    if (dabs(t2(i) * t2(j)) >= thresh) then
-  !      if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
-  !          t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
-  !          t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
-  !          t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-  !      t22(idx) = t2(i) * t2(j)
-  !      t22_idx(1,idx) = t2_idx(1,i)
-  !      t22_idx(2,idx) = t2_idx(2,i)
-  !      t22_idx(5,idx) = t2_idx(3,i)
-  !      t22_idx(6,idx) = t2_idx(4,i)
-  !      t22_idx(3,idx) = t2_idx(1,j)
-  !      t22_idx(4,idx) = t2_idx(2,j)
-  !      t22_idx(7,idx) = t2_idx(3,j)
-  !      t22_idx(8,idx) = t2_idx(4,j)
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
-  !! Sort
-  !call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
+  sze_t22 = idx
+  allocate(t22(sze_t22),t22_idx(8,sze_t22))
+        
+  idx = 1
+  do i = 1, sze_t2-1
+    do j = i+1, sze_t2
+      if (dabs(t2(i) * t2(j)) >= thresh) then
+        if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
+            t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
+            t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
+            t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
+        t22(idx) = t2(i) * t2(j)
+        t22_idx(1,idx) = t2_idx(1,i)
+        t22_idx(2,idx) = t2_idx(2,i)
+        t22_idx(5,idx) = t2_idx(3,i)
+        t22_idx(6,idx) = t2_idx(4,i)
+        t22_idx(3,idx) = t2_idx(1,j)
+        t22_idx(4,idx) = t2_idx(2,j)
+        t22_idx(7,idx) = t2_idx(3,j)
+        t22_idx(8,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
 
-  !! T^3
-  !! t111
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t11
-  !    if (dabs(t1(i) * t11(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
+  ! T^3
+  ! t111
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t11
+      if (dabs(t1(i) * t11(j)) >= thresh) then
+        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !sze_t111 = idx
-   allocate(t111(sze_t111),t111_idx(6,sze_t111))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t11
-  !    if (dabs(t1(i) * t11(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-  !          t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-  !      t111(idx) = t1(i) * t11(j)
-  !      t111_idx(1,idx) = t1_idx(1,i)
-  !      t111_idx(4,idx) = t1_idx(2,i)
-  !      t111_idx(2,idx) = t11_idx(1,j)
-  !      t111_idx(3,idx) = t11_idx(2,j)
-  !      t111_idx(5,idx) = t11_idx(3,j)
-  !      t111_idx(6,idx) = t11_idx(4,j)
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
-  !! Sort
-  !call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
+  sze_t111 = idx
+  allocate(t111(sze_t111),t111_idx(6,sze_t111))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t11
+      if (dabs(t1(i) * t11(j)) >= thresh) then
+        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        t111(idx) = t1(i) * t11(j)
+        t111_idx(1,idx) = t1_idx(1,i)
+        t111_idx(4,idx) = t1_idx(2,i)
+        t111_idx(2,idx) = t11_idx(1,j)
+        t111_idx(3,idx) = t11_idx(2,j)
+        t111_idx(5,idx) = t11_idx(3,j)
+        t111_idx(6,idx) = t11_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
 
-  !! t112
-  ! idx = 0
-  !do i = 1, sze_t11
-  !  do j = 1, sze_t2
-  !    if (dabs(t11(i) * t2(j)) >= thresh) then
-  !      if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
-  !          t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
-  !          t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
-  !          t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
+  ! t112
+   idx = 0
+  do i = 1, sze_t11
+    do j = 1, sze_t2
+      if (dabs(t11(i) * t2(j)) >= thresh) then
+        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !sze_t112 = idx
-   allocate(t112(sze_t112),t112_idx(8,sze_t112))
-  !      
-  !idx = 1
-  !do i = 1, sze_t11
-  !  do j = 1, sze_t2
-  !    if (dabs(t11(i) * t2(j)) >= thresh) then
-  !      if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
-  !          t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
-  !          t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
-  !          t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
-  !      t112(idx) = t11(i) * t2(j)
-  !      t112_idx(1,idx) = t11_idx(1,i)
-  !      t112_idx(2,idx) = t11_idx(2,i)
-  !      t112_idx(5,idx) = t11_idx(3,i)
-  !      t112_idx(6,idx) = t11_idx(4,i)
-  !      t112_idx(3,idx) = t2_idx(1,j)
-  !      t112_idx(4,idx) = t2_idx(2,j)
-  !      t112_idx(7,idx) = t2_idx(3,j)
-  !      t112_idx(8,idx) = t2_idx(4,j)
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
-  !! Sort
-  !call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
+  sze_t112 = idx
+  allocate(t112(sze_t112),t112_idx(8,sze_t112))
+        
+  idx = 1
+  do i = 1, sze_t11
+    do j = 1, sze_t2
+      if (dabs(t11(i) * t2(j)) >= thresh) then
+        if (t11_idx(1,i) == t2_idx(1,j) .or. t11_idx(1,i) == t2_idx(2,j) .or. &
+            t11_idx(2,i) == t2_idx(1,j) .or. t11_idx(2,i) == t2_idx(2,j) .or. &
+            t11_idx(3,i) == t2_idx(3,j) .or. t11_idx(3,i) == t2_idx(4,j) .or. &
+            t11_idx(4,i) == t2_idx(3,j) .or. t11_idx(4,i) == t2_idx(4,j)) cycle
+        t112(idx) = t11(i) * t2(j)
+        t112_idx(1,idx) = t11_idx(1,i)
+        t112_idx(2,idx) = t11_idx(2,i)
+        t112_idx(5,idx) = t11_idx(3,i)
+        t112_idx(6,idx) = t11_idx(4,i)
+        t112_idx(3,idx) = t2_idx(1,j)
+        t112_idx(4,idx) = t2_idx(2,j)
+        t112_idx(7,idx) = t2_idx(3,j)
+        t112_idx(8,idx) = t2_idx(4,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
 
-  !! T^4
-  !! t1111
-  !idx = 0
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t111
-  !    if (dabs(t1(i) * t111(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-  !          t1_idx(1,i) == t111_idx(3,j) .or. &
-  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-  !          t1_idx(2,i) == t111_idx(6,j)) cycle
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
+  ! T^4
+  ! t1111
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t111
+      if (dabs(t1(i) * t111(j)) >= thresh) then
+        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+            t1_idx(1,i) == t111_idx(3,j) .or. &
+            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+            t1_idx(2,i) == t111_idx(6,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
-  !sze_t1111 = idx
-   allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
-  !      
-  !idx = 1
-  !do i = 1, sze_t1
-  !  do j = 1, sze_t111
-  !    if (dabs(t1(i) * t111(j)) >= thresh) then
-  !      if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-  !          t1_idx(1,i) == t111_idx(3,j) .or. &
-  !          t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-  !          t1_idx(2,i) == t111_idx(6,j)) cycle
-  !      t1111(idx) = t1(i) * t111(j)
-  !      t1111_idx(1,idx) = t1_idx(1,i)
-  !      t1111_idx(5,idx) = t1_idx(2,i)
-  !      t1111_idx(2,idx) = t111_idx(1,j)
-  !      t1111_idx(3,idx) = t111_idx(2,j)
-  !      t1111_idx(4,idx) = t111_idx(3,j)
-  !      t1111_idx(6,idx) = t111_idx(4,j)
-  !      t1111_idx(7,idx) = t111_idx(5,j)
-  !      t1111_idx(8,idx) = t111_idx(6,j)
-  !      idx = idx + 1
-  !    else
-  !      exit
-  !    endif
-  !  enddo
-  !enddo
+  sze_t1111 = idx
+  allocate(t1111(sze_t1111),t1111_idx(8,sze_t1111))
+        
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t111
+      if (dabs(t1(i) * t111(j)) >= thresh) then
+        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+            t1_idx(1,i) == t111_idx(3,j) .or. &
+            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+            t1_idx(2,i) == t111_idx(6,j)) cycle
+        t1111(idx) = t1(i) * t111(j)
+        t1111_idx(1,idx) = t1_idx(1,i)
+        t1111_idx(5,idx) = t1_idx(2,i)
+        t1111_idx(2,idx) = t111_idx(1,j)
+        t1111_idx(3,idx) = t111_idx(2,j)
+        t1111_idx(4,idx) = t111_idx(3,j)
+        t1111_idx(6,idx) = t111_idx(4,j)
+        t1111_idx(7,idx) = t111_idx(5,j)
+        t1111_idx(8,idx) = t111_idx(6,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
 
   ! Reorder the index of each t
   call reorder_t_idx(t2,t2_idx,sze_t2,4)
@@ -1611,39 +1618,76 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   call build_det_t(c1,c1_idx,sze_c1,2,c1_det,c1_coef)
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
-  !call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
-  !call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
+  call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
+  call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
 
   integer :: sze_cc
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
 
-  sze_cc = sze_c1 + sze_c2 !+ sze_c3 + sze_c4
+  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4
   print*,sze_cc
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
 
+  ! Ref
+  psi_coef_cc(1) = 1d0
+  psi_det_cc(:,:,1) = psi_det(:,:,cc_ref)
+
+  ! C1
+  k = 1
   do i = 1, sze_c1
-    psi_coef_cc(i) = c1_coef(i)
-    psi_det_cc(:,:,i) = c1_det(:,:,i)
+    psi_coef_cc(k+i) = c1_coef(i)
+    psi_det_cc(:,:,k+i) = c1_det(:,:,i)
   enddo
-  k = sze_c1
-  do i = 1, sze_c1
+
+  ! C2
+  k = k + sze_c1
+  do i = 1, sze_c2
     psi_coef_cc(k+i) = c2_coef(i)
     psi_det_cc(:,:,k+i) = c2_det(:,:,i)
   enddo
-  !k = k + sze_c2
-  !do i = 1, sze_c1
-  !  psi_coef_cc(k+i) = c3_coef(i)
-  !  psi_det_cc(:,:,k+i) = c3_det(:,:,i)
-  !enddo
-  !k = k + sze_c3
-  !do i = 1, sze_c4
-  !  psi_coef_cc(k+i) = c4_coef(i)
-  !  psi_det_cc(:,:,k+i) = c4_det(:,:,i)
-  !enddo
+
+  ! C3
+  k = k + sze_c2
+  do i = 1, sze_c3
+    psi_coef_cc(k+i) = c3_coef(i)
+    psi_det_cc(:,:,k+i) = c3_det(:,:,i)
+  enddo
+  ! C4
+  k = k + sze_c3
+  do i = 1, sze_c4
+    psi_coef_cc(k+i) = c4_coef(i)
+    psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  enddo
+
+  double precision ::phase,norm
+  integer :: degree
+  integer(bit_kind) :: det(N_int,2)
+  
+  ! Phase
+  norm = 1d0
+  det(:,:) = psi_det_cc(:,:,1)
+  do i = 2, sze_cc
+    !print*,i
+    !call print_det(psi_det_cc(1,1,i),N_int)
+    call get_phase_general(det,psi_det_cc(1,1,i),phase,degree,N_int)
+    psi_coef_cc(i) = psi_coef_cc(i) * phase
+    norm = norm + psi_coef_cc(i)**2
+  enddo
+  
+  ! Normalization
+  norm = 1d0/dsqrt(norm)
+  do i = 1, sze_cc
+    psi_coef_cc(i) = psi_coef_cc(i) * norm
+  enddo
   
   call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
+  !do i = 1, sze_cc
+  !  print*,psi_coef_cc(i)!,psi_coef(i,1)
+  !enddo
+
+  call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
   
 end
 #+end_src
@@ -1773,7 +1817,7 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
       else
         s = 1
       endif
-      h = h + n_core_orb
+      h = cc_list_occ_spin(h,s)
       !call print_det(det,N_int)
       call apply_hole(det,s,h,res,ok,N_int)
       if (.not. ok) then
@@ -1794,8 +1838,9 @@ subroutine build_det_t(t,t_idx,sze_t,n_idx,psi_det_t,psi_coef_t)
       else
         s = 1
       endif
-      p = p + cc_nO_S(s)
-      p = p + n_core_orb
+      p = cc_list_vir_spin(p,s)
+      !p = p + cc_nO_S(s)
+      !p = p + n_core_orb
       call apply_particle(det,s,p,res,ok,N_int)
       if (.not. ok) then
         print*,'big problem p'
@@ -2232,5 +2277,53 @@ subroutine sort_by_coef_det(psi_coef_t,psi_det_t,sze,Nint)
   enddo
   
   deallocate(tmp,tmp_det,tmp_coef,iorder)
+end
+#+end_src
+
+
+** Overlap
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+subroutine overlap_wf_safe(Ndet, list_det, list_coef)
+
+  implicit none
+
+  integer, intent(in)           :: Ndet
+  integer(bit_kind), intent(in) :: list_det(N_int,2,Ndet)
+  double precision, intent(in)  :: list_coef(Ndet)
+
+  double precision              :: accu, overlap
+  integer                       :: i,j,s,degree
+
+  ! TODO: add filter in psi_det on the excitation degree / cc_ref
+
+  !$omp parallel &
+  !$omp private(s,i,j,degree,accu) &
+  !$omp shared(N_states,psi_det,list_det,N_int,psi_coef,list_coef, &
+  !$omp overlap,Ndet) &
+  !$omp default(none)
+  do s = 1, N_states
+    accu = 0d0
+    overlap = 0d0
+    !$omp do
+    do i = 1, size(psi_coef,1)
+      do j = 1, Ndet
+       call get_excitation_degree(psi_det(1,1,i),list_det(1,1,j),degree,N_int)
+       if (degree == 0) then
+         accu = accu + psi_coef(i,s) * list_coef(j)
+       endif
+      enddo
+    enddo
+    !$omp end do
+    !$omp critical
+    overlap = overlap + accu
+    !$omp end critical
+    !$omp barrier
+    !$omp single
+    write(*,'(A19,I2,A3,F12.6)') 'Overlap with state ', s,' = ', dabs(overlap)
+    !$omp end single
+    !$omp barrier
+  enddo
+  !$omp end parallel
+
 end
 #+end_src

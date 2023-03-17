@@ -4799,18 +4799,20 @@ subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
   integer                       :: idx_o, idx_v, s
   integer(bit_kind)             :: res(N_int,2)
   integer                       :: list_o(4)
-  logical                       :: is_pa, is_pb
+  logical                       :: is_pa, is_pb, is_core, is_del
 
-  if (n_core_orb > 0) then
-     print*,'Not implemented for frozen core, abort'
-     call abort
-  endif
+  !if (n_core_orb > 0) then
+  !   print*,'Not implemented for frozen core, abort'
+  !   call abort
+  !endif
   
   ! List of open orbitals
   idx_o = 1
   idx_v = 1
   do s = 1, 2
     do i = 1, mo_num
+      if (is_core(i)) cycle
+      if (is_del(i)) cycle
       call apply_hole(det, 1, i, res, is_pa, N_int)
       call apply_hole(det, 2, i, res, is_pb, N_int)
 

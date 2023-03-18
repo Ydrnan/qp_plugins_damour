@@ -1,0 +1,73 @@
+#+begin_src f90 :comments org :tangle save_wf.irp.f
+subroutine save_wf_cc(l_det,l_coef,nb_coef)
+
+  implicit none
+
+  integer, intent(in) :: nb_coef
+  integer(bit_kind), intent(in) :: l_det(N_int,2,nb_coef)
+  double precision, intent(in) :: l_coef(nb_coef)
+
+  if (write_cc_wf) then
+    ! Save the wave function
+    print*,'Save the wave function...'
+    ! Save a one det wf
+    call save_det_cc(1, N_states, l_det, l_coef)
+    ! Just to have a large enough psi_det vector...
+    if (nb_coef > N_det) then
+      call fill_H_apply_buffer_no_selection(nb_coef-N_det,l_det,N_int,0)
+      call copy_H_apply_buffer_to_wf
+      SOFT_TOUCH psi_det psi_coef N_det !N_det_beta_unique N_det_alpha_unique psi_det_alpha_unique psi_det_beta_unique
+    endif
+    ! Save the wave function
+    call save_det_cc(nb_coef, N_states, l_det, l_coef)
+    print*,'Done'
+  endif
+
+end
+#+end_src
+
+** Save det cc
+#+begin_src f90 :comments org :tangle save_wf.irp.f
+subroutine save_det_cc(new_ndet, Nstates, list_det_sorted, list_coef_sorted)
+
+  implicit none
+
+  BEGIN_DOC
+  ! Save the cc wf by putting the computed ci coefficients in the first state
+  ! and 0 in the other states
+  END_DOC
+  
+  integer, intent(in) :: new_ndet, Nstates
+  integer(bit_kind), intent(in) :: list_det_sorted(new_ndet)
+  double precision, intent(in) :: list_coef_sorted(new_ndet)
+  
+  integer(bit_kind), allocatable :: psi_det_tmp(:,:,:)
+  double precision, allocatable :: psi_coef_tmp(:,:)
+  integer :: i,j
+  double precision :: accu(Nstates)
+  
+  allocate(psi_det_tmp(N_int,2,new_ndet),psi_coef_tmp(new_ndet, Nstates))
+ 
+  accu = 0.d0
+  do i = 1, new_ndet
+    psi_coef_tmp(i,1) = list_coef_sorted(i)
+    accu(1) += psi_coef_tmp(i,1) **2
+    do j = 2, N_states
+      psi_coef_tmp(i,j) = 0d0
+      accu(j) += psi_coef_tmp(i,j) **2
+   enddo
+  enddo
+  accu(1) = 1d0/sqrt(accu(1))
+  do j = 2, Nstates
+   accu(j) = 1.d0
+  enddo
+  do j = 1, Nstates
+   do i = 1, new_ndet
+    psi_coef_tmp(i,j) = psi_coef_tmp(i,j) * accu(j)
+   enddo
+  enddo
+ 
+  call save_wavefunction_general(new_ndet,Nstates,list_det_sorted,size(psi_coef_tmp,1),psi_coef_tmp)
+  
+end
+#+end_src

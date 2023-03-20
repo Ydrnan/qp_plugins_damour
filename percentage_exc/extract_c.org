@@ -1421,14 +1421,15 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   double precision :: energy
   call i_H_psi(psi_det_cc(1,1,1),psi_det_cc,psi_coef_cc,N_int,sze_cc,sze_cc,1,energy)
-  print*,'CC cd wf energy:',energy+nuclear_repulsion
-  
+  print*,'CC cluster dec wf energy:',energy+nuclear_repulsion
+
   ! Normalization
   norm = 1d0/dsqrt(norm)
   do i = 1, sze_cc
     psi_coef_cc(i) = psi_coef_cc(i) * norm
   enddo
-  
+
+  ! Sort by ci coef
   call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
   !do i = sze_cc, 1, -1
   !   !call print_det(psi_det_cc(1,1,i),N_int)
@@ -1436,9 +1437,16 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   !  print*,psi_coef_cc(i),psi_coef(i,1),psi_coef_cc(i)-psi_coef(i,1)
   !enddo
 
+  ! Overlap
   !call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
   call overlap_fast(psi_det,psi_coef,N_states,N_det,psi_det_cc,psi_coef_cc,1,sze_cc)
 
+  ! S^2
+  call u_0_S2_u_0(s2_val,l_coef,nb_coef,l_det,N_int,1,nb_coef)
+  print*,''
+  print*,'S^2 =', s2_val
+  print*,''
+  
   !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   !print*,'energy',psi_energy+nuclear_repulsion
 

@@ -842,6 +842,9 @@ program exp
   integer :: nO,nV
   double precision,allocatable :: t1(:,:),t2(:,:,:,:)
 
+  read_wf = .True.
+  touch read_wf
+  
   nO = cc_nOab
   nV = cc_nVab
 

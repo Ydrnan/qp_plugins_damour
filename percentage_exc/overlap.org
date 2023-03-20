@@ -267,11 +267,10 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
 
   ! Overlap
   overlap = 0d0
-  k = 1
+  k = 0
   do i = 1, ndet1
-    !print*,psi_det1(:,:,i)
     ! Search the same det
-    do j = k, ndet2
+    do j = k+1, ndet2
       is_eq = .True.
       do s = 1, 2
         do l = 1, N_int
@@ -283,8 +282,10 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
       if (is_eq) then
         k = j
         exit
-      else
-        cycle
+      ! If the first integer of the det2 is larger than the first integer of det1
+      ! there is no det1 = det2
+      else if (tmp_det2(1,1,j) > tmp_det1(1,1,i)) then
+        exit
       endif
     enddo
     

@@ -1369,7 +1369,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
 
-  sze_cc = 1 + sze_c1 + sze_c2 !+ sze_c3 + sze_c4
+  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4
   print*,sze_cc
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
@@ -1393,17 +1393,17 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
 
   ! C3
-  !k = k + sze_c2
-  !do i = 1, sze_c3
-  !  psi_coef_cc(k+i) = c3_coef(i)
-  !  psi_det_cc(:,:,k+i) = c3_det(:,:,i)
-  !enddo
-  !! C4
-  !k = k + sze_c3
-  !do i = 1, sze_c4
-  !  psi_coef_cc(k+i) = c4_coef(i)
-  !  psi_det_cc(:,:,k+i) = c4_det(:,:,i)
-  !enddo
+  k = k + sze_c2
+  do i = 1, sze_c3
+    psi_coef_cc(k+i) = c3_coef(i)
+    psi_det_cc(:,:,k+i) = c3_det(:,:,i)
+  enddo
+  ! C4
+  k = k + sze_c3
+  do i = 1, sze_c4
+    psi_coef_cc(k+i) = c4_coef(i)
+    psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  enddo
 
   double precision ::phase,norm
   integer :: degree
@@ -1441,14 +1441,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   !call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
   call overlap_fast(psi_det,psi_coef,N_states,N_det,psi_det_cc,psi_coef_cc,1,sze_cc)
 
-  !call u_0_S2_u_0(s2_val,psi_coef,N_det,psi_det,N_int,1,N_det)
-  !print*,'S^2 =', s2_val
-  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   ! S^2
   call u_0_S2_u_0(s2_val,psi_coef_cc,sze_cc,psi_det_cc,N_int,1,sze_cc)
   print*,''
   print*,'S^2 =', s2_val
   print*,''
+  
+  ! Save wf
+  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   
   !print*,'energy',psi_energy+nuclear_repulsion
 

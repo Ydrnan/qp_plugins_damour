@@ -880,7 +880,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   double precision :: thresh
   integer          :: count, sze, sze_max, idx
 
-  thresh = 0d0!1d-16
+  thresh = thresh_extract_c 
   
   ! T
   ! t1

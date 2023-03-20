@@ -1442,7 +1442,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   call overlap_fast(psi_det,psi_coef,N_states,N_det,psi_det_cc,psi_coef_cc,1,sze_cc)
 
   ! S^2
-  call u_0_S2_u_0(s2_val,l_coef,nb_coef,l_det,N_int,1,nb_coef)
+  double precision :: s2_val
+  call u_0_S2_u_0(s2_val,psi_coef_cc,sze_cc,psi_det_cc,N_int,1,sze_cc)
   print*,''
   print*,'S^2 =', s2_val
   print*,''

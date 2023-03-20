@@ -1238,14 +1238,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
 
   ! Recursive sort after the reordering
-  call recursive_sort(t11,t11_idx,sze_t11,4,1)
-  call recursive_sort(t12,t12_idx,sze_t12,6,1)
-  call recursive_sort(t22,t22_idx,sze_t22,8,1)
+  call recursive_sort_idx(t11,t11_idx,sze_t11,4,1)
+  call recursive_sort_idx(t12,t12_idx,sze_t12,6,1)
+  call recursive_sort_idx(t22,t22_idx,sze_t22,8,1)
 
-  call recursive_sort(t111,t111_idx,sze_t111,6,1)
-  call recursive_sort(t112,t112_idx,sze_t112,8,1)
+  call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
+  call recursive_sort_idx(t112,t112_idx,sze_t112,8,1)
   
-  call recursive_sort(t1111,t1111_idx,sze_t1111,8,1)
+  call recursive_sort_idx(t1111,t1111_idx,sze_t1111,8,1)
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(t11,t11_idx,sze_t11,4,new_sze_t11)
@@ -1331,9 +1331,9 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
 
   ! Sort
-  call recursive_sort(c2,c2_idx,sze_c2,4,1)
-  call recursive_sort(c3,c3_idx,sze_c3,6,1)
-  call recursive_sort(c4,c4_idx,sze_c4,8,1)
+  call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
+  call recursive_sort_idx(c3,c3_idx,sze_c3,6,1)
+  call recursive_sort_idx(c4,c4_idx,sze_c4,8,1)
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(c2,c2_idx,sze_c2,4,new_sze_c2)
@@ -1421,7 +1421,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   double precision :: energy
   call i_H_psi(psi_det_cc(1,1,1),psi_det_cc,psi_coef_cc,N_int,sze_cc,sze_cc,1,energy)
-  print*,'energy',energy+nuclear_repulsion
+  print*,'CC cd wf energy:',energy+nuclear_repulsion
   
   ! Normalization
   norm = 1d0/dsqrt(norm)
@@ -1436,9 +1436,10 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   !  print*,psi_coef_cc(i),psi_coef(i,1),psi_coef_cc(i)-psi_coef(i,1)
   !enddo
 
-  call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
+  !call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
+  call overlap_fast(psi_det,psi_coef,N_states,N_det,psi_det_cc,psi_coef_cc,1,sze_cc)
 
-  call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
+  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   !print*,'energy',psi_energy+nuclear_repulsion
 
 end
@@ -1765,7 +1766,7 @@ end
 ** idx way
 *** Recursive sort t_idx
 #+begin_src f90 :comments org :tangle exp_c.irp.f
-recursive subroutine recursive_sort(t,t_idx,sze,n_idx,idx)
+recursive subroutine recursive_sort_idx(t,t_idx,sze,n_idx,idx)
 
   implicit none
 
@@ -1786,10 +1787,10 @@ recursive subroutine recursive_sort(t,t_idx,sze,n_idx,idx)
 
     allocate(pu(sze),nu(sze))
     ! Unique, nb and position
-    call search_unique(t,t_idx,sze,n_idx,idx,nb_u,nu,pu)
+    call search_unique_idx(t_idx,sze,n_idx,idx,nb_u,nu,pu)
 
     do i = 1, nb_u
-      call recursive_sort(t(pu(i)),t_idx(1,pu(i)),nu(i),n_idx,idx+1)
+      call recursive_sort_idx(t(pu(i)),t_idx(1,pu(i)),nu(i),n_idx,idx+1)
     enddo
     deallocate(pu,nu)
 
@@ -1840,18 +1841,16 @@ end
 
 *** Unique
 #+begin_src f90 :comments org :tangle exp_c.irp.f
-subroutine search_unique(t,t_idx,sze,n_idx,idx,nb_u,nu,pu)
+subroutine search_unique_idx(t_idx,sze,n_idx,idx,nb_u,nu,pu)
 
   implicit none
 
   integer, intent(in) :: sze,n_idx,idx
   integer, intent(in) :: t_idx(n_idx,sze)
-  double precision, intent(in) :: t(sze)
 
   integer, intent(out) :: nb_u, nu(sze), pu(sze)
 
   integer :: i,j,k,l,val
-  integer, allocatable :: tmp(:),tmp_idx(:,:),iorder(:)
   double precision, allocatable :: tmp_t(:)
   
   ! Unique, nb and position

@@ -878,6 +878,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   logical :: must_exit
 
   double precision :: thresh
+  double precision :: s2_val
   integer          :: count, sze, sze_max, idx
 
   thresh = thresh_extract_c 
@@ -1365,7 +1366,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
 
-  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4
+  sze_cc = 1 + sze_c1 + sze_c2 !+ sze_c3 + sze_c4
   print*,sze_cc
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
@@ -1389,17 +1390,17 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
 
   ! C3
-  k = k + sze_c2
-  do i = 1, sze_c3
-    psi_coef_cc(k+i) = c3_coef(i)
-    psi_det_cc(:,:,k+i) = c3_det(:,:,i)
-  enddo
-  ! C4
-  k = k + sze_c3
-  do i = 1, sze_c4
-    psi_coef_cc(k+i) = c4_coef(i)
-    psi_det_cc(:,:,k+i) = c4_det(:,:,i)
-  enddo
+  !k = k + sze_c2
+  !do i = 1, sze_c3
+  !  psi_coef_cc(k+i) = c3_coef(i)
+  !  psi_det_cc(:,:,k+i) = c3_det(:,:,i)
+  !enddo
+  !! C4
+  !k = k + sze_c3
+  !do i = 1, sze_c4
+  !  psi_coef_cc(k+i) = c4_coef(i)
+  !  psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  !enddo
 
   double precision ::phase,norm
   integer :: degree
@@ -1409,18 +1410,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   norm = 1d0
   det(:,:) = psi_det_cc(:,:,1)
   do i = 2, sze_cc
-    !print*,i
-    !call print_det(psi_det_cc(1,1,i),N_int)
     call get_phase_general(det,psi_det_cc(1,1,i),phase,degree,N_int)
-    !print*,phase
-    !call get_phase(det,psi_det(1,1,i),phase,N_int)
-    !print*,phase
     psi_coef_cc(i) = psi_coef_cc(i) * phase
     norm = norm + psi_coef_cc(i)**2
   enddo
   
   double precision :: energy
   call i_H_psi(psi_det_cc(1,1,1),psi_det_cc,psi_coef_cc,N_int,sze_cc,sze_cc,1,energy)
+  print*,''
   print*,'CC cluster dec wf energy:',energy+nuclear_repulsion
 
   ! Normalization
@@ -1428,27 +1425,28 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do i = 1, sze_cc
     psi_coef_cc(i) = psi_coef_cc(i) * norm
   enddo
-
+  
   ! Sort by ci coef
   call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
   !do i = sze_cc, 1, -1
-  !   !call print_det(psi_det_cc(1,1,i),N_int)
-  !   !call print_det(psi_det(1,1,i),N_int)
-  !  print*,psi_coef_cc(i),psi_coef(i,1),psi_coef_cc(i)-psi_coef(i,1)
+  !   call print_det(psi_det_cc(1,1,i),N_int)
+  !   call print_det(psi_det(1,1,i),N_int)
+  !   print*,psi_coef_cc(i),psi_coef(i,1),psi_coef_cc(i)-psi_coef(i,1)
   !enddo
 
   ! Overlap
   !call overlap_wf_safe(sze_cc,psi_det_cc,psi_coef_cc)
   call overlap_fast(psi_det,psi_coef,N_states,N_det,psi_det_cc,psi_coef_cc,1,sze_cc)
 
+  !call u_0_S2_u_0(s2_val,psi_coef,N_det,psi_det,N_int,1,N_det)
+  !print*,'S^2 =', s2_val
+  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   ! S^2
-  double precision :: s2_val
   call u_0_S2_u_0(s2_val,psi_coef_cc,sze_cc,psi_det_cc,N_int,1,sze_cc)
   print*,''
   print*,'S^2 =', s2_val
   print*,''
   
-  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   !print*,'energy',psi_energy+nuclear_repulsion
 
 end

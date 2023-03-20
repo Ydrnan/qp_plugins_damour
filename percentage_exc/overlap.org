@@ -226,18 +226,28 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
   implicit none
 
   integer, intent(in) :: ndet1,ndet2,Nstates1,Nstates2
-  integer(bit_kind), intent(inout) :: psi_det1(N_int,2,ndet1),psi_det2(N_int,2,ndet2)
-  double precision, intent(inout) :: psi_coef1(ndet1,Nstates1),psi_coef2(ndet2,Nstates2)
+  integer(bit_kind), intent(in) :: psi_det1(N_int,2,ndet1),psi_det2(N_int,2,ndet2)
+  double precision, intent(in) :: psi_coef1(ndet1,Nstates1),psi_coef2(ndet2,Nstates2)
 
   double precision, allocatable :: tmp_coef1(:,:), tmp_coef2(:,:), overlap(:,:)
+  integer(bit_kind), allocatable :: tmp_det1(:,:,:), tmp_det2(:,:,:)
   integer :: i,j,k,l,s,s1,s2
   integer, allocatable :: states2(:)
   logical :: is_eq
 
   allocate(tmp_coef1(Nstates1,ndet1),tmp_coef2(Nstates2,ndet2))
+  allocate(tmp_det1(N_int,2,ndet1),tmp_det2(N_int,2,ndet2))
   allocate(overlap(Nstates1,Nstates2))
   allocate(states2(Nstates2))
 
+  do i = 1, ndet1
+    tmp_det1(:,:,i) = psi_det1(:,:,i)
+  enddo
+  
+  do i = 1, ndet2
+    tmp_det2(:,:,i) = psi_det2(:,:,i)
+  enddo
+  
   ! Reorder
   do i = 1, ndet1
     do s = 1, Nstates1
@@ -252,8 +262,8 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
   enddo
 
   ! Sort
-  call recursive_sort_det(psi_det1,tmp_coef1,Nstates1,ndet1,N_int*2,1)
-  call recursive_sort_det(psi_det2,tmp_coef2,Nstates2,ndet2,N_int*2,1)
+  call recursive_sort_det(tmp_det1,tmp_coef1,Nstates1,ndet1,N_int*2,1)
+  call recursive_sort_det(tmp_det2,tmp_coef2,Nstates2,ndet2,N_int*2,1)
 
   ! Overlap
   overlap = 0d0
@@ -265,7 +275,7 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
       is_eq = .True.
       do s = 1, 2
         do l = 1, N_int
-          if (psi_det1(l,s,i) /= psi_det2(l,s,j)) then
+          if (tmp_det1(l,s,i) /= tmp_det2(l,s,j)) then
             is_eq = .False.
           endif
         enddo
@@ -292,12 +302,13 @@ subroutine overlap_fast(psi_det1,psi_coef1,Nstates1,ndet1,psi_det2,psi_coef2,Nst
   do s = 1, Nstates2
     states2(s) = s
   enddo
+  print*,''
   print*, 'Overlap:'
-  write(*,'(A5,100(I12))') 's1\s2', states2(:)
+  write(*,'(A6,100(I12))') ' s1\s2', states2(:)
   do s1 = 1, Nstates1
-    write(*,'(I5,100(F12.6))') s1, dabs(overlap(s1,:))
+    write(*,'(I9,100(F12.6))') s1, dabs(overlap(s1,:))
   enddo
-  
+
 end
 #+end_src
 

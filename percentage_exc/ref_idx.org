@@ -1,0 +1,49 @@
+#+begin_src f90 :comment org :tangle ref_idx.irp.f
+program ref_idx
+
+  implicit none
+
+  integer, allocatable :: order1(:), order2(:)
+  double precision :: max_val
+  integer :: i,j,k,s,idx1,idx2
+  logical :: loop
+
+  allocate(order1(N_states),order2(N_states))
+
+  order1 = 0
+  order2 = 0
+
+  do s = 1, N_states
+    max_val = 0d0
+    idx2 = 0
+    do i = 1, N_det
+      if (dabs(psi_coef(i,s)) > max_val) then
+        max_val = dabs(psi_coef(i,s))
+        idx1 = i
+      endif
+    enddo
+    do i = 1, N_det
+      if (dabs(dabs(psi_coef(i,s)) - max_val) <= 1d-10 .and. i /= idx1) then
+        idx2 = i
+      endif
+    enddo
+    order1(s) = idx1
+    order2(s) = idx2
+  enddo
+
+  do s = 1, N_states
+    if (s <= 10) then
+      write(*,'(A6,I1,I6,A1)') 'ref1 s',s-1, order1(s), ' '
+      if (order2(s) /= 0) then
+        write(*,'(A6,I1,I6,A1)') 'ref2 s',s-1, order2(s), ' '
+      endif
+    else
+      write(*,'(A6,I2,I6,A1)') 'ref1 s',s-1, order1(s), ' '
+      if (order2(s) /= 0) then
+        write(*,'(A6,I2,I6,A1)') 'ref2 s',s-1, order2(s), ' '
+      endif
+    endif
+  enddo
+
+end
+#+end_src

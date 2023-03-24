@@ -246,6 +246,9 @@ subroutine run_tdcc()
   write(*,'(A19,F18.12,A3)') ' Correlation (T) = ', energy-W_ba, ' Ha'
   write(*,'(A15,1pE10.2,A3)')' Conv        = ', max_r
 
+  print*,'Reference determinant:'
+  call print_det(det,N_int)
+  
   call write_t1(nO,nV,t1)
   call write_t2(nO,nV,t2)
   

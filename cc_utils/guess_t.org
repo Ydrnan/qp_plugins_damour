@@ -101,7 +101,7 @@ subroutine write_t1(nO,nV,t1)
     open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T1')
     do a = 1, nV
       do i = 1, nO
-         write(11,'(F20.12)') t1(i,a)
+         write(11,'(E20.12)') t1(i,a)
       enddo
     enddo
     close(11)
@@ -133,7 +133,7 @@ subroutine write_t2(nO,nV,t2)
       do a = 1, nV
         do j = 1, nO
           do i = 1, nO
-             write(11,'(F20.12)') t2(i,j,a,b)
+             write(11,'(E20.12)') t2(i,j,a,b)
           enddo
         enddo
       enddo
@@ -173,7 +173,7 @@ subroutine read_t1(nO,nV,t1)
   open(unit=11, file=trim(ezfio_filename)//'/cc_utils/T1')
   do a = 1, nV
     do i = 1, nO
-       read(11,'(F20.12)') t1(i,a)
+       read(11,'(E20.12)') t1(i,a)
     enddo
   enddo
   close(11)
@@ -211,7 +211,7 @@ subroutine read_t2(nO,nV,t2)
     do a = 1, nV
       do j = 1, nO
         do i = 1, nO
-           read(11,'(F20.12)') t2(i,j,a,b)
+           read(11,'(E20.12)') t2(i,j,a,b)
         enddo
       enddo
     enddo

@@ -47,3 +47,29 @@ program ref_idx
 
 end
 #+end_src
+
+#+begin_src f90 :comment org :tangle ref_idx2.irp.f
+program ref_idx2
+
+  implicit none
+
+  integer, allocatable :: iorder(:)
+  double precision, allocatable :: tmp(:), sgn(:)
+  integer :: i,s
+
+  allocate(iorder(N_det),tmp(N_det),sgn(N_det))
+
+  do s = 1, N_states
+    do i = 1, N_det
+      iorder(i) = i
+      tmp(i) = - dabs(psi_coef(i,s))
+      sgn(i) = - sign(1d0,psi_coef(i,s))
+    enddo
+    call dsort(tmp,iorder,N_det)
+    write(*,'(A7,I4)') ' State:',s
+    write(*,'(10(F8.4))') tmp(1:10) * sgn(1:10)
+    write(*,'(10(I8))') iorder(1:10)
+  enddo
+
+end
+#+end_src

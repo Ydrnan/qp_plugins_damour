@@ -299,7 +299,13 @@ an improvement but it will scale in N^4...
 
 #+BEGIN_SRC f90 org :tangle localization.irp.f
 program localization
- call run_localization
+
+  implicit none
+
+  call set_classes_loc
+  call run_localization
+  call unset_classes_loc
+  
 end
 #+END_SRC
 
@@ -388,7 +394,7 @@ subroutine run_localization
   ! Locality before the localization
   call compute_spatial_extent(spatial_extent)
 
-  ! Choice of the method (with qp_edit)
+  ! Choice of the method
   print*,''
   print*,'Localization method:',localization_method
   if (localization_method == 'boys') then
@@ -400,6 +406,22 @@ subroutine run_localization
     call abort
   endif
   print*,''
+
+  print*, 'Security mo_class:', security_mo_class
+
+  ! The default mo_classes are setted only if the MOs to localize are not specified
+  !if (security_mo_class .and. (n_act_orb == mo_num .or. &
+  !    n_core_orb + n_act_orb == mo_num)) then
+
+  !  print*, 'WARNING'
+  !  print*, 'You must set different mo_class with qp set_mo_class'
+  !  print*, 'If you want to localize all the orbitals:'
+  !  print*, 'qp set Orbital_optimization security_mo_class false'
+  !  print*, ''
+  !  print*, 'abort'
+
+  !  call abort
+  !endif
 
   ! Localization criterion (FB, PM, ...) for each mo_class
   print*,'### Before the pre rotation'
@@ -446,22 +468,6 @@ subroutine run_localization
   ! Debug
   !print*,'HF', HF_energy
 
-  print*, 'Security mo_class:', security_mo_class
-
-  ! The default mo_classes are setted only if the MOs to localize are not specified
-  if (security_mo_class .and. (n_act_orb == mo_num .or. &
-      n_core_orb + n_act_orb == mo_num)) then
-
-    print*, 'WARNING'
-    print*, 'You must set different mo_class with qp set_mo_class'
-    print*, 'If you want to localize all the orbitals:'
-    print*, 'qp set Orbital_optimization security_mo_class false'
-    print*, ''
-    print*, 'abort'
-
-    call abort
-  
-  endif
 #+END_SRC
 
 ** Loc
@@ -726,6 +732,7 @@ subroutine run_localization
           print*, mo_class(tmp_list(1))
           print*,'Iteration:', nb_iter
           print*,'Sub iteration:', nb_sub_iter
+          print*,'Max elem grad:', max_elem
           print*,'-----------------------------'
 
           ! Hessian,gradient,Criterion -> x 
@@ -810,7 +817,7 @@ subroutine run_localization
     endif
   enddo
 
-
+  ! Seems unecessary
   TOUCH mo_coef 
 
   ! To sort the MOs using the diagonal elements of the Fock matrix
@@ -1033,7 +1040,6 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
 
   print*,''
   print*,'---gradient_FB---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1082,9 +1088,7 @@ subroutine gradient_FB(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   t3 = t2 - t1
   print*,'Time in gradient_FB:', t3
 
-  print*,''
   print*,'---End gradient_FB---'
-  print*,''
 
 end subroutine
 #+END_SRC
@@ -1109,7 +1113,6 @@ subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, nor
 
   print*,''
   print*,'---gradient_FB_omp---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1174,9 +1177,7 @@ subroutine gradient_FB_omp(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, nor
   t3 = t2 - t1
   print*,'Time in gradient_FB_omp:', t3
 
-  print*,''
   print*,'---End gradient_FB_omp---'
-  print*,''
 
 end subroutine
 #+END_SRC
@@ -1212,7 +1213,6 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
    
   print*,''
   print*,'---hessian_FB---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1245,9 +1245,7 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   t3 = t2 - t1
   print*,'Time in hessian_FB:', t3
 
-  print*,''
   print*,'---End hessian_FB---'
-  print*,''
 
 end subroutine
 #+END_SRC
@@ -1270,7 +1268,6 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
    
   print*,''
   print*,'---hessian_FB_omp---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1325,9 +1322,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   t3 = t2 - t1
   print*,'Time in hessian_FB_omp:', t3
 
-  print*,''
   print*,'---End hessian_FB_omp---'
-  print*,''
 
 end subroutine
 #+END_SRC
@@ -1478,7 +1473,6 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
 
   print*,''
   print*,'---gradient_PM---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1591,9 +1585,7 @@ subroutine gradient_PM(tmp_n, tmp_list_size, tmp_list, v_grad, max_elem, norm_gr
   t3 = t2 - t1
   print*,'Time in gradient_PM:', t3
 
-  print*,''
   print*,'---End gradient_PM---'
-  print*,''
 
 end
 #+END_SRC
@@ -1696,7 +1688,6 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
     
   print*,''
   print*,'---hessian_PM---'
-  print*,''
 
   call wall_time(t1)
 
@@ -1790,9 +1781,7 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   t3 = t2 - t1
   print*,'Time in hessian_PM:', t3
 
-  print*,''
   print*,'---End hessian_PM---'
-  print*,''
 
 end
 
@@ -1909,7 +1898,6 @@ subroutine criterion_PM(tmp_list_size,tmp_list,criterion)
   deallocate(tmp_int,CS)
 
   print*,'---End criterion_PM---'
-  print*,''
 
 end
 #+END_SRC
@@ -2026,7 +2014,6 @@ subroutine criterion_PM_v3(tmp_list_size,tmp_list,criterion)
   print*,'Time in criterion_PM_v3:', t3
 
   print*,'---End criterion_PM_v3---'
-  print*,''
 
 end
 #+END_SRC
@@ -2746,30 +2733,8 @@ subroutine run_sort_by_fock_energies()
   END_DOC
   
   integer                        :: i,j,k,l,tmp_i,tmp_k,tmp_list_size
-  integer, allocatable           :: iorder(:)
-  double precision, allocatable  :: fock_energies_tmp(:), tmp_mo_coef(:,:), tmp_list(:)
-
-!  allocate(iorder(mo_num), fock_energies_tmp(mo_num), new_mo_coef(ao_num, mo_num))
-!
-!  do i = 1, mo_num
-!    fock_energies_tmp(i) = Fock_matrix_diag_mo(i)
-!    print*,'fock_energies_tmp(i) = ',fock_energies_tmp(i)
-!    iorder(i) = i
-!  enddo
-!
-!  print*,''
-!  print*,'Sorting by Fock energies'
-!  print*,''
-!
-!  call dsort(fock_energies_tmp, iorder, mo_num)
-!
-!  do i = 1, mo_num
-!    k = iorder(i)
-!    print*,'fock_energies_new(i) = ',fock_energies_tmp(i)
-!    do j = 1, ao_num
-!      new_mo_coef(j,i) = mo_coef(j,k)
-!    enddo
-!  enddo
+  integer, allocatable           :: iorder(:), tmp_list(:)
+  double precision, allocatable  :: fock_energies_tmp(:), tmp_mo_coef(:,:)
 
   ! Test
   do l = 1, 4
@@ -2846,3 +2811,105 @@ end
 
 #+END_SRC
 
+
+#+BEGIN_SRC f90 :comments org :tangle localization_sub.irp.f
+function is_core(i)
+
+  implicit none
+
+  BEGIN_DOC
+  ! True if the orbital i is a core orbital
+  END_DOC
+
+  integer, intent(in) :: i
+  logical             :: is_core
+
+  integer             :: j
+
+  ! Init
+  is_core = .False.
+
+  ! Search
+  do j = 1, dim_list_core_orb
+    if (list_core(j) == i) then
+      is_core = .True.
+      exit
+    endif
+  enddo
+
+end
+
+function is_del(i)
+
+  implicit none
+
+  BEGIN_DOC
+  ! True if the orbital i is a deleted orbital
+  END_DOC
+
+  integer, intent(in) :: i
+  logical             :: is_del
+
+  integer             :: j
+
+  ! Init
+  is_del = .False.
+
+  ! Search
+  do j = 1, dim_list_core_orb
+    if (list_core(j) == i) then
+      is_del = .True.
+      exit
+    endif
+  enddo
+
+end
+
+subroutine set_classes_loc()
+
+  implicit none
+
+  integer :: i
+  logical :: ok1, ok2
+  logical :: is_core, is_del
+  integer(bit_kind) :: res(N_int,2)
+
+  if (security_mo_class) then
+    do i = 1, mo_num
+      if (is_core(i)) cycle
+      if (is_del(i)) cycle
+      call apply_hole(psi_det(1,1,1), 1, i, res, ok1, N_int)
+      call apply_hole(psi_det(1,1,1), 2, i, res, ok2, N_int)
+      if (ok1 .and. ok2) then
+        mo_class(i) = 'Inactive'
+      else if (.not. ok1 .and. .not. ok2) then
+        mo_class(i) = 'Virtual'
+      else
+        mo_class(i) = 'Active'
+      endif
+    enddo
+    touch dim_list_inact_orb dim_list_virt_orb dim_list_act_orb list_inact list_inact_reverse list_virt list_virt_reverse list_act list_act_reverse
+  endif
+  
+end
+
+subroutine unset_classes_loc()
+
+  implicit none
+
+  integer :: i
+  logical :: ok1, ok2
+  logical :: is_core, is_del
+  integer(bit_kind) :: res(N_int,2)
+
+  if (security_mo_class) then
+    do i = 1, mo_num
+      if (is_core(i)) cycle
+      if (is_del(i)) cycle
+      mo_class(i) = 'Active'
+    enddo
+    touch dim_list_inact_orb dim_list_virt_orb dim_list_act_orb list_inact list_inact_reverse list_virt list_virt_reverse list_act list_act_reverse
+  endif
+
+end
+#+END_SRC

@@ -481,11 +481,11 @@ avoid_saddle is actually a test to avoid saddle points
   ! We just use this norm for the nb_iter = 0 in order to initialize the trust radius delta
   ! We don't care about the sign of the eigenvalue we just want the size of the step in a normal Newton-Raphson algorithm
   ! Anyway if the step is too big it will be reduced
-  print*,'||x||^2 :', norm2_x
+  !print*,'||x||^2 :', norm2_x
 
   ! Norm^2 of the gradient, ||v_grad||^2
   norm2_g = (dnrm2(n,v_grad,1))**2
-  print*,'||grad||^2 :', norm2_g
+  !print*,'||grad||^2 :', norm2_g
 #+END_SRC
 
 *** Trust radius initialization
@@ -539,7 +539,7 @@ To avoid too big trust region we put a maximum size.
     delta = 1d10
   endif
 
-  print*, 'Delta :', delta
+  !print*, 'Delta :', delta
 #+END_SRC 
   
 *** Calculation of the optimal lambda
@@ -559,26 +559,26 @@ You will find more details at the beginning
   ! Research of lambda to solve ||x(lambda)|| = Delta 
 
   ! Display
-  print*, 'e_val(1) = ', e_val(1)
-  print*, 'w_1^T.g =', tmp_wtg(1)
+  !print*, 'e_val(1) = ', e_val(1)
+  !print*, 'w_1^T.g =', tmp_wtg(1)
   
   ! H positive definite 
   if (e_val(1) > - thresh_eig) then
     norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg,0d0)
-    print*, '||x(0)||=', dsqrt(norm2_x)
-    print*, 'Delta=', delta
+    !print*, '||x(0)||=', dsqrt(norm2_x)
+    !print*, 'Delta=', delta
 
     ! H positive definite, ||x(lambda = 0)|| <= Delta
     if (dsqrt(norm2_x) <= delta) then 
-      print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
-      print*, 'lambda = 0, no lambda optimization'
+      !print*, 'H positive definite, ||x(lambda = 0)|| <= Delta'
+      !print*, 'lambda = 0, no lambda optimization'
       lambda = 0d0
 
     ! H positive definite, ||x(lambda = 0)|| > Delta
     else
       ! Constraint solution
-      print*, 'H positive definite, ||x(lambda = 0)|| > Delta' 
-      print*,'Computation of the optimal lambda...'
+      !print*, 'H positive definite, ||x(lambda = 0)|| > Delta' 
+      !print*,'Computation of the optimal lambda...'
       call trust_region_optimal_lambda(n,e_val,tmp_wtg,delta,lambda)
     endif
 
@@ -586,14 +586,14 @@ You will find more details at the beginning
   else
     if (DABS(tmp_wtg(1)) < thresh_wtg) then
       norm2_x = f_norm_trust_region_omp(n,e_val,tmp_wtg, - e_val(1))
-      print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
+      !print*, 'w_1^T.g <', thresh_wtg,', ||x(lambda = -e_val(1))|| =', dsqrt(norm2_x) 
     endif
 
     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta 
     if (dsqrt(norm2_x) <= delta .and. DABS(tmp_wtg(1)) < thresh_wtg) then
       ! Add e_val(1) in order to have (H - e_val(1) I) positive definite
-      print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
-      print*, 'lambda = -e_val(1), no lambda optimization'
+      !print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| <= Delta'
+      !print*, 'lambda = -e_val(1), no lambda optimization'
       lambda = - e_val(1)
 
     ! H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta
@@ -601,12 +601,12 @@ You will find more details at the beginning
     ! H indefinite, w_1^T.g =/= 0
     else
       ! Constraint solution/ add lambda
-      if (DABS(tmp_wtg(1)) < thresh_wtg) then
-         print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
-      else
-         print*, 'H indefinite, w_1^T.g =/= 0'
-      endif
-      print*, 'Computation of the optimal lambda...'
+      !if (DABS(tmp_wtg(1)) < thresh_wtg) then
+      !   print*, 'H indefinite, w_1^T.g = 0, ||x(lambda = -e_val(1))|| > Delta'
+      !else
+      !   print*, 'H indefinite, w_1^T.g =/= 0'
+      !endif
+      !print*, 'Computation of the optimal lambda...'
       call trust_region_optimal_lambda(n,e_val,tmp_wtg,delta,lambda)
       endif
      
@@ -753,7 +753,6 @@ antisymmetric matrix m_x cf. "mat_to_vec_index" and "vec_to_mat_index".
   print*,'======================'
   print*,'---End trust_region---'
   print*,'======================'
-  print*,''
 
 end
     #+END_SRC

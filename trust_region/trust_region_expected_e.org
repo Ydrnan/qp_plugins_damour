@@ -81,7 +81,7 @@ TODO: remove the dot products
   part_1 = ddot(n,v_grad,1,x,1)
  
   !if (debug) then
-    print*,'g.x : ', part_1
+  !  print*,'g.x : ', part_1
   !endif
     
   ! Product H.x
@@ -98,17 +98,17 @@ TODO: remove the dot products
   part_2 = 0.5d0 * ddot(n,x,1,part_2a,1)
 
   !if (debug) then
-    print*,'1/2*x^T.H.x : ', part_2 
+  !  print*,'1/2*x^T.H.x : ', part_2 
   !endif
 
-  print*,'prev_energy', prev_energy
 
   ! Sum
   e_model = prev_energy + part_1 + part_2
 
   ! Writing the predicted energy
-  print*, 'Predicted energy after the rotation : ', e_model
-  print*, 'Previous energy - predicted energy:', prev_energy - e_model
+  print*, 'prev_energy:                        ', prev_energy
+  print*, 'Predicted energy after the rotation:', e_model
+  print*, 'Previous energy - predicted energy: ', prev_energy - e_model
   
   ! Can be deleted, already in another subroutine
   if (DABS(prev_energy - e_model) < 1d-12 ) then 
@@ -123,7 +123,6 @@ TODO: remove the dot products
   print*,'Time in trust e model:', t3
 
   print*,'---End trust_e_model---'
-  print*,''
  
 end subroutine 
 #+END_SRC 

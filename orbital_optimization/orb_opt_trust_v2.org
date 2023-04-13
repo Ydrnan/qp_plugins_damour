@@ -91,6 +91,10 @@ subroutine run_orb_opt_trust_v2
 
   implicit none
 
+  BEGIN_DOC
+  ! Orbital optimization
+  END_DOC
+
   ! Variables
 
   double precision, allocatable :: R(:,:)
@@ -187,31 +191,6 @@ Here is the main algorithm of the optimization:
   ! Renormalization of the weights of the states
   call state_weight_normalization
 
-  !if (normalized_st_av_weight) then
-  !  ! To put the same weight everywhere
-  !  do i = 1, N_states
-  !    state_average_weight(i) = 1d0/DBLE(N_states)
-  !  enddo
-  !  TOUCH state_average_weight
-  !elseif (normalized_st_weight) then
-  !  ! To normalize the weights
-  !  normalization_factor = 0d0
-  !  do i = 1, N_states
-  !    normalization_factor = normalization_factor + state_average_weight(i)**2
-  !  enddo
-  !  normalization_factor = 1d0 / dsqrt(normalization_factor)
-  !  
-  !  do i = 1, N_states
-  !    state_average_weight(i) = state_average_weight(i) * normalization_factor
-  !  enddo
-  !  TOUCH state_average_weight
-  !else
-  !  ! Nothing
-  !endif
-  !print*, 'Number of states:', N_states
-  !print*, 'State average weights:'
-  !print*, state_average_weight(:)
-
   ! Compute the criterion before the loop
   call state_average_energy(prev_criterion)
 
@@ -265,16 +244,18 @@ Here is the main algorithm of the optimization:
 
     ! Loop to reduce the trust radius until the criterion decreases and rho >= thresh_rho
     do while (cancel_step)
+      print*,''
       print*,'-----------------------------'
-      print*,'Iteration:', nb_iter
+      print*,'Iteration:    ', nb_iter
       print*,'Sub iteration:', nb_sub_iter
+      print*,'Max elem grad:', max_elem_grad
       print*,'-----------------------------'
 
       ! Hessian,gradient,Criterion -> x 
       call trust_region_step_w_expected_e(tmp_n,tmp_n2,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
       
       if (must_exit) then
-        print*,'step_in_trust_region sends the message : Exit'
+        print*,'step_in_trust_region sends: Exit'
         exit
       endif
 
@@ -286,7 +267,7 @@ Here is the main algorithm of the optimization:
 
       ! Security to ensure an unitary transformation
       if (enforce_step_cancellation) then
-        print*, 'Forces the step cancellation, too large error in the rotation matrix'
+        print*, 'Step cancellation, too large error in the rotation matrix'
         rho = 0d0
         cycle
       endif
@@ -321,6 +302,7 @@ Here is the main algorithm of the optimization:
         call state_average_energy(prev_criterion)
       endif
 
+      ! Not needed anymore
       ! Internal loop exit conditions
       !if (nb_cancel > nb_cancel_max) then
       !  print*,'###################################'

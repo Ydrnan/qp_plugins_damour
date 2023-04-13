@@ -9,18 +9,21 @@ program debug_hessian_loc
 
   integer :: list_size, n
   integer, allocatable :: list(:)
-  double precision, allocatable :: H(:,:), H2(:,:)
+  double precision, allocatable :: H(:), H2(:)
   double precision :: threshold, max_error, max_elem
   integer :: i, nb_error
 
   threshold = 1d-12
 
-  list = list_act
   list_size = dim_list_act_orb
+
+  allocate(list(list_size))
+  
+  list = list_act
 
   n = list_size*(list_size-1)/2
   
-  allocate(H(n,n),H2(n,n))
+  allocate(H(n),H2(n))
 
   if (localization_method == 'boys') then
     print*,'Foster-Boys'
@@ -36,7 +39,7 @@ program debug_hessian_loc
   endif
  
   do i = 1, n
-    print*,i,H(i,i)
+    print*,i,H(i)
   enddo
 
   H = H - H2
@@ -45,11 +48,11 @@ program debug_hessian_loc
   max_elem = 0d0
 
   do i = 1, n
-    if (dabs(H(i,i)) > threshold) then
-      print*,H(i,i)
+    if (dabs(H(i)) > threshold) then
+      print*,H(i)
       nb_error = nb_error + 1
-      if (dabs(H(i,i)) > max_elem) then
-        max_elem = H(i,i)
+      if (dabs(H(i)) > max_elem) then
+        max_elem = H(i)
       endif
     endif
   enddo

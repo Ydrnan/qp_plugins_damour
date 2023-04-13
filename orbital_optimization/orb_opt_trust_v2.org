@@ -49,6 +49,7 @@ Provided:
 Variables:
 | m                         | integer          | number of active MOs                               |
 | tmp_n                     | integer          | m*(m-1)/2, number of MO parameters                 |
+| tmp_n2                    | integer          | m*(m-1)/2 or 1 if the hessian is diagonal          |
 | v_grad(tmp_n)             | double precision | gradient                                           |
 | H(tmp_n,tmp_n)            | double precision | hessian (2D)                                       |
 | h_f(m,m,m,m)              | double precision | hessian (4D)                                       |
@@ -105,13 +106,29 @@ subroutine run_orb_opt_trust_v2
   double precision              :: t1, t2, t3
   double precision              :: prev_criterion, criterion, criterion_model
   logical                       :: not_converged, must_exit, enforce_step_cancellation
-  integer                       :: m, tmp_n, tmp_i, tmp_j, tmp_k
-  integer,allocatable           :: tmp_list(:)
+  integer                       :: m, tmp_n, tmp_i, tmp_j, tmp_k, tmp_n2
+  integer,allocatable           :: tmp_list(:), key(:)
   double precision, allocatable :: tmp_m_x(:,:),tmp_R(:,:), tmp_x(:), W(:,:), e_val(:)
 
   PROVIDE mo_two_e_integrals_in_map ci_energy psi_det psi_coef
 #+END_SRC
    
+** Allocation
+
+#+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
+  allocate(R(mo_num,mo_num))  ! rotation matrix
+  allocate(prev_mos(ao_num,mo_num), new_mos(ao_num,mo_num)) ! old and new MOs
+  
+  ! Definition of m and tmp_n
+  m = dim_list_act_orb
+  tmp_n = m*(m-1)/2
+  
+  allocate(tmp_list(m))
+  allocate(tmp_R(m,m), tmp_m_x(m,m), tmp_x(tmp_n))
+  allocate(e_val(tmp_n),key(tmp_n),v_grad(tmp_n))
+
+#+END_SRC
+
 ** Method
    There are three different methods : 
    - the "full" hessian, which uses all the elements of the hessian
@@ -125,31 +142,21 @@ subroutine run_orb_opt_trust_v2
    print*, 'Method :', optimization_method
   if (optimization_method == 'full') then 
     print*, 'Full hessian'
+    allocate(H(tmp_n,tmp_n), h_f(m,m,m,m),W(tmp_n,tmp_n))
+    tmp_n2 = tmp_n
   elseif (optimization_method == 'diag') then
     print*,'Diagonal hessian'
+    allocate(H(tmp_n,1),W(tmp_n,1))
+    tmp_n2 = 1
   elseif (optimization_method == 'none') then
     print*,'No hessian'
+    allocate(H(tmp_n,1),W(tmp_n,1))
+    tmp_n2 = 1
   else
     print*,'Unknown optimization_method, please select full, diag or none'
     call abort
   endif
   print*, 'Absolute value of the hessian:', absolute_eig
-#+END_SRC
-
-** Allocation
-
-#+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
-  allocate(R(mo_num,mo_num))  ! rotation matrix
-  allocate(prev_mos(ao_num,mo_num), new_mos(ao_num,mo_num)) ! old and new MOs
-  
-  ! Definition of m and tmp_n
-  m = dim_list_act_orb
-  tmp_n = m*(m-1)/2
-  
-  allocate(tmp_list(m))
-  allocate(tmp_R(m,m), tmp_m_x(m,m), tmp_x(tmp_n))
-  allocate(H(tmp_n,tmp_n), h_f(m,m,m,m), v_grad(tmp_n),W(tmp_n,tmp_n),e_val(tmp_n))
-
 #+END_SRC
 
 ** Calculations
@@ -222,20 +229,35 @@ Here is the main algorithm of the optimization:
     if (optimization_method == 'full') then
       ! Full hessian
       call hessian_list_opt(tmp_n, m, tmp_list, H, h_f)
+
+      ! Diagonalization of the hessian 
+      call diagonalization_hessian(tmp_n, H, e_val, w)
+
     elseif (optimization_method == 'diag') then
       ! Diagonal hessian 
-      call diag_hessian_list_opt(tmp_n, m, tmp_list, H, h_f)
+      call diag_hessian_list_opt(tmp_n, m, tmp_list, H)
     else
       ! Identity matrix 
-      H = 0d0
       do tmp_i = 1, tmp_n
-        H(tmp_i,tmp_i) = 1d0
+        H(tmp_i,1) = 1d0
       enddo
     endif
- 
-    ! Diagonalization of the hessian 
-    call diagonalization_hessian(tmp_n, H, e_val, w)
 
+    if (optimization_method /= 'full') then
+      ! Sort
+      do tmp_i = 1, tmp_n
+        key(tmp_i) = tmp_i
+        e_val(tmp_i) = H(tmp_i,1)
+      enddo
+      call dsort(e_val,key,tmp_n)
+
+      ! Eigenvalues and eigenvectors
+      do tmp_i = 1, tmp_n
+        w(tmp_i,1) = dble(key(tmp_i))
+      enddo
+      
+    endif
+ 
     ! Init before the internal loop
     cancel_step = .True. ! To enter in the loop just after 
     nb_cancel = 0
@@ -249,7 +271,7 @@ Here is the main algorithm of the optimization:
       print*,'-----------------------------'
 
       ! Hessian,gradient,Criterion -> x 
-      call trust_region_step_w_expected_e(tmp_n,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
+      call trust_region_step_w_expected_e(tmp_n,tmp_n2,H,W,e_val,v_grad,prev_criterion,rho,nb_iter,delta,criterion_model,tmp_x,must_exit) 
       
       if (must_exit) then
         print*,'step_in_trust_region sends the message : Exit'
@@ -300,21 +322,21 @@ Here is the main algorithm of the optimization:
       endif
 
       ! Internal loop exit conditions
-      if (nb_cancel > nb_cancel_max) then
-        print*,'###################################'
-        print*,'nb_cancel >', nb_cancel_max,', exit'
-        print*,'###################################'
-        must_exit = .True.
-        exit
-      endif
+      !if (nb_cancel > nb_cancel_max) then
+      !  print*,'###################################'
+      !  print*,'nb_cancel >', nb_cancel_max,', exit'
+      !  print*,'###################################'
+      !  must_exit = .True.
+      !  exit
+      !endif
  
-      if (nb_cancel_tot > nb_cancel_tot_max) then
-        print*,'###########################################'
-        print*,'nb_cancel_tot >', nb_cancel_tot_max,', exit'
-        print*,'###########################################'
-        must_exit = .True.
-        exit
-      endif
+      !if (nb_cancel_tot > nb_cancel_tot_max) then
+      !  print*,'###########################################'
+      !  print*,'nb_cancel_tot >', nb_cancel_tot_max,', exit'
+      !  print*,'###########################################'
+      !  must_exit = .True.
+      !  exit
+      !endif
 
       nb_sub_iter = nb_sub_iter + 1
     enddo
@@ -356,7 +378,10 @@ Here is the main algorithm of the optimization:
 
 #+BEGIN_SRC f90 :comments org :tangle run_orb_opt_trust_v2.irp.f
   deallocate(v_grad,H,R,W,e_val)
-  deallocate(h_f,prev_mos,new_mos)
+  deallocate(prev_mos,new_mos)
+  if (optimization_method == 'full') then
+    deallocate(h_f)
+  endif
 
 end
 #+END_SRC

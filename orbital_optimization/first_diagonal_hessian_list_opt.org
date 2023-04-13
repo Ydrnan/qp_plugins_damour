@@ -1,7 +1,7 @@
 * First diagonal hessian
 
 #+BEGIN_SRC f90 :comments :tangle first_diagonal_hessian_list_opt.irp.f
-subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
+subroutine first_diag_hessian_list_opt(tmp_n,m,list,H)!, h_tmpr)
 
   include 'constants.h' 
 
@@ -20,11 +20,11 @@ subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
   ! tmp_n        : integer, tmp_n = m*(m-1)/2
  
   ! out
-  double precision, intent(out) :: H(tmp_n,tmp_n), h_tmpr(m,m,m,m)
+  double precision, intent(out) :: H(tmp_n)!, h_tmpr(m,m,m,m)
   ! H        : n by n double precision matrix containing the 2D hessian
   
   ! internal
-  double precision, allocatable :: hessian(:,:,:,:)
+  double precision, allocatable :: hessian(:,:,:,:), tmp(:,:),h_tmpr(:,:,:,:)
   integer                       :: p,q, tmp_p,tmp_q
   integer                       :: r,s,t,u,v,tmp_r,tmp_s,tmp_t,tmp_u,tmp_v
   integer                       :: pq,rs,tmp_pq,tmp_rs
@@ -52,7 +52,7 @@ subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
   ! Allocation
   !============
   
-  allocate(hessian(m,m,m,m))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
+  allocate(hessian(m,m,m,m),tmp(tmp_n,tmp_n),h_tmpr(mo_num,mo_num,mo_num,mo_num))
 
   !=============
   ! Calculation
@@ -348,15 +348,19 @@ subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
     call vec_to_mat_index(tmp_rs,tmp_r,tmp_s)
     do tmp_pq = 1, tmp_n
       call vec_to_mat_index(tmp_pq,tmp_p,tmp_q)
-      H(tmp_pq,tmp_rs) = h_tmpr(tmp_p,tmp_q,tmp_r,tmp_s)   
+      tmp(tmp_pq,tmp_rs) = h_tmpr(tmp_p,tmp_q,tmp_r,tmp_s)   
     enddo
+  enddo
+
+  do p = 1, tmp_n
+    H(p) = tmp(p,p)
   enddo
 
   ! Display
   if (debug) then 
     print*,'2D diag Hessian matrix'
     do tmp_pq = 1, tmp_n
-      write(*,'(100(F10.5))') H(tmp_pq,:)
+      write(*,'(100(F10.5))') tmp(tmp_pq,:)
     enddo 
   endif
 
@@ -364,7 +368,7 @@ subroutine first_diag_hessian_list_opt(tmp_n,m,list,H, h_tmpr)
   ! Deallocation
   !==============
 
-  deallocate(hessian)
+  deallocate(hessian,h_tmpr,tmp)
 
   print*,'---End first_diag_hess_list---'
 

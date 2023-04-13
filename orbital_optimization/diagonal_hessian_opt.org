@@ -94,7 +94,7 @@ Function:
 | get_two_e_integral | double precision | bi-electronic integrals |
 
 #+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
-subroutine diag_hessian_opt(n,H, h_tmpr)
+subroutine diag_hessian_opt(n,H)!, h_tmpr)
  
   use omp_lib
   
@@ -108,11 +108,11 @@ subroutine diag_hessian_opt(n,H, h_tmpr)
   integer, intent(in)           :: n 
  
   ! out
-  double precision, intent(out) :: H(n,n),  h_tmpr(mo_num,mo_num,mo_num,mo_num)
+  double precision, intent(out) :: H(n)!,n),  h_tmpr(mo_num,mo_num,mo_num,mo_num)
   
   ! internal
-  double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
-  integer                       :: p,q
+  !double precision, allocatable :: hessian(:,:,:,:)!, h_tmpr(:,:,:,:)
+  integer                       :: p,q,k
   integer                       :: r,s,t,u,v
   integer                       :: pq,rs
   integer                       :: istate
@@ -131,7 +131,7 @@ subroutine diag_hessian_opt(n,H, h_tmpr)
   print*,'Use the diagonal hessian'
 
   ! Allocation of shared arrays
-  allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
+  !allocate(hessian(mo_num,mo_num,mo_num,mo_num))!,h_tmpr(mo_num,mo_num,mo_num,mo_num))
   allocate(tmp_h_pppp(mo_num),tmp_h_pqpq(mo_num,mo_num),tmp_h_pqqp(mo_num,mo_num))
   allocate(tmp_2rdm_3_shared(mo_num,mo_num,mo_num))
   allocate(tmp_bi_int_3_shared(mo_num,mo_num,mo_num))
@@ -142,9 +142,9 @@ subroutine diag_hessian_opt(n,H, h_tmpr)
 
   !$OMP PARALLEL                                                               &
       !$OMP PRIVATE(                                                           &
-      !$OMP   p,q,r,s, tmp_accu,                                               &
+      !$OMP   p,q,r,s, tmp_accu,k,                                               &
       !$OMP   u,v,t, tmp_bi_int_3, tmp_2rdm_3)                                 &
-      !$OMP SHARED(hessian,h_tmpr, H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
+      !$OMP SHARED(H, tmp_h_pppp, tmp_h_pqpq, tmp_h_pqqp,      &
       !$OMP  mo_num,n, mo_one_e_integrals, one_e_dm_mo,                        &
       !$OMP  tmp_bi_int_3_shared, tmp_2rdm_3_shared,tmp_accu_shared,           &
       !$OMP  tmp_accu_1_shared,two_e_dm_mo,mo_integrals_map,t1,t2,t3,t4,t5,t6) &
@@ -157,17 +157,17 @@ subroutine diag_hessian_opt(n,H, h_tmpr)
 
 ** Initialization of the arrays
 #+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f 
-  !$OMP DO
-  do s = 1,mo_num
-    do r = 1, mo_num
-      do q = 1, mo_num
-        do p = 1, mo_num
-          hessian(p,q,r,s) = 0d0
-        enddo
-      enddo
-    enddo
-  enddo
-  !$OMP END DO
+  !!$OMP DO
+  !do s = 1,mo_num
+  !  do r = 1, mo_num
+  !    do q = 1, mo_num
+  !      do p = 1, mo_num
+  !        hessian(p,q,r,s) = 0d0
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  !!$OMP END DO
   
   !$OMP DO
   do p = 1, mo_num
@@ -1418,41 +1418,41 @@ Hessian(p,q,r,s) = P_pq P_rs [...]
 => Hessian(p,q,r,s) = (p,q,r,s) - (q,p,r,s) - (p,q,s,r) + (q,p,s,r)
 
 #+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
-  !$OMP DO
-  do p = 1, mo_num
-    hessian(p,p,p,p) = hessian(p,p,p,p) + tmp_h_pppp(p)
-  enddo
-  !$OMP END DO
+  !!$OMP DO
+  !do p = 1, mo_num
+  !  hessian(p,p,p,p) = hessian(p,p,p,p) + tmp_h_pppp(p)
+  !enddo
+  !!$OMP END DO
 
-  !$OMP DO
-  do q = 1, mo_num
-    do p = 1, mo_num
-      hessian(p,q,p,q) = hessian(p,q,p,q) + tmp_h_pqpq(p,q)
-    enddo
-  enddo
-  !$OMP END DO
-  
-  !$OMP DO
-  do q = 1, mo_num
-    do p = 1, mo_num
-      hessian(p,q,q,p) = hessian(p,q,q,p) + tmp_h_pqqp(p,q)
-    enddo
-  enddo
-  !$OMP END DO
+  !!$OMP DO
+  !do q = 1, mo_num
+  !  do p = 1, mo_num
+  !    hessian(p,q,p,q) = hessian(p,q,p,q) + tmp_h_pqpq(p,q)
+  !  enddo
+  !enddo
+  !!$OMP END DO
+  !
+  !!$OMP DO
+  !do q = 1, mo_num
+  !  do p = 1, mo_num
+  !    hessian(p,q,q,p) = hessian(p,q,q,p) + tmp_h_pqqp(p,q)
+  !  enddo
+  !enddo
+  !!$OMP END DO
 
-  !$OMP DO
-  do s = 1, mo_num
-    do r = 1, mo_num
-      do q = 1, mo_num
-        do p = 1, mo_num
+  !!$OMP DO
+  !do s = 1, mo_num
+  !  do r = 1, mo_num
+  !    do q = 1, mo_num
+  !      do p = 1, mo_num
 
-          h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
+  !        h_tmpr(p,q,r,s) = (hessian(p,q,r,s) - hessian(q,p,r,s) - hessian(p,q,s,r) + hessian(q,p,s,r))
 
-        enddo
-      enddo
-    enddo
-  enddo
-  !$OMP END DO
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  !!$OMP END DO
 #+END_SRC
 
 ** 4D -> 2D matrix
@@ -1471,33 +1471,41 @@ with p<q and r<s
     call vec_to_mat_index(pq,p,q)
     do rs = 1, n
       call vec_to_mat_index(rs,r,s)
-      H(pq,rs) = h_tmpr(p,q,r,s)   
+      !H(pq,rs) = h_tmpr(p,q,r,s)
+      if (pq == rs) then
+        k = pq
+        if (p == r) then
+          H(k) = tmp_h_pqpq(p,q) + tmp_h_pqpq(q,p) - tmp_h_pqqp(p,q) - tmp_h_pqqp(q,p)
+        elseif (p == s) then
+          H(k) = - tmp_h_pqpq(p,q) - tmp_h_pqpq(q,p) + tmp_h_pqqp(p,q) + tmp_h_pqqp(q,p)
+        endif
+      endif
     enddo
   enddo
   !$OMP END DO
 
-  !$OMP MASTER
-  call wall_TIME(t5)
-  t6 = t5-t4
-  print*,'4D -> 2D :',t6
-  !$OMP END MASTER
+  !!$OMP MASTER
+  !call wall_TIME(t5)
+  !t6 = t5-t4
+  !print*,'4D -> 2D :',t6
+  !!$OMP END MASTER
 
   !$OMP END PARALLEL
   call omp_set_max_active_levels(4)
 
   ! Display
-  if (debug) then 
-    print*,'2D diag Hessian matrix'
-    do pq = 1, n
-      write(*,'(100(F10.5))') H(pq,:)
-    enddo 
-  endif
+  !if (debug) then 
+  !  print*,'2D diag Hessian matrix'
+  !  do pq = 1, n
+  !    write(*,'(100(F10.5))') H(pq,:)
+  !  enddo 
+  !endif
 #+END_SRC
 
 ** Deallocation of shared arrays, end
 
 #+BEGIN_SRC f90 :comments org :tangle diagonal_hessian_opt.irp.f
-  deallocate(hessian)!,h_tmpr)
+  !deallocate(hessian)!,h_tmpr)
   deallocate(tmp_h_pppp,tmp_h_pqpq,tmp_h_pqqp)
   deallocate(tmp_accu_1_shared, tmp_accu_shared) 
  

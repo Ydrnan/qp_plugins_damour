@@ -369,7 +369,7 @@ subroutine run_localization
   integer                       :: i,j,k,l,p, tmp_i, tmp_j, tmp_k
   integer                       :: info
   integer                       :: n, tmp_n, tmp_list_size
-  double precision, allocatable :: v_grad(:), H(:,:), tmp_m_x(:,:), tmp_x(:),W(:,:),e_val(:)
+  double precision, allocatable :: v_grad(:), H(:), tmp_m_x(:,:), tmp_x(:),W(:),e_val(:)
   double precision              :: max_elem, t1, t2, t3, t4, t5, t6
   integer, allocatable          :: tmp_list(:), key(:)
   double precision              :: prev_criterion, rho, delta, criterion_model
@@ -670,9 +670,9 @@ subroutine run_localization
     else
     
       ! Allocation of temporary arrays
-      allocate(v_grad(tmp_n), H(tmp_n, tmp_n), tmp_m_x(tmp_list_size, tmp_list_size))
+      allocate(v_grad(tmp_n), H(tmp_n), tmp_m_x(tmp_list_size, tmp_list_size))
       allocate(tmp_R(tmp_list_size, tmp_list_size))
-      allocate(tmp_x(tmp_n), W(tmp_n,tmp_n), e_val(tmp_n), key(tmp_n))
+      allocate(tmp_x(tmp_n), W(tmp_n), e_val(tmp_n), key(tmp_n))
 
       ! ### Initialization ###
       delta = 0d0 ! can be deleted (normally)
@@ -699,7 +699,7 @@ subroutine run_localization
         ! Diagonalization of the diagonal hessian by hands
         !call diagonalization_hessian(tmp_n,H,e_val,w)
         do i = 1, tmp_n
-          e_val(i) = H(i,i)
+          e_val(i) = H(i)
         enddo
 
         ! Key list for dsort
@@ -713,8 +713,7 @@ subroutine run_localization
         ! Eigenvectors
         W = 0d0
         do i = 1, tmp_n
-          j = key(i)
-          W(j,i) = 1d0
+          W(i) = dble(key(i))
         enddo
 
         ! To enter in the loop just after
@@ -730,7 +729,7 @@ subroutine run_localization
           print*,'-----------------------------'
 
           ! Hessian,gradient,Criterion -> x 
-          call trust_region_step_w_expected_e(tmp_n, H, W, e_val, v_grad, prev_criterion, &
+          call trust_region_step_w_expected_e(tmp_n,1, H, W, e_val, v_grad, prev_criterion, &
                rho, nb_iter, delta, criterion_model, tmp_x, must_exit)
 
           ! Internal loop exit condition
@@ -897,7 +896,7 @@ subroutine hessian_localization(tmp_n, tmp_list_size, tmp_list, H)
   END_DOC
 
   integer, intent(in)           :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: H(tmp_n)
 
   if (localization_method == 'boys') then
     call hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
@@ -1206,7 +1205,7 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   END_DOC
 
   integer, intent(in)           :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: H(tmp_n)
   double precision, allocatable :: beta(:,:)
   integer                       :: i,j,tmp_k,tmp_i, tmp_j
   double precision              :: max_elem, t1,t2,t3
@@ -1236,36 +1235,9 @@ subroutine hessian_FB(tmp_n, tmp_list_size, tmp_list, H)
   H = 0d0
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
-    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+    H(tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   
-  ! Min elem
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) < max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Min elem H:', max_elem
-
-  ! Max elem
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) > max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Max elem H:', max_elem
-  
-  ! Near 0
-  max_elem = 1d10
-  do tmp_k = 1, tmp_n
-    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Near 0 elem H:', max_elem
-
   ! Deallocation
   deallocate(beta)
  
@@ -1291,7 +1263,7 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   END_DOC
 
   integer, intent(in)           :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: H(tmp_n)
   double precision, allocatable :: beta(:,:)
   integer                       :: i,j,tmp_k,tmp_i,tmp_j
   double precision              :: max_elem, t1,t2,t3
@@ -1329,10 +1301,8 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
 
   ! Initialization
   !$OMP DO
-  do j = 1, tmp_n
-    do i = 1, tmp_n
-      H(i,j) = 0d0 
-    enddo
+  do i = 1, tmp_n
+    H(i) = 0d0 
   enddo
   !$OMP END DO
   
@@ -1340,40 +1310,13 @@ subroutine hessian_FB_omp(tmp_n, tmp_list_size, tmp_list, H)
   !$OMP DO
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
-    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+    H(tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   !$OMP END DO
   
   !$OMP END PARALLEL
 
   call omp_set_max_active_levels(4)
-
-  ! Min elem
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) < max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Min elem H:', max_elem
-
-  ! Max elem
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) > max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Max elem H:', max_elem
-  
-  ! Near 0
-  max_elem = 1d10
-  do tmp_k = 1, tmp_n
-    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Near 0 elem H:', max_elem
 
   ! Deallocation
   deallocate(beta)
@@ -1666,7 +1609,7 @@ subroutine hess_pipek(tmp_n, tmp_list_size, tmp_list, H)
   END_DOC
 
   integer, intent(in)           :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: H(tmp_n)
   double precision, allocatable :: beta(:,:),tmp_int(:,:)
   integer                       :: i,j,tmp_k,tmp_i, tmp_j, a,b,rho,mu
   double precision              :: max_elem
@@ -1709,33 +1652,9 @@ subroutine hess_pipek(tmp_n, tmp_list_size, tmp_list, H)
   H = 0d0
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
-    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+    H(tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   
-!  max_elem = 0d0
-!  do tmp_k = 1, tmp_n
-!    if (H(tmp_k,tmp_k) < max_elem) then
-!      max_elem = H(tmp_k,tmp_k)
-!    endif
-!  enddo
-!  print*, 'Min elem H:', max_elem
-!
-!  max_elem = 0d0
-!  do tmp_k = 1, tmp_n
-!    if (H(tmp_k,tmp_k) > max_elem) then
-!      max_elem = H(tmp_k,tmp_k)
-!    endif
-!  enddo
-!  print*, 'Max elem H:', max_elem
-!  
-!  max_elem = 1d10
-!  do tmp_k = 1, tmp_n
-!    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
-!      max_elem = H(tmp_k,tmp_k)
-!    endif
-!  enddo
-!  print*, 'Near 0 elem H:', max_elem
-
   ! Deallocation
   deallocate(beta,tmp_int)
 
@@ -1770,7 +1689,7 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   END_DOC
 
   integer, intent(in)           :: tmp_n, tmp_list_size, tmp_list(tmp_list_size)
-  double precision, intent(out) :: H(tmp_n, tmp_n)
+  double precision, intent(out) :: H(tmp_n)
   double precision, allocatable :: beta(:,:),tmp_int(:,:),CS(:,:),tmp_mo_coef(:,:),tmp_mo_coef2(:,:),tmp_accu(:,:),tmp_CS(:,:)
   integer                       :: i,j,tmp_k,tmp_i, tmp_j, a,b,rho,mu
   double precision              :: max_elem, t1,t2,t3
@@ -1861,33 +1780,9 @@ subroutine hessian_PM(tmp_n, tmp_list_size, tmp_list, H)
   H = 0d0
   do tmp_k = 1, tmp_n
     call vec_to_mat_index(tmp_k,tmp_i,tmp_j)
-    H(tmp_k,tmp_k) = 4d0 * beta(tmp_i, tmp_j)
+    H(tmp_k) = 4d0 * beta(tmp_i, tmp_j)
   enddo
   
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) < max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Min elem H:', max_elem
-
-  max_elem = 0d0
-  do tmp_k = 1, tmp_n
-    if (H(tmp_k,tmp_k) > max_elem) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Max elem H:', max_elem
-  
-  max_elem = 1d10
-  do tmp_k = 1, tmp_n
-    if (ABS(H(tmp_k,tmp_k)) < ABS(max_elem)) then
-      max_elem = H(tmp_k,tmp_k)
-    endif
-  enddo
-  print*, 'Near 0 elem H:', max_elem
-
   ! Deallocation
   deallocate(beta,tmp_int)
 

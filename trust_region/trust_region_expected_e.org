@@ -10,11 +10,12 @@ E_{k+1} = E_{k} + \textbf{g}_k^{T} \cdot \textbf{x}_{k+1} + \frac{1}{2} \cdot \t
 \end{align*}
 
 Input:
-| n           | integer          | m*(m-1)/2                |
-| v_grad(n)   | double precision | gradient                 |
-| H(n,n)      | double precision | hessian                  |
-| x(n)        | double precision | Step in the trust region |
-| prev_energy | double precision | previous energy          |
+| n           | integer          | m*(m-1)/2                                 |
+| n2          | integer          | m*(m-1)/2 or 1 if the hessian is diagonal |
+| v_grad(n)   | double precision | gradient                                  |
+| H(n,n)      | double precision | hessian                                   |
+| x(n)        | double precision | Step in the trust region                  |
+| prev_energy | double precision | previous energy                           |
 
 Output:
 | e_model | double precision | predicted energy after the rotation of the MOs |
@@ -29,7 +30,7 @@ Function:
 | ddot | double precision | dot product (Lapack) |
 
 #+BEGIN_SRC f90 :comments org :tangle trust_region_expected_e.irp.f
-subroutine trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
+subroutine trust_region_expected_e(n,n2,v_grad,H,x,prev_energy,e_model)
    
   include 'pi.h'
 
@@ -42,8 +43,8 @@ subroutine trust_region_expected_e(n,v_grad,H,x,prev_energy,e_model)
   ! Variables
 
   ! in
-  integer, intent(in)           :: n
-  double precision, intent(in)  :: v_grad(n),H(n,n),x(n)
+  integer, intent(in)           :: n,n2
+  double precision, intent(in)  :: v_grad(n),H(n,n2),x(n)
   double precision, intent(in)  :: prev_energy
 
   ! out
@@ -81,10 +82,17 @@ TODO: remove the dot products
  
   !if (debug) then
     print*,'g.x : ', part_1
-  !endif  
-
+  !endif
+    
   ! Product H.x
-  call dgemv('N',n,n,1d0,H,size(H,1),x,1,0d0,part_2a,1)
+  if (n == n2) then
+    call dgemv('N',n,n,1d0,H,size(H,1),x,1,0d0,part_2a,1)
+  else
+    ! If the hessian is diagonal
+    do i = 1, n
+      part_2a(i) = H(i,1) * x(i)
+    enddo
+  endif
 
   ! Product 1/2 . x^T.H.x
   part_2 = 0.5d0 * ddot(n,x,1,part_2a,1)

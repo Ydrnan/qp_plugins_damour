@@ -407,22 +407,6 @@ subroutine run_localization
   endif
   print*,''
 
-  print*, 'Security mo_class:', security_mo_class
-
-  ! The default mo_classes are setted only if the MOs to localize are not specified
-  !if (security_mo_class .and. (n_act_orb == mo_num .or. &
-  !    n_core_orb + n_act_orb == mo_num)) then
-
-  !  print*, 'WARNING'
-  !  print*, 'You must set different mo_class with qp set_mo_class'
-  !  print*, 'If you want to localize all the orbitals:'
-  !  print*, 'qp set Orbital_optimization security_mo_class false'
-  !  print*, ''
-  !  print*, 'abort'
-
-  !  call abort
-  !endif
-
   ! Localization criterion (FB, PM, ...) for each mo_class
   print*,'### Before the pre rotation'
   
@@ -2874,7 +2858,7 @@ subroutine set_classes_loc()
   logical :: is_core, is_del
   integer(bit_kind) :: res(N_int,2)
 
-  if (security_mo_class) then
+  if (auto_mo_class) then
     do i = 1, mo_num
       if (is_core(i)) cycle
       if (is_del(i)) cycle
@@ -2902,7 +2886,7 @@ subroutine unset_classes_loc()
   logical :: is_core, is_del
   integer(bit_kind) :: res(N_int,2)
 
-  if (security_mo_class) then
+  if (auto_mo_class) then
     do i = 1, mo_num
       if (is_core(i)) cycle
       if (is_del(i)) cycle

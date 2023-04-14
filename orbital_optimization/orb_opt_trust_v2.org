@@ -302,24 +302,6 @@ Here is the main algorithm of the optimization:
         call state_average_energy(prev_criterion)
       endif
 
-      ! Not needed anymore
-      ! Internal loop exit conditions
-      !if (nb_cancel > nb_cancel_max) then
-      !  print*,'###################################'
-      !  print*,'nb_cancel >', nb_cancel_max,', exit'
-      !  print*,'###################################'
-      !  must_exit = .True.
-      !  exit
-      !endif
- 
-      !if (nb_cancel_tot > nb_cancel_tot_max) then
-      !  print*,'###########################################'
-      !  print*,'nb_cancel_tot >', nb_cancel_tot_max,', exit'
-      !  print*,'###########################################'
-      !  must_exit = .True.
-      !  exit
-      !endif
-
       nb_sub_iter = nb_sub_iter + 1
     enddo
     call save_mos() !### depend of the time for 1 iteration
@@ -341,10 +323,6 @@ Here is the main algorithm of the optimization:
       print*,'Not converged: nb_iter >= optimization_max_nb_iter'
       not_converged = .False. 
     endif
-    if (prev_criterion - criterion < thresh_opt_energy_gain .and. DABS(max_elem_grad) < thresh_opt_max_elem_grad * 10d0) then
-      print*,'Converged: prev_criterion - criterion < thresh_opt_energy_gain .and. DABS(max_elem_grad) < thresh_opt_max_elem_grad * 10d0'
-      not_converged = .False.
-    endif
 
     if (.not. not_converged) then
       print*,'#############################'
@@ -353,7 +331,6 @@ Here is the main algorithm of the optimization:
     endif
   enddo
 
-!  call diagonalize_ci
 #+END_SRC
     
 ** Deallocation, end

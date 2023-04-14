@@ -39,7 +39,7 @@ subroutine diagonalization_hessian(n,H,e_val,w)
   integer                       :: info,lwork
   integer                       :: i,j
   integer                       :: nb_negative_vp
-  double precision              :: t1,t2,t3
+  double precision              :: t1,t2,t3,max_elem
 
   print*,''
   print*,'---Diagonalization_hessian---'
@@ -73,22 +73,27 @@ subroutine diagonalization_hessian(n,H,e_val,w)
     endif
 
     ! Number of negative eigenvalues
+    max_elem = 0d0
     nb_negative_vp = 0
     do i = 1, n
       if (e_val(i) < 0d0) then
         nb_negative_vp = nb_negative_vp + 1
-        print*,'e_val < 0 :', e_val(i)
+        if (e_val(i) < max_elem) then
+          max_elem = e_val(i)
+        endif
+        !print*,'e_val < 0 :', e_val(i)
       endif
     enddo
     print*,'Number of negative eigenvalues:', nb_negative_vp
+    print*,'Lowest eigenvalue:',max_elem
 
-    nb_negative_vp = 0
-    do i = 1, n
-      if (e_val(i) < -thresh_eig) then
-        nb_negative_vp = nb_negative_vp + 1
-      endif
-    enddo
-    print*,'Number of negative eigenvalues <', -thresh_eig,':', nb_negative_vp  
+    !nb_negative_vp = 0
+    !do i = 1, n
+    !  if (e_val(i) < -thresh_eig) then
+    !    nb_negative_vp = nb_negative_vp + 1
+    !  endif
+    !enddo
+    !print*,'Number of negative eigenvalues <', -thresh_eig,':', nb_negative_vp  
 
     ! Deallocation
     deallocate(work)

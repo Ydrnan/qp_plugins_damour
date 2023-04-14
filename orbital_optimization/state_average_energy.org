@@ -65,8 +65,9 @@ subroutine state_average_energy(energy)
 
   ! Check
   !call print_energy_components
-
+  
   print*,'State average energy:', energy
+  !print*,ci_energy
 
 end
 #+END_SRC

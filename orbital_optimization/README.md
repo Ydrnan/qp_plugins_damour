@@ -55,11 +55,7 @@ After the optimization the ezfio contains the optimized orbitals
 ## For a fixed number of determinants
 To optimize the MOs for the actual determinants:  
 ``` 
-qp run orb_opt_trust  # old version
-``` 
-or  
-``` 
-qp run orb_opt_trust_v2  # new version
+qp run orb_opt
 ``` 
  
 ## For a complete optimization, i.e, with a larger and larger wave function
@@ -87,63 +83,18 @@ The optimization process if the following:
   or the wf is larger than a given size (n_det_max_opt in qp_edit) 
 - after that you can reset your determinants (qp reset -d) and run a clean Cispi calculation  
   
-Some settings are available for that.  
-### Starting number of determinants
-You can choose the number of determinants to start the  
-orbital optimization with:
-```
-qp set orbital_optimization n_det_start 100 # or n_det_max_opt > any number > 0
-```
-in order to do a first cipsi until this number before  
-the optimization.  
-You can also choose to start from a given cipsi wave function:
-```
-qp set orbital_optimization start_from_wf true
-```
-or to truncate the actual cispi wave function after 
-N determinants:
-```
-qp edit -n N 
-```
-
 ### End of the optimization
 You can choos the number of determinants after what the 
 optimization will stop:
 ```
 qp set orbital_optimization n_det_max_opt 1e5 # or any number > n_det_start 
 ```
-You can set the targeted accuracy to stop the optimization when the   
-gain in energy for any optimization is smaller than a threshold:
-```
-qp set orbital optimization targeted_accuracy_cipsi 1e-4
-```
-Generally, it's better to put the researched accuracy divided by 10,   
-because some steps can provide a small gain before a bigger one.
-
 ## Weight of the states
-You can enforce the weights of the states to be equal and normalized with:
-```
-qp set orbital_optimization normalized_st_av_weight true
-```
-or just enforcing the normalization of the weigths:
-```
-qp set orbital_optimization normalized_weight true # Not tested
-
-```
+You can change the weights of the differents states directly in qp edit.  
+It will affect ths weights used in the orbital optimization.
 
 # Tests
 To run the tests:  
 ``` 
-./auto_test_v2.sh  
+qp test
 ``` 
- 
-But it will take a long time, so it's better to stop the tests after  
-the tests on the gradient (the tests on the hessians are definitely too long).  
-Note: the error on the gradient and hessian must be smaller than 1e-12.  
-
-# Further improvements: 
-- Cleaner repo 
-- Correction of the errors in the documentations 
-- Elliptical trust region 
-- Quasi Newton 
- 

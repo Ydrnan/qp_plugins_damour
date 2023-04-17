@@ -2872,7 +2872,7 @@ subroutine set_classes_loc()
         mo_class(i) = 'Active'
       endif
     enddo
-    touch dim_list_inact_orb dim_list_virt_orb dim_list_act_orb list_inact list_inact_reverse list_virt list_virt_reverse list_act list_act_reverse
+    touch mo_class
   endif
   
 end
@@ -2892,7 +2892,7 @@ subroutine unset_classes_loc()
       if (is_del(i)) cycle
       mo_class(i) = 'Active'
     enddo
-    touch dim_list_inact_orb dim_list_virt_orb dim_list_act_orb list_inact list_inact_reverse list_virt list_virt_reverse list_act list_act_reverse
+    touch mo_class
   endif
 
 end

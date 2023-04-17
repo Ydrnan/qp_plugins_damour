@@ -68,9 +68,9 @@ program debug_gradient_list
  
   print*,''
   print*,'Check the gradient' 
-  print*,'Threshold :', threshold
-  print*,'Nb error :', nb_error
-  print*,'Max error :', max_error
+  print*,'Threshold:', threshold
+  print*,'Nb error:', nb_error
+  print*,'Max error:', max_error
 
   ! Deallocation
   deallocate(v_grad,v_grad2)

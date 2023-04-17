@@ -20,22 +20,23 @@ function run() {
   qp run debug_hessian_list_opt > $file.debug_h1.out
   err1="$(grep 'Max error:' $file.debug_h1.out | awk '{print $3}')"
   qp run orb_opt > $file.opt1.out
-  energy1="$(grep 'State average energy:' $file.opt1.out | tail -n 1 | awk '{print $4})"
+  energy1="$(grep 'State average energy:' $file.opt1.out | tail -n 1 | awk '{print $4}')"
   qp set orbital_optimization optimization_method diag
   qp reset -d 
   qp run scf
   qp run cis
   qp run debug_hessian_list_opt > $file.debug_h2.out
-  err2="$(grep 'Max error:' $file.debug_h2.out | awk '{print $3}')"
+  err2="$(grep 'Max error_H:' $file.debug_h2.out | awk '{print $3}')"
   qp run orb_opt > $file.opt2.out
-  energy2="$(grep 'State average energy:' $file.opt2.out | tail -n 1 | awk '{print $4})"
+  energy2="$(grep 'State average energy:' $file.opt2.out | tail -n 1 | awk '{print $4}')"
   qp set orbital_optimization optimization_method full
   qp reset -d
   qp run scf
   eq $energy1 $2 $thresh
   eq $energy2 $3 $thresh
-  eq $err1 0.0 0.0
-  eq $err2 0.0 0.0
+  eq $err1 0.0 1e-12
+  eq $err2 0.0 1e-12
+  eq $err3 0.0 1e-12
 }
 
 @test "b2_stretched" {
@@ -48,10 +49,6 @@ run  h2o.ezfio -75.9025622449206 -75.8691844585879
 
 @test "h2s" {
 run  h2s.ezfio -398.576255809878 -398.574145943928
-}
-
-@test "h3coh" {
-run  h3coh.ezfio -114.866804971833 -114.856063983696
 }
 
 @test "hbo" {

@@ -276,6 +276,8 @@ subroutine run_extract_c
                 call apply_particle(res3, s2, p2, tmp_det(1,1,idx_coef), ok, N_int)
                 call get_excitation(det,tmp_det(1,1,idx_coef),exc,degree,phase,N_int)
                 tmp_coef(idx_coef) = c2(i,j,a,b) * phase
+                !print*,tmp_coef(idx_coef)
+                !print*,i,j,a,b
                 idx_coef = idx_coef + 1
               endif
               
@@ -446,8 +448,9 @@ subroutine run_extract_c
   !  print*,''
   !enddo
 
-  call overlap_wf(nb_coef,l_det,l_coef)
+  !call overlap_wf(nb_coef,l_det,l_coef)
   !call overlap_wf_safe(nb_coef,l_det,l_coef)
+  call overlap_fast(l_det,l_coef,1,nb_coef,psi_det,psi_coef,N_states,N_det)
 
   !if (write_cc_wf) then
   !  ! Save the wave function
@@ -552,7 +555,7 @@ subroutine extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
   do a = 1, nV
     do k = 1, nO
       do j = 1, nO
-        do i = 1, nO             
+        do i = 1, nO
           c3_bc(i,j,k,a) = - t1(i, c) * t1(j, b) * t1(k, a) &
           + t1(i, b) * t1(j, c) * t1(k, a) + t1(i, c) * t1(j, a) * t1(k, b) &
           - t1(i, a) * t1(j, c) * t1(k, b) - t1(i, b) * t1(j, a) * t1(k, c) &
@@ -561,6 +564,14 @@ subroutine extract_c3_bc(nO,nV,t1,t2,b,c,c3_bc)
           - t1(j, c) * t2(i, k, a, b) + t1(j, b) * t2(i, k, a, c) &
           - t1(j, a) * t2(i, k, b, c) + t1(i, c) * t2(j, k, a, b) &
           - t1(i, b) * t2(j, k, a, c) + t1(i, a) * t2(j, k, b, c)
+          !if ( dabs(c3_bc(i,j,k,a)) > 0d0) then
+          !     print*,i,j,k,a,b,c
+          !     print*,c3_bc(i,j,k,a)
+          !     print*, - t1(i, c) * t1(j, b) * t1(k, a), &
+          !     + t1(i, b) * t1(j, c) * t1(k, a),  + t1(i, c) * t1(j, a) * t1(k, b), &
+          !     - t1(i, a) * t1(j, c) * t1(k, b), - t1(i, b) * t1(j, a) * t1(k, c), &
+          !     + t1(i, a) * t1(j, b) * t1(k, c)
+          !endif
         enddo
       enddo
     enddo
@@ -880,11 +891,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   integer :: new_sze_t12, new_sze_t112, new_sze_t111,new_sze_t1111
   logical :: must_exit
 
-  double precision :: thresh
+  double precision :: thresh, fact
   double precision :: s2_val
   integer          :: count, sze, sze_max, idx
 
-  thresh = thresh_extract_c 
+  thresh = thresh_extract_c
   
   ! T
   ! t1
@@ -963,6 +974,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
   ! Sort
   call sort_by_coef_idx(t2,t2_idx,sze_t2,4)
+  ! Reorder the index of each t
+  call reorder_t_idx(t2,t2_idx,sze_t2,4)
 
   ! TODO
   ! 1. Can be speed up by sorting t... and t..._idx
@@ -1009,6 +1022,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
   ! Sort
   call sort_by_coef_idx(t11,t11_idx,sze_t11,4)
+  ! Reorder the index of each t
+  call reorder_t_idx(t11,t11_idx,sze_t11,4)
 
   sze_t111 = 0
   sze_t12 = 0
@@ -1054,6 +1069,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo 
   ! Sort
   call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+  ! Reorder the index of each t
+  call reorder_t_idx(t12,t12_idx,sze_t12,6)
   
   ! t22
   idx = 0
@@ -1099,6 +1116,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
   ! Sort
   call sort_by_coef_idx(t22,t22_idx,sze_t22,8)
+  ! Reorder the index of each t
+  call reorder_t_idx(t22,t22_idx,sze_t22,8)
 
   ! T^3
   ! t111
@@ -1106,25 +1125,42 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do i = 1, sze_t1
     do j = 1, sze_t11
       if (dabs(t1(i) * t11(j)) >= thresh) then
-        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        !if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+        !    t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j)) cycle
         idx = idx + 1
       else
         exit
       endif
     enddo
   enddo
+  
+  !idx=0
+  !do i = 1, sze_t1-2
+  !  do j = i+1, sze_t1-1
+  !    do k = j+1, sze_t1
+  !      if (dabs(t1(i) * t1(j) * t1(k)) >= thresh) then
+  !      if (t1_idx(1,i) == t1_idx(1,j) .or. t1_idx(1,i) == t1_idx(1,k) .or. &
+  !          t1_idx(2,i) == t1_idx(2,j) .or. t1_idx(2,i) == t1_idx(2,k) .or. &
+  !          t1_idx(1,j) == t1_idx(1,k) .or. t1_idx(2,j) == t1_idx(2,k) ) cycle
+  !      idx = idx + 1
+  !      endif
+  !    enddo
+  !  enddo
+  !enddo
 
   sze_t111 = idx
   allocate(t111(sze_t111),t111_idx(6,sze_t111))
         
   idx = 1
+  !fact = 1d0/3d0
   do i = 1, sze_t1
     do j = 1, sze_t11
       if (dabs(t1(i) * t11(j)) >= thresh) then
-        if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
-            t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-        t111(idx) = t1(i) * t11(j)
+        !if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
+        !    t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
+        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j)) cycle
+        t111(idx) = t1(i) * t11(j) !* fact
         t111_idx(1,idx) = t1_idx(1,i)
         t111_idx(4,idx) = t1_idx(2,i)
         t111_idx(2,idx) = t11_idx(1,j)
@@ -1137,8 +1173,33 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       endif
     enddo
   enddo
+  !do i = 1, sze_t1-2
+  !  do j = i+1, sze_t1-1
+  !    do k = j+1, sze_t1
+  !      if (dabs(t1(i) * t1(j) * t1(k)) >= thresh) then
+  !      if (t1_idx(1,i) == t1_idx(1,j) .or. t1_idx(1,i) == t1_idx(1,k) .or. &
+  !          t1_idx(2,i) == t1_idx(2,j) .or. t1_idx(2,i) == t1_idx(2,k) .or. &
+  !          t1_idx(1,j) == t1_idx(1,k) .or. t1_idx(2,j) == t1_idx(2,k) ) cycle
+  !      t111(idx) = t1(i) * t1(j) * t1(k)
+  !      t111_idx(1,idx) = t1_idx(1,i)
+  !      t111_idx(4,idx) = t1_idx(2,i)
+  !      t111_idx(2,idx) = t1_idx(1,j)
+  !      t111_idx(5,idx) = t1_idx(2,j)
+  !      t111_idx(3,idx) = t1_idx(1,k)
+  !      t111_idx(6,idx) = t1_idx(2,k)
+  !      !print*,t111(idx)
+  !      !print*,t1_idx(:,i),t1_idx(:,j),t1_idx(:,k)
+  !      !print*,t111_idx(:,idx)
+  !      idx = idx + 1
+  !      endif
+  !    enddo
+  !  enddo
+  !enddo
+         
   ! Sort
   call sort_by_coef_idx(t111,t111_idx,sze_t111,6)
+  ! Reorder the index of each t
+  call reorder_t_idx(t111,t111_idx,sze_t111,6)
 
   ! t112
    idx = 0
@@ -1184,6 +1245,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   enddo
   ! Sort
   call sort_by_coef_idx(t112,t112_idx,sze_t112,8)
+  ! Reorder the index of each t
+  call reorder_t_idx(t112,t112_idx,sze_t112,8)
 
   ! T^4
   ! t1111
@@ -1191,10 +1254,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do i = 1, sze_t1
     do j = 1, sze_t111
       if (dabs(t1(i) * t111(j)) >= thresh) then
-        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-            t1_idx(1,i) == t111_idx(3,j) .or. &
-            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-            t1_idx(2,i) == t111_idx(6,j)) cycle
+        !if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+        !    t1_idx(1,i) == t111_idx(3,j) .or. &
+        !    t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+        !    t1_idx(2,i) == t111_idx(6,j)) cycle
+        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j)) cycle
         idx = idx + 1
       else
         exit
@@ -1209,10 +1273,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do i = 1, sze_t1
     do j = 1, sze_t111
       if (dabs(t1(i) * t111(j)) >= thresh) then
-        if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
-            t1_idx(1,i) == t111_idx(3,j) .or. &
-            t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
-            t1_idx(2,i) == t111_idx(6,j)) cycle
+        !if (t1_idx(1,i) == t111_idx(1,j) .or. t1_idx(1,i) == t111_idx(2,j) .or. &
+        !    t1_idx(1,i) == t111_idx(3,j) .or. &
+        !    t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
+        !    t1_idx(2,i) == t111_idx(6,j)) cycle
+        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j)) cycle
         t1111(idx) = t1(i) * t111(j)
         t1111_idx(1,idx) = t1_idx(1,i)
         t1111_idx(5,idx) = t1_idx(2,i)
@@ -1228,17 +1293,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       endif
     enddo
   enddo
-
   ! Reorder the index of each t
-  call reorder_t_idx(t2,t2_idx,sze_t2,4)
-  
-  call reorder_t_idx(t11,t11_idx,sze_t11,4)
-  call reorder_t_idx(t12,t12_idx,sze_t12,6)
-  call reorder_t_idx(t22,t22_idx,sze_t22,8)
-  
-  call reorder_t_idx(t111,t111_idx,sze_t111,6)
-  call reorder_t_idx(t112,t112_idx,sze_t112,8)
-  
   call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
 
   ! Recursive sort after the reordering
@@ -1398,6 +1453,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     psi_coef_cc(k+i) = c3_coef(i)
     psi_det_cc(:,:,k+i) = c3_det(:,:,i)
   enddo
+  
   ! C4
   k = k + sze_c3
   do i = 1, sze_c4
@@ -1475,9 +1531,18 @@ subroutine reorder_t_idx(t,t_idx,sze_t,n_idx)
   double precision :: sign
   integer :: dist, n_cross, n_pairs
 
+  do i = 1, sze_t
+    sign = 1d0
+    call reorder_t_idx_rec(t_idx(1,i),n_idx/2,sign,1)
+    call reorder_t_idx_rec(t_idx(n_idx/2+1,i),n_idx/2,sign,1)
+    t(i) = t(i) * sign
+  enddo
+
+  return
+  
   allocate(tmp_t(sze_t), tmp_t_idx(n_idx,sze_t),idx(n_idx/2))
   allocate(iorder(n_idx/2))
-
+  
   do i = 1, sze_t
     ! Sort of the idx
     dist = 0
@@ -1547,6 +1612,36 @@ subroutine reorder_t_idx(t,t_idx,sze_t,n_idx)
     
   deallocate(tmp_t,tmp_t_idx,idx)
   
+end
+
+recursive subroutine reorder_t_idx_rec(t_idx,nb_idx,sign,idx)
+
+  implicit none
+
+  integer, intent(in) :: nb_idx,idx
+  integer, intent(inout) :: t_idx(nb_idx)
+  double precision, intent(inout) :: sign
+  integer :: tmp,i
+
+  if (idx < nb_idx) then
+    if (t_idx(idx) > t_idx(idx+1)) then
+      tmp = t_idx(idx)
+      t_idx(idx) = t_idx(idx+1)
+      t_idx(idx+1) = tmp
+      sign = - sign
+      if (idx > 1) then
+        i = idx - 1
+      else
+        i = idx + 1
+      endif
+    else
+      i = idx + 1
+    endif
+    call reorder_t_idx_rec(t_idx,nb_idx,sign,i)
+  else
+    return
+  endif
+ 
 end
 #+end_src
 

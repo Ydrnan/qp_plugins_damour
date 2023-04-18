@@ -32,25 +32,31 @@ To localize the MOs:
 ```
 qp run localization  
 ```
-After that the ezfio directory contains the localized MOs  
- 
-But the mo_class must be defined before, run 
+By default, the different otbital classes are automatically set by splitting  
+the orbitales in the following classes:  
+- Core -> Core  
+- Active, doubly occupied -> Inactive  
+- Active, singly occupied -> Active  
+- Active, empty -> Virtual  
+- Deleted -> Deleted  
+The orbitals will be localized among each class, excpect the deleted ones.
+If you want to choose another splitting, you can set
 ```
-qp set_mo_class -q
+qp set mo_localization auto_mo_class false
 ```
-for more information or  
+and define the classes with
 ```
 qp set_mo_class -c [] -a [] -v [] -i [] -d [] 
 ```
-to set the mo classes. We don't care about the name of the   
+for more information
+```
+qp set_mo_class -q
+```
+We don't care about the name of the   
 mo classes. The algorithm just localizes all the MOs of  
 a given class between them, for all the classes, except the deleted MOs.  
-
-If you just on kind of mo class to localize all the MOs between them  
-you have to put:
-```
-qp set localization security_mo_class false
-```
+If you are using the last option don't forget to reset the initial mo classes  
+after the localization.
 
 Before the localization, a kick is done for each mo class  
 (except the deleted ones) to break the MOs. This is done by   
@@ -89,6 +95,7 @@ qp set localization localization_method pipek
 ``` 
 
 # Break the spatial symmetry of the MOs
+This program work exactly as the localization.  
 To break the spatial symmetry of the MOs:   
 ```
 qp run break_spatial_sym
@@ -117,7 +124,8 @@ convergence is not easy, in particular for virtual MOs.
 It seems that it not possible to converge with Pipek-Mezey
 localization with this approach.
 
-# Further improvements: 
-- Cleaner repo 
-- Correction of the errors in the documentations 
-- option with/without trust region 
+# Tests
+```
+qp test
+```
+ 

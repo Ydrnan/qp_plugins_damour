@@ -889,20 +889,37 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   integer :: sze_t1111, sze_t112, sze_t22
   integer :: new_sze_t11, new_sze_t22
   integer :: new_sze_t12, new_sze_t112, new_sze_t111,new_sze_t1111
-  logical :: must_exit
+  logical :: must_exit, all_t1, all_t2
 
-  double precision :: thresh, fact
+  double precision :: thresh, thresh_t1, thresh_t2, fact
   double precision :: s2_val
+  double precision :: f_norm
   integer          :: count, sze, sze_max, idx
 
+  all_t1 = .True.
+  all_t2 = .False.
+
+  ! Thresh
   thresh = thresh_extract_c
+
+  if (all_t1) then
+    thresh_t1 = 1d-16
+  else
+    thresh_t1 = thresh
+  endif
+
+  if (all_t2) then
+    thresh_t2 = 1d-16
+  else
+    thresh_t2 = thresh
+  endif
   
   ! T
   ! t1
   idx = 0
   do a = 1, nV
     do i = 1, nO
-      if (dabs(t1_full(i,a)) >= thresh) then
+      if (dabs(t1_full(i,a)) >= thresh_t1) then
         if (i > cc_nOa .and. a <= cc_nVa) cycle
         if (i <= cc_nOa .and. a > cc_nVa) cycle
         idx = idx + 1
@@ -916,7 +933,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   idx = 1
   do a = 1, nV
     do i = 1, nO
-      if (dabs(t1_full(i,a)) >= thresh) then
+      if (dabs(t1_full(i,a)) >= thresh_t1) then
         if (i > cc_nOa .and. a <= cc_nVa) cycle
         if (i <= cc_nOa .and. a > cc_nVa) cycle
         t1(idx) = t1_full(i,a)
@@ -935,7 +952,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     do a = b+1, nV
       do j = 1, nO
         do i = j+1, nO
-          if (dabs(t2_full(i,j,a,b)) >= thresh) then
+          if (dabs(t2_full(i,j,a,b)) >= thresh_t2) then
             if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
             if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
             if (a > cc_nVa .and. b > cc_nVa .and. (i <= cc_nOa .or. j <= cc_nOa)) cycle
@@ -955,7 +972,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     do a = b+1, nV
       do j = 1, nO
         do i = j+1, nO
-          if (dabs(t2_full(i,j,a,b)) >= thresh) then
+          if (dabs(t2_full(i,j,a,b)) >= thresh_t2) then
              
             if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
             if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
@@ -976,6 +993,184 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   call sort_by_coef_idx(t2,t2_idx,sze_t2,4)
   ! Reorder the index of each t
   call reorder_t_idx(t2,t2_idx,sze_t2,4)
+
+  ! T3 from (T)
+  ! Only for canonical orbitals !!!
+  ! Check
+  do i = 1, N_int
+    if (psi_det(i,1,cc_ref) /= hf_bitmask(i,1) .or. &
+        psi_det(i,2,cc_ref) /= hf_bitmask(i,2)) then
+      print*,'T3 only available for HF reference with canonical orbitals'
+      print*,'Reference used:'
+      call print_det(psi_det(1,1,cc_ref))
+      call abort
+    endif
+  enddo
+  
+  do j = 1, mo_num
+    do i = 1, mo_num
+      if (i == j) cycle
+      if (dabs(fock_matrix_mo(i,j)) > 1e-4) then
+        print*,'T3 only available for HF reference with canonical orbitals'
+        print*,'Non-zero off-diagonal elements detected:'
+        print*,i,j,fock_matrix_mo(i,j)
+        call abort
+      endif
+    enddo
+  enddo
+  
+  double precision, allocatable :: f_o(:), f_v(:), f_oo(:,:), f_vv(:,:)
+  double precision, allocatable :: v_ooov(:,:,:,:), v_vvvo(:,:,:,:)
+  double precision :: delta, delta_abc, acc
+  double precision, allocatable :: t3(:)
+  integer, allocatable :: t3_idx(:,:)
+  integer :: sze_t3,m,e
+  integer :: sze_t13, new_sze_t13
+  double precision, allocatable :: t13(:)
+  integer, allocatable :: t13_idx(:,:)
+
+  allocate(f_oo(nO,nO),f_vv(nV,nV),f_o(nO),f_v(nV))
+  allocate(v_ooov(nO,nO,nO,nV),v_vvvo(nV,nV,nV,nO))
+  
+  ! Fock elements
+  call gen_f_spin(psi_det(1,1,cc_ref), cc_nO_m,cc_nO_m, cc_nO_S,cc_nO_S, cc_list_occ_spin,cc_list_occ_spin, nO,nO, f_oo)
+  call gen_f_spin(psi_det(1,1,cc_ref), cc_nV_m,cc_nV_m, cc_nV_S,cc_nV_S, cc_list_vir_spin,cc_list_vir_spin, nV,nV, f_vv)
+
+  ! Diag elements
+  do i = 1, nO
+    f_o(i) = f_oo(i,i)
+  enddo
+  do i = 1, nV
+    f_v(i) = f_vv(i,i)
+  enddo
+  
+  call gen_v_spin(cc_nO_m,cc_nO_m,cc_nO_m,cc_nV_m, &
+       cc_nO_S,cc_nO_S,cc_nO_S,cc_nV_S, &
+       cc_list_occ_spin,cc_list_occ_spin,cc_list_occ_spin,cc_list_vir_spin, &
+       nO,nO,nO,nV, v_ooov)
+  
+  call gen_v_spin(cc_nV_m,cc_nV_m,cc_nV_m,cc_nO_m, &
+       cc_nV_S,cc_nV_S,cc_nV_S,cc_nO_S, &
+       cc_list_vir_spin,cc_list_vir_spin,cc_list_vir_spin,cc_list_occ_spin, &
+       nV,nV,nV,nO, v_vvvo)
+
+  !idx = 0
+  !do c = 1, nV-2
+  !  do b = c+1, nV-1
+  !    do a = b+1, nV
+  !      delta_abc = f_v(a) + f_v(b) + f_v(c)
+  !      do k = 1, nO-2
+  !        do j = k+1, nO-1
+  !          do i = j+1, nO
+  !            acc = 0d0
+  !            delta = f_o(i) + f_o(j) + f_o(k) - delta_abc
+  !            do e = 1, nV
+  !              !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+  !              acc = acc &
+  !                + t2_full(j,k,a,e) * v_vvvo(b,c,e,i) &
+  !                - t2_full(i,k,a,e) * v_vvvo(b,c,e,j) & ! - P(ij)
+  !                - t2_full(j,i,a,e) * v_vvvo(b,c,e,k) & ! - P(ik)
+  !                - t2_full(j,k,b,e) * v_vvvo(a,c,e,i) & ! - P(ab)
+  !                - t2_full(j,k,c,e) * v_vvvo(b,a,e,i) & ! - P(ac)
+  !                + t2_full(i,k,b,e) * v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
+  !                + t2_full(i,k,c,e) * v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
+  !                + t2_full(j,i,b,e) * v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
+  !                + t2_full(j,i,c,e) * v_vvvo(b,a,e,k)   ! + P(ik) P(ac)
+  !            enddo
+  !            do m = 1, nO
+  !              !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+  !              acc = acc &
+  !                + t2_full(m,i,b,c) * v_ooov(j,k,m,a) &
+  !                - t2_full(m,j,b,c) * v_ooov(i,k,m,a) & ! - P(ij)
+  !                - t2_full(m,k,b,c) * v_ooov(j,i,m,a) & ! - P(ik)
+  !                - t2_full(m,i,a,c) * v_ooov(j,k,m,b) & ! - P(ab)
+  !                - t2_full(m,i,b,a) * v_ooov(j,k,m,c) & ! - P(ac)
+  !                + t2_full(m,j,a,c) * v_ooov(i,k,m,b) & ! + P(ij) P(ab)
+  !                + t2_full(m,j,b,a) * v_ooov(i,k,m,c) & ! + P(ij) P(ac)
+  !                + t2_full(m,k,a,c) * v_ooov(j,i,m,b) & ! + P(ik) P(ab)
+  !                + t2_full(m,k,b,a) * v_ooov(j,i,m,c)   ! + P(ik) P(ac)
+  !            enddo
+  !            !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) * (1d0 / delta)
+  !            acc = acc / delta
+  !            if (dabs(acc) >= thresh) then
+  !              idx = idx + 1
+  !            endif
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+
+  !sze_t3 = idx
+  !print*,'nb(t3)',sze_t3
+  !allocate(t3(sze_t3), t3_idx(6,sze_t3))
+  !
+  !idx = 1
+  !do c = 1, nV-2
+  !  do b = c+1, nV-1
+  !    do a = b+1, nV
+  !      delta_abc = f_v(a) + f_v(b) + f_v(c)
+  !      do k = 1, nO-2
+  !        do j = k+1, nO-1
+  !          do i = j+1, nO
+  !            acc = 0d0
+  !            delta = f_o(i) + f_o(j) + f_o(k) - delta_abc
+  !            do e = 1, nV
+  !              !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+  !              acc = acc &
+  !                + t2_full(j,k,a,e) * v_vvvo(b,c,e,i) &
+  !                - t2_full(i,k,a,e) * v_vvvo(b,c,e,j) & ! - P(ij)
+  !                - t2_full(j,i,a,e) * v_vvvo(b,c,e,k) & ! - P(ik)
+  !                - t2_full(j,k,b,e) * v_vvvo(a,c,e,i) & ! - P(ab)
+  !                - t2_full(j,k,c,e) * v_vvvo(b,a,e,i) & ! - P(ac)
+  !                + t2_full(i,k,b,e) * v_vvvo(a,c,e,j) & ! + P(ij) P(ab)
+  !                + t2_full(i,k,c,e) * v_vvvo(b,a,e,j) & ! + P(ij) P(ac)
+  !                + t2_full(j,i,b,e) * v_vvvo(a,c,e,k) & ! + P(ik) P(ab)
+  !                + t2_full(j,i,c,e) * v_vvvo(b,a,e,k)   ! + P(ik) P(ac)
+  !            enddo
+  !            do m = 1, nO
+  !              !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) &
+  !              acc = acc &
+  !                + t2_full(m,i,b,c) * v_ooov(j,k,m,a) &
+  !                - t2_full(m,j,b,c) * v_ooov(i,k,m,a) & ! - P(ij)
+  !                - t2_full(m,k,b,c) * v_ooov(j,i,m,a) & ! - P(ik)
+  !                - t2_full(m,i,a,c) * v_ooov(j,k,m,b) & ! - P(ab)
+  !                - t2_full(m,i,b,a) * v_ooov(j,k,m,c) & ! - P(ac)
+  !                + t2_full(m,j,a,c) * v_ooov(i,k,m,b) & ! + P(ij) P(ab)
+  !                + t2_full(m,j,b,a) * v_ooov(i,k,m,c) & ! + P(ij) P(ac)
+  !                + t2_full(m,k,a,c) * v_ooov(j,i,m,b) & ! + P(ik) P(ab)
+  !                + t2_full(m,k,b,a) * v_ooov(j,i,m,c)   ! + P(ik) P(ac)
+  !            enddo
+  !            !t3(i,j,k,a,b,c) = t3(i,j,k,a,b,c) * (1d0 / delta)
+  !            acc = acc / delta
+  !            if (dabs(acc) >= thresh) then
+  !              t3(idx) = acc
+  !              t3_idx(1,idx) = i
+  !              t3_idx(2,idx) = j
+  !              t3_idx(3,idx) = k
+  !              t3_idx(4,idx) = a
+  !              t3_idx(5,idx) = b
+  !              t3_idx(6,idx) = c
+  !              idx = idx + 1
+  !            endif
+  !          enddo
+  !        enddo
+  !      enddo
+  !    enddo
+  !  enddo
+  !enddo
+  !print*,'||T3||',f_norm(t3,sze_t3)
+  !! Sort
+  !call sort_by_coef_idx(t3,t3_idx,sze_t3,6)
+  !! Reorder the index of each t
+  !call reorder_t_idx(t3,t3_idx,sze_t3,6)
+
+  ! TODO
+  ! 1. Can be speed up by sorting t... and t..._idx
+  ! do i
+  !   do j 
+  !     if (|t...(i) * t...(j)| <= thresh) exit
 
   ! TODO
   ! 1. Can be speed up by sorting t... and t..._idx
@@ -1072,6 +1267,53 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   ! Reorder the index of each t
   call reorder_t_idx(t12,t12_idx,sze_t12,6)
   
+  !! t13
+  !idx = 0
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t3
+  !    if (dabs(t1(i) * t3(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t3_idx(1,j) .or. t1_idx(1,i) == t3_idx(2,j) .or. &
+  !          t1_idx(1,i) == t3_idx(3,j) .or. &
+  !          t1_idx(2,i) == t3_idx(4,j) .or. t1_idx(2,i) == t3_idx(5,j) .or. &
+  !          t1_idx(2,i) == t3_idx(6,j)) cycle
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo
+  !
+  !sze_t13 = idx
+  !allocate(t13(sze_t13),t13_idx(8,sze_t13))
+  !      
+  !idx = 1
+  !do i = 1, sze_t1
+  !  do j = 1, sze_t3
+  !    if (dabs(t1(i) * t3(j)) >= thresh) then
+  !      if (t1_idx(1,i) == t3_idx(1,j) .or. t1_idx(1,i) == t3_idx(2,j) .or. &
+  !          t1_idx(1,i) == t3_idx(3,j) .or. &
+  !          t1_idx(2,i) == t3_idx(4,j) .or. t1_idx(2,i) == t3_idx(5,j) .or. &
+  !          t1_idx(2,i) == t3_idx(6,j)) cycle
+  !      t13(idx) = t1(i) * t3(j)
+  !      t13_idx(1,idx) = t1_idx(1,i)
+  !      t13_idx(5,idx) = t1_idx(2,i)
+  !      t13_idx(2,idx) = t3_idx(1,j)
+  !      t13_idx(3,idx) = t3_idx(2,j)
+  !      t13_idx(4,idx) = t3_idx(3,j)
+  !      t13_idx(6,idx) = t3_idx(4,j)
+  !      t13_idx(7,idx) = t3_idx(5,j)
+  !      t13_idx(8,idx) = t3_idx(6,j)
+  !      idx = idx + 1
+  !    else
+  !      exit
+  !    endif
+  !  enddo
+  !enddo 
+  !! Sort
+  !call sort_by_coef_idx(t13,t13_idx,sze_t13,8)
+  !! Reorder the index of each t
+  !call reorder_t_idx(t13,t13_idx,sze_t13,8)
+  
   ! t22
   idx = 0
   do i = 1, sze_t2-1
@@ -1127,7 +1369,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       if (dabs(t1(i) * t11(j)) >= thresh) then
         !if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
         !    t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j)) cycle
+        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j) .or. &
+            t1_idx(2,i) == t11_idx(4,j)) cycle
         idx = idx + 1
       else
         exit
@@ -1159,7 +1402,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       if (dabs(t1(i) * t11(j)) >= thresh) then
         !if (t1_idx(1,i) == t11_idx(1,j) .or. t1_idx(1,i) == t11_idx(2,j) .or. &
         !    t1_idx(2,i) == t11_idx(3,j) .or. t1_idx(2,i) == t11_idx(4,j)) cycle
-        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j)) cycle
+        if (t1_idx(1,i) >= t11_idx(1,j) .or. t1_idx(2,i) == t11_idx(3,j) .or. &
+            t1_idx(2,i) == t11_idx(4,j)) cycle
         t111(idx) = t1(i) * t11(j) !* fact
         t111_idx(1,idx) = t1_idx(1,i)
         t111_idx(4,idx) = t1_idx(2,i)
@@ -1258,7 +1502,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
         !    t1_idx(1,i) == t111_idx(3,j) .or. &
         !    t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
         !    t1_idx(2,i) == t111_idx(6,j)) cycle
-        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j)) cycle
+        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j) .or. &
+            t1_idx(2,i) == t111_idx(5,j) .or. t1_idx(2,i) == t111_idx(6,j)) cycle
         idx = idx + 1
       else
         exit
@@ -1277,7 +1522,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
         !    t1_idx(1,i) == t111_idx(3,j) .or. &
         !    t1_idx(2,i) == t111_idx(4,j) .or. t1_idx(2,i) == t111_idx(5,j) .or. &
         !    t1_idx(2,i) == t111_idx(6,j)) cycle
-        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j)) cycle
+        if (t1_idx(1,i) >= t111_idx(1,j) .or. t1_idx(2,i) == t111_idx(4,j) .or. &
+            t1_idx(2,i) == t111_idx(5,j) .or. t1_idx(2,i) == t111_idx(6,j)) cycle
         t1111(idx) = t1(i) * t111(j)
         t1111_idx(1,idx) = t1_idx(1,i)
         t1111_idx(5,idx) = t1_idx(2,i)
@@ -1293,12 +1539,15 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
       endif
     enddo
   enddo
+  ! Sort
+  call sort_by_coef_idx(t1111,t1111_idx,sze_t1111,8)
   ! Reorder the index of each t
   call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
 
   ! Recursive sort after the reordering
   call recursive_sort_idx(t11,t11_idx,sze_t11,4,1)
   call recursive_sort_idx(t12,t12_idx,sze_t12,6,1)
+  !call recursive_sort_idx(t13,t13_idx,sze_t13,8,1)
   call recursive_sort_idx(t22,t22_idx,sze_t22,8,1)
 
   call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
@@ -1309,6 +1558,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(t11,t11_idx,sze_t11,4,new_sze_t11)
   call remove_duplicate_idx(t12,t12_idx,sze_t12,6,new_sze_t12)
+  !call remove_duplicate_idx(t13,t13_idx,sze_t13,8,new_sze_t13)
   call remove_duplicate_idx(t22,t22_idx,sze_t22,8,new_sze_t22)
   
   call remove_duplicate_idx(t111,t111_idx,sze_t111,6,new_sze_t111)
@@ -1318,14 +1568,25 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   sze_t11 = new_sze_t11
   sze_t12 = new_sze_t12
+  !sze_t13 = new_sze_t13
   sze_t22 = new_sze_t22
   
   sze_t111 = new_sze_t111
   sze_t112 = new_sze_t112
 
   sze_t1111 = new_sze_t1111
-  
-  print*,sze_t1,sze_t2,sze_t11,sze_t111,sze_t12,sze_t1111,sze_t112,sze_t22
+
+  write(*,'(A6,A10,A12)')     '     ', '  N'    , 'Norm' 
+  write(*,'(A6,I10,1pE12.4)') 't1   ', sze_t1   , f_norm(t1   ,sze_t1   )
+  write(*,'(A6,I10,1pE12.4)') 't2   ', sze_t2   , f_norm(t2   ,sze_t2   )
+  !write(*,'(A6,I10,1pE12.4)') 't3   ', sze_t3   , f_norm(t3   ,sze_t3   )
+  write(*,'(A6,I10,1pE12.4)') 't11  ', sze_t11  , f_norm(t11  ,sze_t11  )
+  write(*,'(A6,I10,1pE12.4)') 't12  ', sze_t12  , f_norm(t12  ,sze_t12  )
+  !write(*,'(A6,I10,1pE12.4)') 't13  ', sze_t13  , f_norm(t13  ,sze_t13  )
+  write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111 , f_norm(t111 ,sze_t111 )
+  write(*,'(A6,I10,1pE12.4)') 't22  ', sze_t22  , f_norm(t22  ,sze_t22  )
+  write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112 , f_norm(t112 ,sze_t112 )
+  write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111, f_norm(t1111,sze_t1111)
 
   ! Gather list with the same number of indexes
   integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
@@ -1335,8 +1596,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
 
   sze_c1 = sze_t1
   sze_c2 = sze_t11 + sze_t2
-  sze_c3 = sze_t111 + sze_t12
-  sze_c4 = sze_t1111 + sze_t112 + sze_t22
+  sze_c3 = sze_t111 + sze_t12 !+ sze_t3
+  sze_c4 = sze_t1111 + sze_t112 + sze_t22 !+ sze_t13
 
   allocate(c1_idx(2,sze_c1), c2_idx(4,sze_c2))
   allocate(c3_idx(6,sze_c3))
@@ -1372,6 +1633,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     c3(k+i) = t111(i)
     c3_idx(:,k+i) = t111_idx(:,i)
   enddo
+  !k = k + sze_t111
+  !do i = 1, sze_t3
+  !  c3(k+i) = t3(i)
+  !  c3_idx(:,k+i) = t3_idx(:,i)
+  !enddo 
 
   ! C4
   do i = 1, sze_t22
@@ -1388,6 +1654,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     c4(k+i) = t1111(i)
     c4_idx(:,k+i) = t1111_idx(:,i)
   enddo
+  !k = k + sze_t1111
+  !do i = 1, sze_t13
+  !  c4(k+i) = t13(i)
+  !  c4_idx(:,k+i) = t13_idx(:,i)
+  !enddo
 
   ! Sort
   call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
@@ -1403,7 +1674,11 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   sze_c3 = new_sze_c3
   sze_c4 = new_sze_c4
 
-  print*,sze_c1,sze_c2,sze_c3,sze_c4
+  print*,''
+  write(*,'(A6,I10,1pE12.4)') 'C1   ', sze_c1, f_norm(c1,sze_c1)
+  write(*,'(A6,I10,1pE12.4)') 'C2   ', sze_c2, f_norm(c2,sze_c2)
+  write(*,'(A6,I10,1pE12.4)') 'C3   ', sze_c3, f_norm(c3,sze_c3)
+  write(*,'(A6,I10,1pE12.4)') 'C4   ', sze_c4, f_norm(c4,sze_c4)
 
   ! Build the determinants
   integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:)
@@ -1414,7 +1689,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   allocate(c2_det(N_int,2,sze_c2),c2_coef(sze_c2))
   allocate(c3_det(N_int,2,sze_c3),c3_coef(sze_c3))
   allocate(c4_det(N_int,2,sze_c4),c4_coef(sze_c4))
-  
+
   call build_det_t(c1,c1_idx,sze_c1,2,c1_det,c1_coef)
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
   call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
@@ -1425,7 +1700,6 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   double precision, allocatable :: psi_coef_cc(:)
 
   sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4
-  print*,sze_cc
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
 
@@ -1461,6 +1735,8 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     psi_det_cc(:,:,k+i) = c4_det(:,:,i)
   enddo
 
+  write(*,'(A6,I10,1pE12.4)') ' Psi  ', sze_cc, f_norm(psi_coef_cc, sze_cc)
+
   double precision ::phase,norm
   integer :: degree
   integer(bit_kind) :: det(N_int,2)
@@ -1469,6 +1745,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   norm = 1d0
   det(:,:) = psi_det_cc(:,:,1)
   do i = 2, sze_cc
+    !call print_det(psi_det_cc(1,1,i),N_int)
     call get_phase_general(det,psi_det_cc(1,1,i),phase,degree,N_int)
     psi_coef_cc(i) = psi_coef_cc(i) * phase
     norm = norm + psi_coef_cc(i)**2
@@ -1477,7 +1754,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   double precision :: energy
   call i_H_psi(psi_det_cc(1,1,1),psi_det_cc,psi_coef_cc,N_int,sze_cc,sze_cc,1,energy)
   print*,''
-  print*,'CC cluster dec wf energy:',energy+nuclear_repulsion
+  print*,'<0|H|Psi> =',energy+nuclear_repulsion
 
   ! Normalization
   norm = 1d0/dsqrt(norm)
@@ -1504,10 +1781,13 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   print*,''
   
   ! Save wf
-  !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
-  
-  !print*,'energy',psi_energy+nuclear_repulsion
+  call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
+  touch psi_det psi_coef
 
+  print*,''
+  print*,'<Psi|H|Psi>/<Psi|Psi> =',psi_energy+nuclear_repulsion
+  print*,''
+  
 end
 #+end_src
 
@@ -2136,3 +2416,22 @@ subroutine sort_by_coef_det(psi_coef_t,psi_det_t,sze,Nint)
 end
 #+end_src
 
+** Norm
+#+begin_src f90 :comments org :tangle exp_c.irp.f
+function f_norm(v,sze)
+
+  implicit none
+
+  integer, intent(in) :: sze
+  double precision, intent(in) :: v(sze)
+  double precision :: f_norm
+  integer :: i
+
+  f_norm = 0d0
+  
+  do i = 1, sze
+    f_norm = f_norm + v(i)**2
+  enddo
+
+end
+#+end_src

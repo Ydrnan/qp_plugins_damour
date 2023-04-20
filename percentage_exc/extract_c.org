@@ -1544,6 +1544,70 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   ! Reorder the index of each t
   call reorder_t_idx(t1111,t1111_idx,sze_t1111,8)
 
+  ! T2^3
+  idx = 0
+  do i = 1, sze_t2
+    do j = 1, sze_t22
+      if (dabs(t2(i) * t22(j)) >= thresh) then
+        if (t2_idx(1,i) == t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
+            t2_idx(1,i) == t22_idx(3,j) .or. t2_idx(1,i) == t22_idx(4,j) .or. &
+            t2_idx(2,i) == t22_idx(1,j) .or. t2_idx(2,i) == t22_idx(2,j) .or. &
+            t2_idx(2,i) == t22_idx(3,j) .or. t2_idx(2,i) == t22_idx(4,j) .or. &
+            t2_idx(3,i) == t22_idx(5,j) .or. t2_idx(3,i) == t22_idx(6,j) .or. &
+            t2_idx(3,i) == t22_idx(7,j) .or. t2_idx(3,i) == t22_idx(8,j) .or. &
+            t2_idx(4,i) == t22_idx(5,j) .or. t2_idx(4,i) == t22_idx(6,j) .or. &
+            t2_idx(4,i) == t22_idx(7,j) .or. t2_idx(4,i) == t22_idx(8,j)) cycle
+         idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+
+  integer :: sze_t222, new_sze_t222
+  double precision, allocatable :: t222(:)
+  integer, allocatable :: t222_idx(:,:)
+
+  sze_t222 = idx
+  allocate(t222(sze_t222),t222_idx(12,sze_t222))
+
+  idx = 1
+  fact = 1d0/3d0
+  do i = 1, sze_t2
+    do j = 1, sze_t22
+      if (dabs(t2(i) * t22(j)) >= thresh) then
+        if (t2_idx(1,i) == t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
+            t2_idx(1,i) == t22_idx(3,j) .or. t2_idx(1,i) == t22_idx(4,j) .or. &
+            t2_idx(2,i) == t22_idx(1,j) .or. t2_idx(2,i) == t22_idx(2,j) .or. &
+            t2_idx(2,i) == t22_idx(3,j) .or. t2_idx(2,i) == t22_idx(4,j) .or. &
+            t2_idx(3,i) == t22_idx(5,j) .or. t2_idx(3,i) == t22_idx(6,j) .or. &
+            t2_idx(3,i) == t22_idx(7,j) .or. t2_idx(3,i) == t22_idx(8,j) .or. &
+            t2_idx(4,i) == t22_idx(5,j) .or. t2_idx(4,i) == t22_idx(6,j) .or. &
+            t2_idx(4,i) == t22_idx(7,j) .or. t2_idx(4,i) == t22_idx(8,j)) cycle
+         t222(idx) = t2(i) * t22(j) * fact
+         t222_idx(1,idx) = t2_idx(1,i)
+         t222_idx(2,idx) = t2_idx(2,i)
+         t222_idx(7,idx) = t2_idx(3,i)
+         t222_idx(8,idx) = t2_idx(4,i)
+         t222_idx(3,idx) = t22_idx(1,j)
+         t222_idx(4,idx) = t22_idx(2,j)
+         t222_idx(5,idx) = t22_idx(3,j)
+         t222_idx(6,idx) = t22_idx(4,j)
+         t222_idx(9,idx) = t22_idx(5,j)
+         t222_idx(10,idx) = t22_idx(6,j)
+         t222_idx(11,idx) = t22_idx(7,j)
+         t222_idx(12,idx) = t22_idx(8,j)
+         idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  ! Sort
+  call sort_by_coef_idx(t222,t222_idx,sze_t222,12)
+  ! Reorder the index of each t
+  call reorder_t_idx(t222,t222_idx,sze_t222,12)
+
   ! Recursive sort after the reordering
   call recursive_sort_idx(t11,t11_idx,sze_t11,4,1)
   call recursive_sort_idx(t12,t12_idx,sze_t12,6,1)
@@ -1552,6 +1616,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
 
   call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
   call recursive_sort_idx(t112,t112_idx,sze_t112,8,1)
+  call recursive_sort_idx(t222,t222_idx,sze_t222,12,1)
   
   call recursive_sort_idx(t1111,t1111_idx,sze_t1111,8,1)
   
@@ -1563,6 +1628,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   call remove_duplicate_idx(t111,t111_idx,sze_t111,6,new_sze_t111)
   call remove_duplicate_idx(t112,t112_idx,sze_t112,8,new_sze_t112)
+  call remove_duplicate_idx(t222,t222_idx,sze_t222,12,new_sze_t222)
   
   call remove_duplicate_idx(t1111,t1111_idx,sze_t1111,8,new_sze_t1111)
   
@@ -1573,6 +1639,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   sze_t111 = new_sze_t111
   sze_t112 = new_sze_t112
+  sze_t222 = new_sze_t222
 
   sze_t1111 = new_sze_t1111
 
@@ -1586,25 +1653,29 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111 , f_norm(t111 ,sze_t111 )
   write(*,'(A6,I10,1pE12.4)') 't22  ', sze_t22  , f_norm(t22  ,sze_t22  )
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112 , f_norm(t112 ,sze_t112 )
+  write(*,'(A6,I10,1pE12.4)') 't222 ', sze_t222 , f_norm(t222 ,sze_t222 )
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111, f_norm(t1111,sze_t1111)
 
   ! Gather list with the same number of indexes
-  integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
-  double precision, allocatable :: c1(:), c2(:), c3(:), c4(:)
-  integer :: sze_c1, sze_c2, sze_c3, sze_c4
-  integer :: new_sze_c2, new_sze_c3, new_sze_c4
+  integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:), c6_idx(:,:)
+  double precision, allocatable :: c1(:), c2(:), c3(:), c4(:), c6(:)
+  integer :: sze_c1, sze_c2, sze_c3, sze_c4, sze_c6
+  integer :: new_sze_c2, new_sze_c3, new_sze_c4, new_sze_c6
 
   sze_c1 = sze_t1
   sze_c2 = sze_t11 + sze_t2
   sze_c3 = sze_t111 + sze_t12 !+ sze_t3
   sze_c4 = sze_t1111 + sze_t112 + sze_t22 !+ sze_t13
+  sze_c6 = sze_t222
 
   allocate(c1_idx(2,sze_c1), c2_idx(4,sze_c2))
   allocate(c3_idx(6,sze_c3))
   allocate(c4_idx(8,sze_c4))
+  allocate(c6_idx(12,sze_c6))
   allocate(c1(sze_c1), c2(sze_c2))
   allocate(c3(sze_c3))
   allocate(c4(sze_c4))
+  allocate(c6(sze_c6))
 
   ! C1
   do i = 1, sze_t1
@@ -1660,46 +1731,57 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   !  c4_idx(:,k+i) = t13_idx(:,i)
   !enddo
 
+  do i = 1, sze_c6
+    c6(i) = t222(i)
+    c6_idx(:,i) = t222_idx(:,i)
+  enddo
+  
   ! Sort
   call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
   call recursive_sort_idx(c3,c3_idx,sze_c3,6,1)
   call recursive_sort_idx(c4,c4_idx,sze_c4,8,1)
+  call recursive_sort_idx(c6,c6_idx,sze_c6,12,1)
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(c2,c2_idx,sze_c2,4,new_sze_c2)
   call remove_duplicate_idx(c3,c3_idx,sze_c3,6,new_sze_c3)
   call remove_duplicate_idx(c4,c4_idx,sze_c4,8,new_sze_c4)
+  call remove_duplicate_idx(c6,c6_idx,sze_c6,12,new_sze_c6)
 
   sze_c2 = new_sze_c2
   sze_c3 = new_sze_c3
   sze_c4 = new_sze_c4
+  sze_c6 = new_sze_c6
 
   print*,''
   write(*,'(A6,I10,1pE12.4)') 'C1   ', sze_c1, f_norm(c1,sze_c1)
   write(*,'(A6,I10,1pE12.4)') 'C2   ', sze_c2, f_norm(c2,sze_c2)
   write(*,'(A6,I10,1pE12.4)') 'C3   ', sze_c3, f_norm(c3,sze_c3)
   write(*,'(A6,I10,1pE12.4)') 'C4   ', sze_c4, f_norm(c4,sze_c4)
+  write(*,'(A6,I10,1pE12.4)') 'C6   ', sze_c6, f_norm(c6,sze_c6)
 
   ! Build the determinants
   integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:)
-  integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:)
-  double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:)
+  integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:), c6_det(:,:,:)
+  double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:), c6_coef(:)
 
   allocate(c1_det(N_int,2,sze_c1),c1_coef(sze_c1))
   allocate(c2_det(N_int,2,sze_c2),c2_coef(sze_c2))
   allocate(c3_det(N_int,2,sze_c3),c3_coef(sze_c3))
   allocate(c4_det(N_int,2,sze_c4),c4_coef(sze_c4))
+  allocate(c6_det(N_int,2,sze_c6),c6_coef(sze_c6))
 
   call build_det_t(c1,c1_idx,sze_c1,2,c1_det,c1_coef)
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
   call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
   call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
+  call build_det_t(c6,c6_idx,sze_c6,12,c6_det,c6_coef)
 
   integer :: sze_cc
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
 
-  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4
+  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c6
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
 
@@ -1733,6 +1815,13 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   do i = 1, sze_c4
     psi_coef_cc(k+i) = c4_coef(i)
     psi_det_cc(:,:,k+i) = c4_det(:,:,i)
+  enddo
+
+  ! C6
+  k = k + sze_c4
+  do i = 1, sze_c6
+    psi_coef_cc(k+i) = c6_coef(i)
+    psi_det_cc(:,:,k+i) = c6_det(:,:,i)
   enddo
 
   write(*,'(A6,I10,1pE12.4)') ' Psi  ', sze_cc, f_norm(psi_coef_cc, sze_cc)

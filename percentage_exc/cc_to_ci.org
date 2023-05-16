@@ -237,15 +237,12 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   ! Recursive sort after the reordering
   call recursive_sort_idx(t11,t11_idx,sze_t11,4,1)
   call recursive_sort_idx(t12,t12_idx,sze_t12,6,1)
+  call recursive_sort_idx(t13,t13_idx,sze_t13,8,1)
   call recursive_sort_idx(t22,t22_idx,sze_t22,8,1)
   call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
   call recursive_sort_idx(t112,t112_idx,sze_t112,8,1)
   call recursive_sort_idx(t222,t222_idx,sze_t222,12,1)
   call recursive_sort_idx(t1111,t1111_idx,sze_t1111,8,1)
-  
-  if (use_par_t) then
-    call recursive_sort_idx(t13,t13_idx,sze_t13,8,1)
-  endif
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(t11,t11_idx,sze_t11,4)
@@ -475,7 +472,7 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   
   ! Save wf
   call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
-  touch psi_det psi_coef
+  !touch psi_det psi_coef N_det 
 
   print*,''
   print*,'<Psi|H|Psi>/<Psi|Psi> =',psi_energy+nuclear_repulsion
@@ -1502,7 +1499,7 @@ subroutine contrib_t11(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t11,t11,t11_idx)
   ! in
   integer, intent(in)             :: nO,nV,sze_t1,sze_t11
   double precision, intent(in)    :: thresh,t1(sze_t1)
-  integer, intent(out)            :: t1_idx(2,sze_t1)
+  integer, intent(in)             :: t1_idx(2,sze_t1)
 
   ! out
   double precision, intent(out)   :: t11(sze_t11)

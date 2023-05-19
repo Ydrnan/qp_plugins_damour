@@ -1,0 +1,189 @@
+#+begin_src f90 :comments org :tangle square_cutter.irp.f
+program square cutter
+
+  use bitmasks
+
+  implicit none
+
+  integer :: i,j,k, kk, nab, m, l,n_det_save
+  integer, allocatable :: iaorder(:), iborder(:)
+  double precision , allocatable :: norm_sort_a(:), norm_sort_b(:)
+  double precision :: thresh, norm, E, energy(N_states), s2(N_states)
+  integer :: na, nb, idx
+  integer(bit_kind), allocatable :: psi_det_save(:,:,:), tmp_det(:,:,:)
+  double precision, allocatable :: psi_coef_save(:,:), tmp_coef(:)
+  logical :: is_in
+  double precision :: f, old_f
+
+  PROVIDE mo_two_e_integrals_in_map mo_one_e_integrals
+
+  ! Copy the wf
+  allocate(psi_det_save(N_int,2,N_det), psi_coef_save(N_det,N_states))
+  N_det_save = N_det
+  do j = 1, N_det
+    do i = 1, N_int
+      psi_det_save(i,1,j) = psi_det(i,1,j)
+      psi_det_save(i,2,j) = psi_det(i,2,j)
+    enddo
+  enddo
+  do j = 1, N_states
+    do i = 1, N_det
+      psi_coef_save(i,j) = psi_coef(i,j)
+    enddo
+  enddo
+
+  ! Sort the unique alpha/beta det by norm
+  na = n_det_alpha_unique
+  nb = n_det_beta_unique
+  allocate(norm_sort_a(na),iaorder(na))
+  allocate(norm_sort_b(nb),iborder(nb))
+
+  do i = 1, na
+   norm_sort_a(i) = -det_alpha_norm(i)
+   iaorder(i) = i
+  enddo
+
+  do i = 1, nb
+   norm_sort_b(i) = -det_beta_norm(i)
+   iborder(i) = i
+  enddo
+
+  call dsort(norm_sort_a(1),iaorder(1),na)
+  call dsort(norm_sort_b(1),iborder(1),nb)
+
+  if (.not.read_wf) then
+    stop 'Please set read_wf to true'
+  endif
+
+  PROVIDE psi_bilinear_matrix_values nuclear_repulsion
+
+  print *,  ''
+  print *,  '=============================='
+  print *,  'Energies at different cut-offs'
+  print *,  '=============================='
+  print *,  ''
+  print *,  '=========================================================='
+  print '(A1,A8,2X,A8,2X,A6,2X,A6,2X,A10,2X,A10,2X,A12)', &
+         '|','Thresh.', 'Ndet', 'N_a','N_b', 'Cost', 'Norm', 'E'
+  print *,  '=========================================================='
+
+  ! Loop in order to inscrease the size of the square
+  f = 1d0
+  do while (.True.)
+    ! Choosen number of alpha det
+    na = min(ceiling(f),n_det_alpha_unique)
+    nb = 0
+
+    ! Put to huge the det alpha that must be removed
+    do j = 1, N_det
+      is_in = .False.
+      do i = 1, na
+        idx = iaorder(i)
+        if (psi_bilinear_matrix_rows(j) == idx) then
+          is_in = .True.
+          exit
+        endif
+      enddo
+      if (.not. is_in) then
+        psi_bilinear_matrix_values(j,1) = huge(1d0)
+      endif
+    enddo
+
+    ! Same for beta det
+    thresh = -norm_sort_a(na)
+
+    if (elec_alpha_num == elec_beta_num) then
+      nb = na
+    else
+      do i = 1, n_det_beta_unique
+        if (-norm_sort_b(i) >= thresh) then
+          nb = nb + 1
+        endif
+      enddo
+    endif
+
+    do j = 1, N_det
+      is_in = .False.
+      do i = 1, nb
+        idx = iborder(i)
+        if (psi_bilinear_matrix_columns(j) == idx) then
+          is_in = .True.
+          exit
+        endif
+      enddo
+      if (.not. is_in) then
+        psi_bilinear_matrix_values(j,1) = huge(1d0)
+      endif
+    enddo
+
+    ! Count the number of determinant in the square
+    m = 0
+    do k = 1, n_det
+      if (psi_bilinear_matrix_values(k,1) /= huge(1d0)) then
+        m = m+1
+      else
+        psi_bilinear_matrix_values(k,1) = 0d0
+      endif
+    enddo
+
+    ! Copy the value from psi_bilinear to psi_coef
+    do k = 1, N_states
+      psi_coef(1:N_det,k) = psi_bilinear_matrix_values(1:N_det,k)
+      call dset_order(psi_coef(1,k),psi_bilinear_matrix_order_reverse,N_det)
+    enddo
+
+    ! Tmp arrays to save the wf
+    allocate(tmp_coef(m), tmp_det(N_int,2,m))
+    j = 1
+    do i = 1, N_det
+      if (psi_coef(i,1) /= 0d0) then
+        tmp_coef(j) = psi_coef(i,1)
+        do k = 1, N_int
+          tmp_det(k,1,j) = psi_det(k,1,i)
+          tmp_det(k,2,j) = psi_det(k,2,i)        
+        enddo
+        j = j + 1
+      endif
+    enddo
+    call save_wf_cc(tmp_det,tmp_coef,m)
+    deallocate(tmp_det,tmp_coef)
+
+    ! Variational energy
+    call u_0_HS2_u_0(energy,s2,psi_coef,N_det,psi_det,N_int,N_states,psi_det_size)
+    E = energy(1) + nuclear_repulsion
+
+    ! cost function
+    double precision :: cost0, cost
+    cost0 = elec_alpha_num**3 + elec_beta_num**3
+    cost = (na-1) * elec_alpha_num**2 + &
+           (nb-1) * elec_beta_num**2 + &
+            elec_alpha_num**3 + elec_beta_num**3
+    cost = cost/cost0
+
+    double precision :: u_dot_u
+    norm = dsqrt(u_dot_u(psi_coef(1,1),N_det))
+     print '(A1,E9.1,2X,I8,2X,I6,2X,I6,2X,F10.2,2X,F10.8,2X,F15.10)',  &
+      '|',thresh, m ,na, nb, cost,  norm, E
+
+    ! Exit condition
+    if (m == N_det_save) then
+      exit
+    endif
+
+    ! Back to the original wf
+    call save_wf_cc(psi_det_save,psi_coef_save,N_det_save)
+    psi_det = psi_det_save
+    psi_coef = psi_coef_save
+
+    ! Update the number of selected alpha det
+    old_f = f
+    do while (ceiling(old_f) == ceiling(f))
+      f = f * dsqrt(2.d0)
+    enddo
+
+  enddo
+  print *,  '=========================================================='
+
+end
+
+#+end_src

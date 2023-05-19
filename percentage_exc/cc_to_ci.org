@@ -1906,12 +1906,12 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
   ! out
   integer, intent(out)          :: sze_t22
 
-  integer :: i,j,idx,ia,ib, t_idx(8,1)
+  integer :: i,j,idx,ia,ib, tmp_idx(8)
   double precision :: coef(1), acc
-  integer :: get_index_in_psi_det_alpha_unique
-  integer :: get_index_in_psi_det_beta_unique
-  logical :: is_in_psi_det_alpha_unique
-  logical :: is_in_psi_det_beta_unique
+  integer, external :: get_index_in_psi_det_alpha_unique
+  integer, external :: get_index_in_psi_det_beta_unique
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
   integer(bit_kind) :: det(N_int,2)
   logical :: ok
 
@@ -1927,20 +1927,23 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
             t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
         ! idx to det
         acc = acc + (t2(i) * t2(j))**2
-        t_idx(1,1) = t2_idx(1,i)
-        t_idx(2,1) = t2_idx(2,i)
-        t_idx(5,1) = t2_idx(3,i)
-        t_idx(6,1) = t2_idx(4,i)
-        t_idx(3,1) = t2_idx(1,j)
-        t_idx(4,1) = t2_idx(2,j)
-        t_idx(7,1) = t2_idx(3,j)
-        t_idx(8,1) = t2_idx(4,j)
-        call build_det_t((/0d0/),t_idx,1,8,det,coef)
+        tmp_idx(1) = t2_idx(1,i)
+        tmp_idx(2) = t2_idx(2,i)
+        tmp_idx(5) = t2_idx(3,i)
+        tmp_idx(6) = t2_idx(4,i)
+        tmp_idx(3) = t2_idx(1,j)
+        tmp_idx(4) = t2_idx(2,j)
+        tmp_idx(7) = t2_idx(3,j)
+        tmp_idx(8) = t2_idx(4,j)
+        call build_det_t((/0d0/),tmp_idx,1,8,det,coef)
         ! index in the wf alpha/beta
-        ia = get_index_in_psi_det_alpha_unique(det(1,1),N_int)
-        if (ia == 0) cycle
-        ib = get_index_in_psi_det_beta_unique (det(1,2),N_int)
-        if (ib == 0 ) cycle
+        !ia = get_index_in_psi_det_alpha_unique(det(1,1),N_int)
+        !!if (ia == 0) cycle
+        !ib = get_index_in_psi_det_beta_unique (det(1,2),N_int)
+        !print*,ia, is_in_psi_det_alpha_unique(det(1,1))
+        !print*,ib, is_in_psi_det_beta_unique(det(1,2))
+        !
+        !!if (ib == 0 ) cycle
         !if (ia /= 0 .and. .not. is_in_psi_det_alpha_unique(det(1,1))) then
         !   print*,'pb a'
         !   call abort
@@ -1955,8 +1958,10 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
         !   cycle
         !   call abort
         !endif
-        !if (.not. is_in_psi_det_alpha_unique(det(1,1))) cycle
-        !if (.not. is_in_psi_det_beta_unique(det(1,2))) cycle
+        !if (ia == 0) cycle
+        !if (ib == 0 ) cycle
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
         idx = idx + 1
       else
         exit
@@ -1967,57 +1972,6 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
   sze_t22 = idx
   print*,'norm',dsqrt(acc)
         
-end
-
-function is_in_psi_det_alpha_unique(det_a)
-
-  implicit none
-
-  integer(bit_kind), intent(in) :: det_a(N_int)
-  logical :: is_in_psi_det_alpha_unique
-  integer :: i,j,count
-
-  is_in_psi_det_alpha_unique = .False.
-
-  do j = 1, N_det_alpha_unique
-    count = 0
-    do i = 1, N_int
-      if (psi_det_alpha_unique(i,j) == det_a(i)) then
-        count = count + 1
-      endif
-    enddo
-    if (count == N_int) then
-      is_in_psi_det_alpha_unique = .True.
-      return
-    endif
-  enddo
-  
-end
-
-
-function is_in_psi_det_beta_unique(det_b)
-
-  implicit none
-
-  integer(bit_kind), intent(in) :: det_b(N_int)
-  logical :: is_in_psi_det_beta_unique
-  integer :: i,j,count
-
-  is_in_psi_det_beta_unique = .False.
-
-  do j = 1, N_det_beta_unique
-    count = 0
-    do i = 1, N_int
-      if (psi_det_beta_unique(i,j) == det_b(i)) then
-        count = count + 1
-      endif
-    enddo
-    if (count == N_int) then
-      is_in_psi_det_beta_unique = .True.
-      return
-    endif
-  enddo
-  
 end
 
 subroutine contrib_t22_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx)
@@ -2034,12 +1988,12 @@ subroutine contrib_t22_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,t
   integer, intent(out)            :: t22_idx(8,sze_t22)
   
   integer(bit_kind)  :: det(N_int,2)
-  integer :: get_index_in_psi_det_alpha_unique
-  integer :: get_index_in_psi_det_beta_unique
-  logical :: is_in_psi_det_alpha_unique
-  logical :: is_in_psi_det_beta_unique
-  integer :: i,j,idx,ia,ib
-  double precision :: coef(1)
+  integer, external:: get_index_in_psi_det_alpha_unique
+  integer, external:: get_index_in_psi_det_beta_unique
+  logical, external:: is_in_psi_det_alpha_unique
+  logical, external:: is_in_psi_det_beta_unique
+  integer :: i,j,idx,ia,ib,tmp_idx(8)
+  double precision :: coef(1), val
   
   idx = 1
   do i = 1, sze_t2-1
@@ -2050,23 +2004,47 @@ subroutine contrib_t22_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,t
             t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
             t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
             t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-        t22(idx) = t2(i) * t2(j)
-        t22_idx(1,idx) = t2_idx(1,i)
-        t22_idx(2,idx) = t2_idx(2,i)
-        t22_idx(5,idx) = t2_idx(3,i)
-        t22_idx(6,idx) = t2_idx(4,i)
-        t22_idx(3,idx) = t2_idx(1,j)
-        t22_idx(4,idx) = t2_idx(2,j)
-        t22_idx(7,idx) = t2_idx(3,j)
-        t22_idx(8,idx) = t2_idx(4,j)
-        call build_det_t((/0d0/),t22_idx(1,idx),1,8,det,coef)
+        val = t2(i) * t2(j)
+        tmp_idx(1) = t2_idx(1,i)
+        tmp_idx(2) = t2_idx(2,i)
+        tmp_idx(5) = t2_idx(3,i)
+        tmp_idx(6) = t2_idx(4,i)
+        tmp_idx(3) = t2_idx(1,j)
+        tmp_idx(4) = t2_idx(2,j)
+        tmp_idx(7) = t2_idx(3,j)
+        tmp_idx(8) = t2_idx(4,j)
+        call build_det_t((/0d0/),tmp_idx,1,8,det,coef)
         ! index in the wf alpha/beta
-        ia = get_index_in_psi_det_alpha_unique(det(1,1),N_int)
-        if (ia == 0) cycle
-        ib = get_index_in_psi_det_beta_unique (det(1,2),N_int)
-        if (ib == 0 ) cycle
+        !ia = get_index_in_psi_det_alpha_unique(det(1,1),N_int)
+        !!if (ia == 0) cycle
+        !ib = get_index_in_psi_det_beta_unique (det(1,2),N_int)
+        !!if (ib == 0 ) cycle
+        !print*,ia, is_in_psi_det_alpha_unique(det(1,1))
+        !print*,ib, is_in_psi_det_beta_unique(det(1,2))
+        !
+        !!if (ib == 0 ) cycle
+        !if (ia /= 0 .and. .not. is_in_psi_det_alpha_unique(det(1,1))) then
+        !   print*,'pb a'
+        !   call abort
+        !endif
+        !if (ib /= 0 .and. .not. is_in_psi_det_beta_unique(det(1,2))) then
+        !   print*,'pb b'
+        !   call abort
+        !endif
+        !if (ia > n_det_alpha_unique .or. ib > n_det_beta_unique) then
+        !   print*,ia,ib
+        !   print*,'pb'
+        !   cycle
+        !   call abort
+        !endif
+        !if (ia == 0) cycle
+        !if (ib == 0 ) cycle
         !if (.not. is_in_psi_det_alpha_unique(det(1,1))) cycle
         !if (.not. is_in_psi_det_beta_unique(det(1,2))) cycle
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t22(idx) = val
+        t22_idx(:,idx) = tmp_idx(:)
         idx = idx + 1
       else
         exit
@@ -2473,3 +2451,220 @@ subroutine contrib_t222(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
 end  
 #+end_src
 
+
+
+** Search det
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+logical function is_in_psi_det_alpha_unique(key,Nint)
+  use bitmasks
+  BEGIN_DOC
+  ! Returns theis the determinant is in the :c:data:`psi_det_alpha_unique` array
+  END_DOC
+  implicit none
+
+  integer, intent(in)            :: Nint
+  integer(bit_kind), intent(in)  :: key(Nint)
+
+  integer                        :: i, ibegin, iend, istep, l
+  integer(8)                     :: det_ref, det_search
+  integer(8), external           :: spin_det_search_key
+  logical                        :: in_wavefunction
+
+  in_wavefunction = .False.
+  is_in_psi_det_alpha_unique = .False.
+  ibegin = 1
+  iend   = N_det_alpha_unique + 1
+
+  !DIR$ FORCEINLINE
+  det_ref = spin_det_search_key(key,Nint)
+
+  !DIR$ FORCEINLINE
+  det_search = spin_det_search_key(psi_det_alpha_unique(1,1),Nint)
+
+  istep = shiftr(iend-ibegin,1)
+  i=ibegin+istep
+  do while (istep > 0)
+    !DIR$ FORCEINLINE
+    det_search = spin_det_search_key(psi_det_alpha_unique(1,i),Nint)
+    if ( det_search > det_ref ) then
+      iend = i
+    else if ( det_search == det_ref ) then
+      exit
+    else
+      ibegin = i
+    endif
+    istep = shiftr(iend-ibegin,1)
+    i = ibegin + istep
+  end do
+
+  !DIR$ FORCEINLINE
+  do while (spin_det_search_key(psi_det_alpha_unique(1,i),Nint) == det_ref)
+    i = i-1
+    if (i == 0) then
+      exit
+    endif
+  enddo
+  i += 1
+
+  !DIR$ FORCEINLINE
+  do while (spin_det_search_key(psi_det_alpha_unique(1,i),Nint) == det_ref)
+    if (key(1) /= psi_det_alpha_unique(1,i)) then
+      continue
+    else
+      in_wavefunction = .True.
+      !DIR$ IVDEP
+      !DIR$ LOOP COUNT MIN(3)
+      do l=2,Nint
+        if (key(l) /= psi_det_alpha_unique(l,i)) then
+          in_wavefunction = .False.
+        endif
+      enddo
+      if (in_wavefunction) then
+        is_in_psi_det_alpha_unique = .True.
+        return
+      endif
+    endif
+    i += 1
+    if (i > N_det_alpha_unique) then
+        is_in_psi_det_alpha_unique = .False.
+      return
+    endif
+
+  enddo
+
+  is_in_psi_det_alpha_unique = in_wavefunction
+
+end
+
+logical function is_in_psi_det_beta_unique(key,Nint)
+  use bitmasks
+  BEGIN_DOC
+  ! Returns if the determinant in the :c:data:`psi_det_beta_unique` array
+  END_DOC
+  implicit none
+
+  integer, intent(in)            :: Nint
+  integer(bit_kind), intent(in)  :: key(Nint)
+
+  integer                        :: i, ibegin, iend, istep, l
+  integer(8)                     :: det_ref, det_search
+  integer(8), external           :: spin_det_search_key
+  logical                        :: in_wavefunction
+
+  in_wavefunction = .False.
+  is_in_psi_det_beta_unique = in_wavefunction
+  ibegin = 1
+  iend   = N_det_beta_unique + 1
+
+  !DIR$ FORCEINLINE
+  det_ref = spin_det_search_key(key,Nint)
+  !DIR$ FORCEINLINE
+  det_search = spin_det_search_key(psi_det_beta_unique(1,1),Nint)
+
+  istep = shiftr(iend-ibegin,1)
+  i=ibegin+istep
+  do while (istep > 0)
+    !DIR$ FORCEINLINE
+    det_search = spin_det_search_key(psi_det_beta_unique(1,i),Nint)
+    if ( det_search > det_ref ) then
+      iend = i
+    else if ( det_search == det_ref ) then
+      exit
+    else
+      ibegin = i
+    endif
+    istep = shiftr(iend-ibegin,1)
+    i = ibegin + istep
+  end do
+
+  !DIR$ FORCEINLINE
+  do while (spin_det_search_key(psi_det_beta_unique(1,i),Nint) == det_ref)
+    i = i-1
+    if (i == 0) then
+      exit
+    endif
+  enddo
+  i += 1
+
+  !DIR$ FORCEINLINE
+  do while (spin_det_search_key(psi_det_beta_unique(1,i),Nint) == det_ref)
+    if (key(1) /= psi_det_beta_unique(1,i)) then
+      continue
+    else
+      in_wavefunction = .True.
+      !DIR$ IVDEP
+      !DIR$ LOOP COUNT MIN(3)
+      do l=2,Nint
+        if (key(l) /= psi_det_beta_unique(l,i)) then
+          in_wavefunction = .False.
+        endif
+      enddo
+      if (in_wavefunction) then
+         is_in_psi_det_beta_unique = .True.
+        return
+      endif
+    endif
+    i += 1
+    if (i > N_det_beta_unique) then
+         is_in_psi_det_beta_unique = .False.
+      return
+    endif
+
+  enddo
+
+  is_in_psi_det_beta_unique = in_wavefunction
+  
+end
+
+!function is_in_psi_det_alpha_unique(det_a)
+!
+!  implicit none
+!
+!  integer(bit_kind), intent(in) :: det_a(N_int)
+!  logical :: is_in_psi_det_alpha_unique
+!  integer :: i,j,count
+!
+!  is_in_psi_det_alpha_unique = .False.
+!
+!  do j = 1, N_det_alpha_unique
+!    count = 0
+!    do i = 1, N_int
+!      if (psi_det_alpha_unique(i,j) == det_a(i)) then
+!        count = count + 1
+!      endif
+!    enddo
+!    if (count == N_int) then
+!      is_in_psi_det_alpha_unique = .True.
+!      return
+!    endif
+!  enddo
+!  
+!end
+!
+!
+!function is_in_psi_det_beta_unique(det_b)
+!
+!  implicit none
+!
+!  integer(bit_kind), intent(in) :: det_b(N_int)
+!  logical :: is_in_psi_det_beta_unique
+!  integer :: i,j,count
+!
+!  is_in_psi_det_beta_unique = .False.
+!
+!  do j = 1, N_det_beta_unique
+!    count = 0
+!    do i = 1, N_int
+!      if (psi_det_beta_unique(i,j) == det_b(i)) then
+!        count = count + 1
+!      endif
+!    enddo
+!    if (count == N_int) then
+!      is_in_psi_det_beta_unique = .True.
+!      return
+!    endif
+!  enddo
+!  
+!end
+
+#+end_src

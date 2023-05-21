@@ -484,9 +484,9 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   !### Fill the square ###
 
   deallocate(psi_det_cc,psi_coef_cc)
-  integer :: sze_t2_f,sze_t22_f
-  double precision, allocatable :: t2_f(:),t22_f(:)
-  integer, allocatable :: t2_idx_f(:,:),t22_idx_f(:,:)
+  integer :: sze_t2_f,sze_t11_f,sze_t22_f
+  double precision, allocatable :: t2_f(:),t11_f(:),t22_f(:)
+  integer, allocatable :: t2_idx_f(:,:),t11_idx_f(:,:),t22_idx_f(:,:)
 
   ! T2
   print*,'T2'
@@ -494,7 +494,13 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   print*,sze_t2_f
   allocate(t2_f(sze_t2_f),t2_idx_f(4,sze_t2_f))
   call contrib_t2_full(nO,nV,thresh,1d-16,t2_full,sze_t2_f,t2_f,t2_idx_f)
-  !sze_t2_f = 0
+
+  ! T11
+  print*,'T11'
+  call contrib_t11_full_nb(nO,nV,thresh,1d-16,sze_t1,t1,t1_idx,sze_t11_f)
+  print*,sze_t11_f
+  allocate(t11_f(sze_t11_f),t11_idx_f(4,sze_t11_f))
+  call contrib_t11_full(nO,nV,thresh,1d-16,sze_t1,t1,t1_idx,sze_t11_f,t11_f,t11_idx_f)
 
   ! T22
   print*,'T22'
@@ -503,10 +509,20 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   allocate(t22_idx_f(8,sze_t22_f),t22_f(sze_t22_f))
   call contrib_t22_full(nO,nV,thresh,1d-16,sze_t2,t2,t2_idx,sze_t22_f,t22_f,t22_idx_f)
 
+  ! Sort
+  call recursive_sort_idx(t2_f,t2_idx_f,sze_t2_f,4,1)
+  call recursive_sort_idx(t11_f,t11_idx_f,sze_t11_f,4,1)
+  call recursive_sort_idx(t22_f,t22_idx_f,sze_t22_f,8,1)
+  
+  ! Remove the duplicate and accumulate
+  call remove_duplicate_idx(t2_f,t2_idx_f,sze_t2_f,4)
+  call remove_duplicate_idx(t11_f,t11_idx_f,sze_t11_f,4)
+  call remove_duplicate_idx(t22_f,t22_idx_f,sze_t22_f,8)
+  
   ! C2
   double precision, allocatable :: tmp_c2(:)
   integer, allocatable :: tmp_c2_idx(:,:)
-  new_sze_c2 = sze_c2 + sze_t2_f
+  new_sze_c2 = sze_c2 + sze_t2_f + sze_t11_f
   allocate(tmp_c2(new_sze_c2),tmp_c2_idx(4,new_sze_c2))
 
   do i = 1, sze_c2
@@ -514,9 +530,14 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     tmp_c2_idx(:,i) = c2_idx(:,i)
   enddo
   k = sze_c2
-  do i = 1, new_sze_c2 - sze_c2
+  do i = 1, sze_t2_f
     tmp_c2(k+i) = t2_f(i)
     tmp_c2_idx(:,k+i) = t2_idx_f(:,i)
+  enddo
+  k = k + sze_t2_f
+  do i = 1, sze_t11_f
+    tmp_c2(k+i) = t11_f(i)
+    tmp_c2_idx(:,k+i) = t11_idx_f(:,i)
   enddo
   
   sze_c2 = new_sze_c2
@@ -1553,7 +1574,6 @@ end
 #+end_src
 
 
-
 ** T3 from (T)
 #+begin_src f90 :comments org :tangle cc_to_ci.irp.f
 subroutine contrib_t3_nb(nO,nV,thresh,t1_full,t2_full,f_o,f_v, &
@@ -1792,6 +1812,114 @@ subroutine contrib_t11(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t11,t11,t11_idx)
         t11_idx(3,idx) = t1_idx(2,i)
         t11_idx(2,idx) = t1_idx(1,j)
         t11_idx(4,idx) = t1_idx(2,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+
+  ! Sort
+  call sort_by_coef_idx(t11,t11_idx,sze_t11,4)
+
+  ! Reorder the index of each t
+  call reorder_t_idx(t11,t11_idx,sze_t11,4)
+
+end  
+#+end_src
+
+** T1^2 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t11_full_nb(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t11)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1
+  double precision, intent(in)    :: thresh1,thresh2,t1(sze_t1)
+  integer, intent(in)             :: t1_idx(2,sze_t1)
+
+  ! out
+  integer, intent(out)          :: sze_t11
+
+  integer :: i,j,idx,tmp_idx(4)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  acc = 0d0
+  idx = 0
+  do i = 1, sze_t1-1
+    do j = i+1, sze_t1
+      tmp = t1(i) * t1(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        ! The resulting coeff can't contain 2 times the same spin orbital index
+        if (t1_idx(1,i) == t1_idx(1,j) .or. t1_idx(2,i) == t1_idx(2,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(3) = t1_idx(2,i)
+        tmp_idx(2) = t1_idx(1,j)
+        tmp_idx(4) = t1_idx(2,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,4,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        ! Norm
+        acc = acc + tmp**2
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+
+  sze_t11 = idx
+
+  print*,'norm t11:',dsqrt(acc)
+
+end
+
+subroutine contrib_t11_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t11,t11,t11_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t11
+  double precision, intent(in)    :: thresh1,thresh2,t1(sze_t1)
+  integer, intent(in)             :: t1_idx(2,sze_t1)
+
+  ! out
+  double precision, intent(out)   :: t11(sze_t11)
+  integer, intent(out)            :: t11_idx(4,sze_t11)
+  
+  integer :: i,j,idx,tmp_idx(4)
+  double precision :: tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 1
+  do i = 1, sze_t1-1
+    do j = i+1, sze_t1
+      tmp = t1(i) * t1(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t1_idx(1,j) .or. t1_idx(2,i) == t1_idx(2,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(3) = t1_idx(2,i)
+        tmp_idx(2) = t1_idx(1,j)
+        tmp_idx(4) = t1_idx(2,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,4,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t11(idx) = tmp
+        t11_idx(:,idx) = tmp_idx(:)
         idx = idx + 1
       else
         exit

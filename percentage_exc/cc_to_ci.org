@@ -1,4 +1,4 @@
-* Clsuetr decomposition
+* Cluster decomposition
 
 #+begin_src f90 :comments org :tangle cc_to_ci.irp.f
 program cc_to_ci
@@ -481,14 +481,51 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
   print*,'<Psi|H|Psi>/<Psi|Psi> =',psi_energy+nuclear_repulsion
   print*,''
 
+  !### Fill the square ###
+
   deallocate(psi_det_cc,psi_coef_cc)
-  integer :: sze_t22_f
-  double precision, allocatable :: t22_f(:)
-  integer, allocatable :: t22_idx_f(:,:)
+  integer :: sze_t2_f,sze_t22_f
+  double precision, allocatable :: t2_f(:),t22_f(:)
+  integer, allocatable :: t2_idx_f(:,:),t22_idx_f(:,:)
+
+  ! T2
+  print*,'T2'
+  call contrib_t2_full_nb(nO,nV,thresh,1d-16,t2_full,sze_t2_f)
+  print*,sze_t2_f
+  allocate(t2_f(sze_t2_f),t2_idx_f(4,sze_t2_f))
+  call contrib_t2_full(nO,nV,thresh,1d-16,t2_full,sze_t2_f,t2_f,t2_idx_f)
+  !sze_t2_f = 0
+
+  ! T22
+  print*,'T22'
   call contrib_t22_full_nb(nO,nV,thresh,1d-16,sze_t2,t2,t2_idx,sze_t22_f)
   print*,sze_t22_f
   allocate(t22_idx_f(8,sze_t22_f),t22_f(sze_t22_f))
   call contrib_t22_full(nO,nV,thresh,1d-16,sze_t2,t2,t2_idx,sze_t22_f,t22_f,t22_idx_f)
+
+  ! C2
+  double precision, allocatable :: tmp_c2(:)
+  integer, allocatable :: tmp_c2_idx(:,:)
+  new_sze_c2 = sze_c2 + sze_t2_f
+  allocate(tmp_c2(new_sze_c2),tmp_c2_idx(4,new_sze_c2))
+
+  do i = 1, sze_c2
+    tmp_c2(i) = c2(i)
+    tmp_c2_idx(:,i) = c2_idx(:,i)
+  enddo
+  k = sze_c2
+  do i = 1, new_sze_c2 - sze_c2
+    tmp_c2(k+i) = t2_f(i)
+    tmp_c2_idx(:,k+i) = t2_idx_f(:,i)
+  enddo
+  
+  sze_c2 = new_sze_c2
+
+  deallocate(c2,c2_idx)
+  allocate(c2(sze_c2),c2_idx(4,sze_c2))
+  
+  c2 = tmp_c2
+  c2_idx = tmp_c2_idx
 
   ! C4
   deallocate(c4,c4_idx)
@@ -523,10 +560,19 @@ subroutine smart_xc(nO,nV,t1_full,t2_full)
     c4_idx(:,k+i) = t13_idx(:,i)
   enddo
 
+  call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
   call recursive_sort_idx(c4,c4_idx,sze_c4,8,1)
+
+  call remove_duplicate_idx(c2,c2_idx,sze_c2,4)
   call remove_duplicate_idx(c4,c4_idx,sze_c4,8)
+  
+  deallocate(c2_det,c2_coef)
   deallocate(c4_det,c4_coef)
+  
+  allocate(c2_det(N_int,2,sze_c2),c2_coef(sze_c2))
   allocate(c4_det(N_int,2,sze_c4),c4_coef(sze_c4))
+  
+  call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
   call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
 
   sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c6
@@ -1394,6 +1440,119 @@ end
 #+end_src
 
 
+** T2 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t2_full_nb(nO,nV,thresh1,thresh2,t2_full,sze_t2)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV
+  double precision, intent(in)    :: thresh1, thresh2, t2_full(nO,nO,nV,nV)
+
+  ! out
+  integer, intent(out)            :: sze_t2
+
+  integer :: i,j,a,b,idx,tmp_idx(4)
+  integer(bit_kind) :: det(N_int,2)
+  double precision :: coef(1), tmp, acc
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  acc = 0d0
+  idx = 0
+  do b = 1, nV
+    do a = b+1, nV
+      do j = 1, nO
+        do i = j+1, nO
+          tmp = t2_full(i,j,a,b)
+          if (dabs(tmp) >= thresh1) cycle
+          if (dabs(tmp) >= thresh2) then
+            if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
+            if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
+            if (a > cc_nVa .and. b > cc_nVa .and. (i <= cc_nOa .or. j <= cc_nOa)) cycle
+            if (a <= cc_nVa .and. b <= cc_nVa .and. (i > cc_nOa .or. j > cc_nOa)) cycle
+            tmp_idx(1) = i
+            tmp_idx(2) = j
+            tmp_idx(3) = a
+            tmp_idx(4) = b
+            ! idx -> det
+            call build_det_t((/0d0/),tmp_idx,1,4,det,coef)
+            ! is in alpha C beta ?
+            if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+            if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+            acc = acc + tmp**2
+            idx = idx + 1
+          endif
+        enddo
+      enddo
+    enddo
+  enddo
+
+  sze_t2 = idx
+
+  print*,'norm t2:',dsqrt(acc)
+  
+end
+
+subroutine contrib_t2_full(nO,nV,thresh1,thresh2,t2_full,sze_t2,t2,t2_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t2
+  double precision, intent(in)    :: thresh1,thresh2,t2_full(nO,nO,nV,nV)
+
+  ! out
+  double precision, intent(out)   :: t2(sze_t2)
+  integer, intent(out)            :: t2_idx(4,sze_t2)
+  
+  integer :: i,j,a,b,idx,tmp_idx(4)
+  integer(bit_kind) :: det(N_int,2)
+  double precision :: coef(1), tmp
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+  
+  idx = 1
+  do b = 1, nV
+    do a = b+1, nV
+      do j = 1, nO
+        do i = j+1, nO
+          tmp = t2_full(i,j,a,b)
+          if (dabs(tmp) >= thresh1) cycle
+          if (dabs(tmp) >= thresh2) then
+            if (i <= cc_nOa .and. j <= cc_nOa .and. (a > cc_nVa .or. b > cc_nVa)) cycle
+            if (i > cc_nOa .and. j > cc_nOa .and. (a <= cc_nVa .or. b <= cc_nVa)) cycle
+            if (a > cc_nVa .and. b > cc_nVa .and. (i <= cc_nOa .or. j <= cc_nOa)) cycle
+            if (a <= cc_nVa .and. b <= cc_nVa .and. (i > cc_nOa .or. j > cc_nOa)) cycle
+            tmp_idx(1) = i
+            tmp_idx(2) = j
+            tmp_idx(3) = a
+            tmp_idx(4) = b
+            ! idx -> det
+            call build_det_t((/0d0/),tmp_idx,1,4,det,coef)
+            ! is in alpha C beta ?
+            if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+            if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+            t2(idx) = tmp
+            t2_idx(:,idx) = tmp_idx(:)
+            idx = idx + 1
+          endif
+        enddo
+      enddo
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t2,t2_idx,sze_t2,4)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t2,t2_idx,sze_t2,4)
+
+end  
+#+end_src
+
+
 
 ** T3 from (T)
 #+begin_src f90 :comments org :tangle cc_to_ci.irp.f
@@ -1907,7 +2066,7 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
   integer, intent(out)          :: sze_t22
 
   integer :: i,j,idx,ia,ib, tmp_idx(8)
-  double precision :: coef(1), acc
+  double precision :: coef(1), acc, tmp
   integer, external :: get_index_in_psi_det_alpha_unique
   integer, external :: get_index_in_psi_det_beta_unique
   logical, external :: is_in_psi_det_alpha_unique
@@ -1919,14 +2078,14 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
   idx = 0
   do i = 1, sze_t2-1
     do j = i+1, sze_t2
-      if (dabs(t2(i) * t2(j)) >= thresh1) cycle
-      if (dabs(t2(i) * t2(j)) >= thresh2) then
+      tmp = t2(i) * t2(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
         if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
             t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
             t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
             t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
         ! idx to det
-        acc = acc + (t2(i) * t2(j))**2
         tmp_idx(1) = t2_idx(1,i)
         tmp_idx(2) = t2_idx(2,i)
         tmp_idx(5) = t2_idx(3,i)
@@ -1962,6 +2121,7 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
         !if (ib == 0 ) cycle
         if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
         if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        acc = acc + tmp**2
         idx = idx + 1
       else
         exit
@@ -1970,7 +2130,7 @@ subroutine contrib_t22_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22)
   enddo
 
   sze_t22 = idx
-  print*,'norm',dsqrt(acc)
+  print*,'norm t22:',dsqrt(acc)
         
 end
 
@@ -1993,18 +2153,18 @@ subroutine contrib_t22_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,t
   logical, external:: is_in_psi_det_alpha_unique
   logical, external:: is_in_psi_det_beta_unique
   integer :: i,j,idx,ia,ib,tmp_idx(8)
-  double precision :: coef(1), val
+  double precision :: coef(1), tmp
   
   idx = 1
   do i = 1, sze_t2-1
     do j = i+1, sze_t2
-      if (dabs(t2(i) * t2(j)) >= thresh1) cycle
-      if (dabs(t2(i) * t2(j)) >= thresh2) then
+      tmp = t2(i) * t2(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
         if (t2_idx(1,i) == t2_idx(1,j) .or. t2_idx(1,i) == t2_idx(2,j) .or. &
             t2_idx(2,i) == t2_idx(1,j) .or. t2_idx(2,i) == t2_idx(2,j) .or. &
             t2_idx(3,i) == t2_idx(3,j) .or. t2_idx(3,i) == t2_idx(4,j) .or. &
             t2_idx(4,i) == t2_idx(3,j) .or. t2_idx(4,i) == t2_idx(4,j)) cycle
-        val = t2(i) * t2(j)
         tmp_idx(1) = t2_idx(1,i)
         tmp_idx(2) = t2_idx(2,i)
         tmp_idx(5) = t2_idx(3,i)
@@ -2043,7 +2203,7 @@ subroutine contrib_t22_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,t
         !if (.not. is_in_psi_det_beta_unique(det(1,2))) cycle
         if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
         if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
-        t22(idx) = val
+        t22(idx) = tmp
         t22_idx(:,idx) = tmp_idx(:)
         idx = idx + 1
       else
@@ -2450,7 +2610,6 @@ subroutine contrib_t222(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
   
 end  
 #+end_src
-
 
 
 ** Search det

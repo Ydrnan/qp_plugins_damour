@@ -482,6 +482,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   print*,''
 
   !### Fill the square ###
+  return
 
   deallocate(psi_det_cc,psi_coef_cc)
 
@@ -3358,7 +3359,7 @@ subroutine contrib_t222_nb(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx,sze
   do i = 1, sze_t2
     do j = 1, sze_t22
       if (dabs(t2(i) * t22(j)) >= thresh) then
-        if (t2_idx(1,i) == t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
+        if (t2_idx(1,i) >= t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
             t2_idx(1,i) == t22_idx(3,j) .or. t2_idx(1,i) == t22_idx(4,j) .or. &
             t2_idx(2,i) == t22_idx(1,j) .or. t2_idx(2,i) == t22_idx(2,j) .or. &
             t2_idx(2,i) == t22_idx(3,j) .or. t2_idx(2,i) == t22_idx(4,j) .or. &
@@ -3399,7 +3400,7 @@ subroutine contrib_t222(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
   do i = 1, sze_t2
     do j = 1, sze_t22
       if (dabs(t2(i) * t22(j)) >= thresh) then
-        if (t2_idx(1,i) == t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
+        if (t2_idx(1,i) >= t22_idx(1,j) .or. t2_idx(1,i) == t22_idx(2,j) .or. &
             t2_idx(1,i) == t22_idx(3,j) .or. t2_idx(1,i) == t22_idx(4,j) .or. &
             t2_idx(2,i) == t22_idx(1,j) .or. t2_idx(2,i) == t22_idx(2,j) .or. &
             t2_idx(2,i) == t22_idx(3,j) .or. t2_idx(2,i) == t22_idx(4,j) .or. &
@@ -3407,7 +3408,7 @@ subroutine contrib_t222(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
             t2_idx(3,i) == t22_idx(7,j) .or. t2_idx(3,i) == t22_idx(8,j) .or. &
             t2_idx(4,i) == t22_idx(5,j) .or. t2_idx(4,i) == t22_idx(6,j) .or. &
             t2_idx(4,i) == t22_idx(7,j) .or. t2_idx(4,i) == t22_idx(8,j)) cycle
-         t222(idx) = t2(i) * t22(j) * fact
+         t222(idx) = t2(i) * t22(j) !* fact
          t222_idx(1,idx) = t2_idx(1,i)
          t222_idx(2,idx) = t2_idx(2,i)
          t222_idx(7,idx) = t2_idx(3,i)

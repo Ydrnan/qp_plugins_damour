@@ -785,7 +785,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     tmp_c6(k+i) = t222_f(i)
     tmp_c6_idx(:,k+i) = t222_idx_f(:,i)
   enddo
-  k = k + sze_t222
+  k = k + sze_t222_f
   ! t33
   do i = 1, sze_t33_f
     tmp_c6(k+i) = t33_f(i)
@@ -834,6 +834,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
   call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
   call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
+
   call build_det_t(c6,c6_idx,sze_c6,12,c6_det,c6_coef)
 
   sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c6
@@ -4200,7 +4201,7 @@ subroutine contrib_t33_full(nO,nV,thresh1,thresh2,sze_t3,t3,t3_idx,&
         if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
         if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
         t33(idx) = tmp
-        t33_idx(:,idx) = tmp_idx
+        t33_idx(:,idx) = tmp_idx(:)
         idx = idx + 1
       else
         exit

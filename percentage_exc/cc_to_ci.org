@@ -59,10 +59,10 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   double precision, allocatable :: v_ooov(:,:,:,:), v_vvvo(:,:,:,:)
   double precision, allocatable :: t3(:)
   integer, allocatable :: t3_idx(:,:)
-  integer :: sze_t3
+  integer :: sze_t3,sze_t33
   integer :: sze_t13, new_sze_t13
-  double precision, allocatable :: t13(:)
-  integer, allocatable :: t13_idx(:,:)
+  double precision, allocatable :: t13(:),t33(:)
+  integer, allocatable :: t13_idx(:,:),t33_idx(:,:)
   integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:)
   integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:), c6_det(:,:,:)
   double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:), c6_coef(:)
@@ -191,7 +191,11 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   ! TODO
 
   ! t33
-  ! TODO
+  print*,'T3^2'
+  call contrib_t33_nb(nO,nV,thresh,sze_t3,t3,t3_idx,sze_t33)
+  print*,sze_t33
+  allocate(t33(sze_t33),t33_idx(12,sze_t33))
+  call contrib_t33_nb(nO,nV,thresh,sze_t3,t3,t3_idx,sze_t33,t33,t33_idx)
 
   ! t111
   print*,'T1^3'
@@ -240,6 +244,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call recursive_sort_idx(t12,t12_idx,sze_t12,6,1)
   call recursive_sort_idx(t13,t13_idx,sze_t13,8,1)
   call recursive_sort_idx(t22,t22_idx,sze_t22,8,1)
+  call recursive_sort_idx(t33,t33_idx,sze_t33,12,1)
   call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
   call recursive_sort_idx(t112,t112_idx,sze_t112,8,1)
   call recursive_sort_idx(t222,t222_idx,sze_t222,12,1)
@@ -251,6 +256,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call remove_duplicate_idx(t12,t12_idx,sze_t12,6)
   call remove_duplicate_idx(t13,t13_idx,sze_t13,8)
   call remove_duplicate_idx(t22,t22_idx,sze_t22,8)
+  call remove_duplicate_idx(t33,t33_idx,sze_t33,12)
   call remove_duplicate_idx(t111,t111_idx,sze_t111,6)
   call remove_duplicate_idx(t112,t112_idx,sze_t112,8)
   call remove_duplicate_idx(t222,t222_idx,sze_t222,12)
@@ -265,8 +271,9 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   write(*,'(A6,I10,1pE12.4)') 't11  ', sze_t11  , f_norm(t11  ,sze_t11  )
   write(*,'(A6,I10,1pE12.4)') 't12  ', sze_t12  , f_norm(t12  ,sze_t12  )
   write(*,'(A6,I10,1pE12.4)') 't13  ', sze_t13  , f_norm(t13  ,sze_t13  )
-  write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111 , f_norm(t111 ,sze_t111 )
   write(*,'(A6,I10,1pE12.4)') 't22  ', sze_t22  , f_norm(t22  ,sze_t22  )
+  write(*,'(A6,I10,1pE12.4)') 't33  ', sze_t33  , f_norm(t33  ,sze_t33  )
+  write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111 , f_norm(t111 ,sze_t111 )
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112 , f_norm(t112 ,sze_t112 )
   write(*,'(A6,I10,1pE12.4)') 't222 ', sze_t222 , f_norm(t222 ,sze_t222 )
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111, f_norm(t1111,sze_t1111)
@@ -276,7 +283,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   sze_c2 = sze_t11 + sze_t2
   sze_c3 = sze_t111 + sze_t12 + sze_t3
   sze_c4 = sze_t1111 + sze_t112 + sze_t22 + sze_t13
-  sze_c6 = sze_t222
+  sze_c6 = sze_t222 + sze_t33
 
   allocate(c1_idx(2,sze_c1), c2_idx(4,sze_c2))
   allocate(c3_idx(6,sze_c3))
@@ -353,9 +360,14 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
 
   ! C6
   ! t222
-  do i = 1, sze_c6
+  do i = 1, sze_t222
     c6(i) = t222(i)
     c6_idx(:,i) = t222_idx(:,i)
+  enddo
+  k = sze_t22
+  do i = 1, sze_t33
+    c6(k+i) = t33(i)
+    c6_idx(:,k+i) = t33_idx(:,i)
   enddo
   
   ! Sort
@@ -3822,6 +3834,109 @@ subroutine contrib_t222_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t22,t22,
 
   ! Reorder the index of each t
   call reorder_t_idx(t222,t222_idx,sze_t222,12)
+  
+end  
+#+end_src
+
+** T3^2
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t33_nb(nO,nV,thresh,sze_t3,t3,t3_idx,sze_t33)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t3
+  double precision, intent(in)    :: thresh,t3(sze_t3)
+  integer, intent(in)             :: t3_idx(6,sze_t3)
+
+  ! out
+  integer, intent(out)          :: sze_t33
+
+  integer :: i,j,idx
+
+  idx = 0
+  do i = 1, sze_t3-1
+    do j = i+1, sze_t3
+      if (dabs(t3(i) * t3(j)) >= thresh) then
+        if (t3_idx(1,i) == t3_idx(1,j) .or. t3_idx(1,i) == t3_idx(2,j) .or. &
+            t3_idx(1,i) == t3_idx(3,j) .or. &
+            t3_idx(2,i) == t3_idx(1,j) .or. t3_idx(2,i) == t3_idx(2,j) .or. &
+            t3_idx(2,i) == t3_idx(3,j) .or. &
+            t3_idx(3,i) == t3_idx(1,j) .or. t3_idx(3,i) == t3_idx(2,j) .or. &
+            t3_idx(3,i) == t3_idx(3,j) .or. &
+            t3_idx(4,i) == t3_idx(4,j) .or. t3_idx(4,i) == t3_idx(5,j) .or. &
+            t3_idx(4,i) == t3_idx(6,j) .or. &
+            t3_idx(5,i) == t3_idx(4,j) .or. t3_idx(5,i) == t3_idx(5,j) .or. &
+            t3_idx(5,i) == t3_idx(6,j) .or. &
+            t3_idx(6,i) == t3_idx(4,j) .or. t3_idx(6,i) == t3_idx(5,j) .or. &
+            t3_idx(6,i) == t3_idx(6,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+
+  sze_t33 = idx
+        
+end
+
+subroutine contrib_t33(nO,nV,thresh,sze_t3,t3,t3_idx,sze_t33,t33,t33_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t3,sze_t33
+  double precision, intent(in)    :: thresh,t3(sze_t3)
+  integer, intent(in)             :: t3_idx(6,sze_t3)
+
+  ! out
+  double precision, intent(out)   :: t33(sze_t33)
+  integer, intent(out)            :: t33_idx(12,sze_t33)
+  
+  integer :: i,j,idx
+  
+  idx = 1
+  do i = 1, sze_t3-1
+    do j = i+1, sze_t3
+      if (dabs(t3(i) * t3(j)) >= thresh) then
+        if (t3_idx(1,i) == t3_idx(1,j) .or. t3_idx(1,i) == t3_idx(2,j) .or. &
+            t3_idx(1,i) == t3_idx(3,j) .or. &
+            t3_idx(2,i) == t3_idx(1,j) .or. t3_idx(2,i) == t3_idx(2,j) .or. &
+            t3_idx(2,i) == t3_idx(3,j) .or. &
+            t3_idx(3,i) == t3_idx(1,j) .or. t3_idx(3,i) == t3_idx(2,j) .or. &
+            t3_idx(3,i) == t3_idx(3,j) .or. &
+            t3_idx(4,i) == t3_idx(4,j) .or. t3_idx(4,i) == t3_idx(5,j) .or. &
+            t3_idx(4,i) == t3_idx(6,j) .or. &
+            t3_idx(5,i) == t3_idx(4,j) .or. t3_idx(5,i) == t3_idx(5,j) .or. &
+            t3_idx(5,i) == t3_idx(6,j) .or. &
+            t3_idx(6,i) == t3_idx(4,j) .or. t3_idx(6,i) == t3_idx(5,j) .or. &
+            t3_idx(6,i) == t3_idx(6,j)) cycle
+        t33(idx) = t3(i) * t3(j)
+        t33_idx(1,idx) = t3_idx(1,i)
+        t33_idx(2,idx) = t3_idx(2,i)
+        t33_idx(3,idx) = t3_idx(3,i)
+        t33_idx(7,idx) = t3_idx(4,i)
+        t33_idx(8,idx) = t3_idx(5,i)
+        t33_idx(9,idx) = t3_idx(6,i)
+        t33_idx(4,idx) = t3_idx(1,j)
+        t33_idx(5,idx) = t3_idx(2,j)
+        t33_idx(6,idx) = t3_idx(3,j)
+        t33_idx(10,idx) = t3_idx(4,j)
+        t33_idx(11,idx) = t3_idx(5,j)
+        t33_idx(12,idx) = t3_idx(6,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+
+  ! Sort
+  call sort_by_coef_idx(t33,t33_idx,sze_t33,12)
+
+  ! Reorder the index of each t
+  call reorder_t_idx(t33,t33_idx,sze_t33,12)
   
 end  
 #+end_src

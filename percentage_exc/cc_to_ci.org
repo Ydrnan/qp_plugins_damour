@@ -577,7 +577,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   ! T33
   call contrib_t33_full_nb(nO,nV,thresh,thresh_sf,sze_t3,t3,t3_idx,&
      sze_t33_f)
-  allocate(t33_f(sze_t33),t33_idx_f(12,sze_t33_f))
+  allocate(t33_f(sze_t33_f),t33_idx_f(12,sze_t33_f))
   call contrib_t33_full(nO,nV,thresh,thresh_sf,sze_t3,t3,t3_idx,&
      sze_t33_f,t33_f,t33_idx_f)
   write(*,'(A6,I10,1pE12.4)') 't33  ', sze_t33_f  , f_norm(t33_f  ,sze_t33_f  )

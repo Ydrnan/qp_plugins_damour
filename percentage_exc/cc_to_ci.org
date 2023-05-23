@@ -36,49 +36,49 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   integer, intent(in) :: nO,nV
   double precision, intent(in) :: t1_cc(nO,nV), t2_cc(nO,nO,nV,nV)
 
-  integer :: i,j,k,l,a,b,c,d
-  double precision, allocatable :: t1(:), t2(:), t11(:)
-  double precision, allocatable :: t111(:), t12(:)
-  double precision, allocatable :: t1111(:), t112(:), t22(:)
-  integer, allocatable :: tmp_idx(:,:), t1_idx(:,:), t2_idx(:,:), t11_idx(:,:)
-  integer, allocatable :: t111_idx(:,:), t12_idx(:,:)
-  integer, allocatable :: t1111_idx(:,:), t112_idx(:,:), t22_idx(:,:)
-  integer :: sze_t1, sze_t11, sze_t2, sze_t111, sze_t12
-  integer :: sze_t1111, sze_t112, sze_t22
-  integer :: new_sze_t11, new_sze_t22
-  integer :: new_sze_t12, new_sze_t112, new_sze_t111,new_sze_t1111
-  logical :: must_exit, all_t1, all_t2
-  integer :: sze_t222, new_sze_t222
-  double precision, allocatable :: t222(:)
-  integer, allocatable :: t222_idx(:,:)
-  integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
-  integer, allocatable :: c5_idx(:,:), c6_idx(:,:)
-  double precision, allocatable :: c1(:), c2(:), c3(:), c4(:), c5(:), c6(:)
+  integer :: sze_t1, sze_t2, sze_t3
+  integer :: sze_t11, sze_t12, sze_t13, sze_t22, sze_t23, sze_t33
+  integer :: sze_t111, sze_t112, sze_t113, sze_t122, sze_t123
+  integer :: sze_t222, sze_t1111
+  
+  double precision, allocatable :: t1(:),t2(:),t3(:)
+  double precision, allocatable :: t11(:),t12(:),t13(:),t22(:),t23(:),t33(:)
+  double precision, allocatable :: t111(:),t112(:),t113(:),t122(:),t123(:),t222(:)
+  double precision, allocatable :: t1111(:)
+  
+  integer, allocatable :: t1_idx(:,:), t2_idx(:,:), t3_idx(:,:) 
+  integer, allocatable :: t11_idx(:,:), t12_idx(:,:), t13_idx(:,:)
+  integer, allocatable :: t22_idx(:,:), t23_idx(:,:), t33_idx(:,:)
+  integer, allocatable :: t111_idx(:,:), t112_idx(:,:), t113_idx(:,:)
+  integer, allocatable :: t122_idx(:,:), t222_idx(:,:), t123_idx(:,:)
+  integer, allocatable :: t1111_idx(:,:)
+  
   integer :: sze_c1, sze_c2, sze_c3, sze_c4, sze_c5, sze_c6
   integer :: new_sze_c2, new_sze_c3, new_sze_c4, new_sze_c5,new_sze_c6
-  double precision, allocatable :: f_o(:), f_v(:), f_oo(:,:), f_vv(:,:)
-  double precision, allocatable :: v_ooov(:,:,:,:), v_vvvo(:,:,:,:)
-  double precision, allocatable :: t3(:)
-  integer, allocatable :: t3_idx(:,:)
-  integer :: sze_t3,sze_t33,sze_t23,sze_t122,sze_t113,sze_t123
-  integer :: sze_t13, new_sze_t13
-  double precision, allocatable :: t13(:),t33(:),t23(:),t122(:),t113(:),t123(:)
-  integer, allocatable :: t13_idx(:,:),t33_idx(:,:),t23_idx(:,:),t122_idx(:,:),t113_idx(:,:),t123_idx(:,:)
+  
+  integer, allocatable :: c1_idx(:,:), c2_idx(:,:), c3_idx(:,:), c4_idx(:,:)
+  integer, allocatable :: c5_idx(:,:), c6_idx(:,:)
+  double precision, allocatable  :: c1(:), c2(:), c3(:), c4(:), c5(:), c6(:)
+  
   integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:), c5_det(:,:,:)
   integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:), c6_det(:,:,:)
-  double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:)
-  double precision, allocatable :: c5_coef(:) , c6_coef(:)
+  double precision, allocatable  :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:)
+  double precision, allocatable  :: c5_coef(:) , c6_coef(:)
+  
   integer :: sze_cc
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
-  double precision, allocatable :: psi_coef_cc(:)
-  double precision :: phase,norm
-  integer(bit_kind) :: det(N_int,2)
-  integer :: degree
-  double precision :: energy
-  double precision :: thresh, thresh_t1
-  double precision :: s2_val
+  double precision, allocatable  :: psi_coef_cc(:)
+  
+  double precision, allocatable  :: f_o(:), f_v(:), f_oo(:,:), f_vv(:,:)
+  double precision, allocatable  :: v_ooov(:,:,:,:), v_vvvo(:,:,:,:)
+  
+  double precision           :: phase,norm,energy, s2_val
+  double precision           :: thresh, thresh_t1
+  integer(bit_kind)          :: det(N_int,2)
+  integer                    :: degree
+  integer                    :: i,j,k,l,a,b,c,d,idx
+  logical                    :: all_t1
   double precision, external :: f_norm
-  integer          :: count, sze, sze_max, idx
 
   all_t1 = .True.
 
@@ -556,18 +556,23 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
 
   double precision :: thresh_sf
   
-  integer :: sze_t2_f,sze_t11_f,sze_t12_f,sze_t22_f
-  integer :: sze_t13_f,sze_t111_f,sze_t112_f,sze_t1111_f
-  integer :: sze_t222_f,sze_t3_f,sze_t33_f,sze_t23_f
-  integer :: sze_t122_f,sze_t113_f,sze_t123_f
-  double precision, allocatable :: t2_f(:),t11_f(:),t12_f(:),t22_f(:)
-  double precision, allocatable :: t13_f(:),t111_f(:),t112_f(:),t1111_f(:)
-  double precision, allocatable :: t222_f(:),t3_f(:),t33_f(:),t23_f(:)
-  double precision, allocatable :: t122_f(:),t113_f(:),t123_f(:)
-  integer, allocatable :: t2_idx_f(:,:),t11_idx_f(:,:),t12_idx_f(:,:),t22_idx_f(:,:)
-  integer, allocatable :: t13_idx_f(:,:),t111_idx_f(:,:),t112_idx_f(:,:),t1111_idx_f(:,:)
-  integer, allocatable :: t222_idx_f(:,:),t3_idx_f(:,:),t33_idx_f(:,:),t23_idx_f(:,:)
-  integer, allocatable :: t122_idx_f(:,:),t113_idx_f(:,:),t123_idx_f(:,:)
+  integer :: sze_t2_f, sze_t3_f, sze_t11_f, sze_t12_f
+  integer :: sze_t13_f, sze_t22_f, sze_t33_f, sze_t23_f
+  integer :: sze_t111_f, sze_t112_f, sze_t113_f
+  integer :: sze_t122_f, sze_t123_f 
+  integer :: sze_t222_f, sze_t1111_f
+  
+  double precision, allocatable :: t2_f(:), t3_f(:), t11_f(:), t12_f(:)
+  double precision, allocatable :: t13_f(:), t22_f(:), t23_f(:), t33_f(:)
+  double precision, allocatable :: t111_f(:), t112_f(:), t113_f(:)
+  double precision, allocatable :: t122_f(:), t123_f(:), t222_f(:)
+  double precision, allocatable :: t1111_f(:)
+  
+  integer, allocatable :: t2_idx_f(:,:), t3_idx_f(:,:), t11_idx_f(:,:)
+  integer, allocatable :: t12_idx_f(:,:), t13_idx_f(:,:), t22_idx_f(:,:)
+  integer, allocatable :: t23_idx_f(:,:), t33_idx_f(:,:), t111_idx_f(:,:)
+  integer, allocatable :: t112_idx_f(:,:), t113_idx_f(:,:), t122_idx_f(:,:)
+  integer, allocatable :: t123_idx_f(:,:), t222_idx_f(:,:), t1111_idx_f(:,:)
 
   thresh_sf = 1d-16
 
@@ -689,6 +694,23 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call contrib_t1111_full(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t111,t111,t111_idx, &
      sze_t1111_f,t1111_f,t1111_idx_f)
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111_f, f_norm(t1111_f,sze_t1111_f)
+
+  deallocate(t1,t1_idx)
+  deallocate(t2,t2_idx)
+  deallocate(t3,t3_idx)
+  deallocate(t11,t11_idx)
+  deallocate(t12,t12_idx)
+  deallocate(t13,t13_idx)
+  deallocate(t22,t22_idx)
+  deallocate(t23,t23_idx)
+  deallocate(t33,t33_idx)
+  deallocate(t111,t111_idx)
+  deallocate(t112,t112_idx)
+  deallocate(t113,t113_idx)
+  deallocate(t122,t122_idx)
+  deallocate(t123,t123_idx)
+  deallocate(t222,t222_idx)
+  deallocate(t1111,t1111_idx)
   
   ! Sort
   call recursive_sort_idx(t2_f,t2_idx_f,sze_t2_f,4,1)
@@ -743,8 +765,11 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   write(*,'(A6,I10,1pE12.4)') 't222 ', sze_t222_f , f_norm(t222_f ,sze_t222_f )
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111_f, f_norm(t1111_f,sze_t1111_f)
   
-  double precision, allocatable :: tmp_c2(:),tmp_c3(:),tmp_c4(:),tmp_c5(:),tmp_c6(:)
-  integer, allocatable :: tmp_c2_idx(:,:),tmp_c3_idx(:,:),tmp_c4_idx(:,:),tmp_c5_idx(:,:),tmp_c6_idx(:,:)
+  double precision, allocatable :: tmp_c2(:), tmp_c3(:), tmp_c4(:)
+  double precision, allocatable :: tmp_c5(:), tmp_c6(:)
+  
+  integer, allocatable :: tmp_c2_idx(:,:), tmp_c3_idx(:,:), tmp_c4_idx(:,:)
+  integer, allocatable :: tmp_c5_idx(:,:),tmp_c6_idx(:,:)
   
   ! C2
   new_sze_c2 = sze_c2 + sze_t2_f + sze_t11_f
@@ -935,6 +960,22 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
 
   deallocate(tmp_c6,tmp_c6_idx)
 
+  deallocate(t2_f,t2_idx_f)
+  deallocate(t3_f,t3_idx_f)
+  deallocate(t11_f,t11_idx_f)
+  deallocate(t12_f,t12_idx_f)
+  deallocate(t13_f,t13_idx_f)
+  deallocate(t22_f,t22_idx_f)
+  deallocate(t23_f,t23_idx_f)
+  deallocate(t33_f,t33_idx_f)
+  deallocate(t111_f,t111_idx_f)
+  deallocate(t112_f,t112_idx_f)
+  deallocate(t113_f,t113_idx_f)
+  deallocate(t122_f,t122_idx_f)
+  deallocate(t123_f,t123_idx_f)
+  deallocate(t222_f,t222_idx_f)
+  deallocate(t1111_f,t1111_idx_f)
+  
   call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
   call recursive_sort_idx(c3,c3_idx,sze_c3,6,1)
   call recursive_sort_idx(c4,c4_idx,sze_c4,8,1)
@@ -972,6 +1013,13 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
   call build_det_t(c5,c5_idx,sze_c5,10,c5_det,c5_coef)
   call build_det_t(c6,c6_idx,sze_c6,12,c6_det,c6_coef)
+
+  deallocate(c1,c1_idx)
+  deallocate(c2,c2_idx)
+  deallocate(c3,c3_idx)
+  deallocate(c4,c4_idx)
+  deallocate(c5,c5_idx)
+  deallocate(c6,c6_idx)
 
   sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c5 + sze_c6
 
@@ -1022,6 +1070,12 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     psi_coef_cc(k+i) = c6_coef(i)
     psi_det_cc(:,:,k+i) = c6_det(:,:,i)
   enddo
+  
+  deallocate(c2_det,c2_coef)
+  deallocate(c3_det,c3_coef)
+  deallocate(c4_det,c4_coef)
+  deallocate(c5_det,c5_coef)
+  deallocate(c6_det,c6_coef)
 
   write(*,'(A6,I10,1pE12.4)') ' Psi  ', sze_cc, f_norm(psi_coef_cc, sze_cc)
 
@@ -1029,7 +1083,6 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   norm = 1d0
   det(:,:) = psi_det_cc(:,:,1)
   do i = 2, sze_cc
-    !call print_det(psi_det_cc(1,1,i),N_int)
     call get_phase_general(det,psi_det_cc(1,1,i),phase,degree,N_int)
     psi_coef_cc(i) = psi_coef_cc(i) * phase
     norm = norm + psi_coef_cc(i)**2
@@ -1040,10 +1093,9 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   print*,'<0|H|Psi> =',energy+nuclear_repulsion
   call sort_by_coef_det(psi_coef_cc,psi_det_cc,sze_cc,N_int)
   call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
-  !touch psi_coef psi_det N_det
   print*,'<Psi|H|Psi>/<Psi|Psi> =',psi_energy+nuclear_repulsion
-  ! todo
-  ! deallocate
+
+  deallocate(psi_det_cc,psi_coef_cc)
   
 end
 #+end_src

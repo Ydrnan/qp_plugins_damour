@@ -402,7 +402,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     c6(i) = t222(i)
     c6_idx(:,i) = t222_idx(:,i)
   enddo
-  k = sze_t22
+  k = sze_t222
   ! t33
   do i = 1, sze_t33
     c6(k+i) = t33(i)

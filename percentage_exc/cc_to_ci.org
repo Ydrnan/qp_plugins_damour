@@ -55,15 +55,15 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   integer, allocatable :: c5_idx(:,:), c6_idx(:,:)
   double precision, allocatable :: c1(:), c2(:), c3(:), c4(:), c5(:), c6(:)
   integer :: sze_c1, sze_c2, sze_c3, sze_c4, sze_c5, sze_c6
-  integer :: new_sze_c2, new_sze_c3, new_sze_c4, new_sze_c6
+  integer :: new_sze_c2, new_sze_c3, new_sze_c4, new_sze_c5,new_sze_c6
   double precision, allocatable :: f_o(:), f_v(:), f_oo(:,:), f_vv(:,:)
   double precision, allocatable :: v_ooov(:,:,:,:), v_vvvo(:,:,:,:)
   double precision, allocatable :: t3(:)
   integer, allocatable :: t3_idx(:,:)
-  integer :: sze_t3,sze_t33,sze_t23
+  integer :: sze_t3,sze_t33,sze_t23,sze_t122,sze_t113,sze_t123
   integer :: sze_t13, new_sze_t13
-  double precision, allocatable :: t13(:),t33(:),t23(:)
-  integer, allocatable :: t13_idx(:,:),t33_idx(:,:),t23_idx(:,:)
+  double precision, allocatable :: t13(:),t33(:),t23(:),t122(:),t113(:),t123(:)
+  integer, allocatable :: t13_idx(:,:),t33_idx(:,:),t23_idx(:,:),t122_idx(:,:),t113_idx(:,:),t123_idx(:,:)
   integer(bit_kind), allocatable :: c1_det(:,:,:), c2_det(:,:,:), c5_det(:,:,:)
   integer(bit_kind), allocatable :: c3_det(:,:,:), c4_det(:,:,:), c6_det(:,:,:)
   double precision, allocatable :: c1_coef(:), c2_coef(:), c3_coef(:), c4_coef(:)
@@ -71,10 +71,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   integer :: sze_cc
   integer(bit_kind), allocatable :: psi_det_cc(:,:,:)
   double precision, allocatable :: psi_coef_cc(:)
-
-
-
-  double precision ::phase,norm
+  double precision :: phase,norm
   integer(bit_kind) :: det(N_int,2)
   integer :: degree
   double precision :: energy
@@ -206,12 +203,30 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112 , f_norm(t112 ,sze_t112 )
 
   ! t113
-  ! TODO
+  call contrib_t113_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113)
+  allocate(t113(sze_t113),t113_idx(10,sze_t113))
+  call contrib_t113(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113,t113,t113_idx)
+  write(*,'(A6,I10,1pE12.4)') 't113 ', sze_t113 , f_norm(t113 ,sze_t113 )
 
+  ! t122
+  call contrib_t122_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122)
+  allocate(t122(sze_t122),t122_idx(10,sze_t122))
+  call contrib_t122(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122,t122,t122_idx)
+  write(*,'(A6,I10,1pE12.4)') 't122 ', sze_t122 , f_norm(t122 ,sze_t122 )
+  
   ! t123
-  ! TODO
+  call contrib_t123_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123)
+  allocate(t123(sze_t123),t123_idx(12,sze_t123))
+  call contrib_t123(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123,t123,t123_idx)
+  write(*,'(A6,I10,1pE12.4)') 't123 ', sze_t123 , f_norm(t123 ,sze_t123 )
 
-  ! T2^3
+  ! t222
   call contrib_t222_nb(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
      sze_t222)
   allocate(t222(sze_t222),t222_idx(12,sze_t222))
@@ -237,6 +252,9 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call recursive_sort_idx(t33,t33_idx,sze_t33,12,1)
   call recursive_sort_idx(t111,t111_idx,sze_t111,6,1)
   call recursive_sort_idx(t112,t112_idx,sze_t112,8,1)
+  call recursive_sort_idx(t113,t113_idx,sze_t113,10,1)
+  call recursive_sort_idx(t122,t122_idx,sze_t122,10,1)
+  call recursive_sort_idx(t123,t123_idx,sze_t123,12,1)
   call recursive_sort_idx(t222,t222_idx,sze_t222,12,1)
   call recursive_sort_idx(t1111,t1111_idx,sze_t1111,8,1)
 
@@ -250,6 +268,9 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call remove_duplicate_idx(t33,t33_idx,sze_t33,12)
   call remove_duplicate_idx(t111,t111_idx,sze_t111,6)
   call remove_duplicate_idx(t112,t112_idx,sze_t112,8)
+  call remove_duplicate_idx(t113,t113_idx,sze_t113,10)
+  call remove_duplicate_idx(t122,t122_idx,sze_t122,10)
+  call remove_duplicate_idx(t123,t123_idx,sze_t123,12)
   call remove_duplicate_idx(t222,t222_idx,sze_t222,12)
   call remove_duplicate_idx(t1111,t1111_idx,sze_t1111,8)
   
@@ -267,16 +288,19 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   write(*,'(A6,I10,1pE12.4)') 't33  ', sze_t33  , f_norm(t33  ,sze_t33  )
   write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111 , f_norm(t111 ,sze_t111 )
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112 , f_norm(t112 ,sze_t112 )
+  write(*,'(A6,I10,1pE12.4)') 't113 ', sze_t113 , f_norm(t113 ,sze_t113 )
+  write(*,'(A6,I10,1pE12.4)') 't122 ', sze_t122 , f_norm(t122 ,sze_t122 )
+  write(*,'(A6,I10,1pE12.4)') 't123 ', sze_t123 , f_norm(t123 ,sze_t123 )
   write(*,'(A6,I10,1pE12.4)') 't222 ', sze_t222 , f_norm(t222 ,sze_t222 )
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111, f_norm(t1111,sze_t1111)
   
-  ! Gather list with the same number of indexes
+  ! Gather lists with the same number of indexes
   sze_c1 = sze_t1
   sze_c2 = sze_t11 + sze_t2
   sze_c3 = sze_t111 + sze_t12 + sze_t3
   sze_c4 = sze_t1111 + sze_t112 + sze_t22 + sze_t13
-  sze_c5 = sze_t23
-  sze_c6 = sze_t222 + sze_t33
+  sze_c5 = sze_t23 + sze_t122 + sze_t113
+  sze_c6 = sze_t222 + sze_t33 + sze_t123
 
   allocate(c1_idx(2,sze_c1), c2_idx(4,sze_c2))
   allocate(c3_idx(6,sze_c3))
@@ -359,7 +383,19 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     c5(i) = t23(i)
     c5_idx(:,i) = t23_idx(:,i)
   enddo
-  
+  k = sze_t23
+  ! t122
+  do i = 1, sze_t122
+    c5(k+i) = t122(i)
+    c5_idx(:,k+i) = t122_idx(:,i)
+  enddo
+  k = k + sze_t122
+  ! t113
+  do i = 1, sze_t113
+    c5(k+i) = t113(i)
+    c5_idx(:,k+i) = t113_idx(:,i)
+  enddo
+
   ! C6
   ! t222
   do i = 1, sze_t222
@@ -367,9 +403,16 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     c6_idx(:,i) = t222_idx(:,i)
   enddo
   k = sze_t22
+  ! t33
   do i = 1, sze_t33
     c6(k+i) = t33(i)
     c6_idx(:,k+i) = t33_idx(:,i)
+  enddo
+  k = k + sze_t33
+  ! t123
+  do i = 1, sze_t123
+    c6(k+i) = t123(i)
+    c6_idx(:,k+i) = t123_idx(:,i)
   enddo
   
   ! Sort
@@ -515,18 +558,19 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   
   integer :: sze_t2_f,sze_t11_f,sze_t12_f,sze_t22_f
   integer :: sze_t13_f,sze_t111_f,sze_t112_f,sze_t1111_f
-  integer :: sze_t222_f,sze_t3_f,sze_t33_f
+  integer :: sze_t222_f,sze_t3_f,sze_t33_f,sze_t23_f
+  integer :: sze_t122_f,sze_t113_f,sze_t123_f
   double precision, allocatable :: t2_f(:),t11_f(:),t12_f(:),t22_f(:)
   double precision, allocatable :: t13_f(:),t111_f(:),t112_f(:),t1111_f(:)
-  double precision, allocatable :: t222_f(:),t3_f(:),t33_f(:)
+  double precision, allocatable :: t222_f(:),t3_f(:),t33_f(:),t23_f(:)
+  double precision, allocatable :: t122_f(:),t113_f(:),t123_f(:)
   integer, allocatable :: t2_idx_f(:,:),t11_idx_f(:,:),t12_idx_f(:,:),t22_idx_f(:,:)
   integer, allocatable :: t13_idx_f(:,:),t111_idx_f(:,:),t112_idx_f(:,:),t1111_idx_f(:,:)
-  integer, allocatable :: t222_idx_f(:,:),t3_idx_f(:,:),t33_idx_f(:,:)
+  integer, allocatable :: t222_idx_f(:,:),t3_idx_f(:,:),t33_idx_f(:,:),t23_idx_f(:,:)
+  integer, allocatable :: t122_idx_f(:,:),t113_idx_f(:,:),t123_idx_f(:,:)
 
   thresh_sf = 1d-16
 
-  write(*,'(A6,I10,1pE12.4)') 't1   ', sze_t1   , f_norm(t1   ,sze_t1   )
-  
   ! T2 
   call contrib_t2_full_nb(nO,nV,thresh,thresh_sf,t2_cc,sze_t2_f)
   allocate(t2_f(sze_t2_f),t2_idx_f(4,sze_t2_f))
@@ -574,6 +618,14 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call contrib_t22_full(nO,nV,thresh,thresh_sf,sze_t2,t2,t2_idx,sze_t22_f,t22_f,t22_idx_f)
   write(*,'(A6,I10,1pE12.4)') 't22  ', sze_t22_f  , f_norm(t22_f  ,sze_t22_f  )
 
+  ! T23
+  call contrib_t23_full_nb(nO,nV,thresh,thresh_sf,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,&
+     sze_t23_f)
+  allocate(t23_f(sze_t23_f),t23_idx_f(10,sze_t23_f))
+  call contrib_t23_full(nO,nV,thresh,thresh_sf,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,&
+     sze_t23_f,t23_f,t23_idx_f)
+  write(*,'(A6,I10,1pE12.4)') 't23  ', sze_t23_f  , f_norm(t23_f  ,sze_t23_f  )
+  
   ! T33
   call contrib_t33_full_nb(nO,nV,thresh,thresh_sf,sze_t3,t3,t3_idx,&
      sze_t33_f)
@@ -598,6 +650,30 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
      sze_t112_f,t112_f,t112_idx_f)
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112_f , f_norm(t112_f ,sze_t112_f )
 
+  ! T113
+  call contrib_t113_full_nb(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113_f)
+  allocate(t113_f(sze_t113_f),t113_idx_f(10,sze_t113_f))
+  call contrib_t113_full(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113_f,t113_f,t113_idx_f)
+  write(*,'(A6,I10,1pE12.4)') 't113 ', sze_t113_f , f_norm(t113_f ,sze_t113_f )
+
+  ! T122
+  call contrib_t122_full_nb(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122_f)
+  allocate(t122_f(sze_t122_f),t122_idx_f(10,sze_t122_f))
+  call contrib_t122_full(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122_f,t122_f,t122_idx_f)
+  write(*,'(A6,I10,1pE12.4)') 't122 ', sze_t122_f , f_norm(t122_f ,sze_t122_f )
+
+  ! T123
+  call contrib_t123_full_nb(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123_f)
+  allocate(t123_f(sze_t123_f),t123_idx_f(12,sze_t123_f))
+  call contrib_t123_full(nO,nV,thresh,thresh_sf,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123_f,t123_f,t123_idx_f)
+  write(*,'(A6,I10,1pE12.4)') 't123 ', sze_t123_f , f_norm(t123_f ,sze_t123_f )
+
   ! T222
   call contrib_t222_full_nb(nO,nV,thresh,thresh_sf,sze_t2,t2,t2_idx,sze_t22,t22,t22_idx, &
      sze_t222_f)
@@ -621,9 +697,13 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call recursive_sort_idx(t12_f,t12_idx_f,sze_t12_f,6,1)
   call recursive_sort_idx(t13_f,t13_idx_f,sze_t13_f,8,1)
   call recursive_sort_idx(t22_f,t22_idx_f,sze_t22_f,8,1)
+  call recursive_sort_idx(t23_f,t23_idx_f,sze_t23_f,10,1)
   call recursive_sort_idx(t33_f,t33_idx_f,sze_t33_f,12,1)
   call recursive_sort_idx(t111_f,t111_idx_f,sze_t111_f,6,1)
   call recursive_sort_idx(t112_f,t112_idx_f,sze_t112_f,8,1)
+  call recursive_sort_idx(t113_f,t113_idx_f,sze_t113_f,10,1)
+  call recursive_sort_idx(t122_f,t122_idx_f,sze_t122_f,10,1)
+  call recursive_sort_idx(t123_f,t123_idx_f,sze_t123_f,12,1)
   call recursive_sort_idx(t222_f,t222_idx_f,sze_t222_f,12,1)
   call recursive_sort_idx(t1111_f,t111_idx_f,sze_t1111_f,8,1)
   
@@ -634,30 +714,37 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call remove_duplicate_idx(t12_f,t12_idx_f,sze_t12_f,6)
   call remove_duplicate_idx(t13_f,t13_idx_f,sze_t13_f,8)
   call remove_duplicate_idx(t22_f,t22_idx_f,sze_t22_f,8)
+  call remove_duplicate_idx(t23_f,t23_idx_f,sze_t23_f,10)
   call remove_duplicate_idx(t33_f,t33_idx_f,sze_t33_f,12)
   call remove_duplicate_idx(t111_f,t111_idx_f,sze_t111_f,6)
   call remove_duplicate_idx(t112_f,t112_idx_f,sze_t112_f,8)
+  call remove_duplicate_idx(t113_f,t113_idx_f,sze_t113_f,10)
+  call remove_duplicate_idx(t122_f,t122_idx_f,sze_t122_f,10)
+  call remove_duplicate_idx(t123_f,t123_idx_f,sze_t123_f,12)
   call remove_duplicate_idx(t222_f,t222_idx_f,sze_t222_f,12)
   call remove_duplicate_idx(t1111_f,t1111_idx_f,sze_t1111_f,8)
   
   print*,''
   print*,'After removing the duplicates:'
   write(*,'(A6,A10,A12)')     '     ', '  N'    , 'Norm' 
-  write(*,'(A6,I10,1pE12.4)') 't1   ', sze_t1     , f_norm(t1     ,sze_t1   )
   write(*,'(A6,I10,1pE12.4)') 't2   ', sze_t2_f   , f_norm(t2_f   ,sze_t2_f   )
   write(*,'(A6,I10,1pE12.4)') 't3   ', sze_t3_f   , f_norm(t3_f   ,sze_t3_f   )
   write(*,'(A6,I10,1pE12.4)') 't11  ', sze_t11_f  , f_norm(t11_f  ,sze_t11_f  )
   write(*,'(A6,I10,1pE12.4)') 't12  ', sze_t12_f  , f_norm(t12_f  ,sze_t12_f  )
   write(*,'(A6,I10,1pE12.4)') 't13  ', sze_t13_f  , f_norm(t13_f  ,sze_t13_f  )
   write(*,'(A6,I10,1pE12.4)') 't22  ', sze_t22_f  , f_norm(t22_f  ,sze_t22_f  )
+  write(*,'(A6,I10,1pE12.4)') 't23  ', sze_t23_f  , f_norm(t23_f  ,sze_t23_f  )
   write(*,'(A6,I10,1pE12.4)') 't33  ', sze_t33_f  , f_norm(t33_f  ,sze_t33_f  )
   write(*,'(A6,I10,1pE12.4)') 't111 ', sze_t111_f , f_norm(t111_f ,sze_t111_f )
   write(*,'(A6,I10,1pE12.4)') 't112 ', sze_t112_f , f_norm(t112_f ,sze_t112_f )
+  write(*,'(A6,I10,1pE12.4)') 't113 ', sze_t113_f , f_norm(t113_f ,sze_t113_f )
+  write(*,'(A6,I10,1pE12.4)') 't122 ', sze_t122_f , f_norm(t122_f ,sze_t122_f )
+  write(*,'(A6,I10,1pE12.4)') 't122 ', sze_t123_f , f_norm(t123_f ,sze_t123_f )
   write(*,'(A6,I10,1pE12.4)') 't222 ', sze_t222_f , f_norm(t222_f ,sze_t222_f )
   write(*,'(A6,I10,1pE12.4)') 't1111', sze_t1111_f, f_norm(t1111_f,sze_t1111_f)
   
-  double precision, allocatable :: tmp_c2(:),tmp_c3(:),tmp_c4(:),tmp_c6(:)
-  integer, allocatable :: tmp_c2_idx(:,:),tmp_c3_idx(:,:),tmp_c4_idx(:,:),tmp_c6_idx(:,:)
+  double precision, allocatable :: tmp_c2(:),tmp_c3(:),tmp_c4(:),tmp_c5(:),tmp_c6(:)
+  integer, allocatable :: tmp_c2_idx(:,:),tmp_c3_idx(:,:),tmp_c4_idx(:,:),tmp_c5_idx(:,:),tmp_c6_idx(:,:)
   
   ! C2
   new_sze_c2 = sze_c2 + sze_t2_f + sze_t11_f
@@ -770,8 +857,46 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
 
   deallocate(tmp_c4,tmp_c4_idx)
 
+  ! C5
+  new_sze_c5 = sze_c5 + sze_t23_f + sze_t122_f + sze_t113_f
+
+  allocate(tmp_c5(new_sze_c5),tmp_c5_idx(10,new_sze_c5))
+
+  do i = 1, sze_c5
+    tmp_c5(i) = c5(i)
+    tmp_c5_idx(:,i) = c5_idx(:,i)
+  enddo
+  k = sze_c5
+  ! t23
+  do i = 1, sze_t23_f
+    tmp_c5(k+i) = t23_f(i)
+    tmp_c5_idx(:,k+i) = t23_idx_f(:,i)
+  enddo
+  k = k + sze_t23_f
+  ! t122
+  do i = 1, sze_t122_f
+    tmp_c5(k+i) = t122_f(i)
+    tmp_c5_idx(:,k+i) = t122_idx_f(:,i)
+  enddo
+  k = k + sze_t122_f
+  ! t113
+  do i = 1, sze_t113_f
+    tmp_c5(k+i) =  t113_f(i)
+    tmp_c5_idx(:,k+i) = t113_idx_f(:,i)
+  enddo
+
+  sze_c5 = new_sze_c5
+
+  deallocate(c5,c5_idx)
+  allocate(c5(sze_c5),c5_idx(10,sze_c5))
+
+  c5 = tmp_c5
+  c5_idx = tmp_c5_idx
+
+  deallocate(tmp_c5,tmp_c5_idx)
+    
   ! C6
-  new_sze_c6 = sze_c6 + sze_t222_f + sze_t33_f
+  new_sze_c6 = sze_c6 + sze_t222_f + sze_t33_f + sze_t123_f
 
   allocate(tmp_c6(new_sze_c6),tmp_c6_idx(12,new_sze_c6))
 
@@ -791,6 +916,12 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     tmp_c6(k+i) = t33_f(i)
     tmp_c6_idx(:,k+i) = t33_idx_f(:,i)
   enddo
+  k = k + sze_t33_f
+  ! t123
+  do i = 1, sze_t123_f
+    tmp_c6(k+i) = t123_f(i)
+    tmp_c6_idx(:,k+i) = t123_idx_f(:,i)
+  enddo
 
   sze_c6 = new_sze_c6
 
@@ -807,11 +938,13 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call recursive_sort_idx(c2,c2_idx,sze_c2,4,1)
   call recursive_sort_idx(c3,c3_idx,sze_c3,6,1)
   call recursive_sort_idx(c4,c4_idx,sze_c4,8,1)
+  call recursive_sort_idx(c5,c5_idx,sze_c5,10,1)
   call recursive_sort_idx(c6,c6_idx,sze_c6,12,1)
 
   call remove_duplicate_idx(c2,c2_idx,sze_c2,4)
   call remove_duplicate_idx(c3,c3_idx,sze_c3,6)
   call remove_duplicate_idx(c4,c4_idx,sze_c4,8)
+  call remove_duplicate_idx(c5,c5_idx,sze_c5,10)
   call remove_duplicate_idx(c6,c6_idx,sze_c6,12)
   
   print*,''
@@ -819,25 +952,28 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   write(*,'(A6,I10,1pE12.4)') 'C2   ', sze_c2, f_norm(c2,sze_c2)
   write(*,'(A6,I10,1pE12.4)') 'C3   ', sze_c3, f_norm(c3,sze_c3)
   write(*,'(A6,I10,1pE12.4)') 'C4   ', sze_c4, f_norm(c4,sze_c4)
+  write(*,'(A6,I10,1pE12.4)') 'C5   ', sze_c5, f_norm(c5,sze_c5)
   write(*,'(A6,I10,1pE12.4)') 'C6   ', sze_c6, f_norm(c6,sze_c6)
 
   deallocate(c2_det,c2_coef)
   deallocate(c3_det,c3_coef)
   deallocate(c4_det,c4_coef)
+  deallocate(c5_det,c5_coef)
   deallocate(c6_det,c6_coef)
   
   allocate(c2_det(N_int,2,sze_c2),c2_coef(sze_c2))
   allocate(c3_det(N_int,2,sze_c3),c3_coef(sze_c3))
   allocate(c4_det(N_int,2,sze_c4),c4_coef(sze_c4))
+  allocate(c5_det(N_int,2,sze_c5),c5_coef(sze_c5))
   allocate(c6_det(N_int,2,sze_c6),c6_coef(sze_c6))
   
   call build_det_t(c2,c2_idx,sze_c2,4,c2_det,c2_coef)
   call build_det_t(c3,c3_idx,sze_c3,6,c3_det,c3_coef)
   call build_det_t(c4,c4_idx,sze_c4,8,c4_det,c4_coef)
-
+  call build_det_t(c5,c5_idx,sze_c5,10,c5_det,c5_coef)
   call build_det_t(c6,c6_idx,sze_c6,12,c6_det,c6_coef)
 
-  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c6
+  sze_cc = 1 + sze_c1 + sze_c2 + sze_c3 + sze_c4 + sze_c5 + sze_c6
 
   allocate(psi_det_cc(N_int,2,sze_cc),psi_coef_cc(sze_cc))
 
@@ -873,8 +1009,15 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
     psi_det_cc(:,:,k+i) = c4_det(:,:,i)
   enddo
 
-  ! C6
+  ! C5
   k = k + sze_c4
+  do i = 1, sze_c5
+    psi_coef_cc(k+i) = c5_coef(i)
+    psi_det_cc(:,:,k+i) = c5_det(:,:,i)
+  enddo
+
+  ! C6
+  k = k + sze_c5
   do i = 1, sze_c6
     psi_coef_cc(k+i) = c6_coef(i)
     psi_det_cc(:,:,k+i) = c6_det(:,:,i)
@@ -2432,8 +2575,10 @@ subroutine contrib_t12(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t2,t2,t2_idx,&
       endif
     enddo
   enddo 
+
   ! Sort
   call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+
   ! Reorder the index of each t
   call reorder_t_idx(t12,t12_idx,sze_t12,6)
 
@@ -2540,11 +2685,220 @@ subroutine contrib_t12_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t2,t2,t2_
         exit
       endif
     enddo
-  enddo 
+  enddo
+  
   ! Sort
   call sort_by_coef_idx(t12,t12_idx,sze_t12,6)
+
   ! Reorder the index of each t
   call reorder_t_idx(t12,t12_idx,sze_t12,6)
+
+end  
+#+end_src
+
+** T1 T2^2
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t122_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,sze_t122)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t22
+  double precision, intent(in) :: thresh,t1(sze_t1),t22(sze_t22)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t22_idx(8,sze_t22)
+
+  ! out
+  integer, intent(out)         :: sze_t122
+
+  integer :: i,j,idx
+
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t22
+      if (dabs(t1(i) * t22(j)) >= thresh) then
+        if (t1_idx(1,i) == t22_idx(1,j) .or. t1_idx(1,i) == t22_idx(2,j) .or. &
+            t1_idx(1,i) == t22_idx(3,j) .or. t1_idx(1,i) == t22_idx(4,j) .or. &
+            t1_idx(2,i) == t22_idx(5,j) .or. t1_idx(2,i) == t22_idx(6,j) .or. &
+            t1_idx(2,i) == t22_idx(7,j) .or. t1_idx(2,i) == t22_idx(8,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t122 = idx
+        
+end
+
+subroutine contrib_t122(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122,t122,t122_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t22,sze_t122
+  double precision, intent(in)    :: thresh,t1(sze_t1),t22(sze_t22)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t22_idx(8,sze_t22)
+
+  ! out
+  double precision, intent(out)   :: t122(sze_t122)
+  integer, intent(out)            :: t122_idx(10,sze_t122)
+  
+  integer :: i,j,idx
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t22
+      if (dabs(t1(i) * t22(j)) >= thresh) then
+        if (t1_idx(1,i) == t22_idx(1,j) .or. t1_idx(1,i) == t22_idx(2,j) .or. &
+            t1_idx(1,i) == t22_idx(3,j) .or. t1_idx(1,i) == t22_idx(4,j) .or. &
+            t1_idx(2,i) == t22_idx(5,j) .or. t1_idx(2,i) == t22_idx(6,j) .or. &
+            t1_idx(2,i) == t22_idx(7,j) .or. t1_idx(2,i) == t22_idx(8,j)) cycle
+        t122(idx) = t1(i) * t22(j)
+        t122_idx(1,idx) = t1_idx(1,i)
+        t122_idx(6,idx) = t1_idx(2,i)
+        t122_idx(2,idx) = t22_idx(1,j)
+        t122_idx(3,idx) = t22_idx(2,j)
+        t122_idx(4,idx) = t22_idx(3,j)
+        t122_idx(5,idx) = t22_idx(4,j)
+        t122_idx(7,idx) = t22_idx(5,j)
+        t122_idx(8,idx) = t22_idx(6,j)
+        t122_idx(9,idx) = t22_idx(7,j)
+        t122_idx(10,idx) = t22_idx(8,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t122,t122_idx,sze_t122,10)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t122,t122_idx,sze_t122,10)
+
+end  
+#+end_src
+
+** T1 T2^2 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t122_full_nb(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,sze_t122)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t22
+  double precision, intent(in) :: thresh1,thresh2,t1(sze_t1),t22(sze_t22)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t22_idx(8,sze_t22)
+
+  ! out
+  integer, intent(out)         :: sze_t122
+
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t22
+      tmp = t1(i) * t22(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t22_idx(1,j) .or. t1_idx(1,i) == t22_idx(2,j) .or. &
+            t1_idx(1,i) == t22_idx(3,j) .or. t1_idx(1,i) == t22_idx(4,j) .or. &
+            t1_idx(2,i) == t22_idx(5,j) .or. t1_idx(2,i) == t22_idx(6,j) .or. &
+            t1_idx(2,i) == t22_idx(7,j) .or. t1_idx(2,i) == t22_idx(8,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(6) = t1_idx(2,i)
+        tmp_idx(2) = t22_idx(1,j)
+        tmp_idx(3) = t22_idx(2,j)
+        tmp_idx(4) = t22_idx(3,j)
+        tmp_idx(5) = t22_idx(4,j)
+        tmp_idx(7) = t22_idx(5,j)
+        tmp_idx(8) = t22_idx(6,j)
+        tmp_idx(9) = t22_idx(7,j)
+        tmp_idx(10) = t22_idx(8,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t122 = idx
+        
+end
+
+subroutine contrib_t122_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t22,t22,t22_idx,&
+     sze_t122,t122,t122_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t22,sze_t122
+  double precision, intent(in)    :: thresh1,thresh2,t1(sze_t1),t22(sze_t22)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t22_idx(8,sze_t22)
+
+  ! out
+  double precision, intent(out)   :: t122(sze_t122)
+  integer, intent(out)            :: t122_idx(10,sze_t122)
+  
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t22
+      tmp = t1(i) * t22(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t22_idx(1,j) .or. t1_idx(1,i) == t22_idx(2,j) .or. &
+            t1_idx(1,i) == t22_idx(3,j) .or. t1_idx(1,i) == t22_idx(4,j) .or. &
+            t1_idx(2,i) == t22_idx(5,j) .or. t1_idx(2,i) == t22_idx(6,j) .or. &
+            t1_idx(2,i) == t22_idx(7,j) .or. t1_idx(2,i) == t22_idx(8,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(6) = t1_idx(2,i)
+        tmp_idx(2) = t22_idx(1,j)
+        tmp_idx(3) = t22_idx(2,j)
+        tmp_idx(4) = t22_idx(3,j)
+        tmp_idx(5) = t22_idx(4,j)
+        tmp_idx(7) = t22_idx(5,j)
+        tmp_idx(8) = t22_idx(6,j)
+        tmp_idx(9) = t22_idx(7,j)
+        tmp_idx(10) = t22_idx(8,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t122(idx) = tmp
+        t122_idx(:,idx) = tmp_idx(:)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t122,t122_idx,sze_t122,10)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t122,t122_idx,sze_t122,10)
 
 end  
 #+end_src
@@ -2751,6 +3105,214 @@ subroutine contrib_t13_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t3,t3,t3_
 end  
 #+end_src
 
+** T1^2 T3
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t113_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,sze_t113)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t13
+  double precision, intent(in) :: thresh,t1(sze_t1),t13(sze_t13)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t13_idx(8,sze_t13)
+
+  ! out
+  integer, intent(out)         :: sze_t113
+
+  integer :: i,j,idx
+
+  ! t13
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t13
+      if (dabs(t1(i) * t13(j)) >= thresh) then
+        if (t1_idx(1,i) == t13_idx(1,j) .or. t1_idx(1,i) == t13_idx(2,j) .or. &
+            t1_idx(1,i) == t13_idx(3,j) .or. t1_idx(1,i) == t13_idx(4,j) .or. &
+            t1_idx(2,i) == t13_idx(5,j) .or. t1_idx(2,i) == t13_idx(6,j) .or. &
+            t1_idx(2,i) == t13_idx(7,j) .or. t1_idx(2,i) == t13_idx(8,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t113 = idx
+        
+end
+
+subroutine contrib_t113(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113,t113,t113_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t13,sze_t113
+  double precision, intent(in)    :: thresh,t1(sze_t1),t13(sze_t13)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t13_idx(8,sze_t13)
+
+  ! out
+  double precision, intent(out)   :: t113(sze_t113)
+  integer, intent(out)            :: t113_idx(10,sze_t113)
+  
+  integer :: i,j,idx
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t13
+      if (dabs(t1(i) * t13(j)) >= thresh) then
+        if (t1_idx(1,i) == t13_idx(1,j) .or. t1_idx(1,i) == t13_idx(2,j) .or. &
+            t1_idx(1,i) == t13_idx(3,j) .or. t1_idx(1,i) == t13_idx(4,j) .or. &
+            t1_idx(2,i) == t13_idx(5,j) .or. t1_idx(2,i) == t13_idx(6,j) .or. &
+            t1_idx(2,i) == t13_idx(7,j) .or. t1_idx(2,i) == t13_idx(8,j)) cycle
+        t113(idx) = t1(i) * t13(j)
+        t113_idx(1,idx) = t1_idx(1,i)
+        t113_idx(6,idx) = t1_idx(2,i)
+        t113_idx(2,idx) = t13_idx(1,j)
+        t113_idx(3,idx) = t13_idx(2,j)
+        t113_idx(4,idx) = t13_idx(3,j)
+        t113_idx(5,idx) = t13_idx(4,j)
+        t113_idx(7,idx) = t13_idx(5,j)
+        t113_idx(8,idx) = t13_idx(6,j)
+        t113_idx(9,idx) = t13_idx(7,j)
+        t113_idx(10,idx) = t13_idx(8,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t113,t113_idx,sze_t113,10)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t113,t113_idx,sze_t113,10)
+  
+end  
+#+end_src
+
+** T1^2 T3 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t113_full_nb(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,sze_t113)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t13
+  double precision, intent(in) :: thresh1,thresh2,t1(sze_t1),t13(sze_t13)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t13_idx(8,sze_t13)
+
+  ! out
+  integer, intent(out)         :: sze_t113
+
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t13
+      tmp = t1(i) * t13(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t13_idx(1,j) .or. t1_idx(1,i) == t13_idx(2,j) .or. &
+            t1_idx(1,i) == t13_idx(3,j) .or. t1_idx(1,i) == t13_idx(4,j) .or. &
+            t1_idx(2,i) == t13_idx(5,j) .or. t1_idx(2,i) == t13_idx(6,j) .or. &
+            t1_idx(2,i) == t13_idx(7,j) .or. t1_idx(2,i) == t13_idx(8,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(6) = t1_idx(2,i)
+        tmp_idx(2) = t13_idx(1,j)
+        tmp_idx(3) = t13_idx(2,j)
+        tmp_idx(4) = t13_idx(3,j)
+        tmp_idx(5) = t13_idx(4,j)
+        tmp_idx(7) = t13_idx(5,j)
+        tmp_idx(8) = t13_idx(6,j)
+        tmp_idx(9) = t13_idx(7,j)
+        tmp_idx(10) = t13_idx(8,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t113 = idx
+        
+end
+
+subroutine contrib_t113_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t13,t13,t13_idx,&
+     sze_t113,t113,t113_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t13,sze_t113
+  double precision, intent(in)    :: thresh1,thresh2,t1(sze_t1),t13(sze_t13)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t13_idx(8,sze_t13)
+
+  ! out
+  double precision, intent(out)   :: t113(sze_t113)
+  integer, intent(out)            :: t113_idx(10,sze_t113)
+  
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t13
+      tmp = t1(i) * t13(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t13_idx(1,j) .or. t1_idx(1,i) == t13_idx(2,j) .or. &
+            t1_idx(1,i) == t13_idx(3,j) .or. t1_idx(1,i) == t13_idx(4,j) .or. &
+            t1_idx(2,i) == t13_idx(5,j) .or. t1_idx(2,i) == t13_idx(6,j) .or. &
+            t1_idx(2,i) == t13_idx(7,j) .or. t1_idx(2,i) == t13_idx(8,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(6) = t1_idx(2,i)
+        tmp_idx(2) = t13_idx(1,j)
+        tmp_idx(3) = t13_idx(2,j)
+        tmp_idx(4) = t13_idx(3,j)
+        tmp_idx(5) = t13_idx(4,j)
+        tmp_idx(7) = t13_idx(5,j)
+        tmp_idx(8) = t13_idx(6,j)
+        tmp_idx(9) = t13_idx(7,j)
+        tmp_idx(10) = t13_idx(8,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t113(idx) = tmp
+        t113_idx(:,idx) = tmp_idx(:)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t113,t113_idx,sze_t113,10)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t113,t113_idx,sze_t113,10)
+  
+end  
+#+end_src
+
 ** T2 T3
 #+begin_src f90 :comments org :tangle cc_to_ci.irp.f
 subroutine contrib_t23_nb(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,sze_t23)
@@ -2844,6 +3406,357 @@ subroutine contrib_t23(nO,nV,thresh,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,&
   call reorder_t_idx(t23,t23_idx,sze_t23,10)
 
 end
+#+end_src
+
+** T2 T3 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t23_full_nb(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,sze_t23)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t2,sze_t3
+  double precision, intent(in) :: thresh1,thresh2,t2(sze_t2),t3(sze_t3)
+  integer, intent(in)          :: t2_idx(4,sze_t2),t3_idx(6,sze_t3)
+
+  ! out
+  integer, intent(out)         :: sze_t23
+
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  ! t13
+  idx = 0
+  do i = 1, sze_t2
+    do j = 1, sze_t3
+      tmp = t2(i) * t3(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t2_idx(1,i) == t3_idx(1,j) .or. t2_idx(1,i) == t3_idx(2,j) .or. &
+            t2_idx(1,i) == t3_idx(3,j) .or. &
+            t2_idx(2,i) == t3_idx(1,j) .or. t2_idx(2,i) == t3_idx(2,j) .or. &
+            t2_idx(2,i) == t3_idx(3,j) .or. &
+            t2_idx(3,i) == t3_idx(4,j) .or. t2_idx(3,i) == t3_idx(5,j) .or. &
+            t2_idx(3,i) == t3_idx(6,j) .or. &
+            t2_idx(4,i) == t3_idx(4,j) .or. t2_idx(4,i) == t3_idx(5,j) .or. &
+            t2_idx(4,i) == t3_idx(6,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t2_idx(1,i)
+        tmp_idx(2) = t2_idx(2,i)
+        tmp_idx(6) = t2_idx(3,i)
+        tmp_idx(7) = t2_idx(4,i)
+        tmp_idx(3) = t3_idx(1,j)
+        tmp_idx(4) = t3_idx(2,j)
+        tmp_idx(5) = t3_idx(3,j)
+        tmp_idx(8) = t3_idx(4,j)
+        tmp_idx(9) = t3_idx(5,j)
+        tmp_idx(10) = t3_idx(6,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t23 = idx
+        
+end
+
+subroutine contrib_t23_full(nO,nV,thresh1,thresh2,sze_t2,t2,t2_idx,sze_t3,t3,t3_idx,&
+     sze_t23,t23,t23_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t2,sze_t3,sze_t23
+  double precision, intent(in)    :: thresh1,thresh2,t2(sze_t2),t3(sze_t3)
+  integer, intent(in)             :: t2_idx(4,sze_t2),t3_idx(6,sze_t3)
+
+  ! out
+  double precision, intent(out)   :: t23(sze_t23)
+  integer, intent(out)            :: t23_idx(10,sze_t23)
+  
+  integer :: i,j,idx,tmp_idx(10)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 1
+  do i = 1, sze_t2
+    do j = 1, sze_t3
+      tmp = t2(i) * t3(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t2_idx(1,i) == t3_idx(1,j) .or. t2_idx(1,i) == t3_idx(2,j) .or. &
+            t2_idx(1,i) == t3_idx(3,j) .or. &
+            t2_idx(2,i) == t3_idx(1,j) .or. t2_idx(2,i) == t3_idx(2,j) .or. &
+            t2_idx(2,i) == t3_idx(3,j) .or. &
+            t2_idx(3,i) == t3_idx(4,j) .or. t2_idx(3,i) == t3_idx(5,j) .or. &
+            t2_idx(3,i) == t3_idx(6,j) .or. &
+            t2_idx(4,i) == t3_idx(4,j) .or. t2_idx(4,i) == t3_idx(5,j) .or. &
+            t2_idx(4,i) == t3_idx(6,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t2_idx(1,i)
+        tmp_idx(2) = t2_idx(2,i)
+        tmp_idx(6) = t2_idx(3,i)
+        tmp_idx(7) = t2_idx(4,i)
+        tmp_idx(3) = t3_idx(1,j)
+        tmp_idx(4) = t3_idx(2,j)
+        tmp_idx(5) = t3_idx(3,j)
+        tmp_idx(8) = t3_idx(4,j)
+        tmp_idx(9) = t3_idx(5,j)
+        tmp_idx(10) = t3_idx(6,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,10,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t23(idx) = tmp
+        t23_idx(:,idx) = tmp_idx(:)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  ! Sort
+  call sort_by_coef_idx(t23,t23_idx,sze_t23,10)
+  
+  ! Reorder the index of each t
+  call reorder_t_idx(t23,t23_idx,sze_t23,10)
+
+end
+#+end_src
+
+** T1 T2 T3
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t123_nb(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,sze_t123)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t23
+  double precision, intent(in) :: thresh,t1(sze_t1),t23(sze_t23)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t23_idx(10,sze_t23)
+
+  ! out
+  integer, intent(out)         :: sze_t123
+
+  integer :: i,j,idx
+
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t23
+      if (dabs(t1(i) * t23(j)) >= thresh) then
+        if (t1_idx(1,i) == t23_idx(1,j) .or. t1_idx(1,i) == t23_idx(2,j) .or. &
+            t1_idx(1,i) == t23_idx(3,j) .or. t1_idx(1,i) == t23_idx(4,j) .or. &
+            t1_idx(1,i) == t23_idx(5,j) .or. &
+            t1_idx(2,i) == t23_idx(6,j) .or. t1_idx(2,i) == t23_idx(7,j) .or. &
+            t1_idx(2,i) == t23_idx(8,j) .or. t1_idx(2,i) == t23_idx(9,j) .or. &
+            t1_idx(2,i) == t23_idx(10,j)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t123 = idx
+        
+end
+
+subroutine contrib_t123(nO,nV,thresh,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123,t123,t123_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t23,sze_t123
+  double precision, intent(in)    :: thresh,t1(sze_t1),t23(sze_t23)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t23_idx(10,sze_t23)
+
+  ! out
+  double precision, intent(out)   :: t123(sze_t123)
+  integer, intent(out)            :: t123_idx(12,sze_t123)
+  
+  integer :: i,j,idx
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t23
+      if (dabs(t1(i) * t23(j)) >= thresh) then
+        if (t1_idx(1,i) == t23_idx(1,j) .or. t1_idx(1,i) == t23_idx(2,j) .or. &
+            t1_idx(1,i) == t23_idx(3,j) .or. t1_idx(1,i) == t23_idx(4,j) .or. &
+            t1_idx(1,i) == t23_idx(5,j) .or. &
+            t1_idx(2,i) == t23_idx(6,j) .or. t1_idx(2,i) == t23_idx(7,j) .or. &
+            t1_idx(2,i) == t23_idx(8,j) .or. t1_idx(2,i) == t23_idx(9,j) .or. &
+            t1_idx(2,i) == t23_idx(10,j)) cycle
+        t123(idx) = t1(i) * t23(j)
+        t123_idx(1,idx) = t1_idx(1,i)
+        t123_idx(7,idx) = t1_idx(2,i)
+        t123_idx(2,idx) = t23_idx(1,j)
+        t123_idx(3,idx) = t23_idx(2,j)
+        t123_idx(4,idx) = t23_idx(3,j)
+        t123_idx(5,idx) = t23_idx(4,j)
+        t123_idx(6,idx) = t23_idx(5,j)
+        t123_idx(8,idx) = t23_idx(6,j)
+        t123_idx(9,idx) = t23_idx(7,j)
+        t123_idx(10,idx) = t23_idx(8,j)
+        t123_idx(11,idx) = t23_idx(9,j)
+        t123_idx(12,idx) = t23_idx(10,j)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo 
+
+  ! Sort
+  call sort_by_coef_idx(t123,t123_idx,sze_t123,12)
+
+  ! Reorder the index of each t
+  call reorder_t_idx(t123,t123_idx,sze_t123,12)
+
+end  
+#+end_src
+
+** T1 T2 T3 fill square
+#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+subroutine contrib_t123_full_nb(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,sze_t123)
+
+  implicit none
+
+  ! in
+  integer, intent(in)          :: nO,nV,sze_t1,sze_t23
+  double precision, intent(in) :: thresh1,thresh2,t1(sze_t1),t23(sze_t23)
+  integer, intent(in)          :: t1_idx(2,sze_t1),t23_idx(10,sze_t23)
+
+  ! out
+  integer, intent(out)         :: sze_t123
+
+  integer :: i,j,idx,tmp_idx(12)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 0
+  do i = 1, sze_t1
+    do j = 1, sze_t23
+      tmp = t1(i) * t23(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t23_idx(1,j) .or. t1_idx(1,i) == t23_idx(2,j) .or. &
+            t1_idx(1,i) == t23_idx(3,j) .or. t1_idx(1,i) == t23_idx(4,j) .or. &
+            t1_idx(1,i) == t23_idx(5,j) .or. &
+            t1_idx(2,i) == t23_idx(6,j) .or. t1_idx(2,i) == t23_idx(7,j) .or. &
+            t1_idx(2,i) == t23_idx(8,j) .or. t1_idx(2,i) == t23_idx(9,j) .or. &
+            t1_idx(2,i) == t23_idx(10,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(7) = t1_idx(2,i)
+        tmp_idx(2) = t23_idx(1,j)
+        tmp_idx(3) = t23_idx(2,j)
+        tmp_idx(4) = t23_idx(3,j)
+        tmp_idx(5) = t23_idx(4,j)
+        tmp_idx(6) = t23_idx(5,j)
+        tmp_idx(8) = t23_idx(6,j)
+        tmp_idx(9) = t23_idx(7,j)
+        tmp_idx(10) = t23_idx(8,j)
+        tmp_idx(11) = t23_idx(9,j)
+        tmp_idx(12) = t23_idx(10,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,12,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo
+  
+  sze_t123 = idx
+        
+end
+
+subroutine contrib_t123_full(nO,nV,thresh1,thresh2,sze_t1,t1,t1_idx,sze_t23,t23,t23_idx,&
+     sze_t123,t123,t123_idx)
+
+  implicit none
+
+  ! in
+  integer, intent(in)             :: nO,nV,sze_t1,sze_t23,sze_t123
+  double precision, intent(in)    :: thresh1,thresh2,t1(sze_t1),t23(sze_t23)
+  integer, intent(in)             :: t1_idx(2,sze_t1),t23_idx(10,sze_t23)
+
+  ! out
+  double precision, intent(out)   :: t123(sze_t123)
+  integer, intent(out)            :: t123_idx(12,sze_t123)
+  
+  integer :: i,j,idx,tmp_idx(12)
+  double precision :: acc, tmp, coef(1)
+  integer(bit_kind) :: det(N_int,2)
+  logical, external :: is_in_psi_det_alpha_unique
+  logical, external :: is_in_psi_det_beta_unique
+
+  idx = 1
+  do i = 1, sze_t1
+    do j = 1, sze_t23
+      tmp = t1(i) * t23(j)
+      if (dabs(tmp) >= thresh1) cycle
+      if (dabs(tmp) >= thresh2) then
+        if (t1_idx(1,i) == t23_idx(1,j) .or. t1_idx(1,i) == t23_idx(2,j) .or. &
+            t1_idx(1,i) == t23_idx(3,j) .or. t1_idx(1,i) == t23_idx(4,j) .or. &
+            t1_idx(1,i) == t23_idx(5,j) .or. &
+            t1_idx(2,i) == t23_idx(6,j) .or. t1_idx(2,i) == t23_idx(7,j) .or. &
+            t1_idx(2,i) == t23_idx(8,j) .or. t1_idx(2,i) == t23_idx(9,j) .or. &
+            t1_idx(2,i) == t23_idx(10,j)) cycle
+        ! Indexes
+        tmp_idx(1) = t1_idx(1,i)
+        tmp_idx(7) = t1_idx(2,i)
+        tmp_idx(2) = t23_idx(1,j)
+        tmp_idx(3) = t23_idx(2,j)
+        tmp_idx(4) = t23_idx(3,j)
+        tmp_idx(5) = t23_idx(4,j)
+        tmp_idx(6) = t23_idx(5,j)
+        tmp_idx(8) = t23_idx(6,j)
+        tmp_idx(9) = t23_idx(7,j)
+        tmp_idx(10) = t23_idx(8,j)
+        tmp_idx(11) = t23_idx(9,j)
+        tmp_idx(12) = t23_idx(10,j)
+        ! Det
+        call build_det_t((/0d0/),tmp_idx,1,12,det,coef)
+        ! Is in alpha C beta
+        if (.not. is_in_psi_det_alpha_unique(det(1,1),N_int)) cycle
+        if (.not. is_in_psi_det_beta_unique(det(1,2),N_int)) cycle
+        t123(idx) = tmp
+        t123_idx(:,idx) = tmp_idx(:)
+        idx = idx + 1
+      else
+        exit
+      endif
+    enddo
+  enddo 
+
+  ! Sort
+  call sort_by_coef_idx(t123,t123_idx,sze_t123,12)
+
+  ! Reorder the index of each t
+  call reorder_t_idx(t123,t123_idx,sze_t123,12)
+
+end  
 #+end_src
 
 ** T2^2

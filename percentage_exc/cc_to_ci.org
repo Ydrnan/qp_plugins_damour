@@ -5185,7 +5185,7 @@ end
 
 
 ** Search det
-#+begin_src f90 :comments org :tangle cc_to_ci.irp.f
+#+begin_src f90 :comments org :tangle search_det.irp.f
 logical function is_in_psi_det_alpha_unique(key,Nint)
   use bitmasks
   BEGIN_DOC

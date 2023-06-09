@@ -4,15 +4,20 @@ program cut
 
   implicit none
 
-  integer :: i,j,k,l,m,n,na,nb,nab,n_max
+  integer :: i,j,k,l,m,n,na,nb,nab,n_max,beg,sze,idx
   integer :: Na_save,Nb_save,N_det_save
   integer, allocatable :: iorder(:)
   double precision :: norm,  energy, e
   double precision, allocatable :: norm_sort(:)
-  integer(bit_kind), allocatable :: psi_det_save(:,:,:), psi_a_save(:,:), psi_b_save(:,:)
+  integer(bit_kind), allocatable :: psi_det_save(:,:,:), psi_a_save(:,:), psi_b_save(:,:), cp_det(:,:,:)
   double precision, allocatable :: psi_coef_save(:,:), psi_bilinear_matrix_save(:,:,:)
-  double precision, allocatable :: e_line(:,:), e_column(:,:)
+  double precision, allocatable :: e_line(:,:), e_column(:,:), cp_coef(:,:)
   double precision :: e_target
+  double precision, allocatable :: e_tmp(:)
+  integer, allocatable :: tmp_order(:)
+  integer :: n_col, n_line, cp_ndet
+  logical :: must_exit, allowed_to_exit
+  double precision :: cost0, cost
 
   PROVIDE mo_two_e_integrals_in_map mo_one_e_integrals
 
@@ -20,11 +25,15 @@ program cut
     stop 'Please set read_wf to true'
   endif
 
-  e_target = -199.094d0
+  e_target = target_energy_qmc
+
+  if (e_target == 0d0) then
+    stop 'Please set target_energy_qmc to the targeted energy'
+  endif
 
   ! Initial cut to reduce the number of alpha/beta parts
   print*,'Initial cut...'
-  n_max = 10000
+  n_max = nb_line_max_qmc
 
   call reduce_psi_bilinear(2*n_max)
   print*,'Done'
@@ -39,7 +48,9 @@ program cut
   allocate(psi_bilinear_matrix_save(N_det_alpha_unique,N_det_beta_unique,N_states))
   psi_det_save = psi_det
   psi_coef_save = psi_coef
-  psi_bilinear_matrix_save = psi_bilinear_matrix 
+  if (.True.) then
+    psi_bilinear_matrix_save = psi_bilinear_matrix 
+  endif
 
   ! Add columns/lines with largest PT2 ?
   allocate(psi_a_save(N_int,Na_save),psi_b_save(N_int,Nb_save))
@@ -49,177 +60,231 @@ program cut
 
   N_det = 1
   TOUCH psi_det psi_coef N_det
-  print*,'norm1',dsqrt(sum(psi_coef(1:N_det,1)**2))
-  
-  double precision, allocatable :: e_tmp(:), buff_coef(:)
-  integer, allocatable :: tmp_order(:),idx_a(:),idx_b(:)
-  integer(bit_kind), allocatable :: buff_det(:,:,:), buff_a(:,:), buff_b(:,:)
-  integer :: ia,ib,a,b,n1,n2,n3
-  logical :: is_eq, must_exit
-  logical, external :: is_in_wavefunction
-  integer, external :: get_index_in_psi_det_alpha_unique, get_index_in_psi_det_beta_unique
-  integer :: ia_max, ib_max, idx_i,idx_j
+  !print*,'norm1',dsqrt(sum(psi_coef(1:N_det,1)**2))
   
   allocate(e_tmp(Na_save+Nb_save))
   allocate(tmp_order(Na_save+Nb_save))
-  allocate(buff_a(N_int,Na_save),buff_b(N_int,Nb_save))
-  allocate(idx_a(Na_save),idx_b(Nb_save))
-  
-  do while (.True.)
-    na = N_det_alpha_unique
-    nb = N_det_beta_unique
+ 
+  n_max = 2
+  must_exit = .False.
+ 
+  do while (.True.) 
+
+    ! pt2 contrib of each line/col
     call pt2_by_line(Na_save,psi_a_save,Nb_save,psi_b_save,psi_bilinear_matrix_save,e_line,e_column)
-     if (N_det == 9) exit
-     do i = 1, Na_save
-       tmp_order(i) = i
-       e_tmp(i) = e_line(i,1)
-     enddo
-     do i = 1, Nb_save
-       tmp_order(Na_save+i) = -i
-       e_tmp(Na_save+i) = e_column(i,1)
-     enddo
-     call dsort(e_tmp,tmp_order,Na_save+Nb_save)
 
-     e = psi_energy(1) + nuclear_repulsion
-     ia = 1
-     ib = 1
-     do i = 1, min(Na_save+Nb_save,2*N_det)
-       e = e + e_tmp(i)
-       j = tmp_order(i)
-       if (e_tmp(i) == 0d0) exit
-       if (j > 0) then
-         buff_a(:,ia) = psi_a_save(:,j)
-         idx_a(ia) = j
-         ia = ia + 1
-       else
-         buff_b(:,ib) = psi_b_save(:,-j)
-         idx_b(ib) = -j
-         ib = ib + 1
-       endif
-     enddo
-     ia = ia - 1
-     ib = ib - 1
-     !print*,'ia/ib',ia,ib
-     !print*,'e',e_tmp(1:ia+ib)
-     !print*,'idx_a',idx_a(1:ia)
-     !print*,'idx_b',idx_b(1:ib)
-     
-     allocate(buff_det(N_int,2,na*ib+ia*nb+ia*ib),buff_coef(na*ib+ia*nb+ia*ib))
+    ! Counts the non-zero contrib and sorts them
+    n_line = 0
+    n_col = 0
 
-     ! New_a - old_b
-     k = 1
-     do j = 1, N_det_beta_unique
-       ! Index beta in psi_b_save
-       do b = 1, Nb_save
-         is_eq = .True.
-         do l = 1, N_int
-           if (psi_det_beta_unique(l,j) /= psi_b_save(l,b)) then
-             is_eq = .False.
-             exit
-           endif
-         enddo
-         if (is_eq) exit
-       enddo
-       do i = 1, ia
-         if (psi_bilinear_matrix_save(idx_a(i),b,1) == 0d0) cycle
-         buff_det(:,1,k) = buff_a(:,i)
-         buff_det(:,2,k) = psi_b_save(:,b)
-         buff_coef(k) = psi_bilinear_matrix_save(idx_a(i),b,1)
-         k = k + 1
-       enddo
-     enddo
-   
-     ! Old_a- New_b
-     do j = 1, ib
-       do i = 1, N_det_alpha_unique
-         ! Index alpha in psi_a_save
-         do a = 1, Na_save
-           is_eq = .True.
-           do l = 1, N_int
-             if (psi_det_alpha_unique(l,i) /= psi_a_save(l,a)) then
-               is_eq = .False.
-               exit
-             endif
-           enddo
-           if (is_eq) exit
-         enddo
-         if (psi_bilinear_matrix_save(a,idx_b(j),1) == 0d0) cycle
-         buff_det(:,1,k) = psi_a_save(:,a)
-         buff_det(:,2,k) = buff_b(:,j)
-         buff_coef(k) = psi_bilinear_matrix_save(a,idx_b(j),1)
-         k = k + 1
-       enddo
-     enddo
+    do i = 1, Na_save
+      tmp_order(i) = i
+      e_tmp(i) = e_line(i,1)
 
-     ! new_a - new_b
-     do j = 1, ib
-       do i = 1, ia
-         if (psi_bilinear_matrix_save(idx_a(i),idx_b(j),1) == 0d0) cycle
-         buff_det(:,1,k) = buff_a(:,i)
-         buff_det(:,2,k) = buff_b(:,j)
-         buff_coef(k) = psi_bilinear_matrix_save(idx_a(i),idx_b(j),1)
-         k = k + 1
-       enddo
-     enddo
+      if (e_tmp(i) /= 0d0) then
+        n_line = n_line + 1
+      endif
+    enddo
+    do i = 1, Nb_save
+      tmp_order(Na_save+i) = -i
+      e_tmp(Na_save+i) = e_column(i,1)
+      if (e_tmp(Na_save+i) /= 0d0) then
+        n_col = n_col + 1
+      endif
+    enddo
+    call dsort(e_tmp,tmp_order,Na_save+Nb_save)
 
-     call add_det_wf(buff_det,buff_coef,k-1)
-     deallocate(buff_det,buff_coef)
-     print*,'E',N_det,psi_energy+nuclear_repulsion
-     
-     
+    ! Copy the wf
+    allocate(cp_coef(N_det,1),cp_det(N_int,2,N_det))   
+    cp_coef = psi_coef
+    cp_det = psi_det
+    cp_ndet = N_det
+ 
+    allowed_to_exit = .True.
+    do while (.True.)
+      
+      call add_line_col_from_pt2(n_max,n_col,n_line,Na_save,psi_a_save, &
+         Nb_save,psi_b_save,psi_bilinear_matrix_save,tmp_order)
 
-     if (N_det == N_det_save) exit
+      na = N_det_alpha_unique
+      nb = N_det_beta_unique
+      cost0 = elec_alpha_num**3 + elec_beta_num**3
+      cost = (na-1) * elec_alpha_num**2 + &
+             (nb-1) * elec_beta_num**2 + &
+              elec_alpha_num**3 + elec_beta_num**3
+      cost = cost/cost0
 
-     must_exit = .False.
-     if (psi_energy(1)+nuclear_repulsion > e_target) cycle
-        ia_max = ia - ia/10
-        ib_max = ib - ib/10
-     do while (.True.)
-        must_exit = .True.
-        do j = ib_max, ib
-          idx_j = get_index_in_psi_det_beta_unique(buff_b(1,j),N_int)
-          ! Need to be fixed...
-          if (idx_j == 0) cycle
-          do i = 1, N_det_alpha_unique
-            psi_bilinear_matrix(i,idx_j,1) = 0d0
-          enddo
-        enddo
-        do j = 1, N_det_beta_unique
-          do i = ia_max, ia
-            idx_i = get_index_in_psi_det_alpha_unique(buff_a(1,i),N_int)
-          ! Need to be fixed...
-          if (idx_i == 0) cycle
-            psi_bilinear_matrix(idx_i,j,1) = 0d0
-          enddo
-        enddo
-        m = 0
-        psi_coef(:,1) = 0d0
-        do j = 1, N_det_beta_unique
-          do i = 1, N_det_alpha_unique
-            if (psi_bilinear_matrix(i,j,1) /= 0d0) then
-               m = m + 1
-               psi_coef(m,1) = psi_bilinear_matrix(i,j,1)
-               psi_det(:,1,m) = psi_det_alpha_unique(:,i)
-               psi_det(:,2,m) = psi_det_beta_unique(:,j)
-            endif
-          enddo
-        enddo
-        N_det = m
-        TOUCH psi_det psi_coef N_det
-        print*,psi_energy+nuclear_repulsion,e_target
-        ia_max = ia_max - ia/10
-        ib_max = ib_max - ia/10
-        print*,ia_max,ib_max
-        if (psi_energy(1)+nuclear_repulsion > e_target) exit
-              
-     enddo
+     if (.True.) then
+      !print*,'E:',n_max,N_det,psi_energy+nuclear_repulsion
+      write(*,'(I10,F10.2,F20.10,F14.8)') N_det,cost,psi_energy+nuclear_repulsion,dsqrt(sum(psi_coef(1:N_det,:)**2))
+     endif
+      
+     !print*,''
+     !print*,'new'
+     !do i = 1, N_det
+     !  print*,psi_det(:,:,i)
+     !enddo
+     if (n_max < 2) then
+       must_exit = .True.
+       exit        
+     endif
+
+     ! Remove the added determinant
+     if (.True.) then
+        energy = psi_energy(1)+nuclear_repulsion
+     endif
+     if (energy < e_target) then
+       n_max = n_max / 2
+       psi_coef = cp_coef    
+       psi_det = cp_det
+       N_det = cp_ndet
+       TOUCH psi_coef psi_det N_det
+       allowed_to_exit = .False.
+       cycle
+     !else
+     !  n_max = n_max * 2
+     endif
+
+     if (allowed_to_exit) then
+       n_max = n_max * 2
+       exit
+     else
+       deallocate(cp_coef,cp_det)
+       allocate(cp_coef(N_det,1),cp_det(N_int,2,N_det))   
+       cp_coef = psi_coef
+       cp_det = psi_det
+       cp_ndet = N_det
+     endif
+    enddo
     
-     if (must_exit) exit    
+
+    deallocate(cp_coef,cp_det)
+    
+    if (N_det == N_det_save) exit
+    if (must_exit) exit
+    !if (psi_energy(1)+nuclear_repulsion > e_target) cycle
 
   enddo
 
   ! Remove columns/lines by norm
   
+end
+
+subroutine add_line_col_from_pt2(n_max,n_col,n_line,Na_save,psi_a_save, &
+        Nb_save,psi_b_save,psi_bilinear_matrix_save,tmp_order)
+
+  implicit none
+
+  integer, intent(in) :: Na_save,Nb_save,n_line,n_col,n_max
+  integer(bit_kind), intent(in) :: psi_a_save(N_int,Na_save), psi_b_save(N_int,Nb_save)
+  integer, intent(in) :: tmp_order(n_line+n_col)
+  double precision, intent(in) :: psi_bilinear_matrix_save(Na_save,Nb_save,N_states)
+
+  integer, allocatable :: idx_a(:), idx_b(:)
+  integer(bit_kind), allocatable :: buff_a(:,:), buff_b(:,:), buff_det(:,:,:)
+  double precision, allocatable :: buff_coef(:)
+
+  integer :: i,j,k,l,a,b,idx_i,idx_j,ia,ib,na,nb
+  integer, external :: get_index_in_psi_det_alpha_unique, get_index_in_psi_det_beta_unique
+  logical :: is_eq
+  logical, external :: is_in_wavefunction, is_in_psi_det_alpha_unique, is_in_psi_det_beta_unique
+
+  allocate(idx_a(n_line),idx_b(n_line))
+  allocate(buff_a(N_int,n_line),buff_b(N_int,n_col))
+
+  na = N_det_alpha_unique
+  nb = n_det_beta_unique
+
+  ia = 1
+  ib = 1
+  buff_a = 0
+  buff_b = 0
+  idx_a = 0
+  idx_b = 0
+
+  ! New a/b det
+  do i = 1, n_col+n_line
+    j = tmp_order(i)
+    if (j > 0) then
+      if (is_in_psi_det_alpha_unique(psi_a_save(1,j),N_int)) cycle
+      buff_a(:,ia) = psi_a_save(:,j)
+      idx_a(ia) = j
+      ia = ia + 1
+    else
+      if (is_in_psi_det_beta_unique(psi_b_save(1,-j),N_int)) cycle
+      buff_b(:,ib) = psi_b_save(:,-j)
+      idx_b(ib) = -j
+      ib = ib + 1
+    endif
+    if (ia+ib-2 == n_max) exit
+  enddo
+  ia = ia - 1
+  ib = ib - 1
+  
+  allocate(buff_det(N_int,2,na*ib+ia*nb+ia*ib),buff_coef(na*ib+ia*nb+ia*ib))
+
+  ! New_a - old_b
+  k = 1
+  do j = 1, N_det_beta_unique
+    ! Index beta in psi_b_save
+    do b = 1, Nb_save
+      is_eq = .True.
+      do l = 1, N_int
+        if (psi_det_beta_unique(l,j) /= psi_b_save(l,b)) then
+          is_eq = .False.
+          exit
+        endif
+      enddo
+      if (is_eq) exit
+    enddo
+    do i = 1, ia
+      if (psi_bilinear_matrix_save(idx_a(i),b,1) == 0d0) cycle
+      buff_det(:,1,k) = buff_a(:,i)
+      buff_det(:,2,k) = psi_b_save(:,b)
+      !if (is_in_wavefunction(buff_det(1,1,k),N_int)) cycle
+      buff_coef(k) = psi_bilinear_matrix_save(idx_a(i),b,1)
+      k = k + 1
+    enddo
+  enddo
+  
+  ! Old_a- New_b
+  do j = 1, ib
+    do i = 1, N_det_alpha_unique
+      ! Index alpha in psi_a_save
+      do a = 1, Na_save
+        is_eq = .True.
+        do l = 1, N_int
+          if (psi_det_alpha_unique(l,i) /= psi_a_save(l,a)) then
+            is_eq = .False.
+            exit
+          endif
+        enddo
+        if (is_eq) exit
+      enddo
+      if (psi_bilinear_matrix_save(a,idx_b(j),1) == 0d0) cycle
+      buff_det(:,1,k) = psi_a_save(:,a)
+      buff_det(:,2,k) = buff_b(:,j)
+      !if (is_in_wavefunction(buff_det(1,1,k),N_int)) cycle
+      buff_coef(k) = psi_bilinear_matrix_save(a,idx_b(j),1)
+      k = k + 1
+    enddo
+  enddo
+
+  ! new_a - new_b
+  do j = 1, ib
+    do i = 1, ia
+      if (psi_bilinear_matrix_save(idx_a(i),idx_b(j),1) == 0d0) cycle
+      buff_det(:,1,k) = buff_a(:,i)
+      buff_det(:,2,k) = buff_b(:,j)
+      if (is_in_wavefunction(buff_det(1,1,k),N_int)) cycle
+      buff_coef(k) = psi_bilinear_matrix_save(idx_a(i),idx_b(j),1)
+      k = k + 1
+    enddo
+  enddo
+  k = k - 1
+  call add_det_wf(buff_det,buff_coef,k)
+  deallocate(buff_det,buff_coef,buff_a,buff_b,idx_a,idx_b)
+
 end
 
 subroutine reduce_psi_bilinear(N)

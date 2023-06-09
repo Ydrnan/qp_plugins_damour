@@ -440,7 +440,14 @@ subroutine pt2_by_line(Na_save,psi_a_save,Nb_save,psi_b_save,psi_bilinear_matrix
   e_column = 0d0
   e_line = 0d0
 
-  !print*,psi_det_alpha_unique(:,1:N_det_alpha_unique)
+  !$omp parallel &
+  !$omp shared(Na_save,Nb_save,psi_a_save,psi_b_save,psi_det,psi_coef,&
+  !$omp psi_bilinear_matrix_save,N_det,N_states,psi_energy,&
+  !$omp e_line,e_column,N_int) &
+  !$omp private(det,e,ihpsi,ihi,i,j,c,s,is_in) &
+  !$omp default(none)
+
+  !$omp do
   do j = 1, Nb_save
     det(:,2) = psi_b_save(:,j)
     do i = 1, Na_save
@@ -462,12 +469,11 @@ subroutine pt2_by_line(Na_save,psi_a_save,Nb_save,psi_b_save,psi_bilinear_matrix
         e_line(i,s) = e_line(i,s) + e(s)
         !print*,i,e(s)!,psi_bilinear_matrix_save(i,j,s)
       enddo
-      !if (e(1) /= 0d0) then
-      !  print*,'col',det,is_in
-      !endif
     enddo
   enddo
+  !$omp end do nowait
 
+  !$omp do
   do j = 1, Nb_save
     det(:,2) = psi_b_save(:,j)
     is_in = is_in_psi_det_beta_unique(det(1,2),N_int)
@@ -489,22 +495,9 @@ subroutine pt2_by_line(Na_save,psi_a_save,Nb_save,psi_b_save,psi_bilinear_matrix
         e_column(j,s) = e_column(j,s) + e(s)
         !print*,i,e(s)!,psi_bilinear_matrix_save(i,j,s)
       enddo
-      !if (e(1) /= 0d0) then
-      !  print*,'lin',det
-      !endif
     enddo
   enddo
+  !$omp end do
+  !$omp end parallel
   
-  !print*,'c',e_column
-  !print*,'l',e_line
-  
-  !do i = 1, Na_save
-  !  call print_det((/psi_a_save(1,i),psi_a_save(1,i)/),N_int)
-  !  print*,'l',i,e_line(i,1)
-  !enddo
-  !do j = 1, Nb_save
-  !  call print_det((/psi_b_save(1,j),psi_b_save(1,j)/),N_int)
-  !  print*,'c',j,e_column(j,1)
-  !enddo
-
 end

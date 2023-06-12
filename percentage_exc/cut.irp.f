@@ -37,6 +37,8 @@ program cut
 
   call reduce_psi_bilinear(2*n_max)
   print*,'Done'
+  print*,''
+  print*,'Norm after the initial cut:',dsqrt(sum(psi_coef(:,1)**2))
 
   print*,'N_det', N_det
   N_det_save = N_det
@@ -60,7 +62,6 @@ program cut
 
   N_det = 1
   TOUCH psi_det psi_coef N_det
-  !print*,'norm1',dsqrt(sum(psi_coef(1:N_det,1)**2))
   
   allocate(e_tmp(Na_save+Nb_save))
   allocate(tmp_order(Na_save+Nb_save))
@@ -115,8 +116,9 @@ program cut
       cost = cost/cost0
 
      if (.True.) then
+      norm = dsqrt(sum(psi_coef(1:N_det,1)**2))
       !print*,'E:',n_max,N_det,psi_energy+nuclear_repulsion
-      write(*,'(I10,F10.2,F20.10,F14.8)') N_det,cost,psi_energy+nuclear_repulsion,dsqrt(sum(psi_coef(1:N_det,:)**2))
+      write(*,'(I10,F10.2,F20.10,F14.8)') N_det,cost,psi_energy+nuclear_repulsion,norm
      endif
       
      !print*,''
@@ -167,7 +169,9 @@ program cut
   enddo
 
   ! Remove columns/lines by norm
-  
+ 
+  call save_wavefunction()
+ 
 end
 
 subroutine add_line_col_from_pt2(n_max,n_col,n_line,Na_save,psi_a_save, &

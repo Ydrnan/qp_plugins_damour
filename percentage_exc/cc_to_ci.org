@@ -535,9 +535,11 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   ! Save wf
   call fill_H_apply_buffer_no_selection(sze_cc,psi_det_cc,N_int,0)
   call copy_H_apply_buffer_to_wf
-  psi_coef(:,1) = psi_coef_cc
-  psi_det = psi_det_cc
   N_det = sze_cc
+  psi_coef(:,1) = 0d0
+  psi_det(:,:,:) = 0
+  psi_coef(1:N_det,1) = psi_coef_cc
+  psi_det(:,:,1:N_det) = psi_det_cc
   !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   TOUCH psi_det psi_coef N_det
   call save_wavefunction()
@@ -1109,9 +1111,11 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   ! Save wf
   call fill_H_apply_buffer_no_selection(sze_cc,psi_det_cc,N_int,0)
   call copy_H_apply_buffer_to_wf
-  psi_coef(:,1) = psi_coef_cc
-  psi_det = psi_det_cc
   N_det = sze_cc
+  psi_coef(:,1) = 0d0
+  psi_det(:,:,:) = 0
+  psi_coef(1:N_det,1) = psi_coef_cc
+  psi_det(:,:,1:N_det) = psi_det_cc
   !call save_wf_cc(psi_det_cc,psi_coef_cc,sze_cc)
   TOUCH psi_det psi_coef N_det
   call save_wavefunction()

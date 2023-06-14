@@ -15,8 +15,13 @@ program cc_to_ci
   touch read_wf
 
   if (trim(io_amplitudes) /= 'Read') then
-    stop 'Please set io_amplitude to "Write" and run a ccsd calculation'
+    stop 'Please set io_amplitudes to "Write" and run a ccsd calculation'
   endif
+
+  print*, 'If the calculation stops just after this message, it means that the ccsd'
+  print*, 'calculation have been done with spatial orbitals.'
+  print*, 'Against that, reset io_amplitudes to "Write" and run:'
+  print*, 'qp run ccsd_spin_orb'
   
   nO = cc_nOab
   nV = cc_nVab

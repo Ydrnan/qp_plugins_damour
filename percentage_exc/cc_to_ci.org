@@ -13,6 +13,10 @@ program cc_to_ci
 
   read_wf = .True.
   touch read_wf
+
+  if (trim(io_amplitudes) /= 'Read') then
+    stop 'Please set io_amplitude to "Write" and run a ccsd calculation'
+  endif
   
   nO = cc_nOab
   nV = cc_nVab

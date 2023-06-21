@@ -738,7 +738,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   call recursive_sort_idx(t122_f,t122_idx_f,sze_t122_f,10,1)
   call recursive_sort_idx(t123_f,t123_idx_f,sze_t123_f,12,1)
   call recursive_sort_idx(t222_f,t222_idx_f,sze_t222_f,12,1)
-  call recursive_sort_idx(t1111_f,t111_idx_f,sze_t1111_f,8,1)
+  call recursive_sort_idx(t1111_f,t1111_idx_f,sze_t1111_f,8,1)
   
   ! Remove the duplicate and accumulate
   call remove_duplicate_idx(t2_f,t2_idx_f,sze_t2_f,4)
@@ -851,7 +851,7 @@ subroutine smart_xc(nO,nV,t1_cc,t2_cc)
   deallocate(tmp_c3,tmp_c3_idx)
 
   ! C4
-  new_sze_c4 = sze_c4 + sze_t22_f + sze_t13_f + sze_t112_f
+  new_sze_c4 = sze_c4 + sze_t22_f + sze_t13_f + sze_t112_f + sze_t1111_f
   allocate(tmp_c4(new_sze_c4),tmp_c4_idx(8,new_sze_c4))
   
   do i = 1, sze_c4

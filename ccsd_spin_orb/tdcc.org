@@ -7,7 +7,7 @@ The Journal of Chemical Physics 101, 4936 (1994)
 http://dx.doi.org/10.1063/1.467416
 
 * Main
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 program tdcc
 
   implicit none
@@ -270,7 +270,7 @@ end
 
 * M
 ** M1
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine compute_M1_A(nO,nV,det,t1_A,t2_A,M1_A)
 
   implicit none
@@ -372,7 +372,7 @@ end
 #+end_src
 
 ** M1 act
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine compute_M1_A_act(nO,nV,det,t1_A,t2_A,M1_A)
 
   implicit none
@@ -492,7 +492,7 @@ end
 #+end_src
 
 ** M2
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine compute_M2_A(nO,nV,det,t1_A,t2_A,M2_A)
 
   implicit none
@@ -1845,7 +1845,7 @@ end
 #+end_src
 
 ** M2 sign
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine compute_M2_A_sign(nO,nV,det,t1_A,t2_A,M2_A)
 
   implicit none
@@ -3198,7 +3198,7 @@ end
 #+end_src
 
 ** M2 act
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine compute_M2_A_act(nO,nV,det,t1_A,t2_A,M2_A)
 
   implicit none
@@ -4791,7 +4791,7 @@ end
 #+end_src
 
 * Extract open orb spin
-#+begin_src f90 :comments org :tangle tdcc.irp.f
+#+begin_src f90 :comments org :notangle tdcc.irp.f
 subroutine extract_open_spin_orb(nO,nV,det,m,mb,n,nb)
 
   implicit none
